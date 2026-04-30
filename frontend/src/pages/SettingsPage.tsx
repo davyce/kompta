@@ -29,7 +29,7 @@ const EMPTY_PAYMENT_FORM = {
   bank_name: "",
   bank_code: "",
   paypal_email: "",
-  currency: "XOF",
+  currency: "XAF",
   instructions: "",
   enabled: true,
   use_for_pos: true,
@@ -306,9 +306,9 @@ export function SettingsPage() {
                     <option value="en">English</option>
                   </select>
                 </SettingRow>
-                <SettingRow icon={Globe} label="Devise" description="Devise principale (XOF par défaut au sein OHADA)">
+                <SettingRow icon={Globe} label="Devise" description="Devise principale CEMAC (XAF par défaut)">
                   <select disabled className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white opacity-70">
-                    <option>XOF — Franc CFA</option>
+                    <option>XAF — Franc CFA BEAC</option>
                   </select>
                 </SettingRow>
                 <SettingRow icon={User} label="Compte connecté" description={user?.email}>

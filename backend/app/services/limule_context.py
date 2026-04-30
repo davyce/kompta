@@ -90,7 +90,7 @@ def _safe_json(value: str, fallback: Any) -> Any:
 
 
 def _money(value: float | int | None) -> str:
-    return f"{float(value or 0):,.0f} XOF".replace(",", " ")
+    return f"{float(value or 0):,.0f} XAF".replace(",", " ")
 
 
 def _short(value: str, limit: int = 220) -> str:

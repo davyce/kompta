@@ -131,7 +131,7 @@ INTENT_PLAYBOOKS: dict[str, dict[str, str]] = {
         "format": "État opérationnel, blocages, action immédiate, contrôle après action",
     },
     "compliance_check": {
-        "goal": "vérifier la conformité OHADA/SYSCOHADA/CNPS avec prudence",
+        "goal": "vérifier la conformité CEMAC/SYSCOHADA/CNPS avec prudence",
         "format": "Constats, risques, pièces nécessaires, validation humaine",
     },
     "meeting_summary": {
@@ -158,9 +158,9 @@ def _clip(value: Any, limit: int = 180) -> str:
 
 def _money(value: Any) -> str:
     try:
-        return f"{float(value or 0):,.0f} XOF".replace(",", " ")
+        return f"{float(value or 0):,.0f} XAF".replace(",", " ")
     except Exception:
-        return "0 XOF"
+        return "0 XAF"
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -303,7 +303,7 @@ def _summarize_module(module_key: str, data: dict[str, Any]) -> list[str]:
             lines.append(
                 "- "
                 f"{account.get('provider')} | {account.get('label')} | "
-                f"{account.get('currency') or 'XOF'} | usages {', '.join(uses) or 'non défini'}"
+                f"{account.get('currency') or 'XAF'} | usages {', '.join(uses) or 'non défini'}"
             )
 
     return lines

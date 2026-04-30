@@ -78,7 +78,7 @@ const MODULES = [
   { key: "paie", icon: HandCoins, label: "Paie", desc: "Bulletins, virements, CNSS", color: "blue" },
   { key: "facturation", icon: FileText, label: "Facturation", desc: "Devis, factures, encaissements", color: "violet" },
   { key: "pos", icon: ShoppingCart, label: "POS / Caisse", desc: "Vente directe, caisse, reçus", color: "amber" },
-  { key: "declarations", icon: Shield, label: "Déclarations", desc: "Fiscalité, OHADA, conformité", color: "rose" },
+  { key: "declarations", icon: Shield, label: "Déclarations", desc: "Fiscalité CEMAC, SYSCOHADA, conformité", color: "rose" },
   { key: "assistants", icon: Bot, label: "Rédaction IA", desc: "Emails, contrats, courriers", color: "emerald" },
 ];
 
@@ -159,7 +159,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
   const [companyForm, setCompanyForm] = useState({
     legal_name: "",
     industry: "Commerce",
-    country: "Congo",
+    country: "République du Congo",
     primary_color: "#0f766e",
   });
   const [employeeForm, setEmployeeForm] = useState({
@@ -316,7 +316,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   { icon: Building2, label: "RH & Personnel", desc: "Gérez vos employés facilement" },
                   { icon: CreditCard, label: "Finance", desc: "Paie, facturation, déclarations" },
                   { icon: Bot, label: "IA Limule", desc: "Rédigez en quelques secondes" },
-                  { icon: Shield, label: "TERAS", desc: "Conformité OHADA automatique" },
+                  { icon: Shield, label: "TERAS", desc: "Conformité CEMAC/SYSCOHADA automatique" },
                   { icon: ShoppingCart, label: "POS", desc: "Caisse et encaissements" },
                   { icon: BarChart3, label: "Rapports", desc: "Tableaux de bord en temps réel" },
                 ].map(({ icon: Icon, label, desc }) => (
@@ -356,7 +356,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                     num: "1",
                     title: "Tableau de bord central",
                     desc: "Votre écran d'accueil résume tout : score TERAS, chiffres clés, alertes, actions rapides. Il se met à jour automatiquement.",
-                    example: "Exemple : « TERAS 81/100 · 3 alertes ouvertes · CA du mois : 4 200 000 XOF »",
+                    example: "Exemple : « TERAS 81/100 · 3 alertes ouvertes · CA du mois : 4 200 000 XAF »",
                   },
                   {
                     num: "2",
@@ -373,7 +373,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   {
                     num: "4",
                     title: "Limule rédige pour vous",
-                    desc: "L'IA Limule génère emails, contrats, rapports, courriers en français professionnel adapté à votre contexte OHADA.",
+                    desc: "L'IA Limule génère emails, contrats, rapports, courriers en français professionnel adapté à votre contexte CEMAC.",
                     example: "Exemple : Saisissez « email de bienvenue » et Limule génère un texte complet en 3 secondes.",
                   },
                 ].map(({ num, title, desc, example }) => (
@@ -438,22 +438,18 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Pays OHADA</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Pays CEMAC</span>
                   <select
                     value={companyForm.country}
                     onChange={(e) => setCompanyForm({ ...companyForm, country: e.target.value })}
                     className="mt-1 w-full rounded-lg border border-black/[0.06] px-3 py-2 outline-none focus:border-emerald-600"
                   >
-                    <option>Congo</option>
-                    <option>Côte d'Ivoire</option>
-                    <option>Sénégal</option>
+                    <option>République du Congo</option>
                     <option>Cameroun</option>
-                    <option>Bénin</option>
-                    <option>Burkina Faso</option>
-                    <option>Mali</option>
-                    <option>Niger</option>
-                    <option>RDC</option>
                     <option>Gabon</option>
+                    <option>Tchad</option>
+                    <option>République centrafricaine</option>
+                    <option>Guinée équatoriale</option>
                   </select>
                 </label>
               </div>
@@ -549,7 +545,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Salaire brut (XOF)</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Salaire brut (XAF)</span>
                   <input
                     type="number"
                     placeholder="ex : 350000"
@@ -644,7 +640,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <div className="text-center">
                 <h2 className="text-xl font-black text-[#17211f]">Limule — Votre assistant IA</h2>
                 <p className="text-sm text-[#717182] mt-1">
-                  Limule rédige des documents professionnels en français, adaptés au contexte OHADA.
+                  Limule rédige des documents professionnels en français, adaptés au contexte CEMAC.
                   <br /><strong>Testez-le maintenant :</strong>
                 </p>
               </div>
@@ -897,4 +893,3 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-

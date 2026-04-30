@@ -1,6 +1,6 @@
 # KOMPTA — Gestion d'entreprise locale
 
-> Application de gestion tout-en-un pour PME africaines (OHADA/SYSCOHADA).
+> Application de gestion tout-en-un pour PME de la zone CEMAC (XAF) avec référentiel SYSCOHADA.
 > Stack : **FastAPI 0.111** + **SQLite** · **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**.
 > IA intégrée via **Limule** (DeepSeek `deepseek-chat`) avec streaming SSE.
 > Conformité réglementaire via **TERAS Connect** (moteur local + connecteur API).
@@ -38,7 +38,7 @@
 | **Documents** | Upload, classification IA, analyse, rattachement employé |
 | **Agenda** | Réunions, ordre du jour, participants, liens visio |
 | **Tâches** | Kanban board, priorités, affectation équipe |
-| **Déclarations** | Assistance IA déclarations fiscales/sociales OHADA |
+| **Déclarations** | Assistance IA déclarations fiscales/sociales CEMAC |
 | **TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA |
 | **Limule (IA)** | Assistant conversationnel streaming, rédaction, analyse |
 | **Paramètres** | Profil entreprise, utilisateurs, RBAC, journal d'audit |
@@ -301,7 +301,7 @@ npm run preview        # serveur preview local
 
 ### Déclarations
 
-- Modèles assistés OHADA/SYSCOHADA
+- Modèles assistés CEMAC/SYSCOHADA
 - Rédaction IA avec exemples pré-remplis
 - Calcul automatique des montants
 
@@ -439,7 +439,7 @@ Limule est l'assistant IA de KOMPTA, propulsé par **DeepSeek** (`deepseek-chat`
 
 - **Rédaction** : Emails professionnels, courriers RH, clauses contractuelles
 - **Analyse** : Lecture de documents, extraction d'informations clés
-- **Conseil** : Aide aux déclarations OHADA, règles sociales locales
+- **Conseil** : Aide aux déclarations CEMAC, règles sociales locales
 - **Contextualisation** : Accès aux données live (nom entreprise, score TERAS, effectif…)
 
 ### Variables contextuelles disponibles dans les prompts

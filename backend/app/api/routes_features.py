@@ -200,9 +200,9 @@ BT
 0 -30 Td ({company_name}) Tj
 0 -20 Td (Reference : {slip.reference}) Tj
 0 -20 Td (Employe    : {slip.employee_name}) Tj
-0 -40 Td (Salaire brut     : {slip.gross_pay:,.0f} XOF) Tj
-0 -20 Td (Deductions       : {slip.deductions:,.0f} XOF) Tj
-0 -20 Td (NET A PAYER      : {slip.net_pay:,.0f} XOF) Tj
+0 -40 Td (Salaire brut     : {slip.gross_pay:,.0f} XAF) Tj
+0 -20 Td (Deductions       : {slip.deductions:,.0f} XAF) Tj
+0 -20 Td (NET A PAYER      : {slip.net_pay:,.0f} XAF) Tj
 0 -30 Td (Mode paiement : {slip.payout_method}) Tj
 0 -20 Td (Destination    : {slip.payout_destination}) Tj
 0 -20 Td (Statut paiement: {slip.payout_status}) Tj
@@ -432,7 +432,7 @@ def export_pos_sales_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Reçu", "Date", "Montant (XOF)", "Méthode paiement", "Statut", "Produits"])
+    writer.writerow(["Reçu", "Date", "Montant (XAF)", "Méthode paiement", "Statut", "Produits"])
 
     for sale in sales:
         items_str = "; ".join(

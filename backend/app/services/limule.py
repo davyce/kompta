@@ -7,7 +7,7 @@ Architecture :
   └──────────────┘      └──────────────────────┘      └───────────┘
                                    │
                     Injecte le contexte réel depuis la DB
-                    (entreprise, employés, TERAS, FCFA…)
+                    (entreprise, employés, TERAS, XAF…)
 
 Providers supportés via AI_PROVIDER dans .env :
   - deepseek  (défaut, utilise DEEPSEEK_API_KEY)
@@ -52,8 +52,8 @@ VARIABLE_CATALOGUE: dict[str, str] = {
     "annee_en_cours":   "Année en cours (AAAA)",
     "teras_score":      "Score TERAS de conformité global",
     "nb_employes":      "Nombre d'employés actifs",
-    "chiffre_affaires": "CA du mois courant (FCFA)",
-    "salaire_moyen":    "Salaire moyen net (FCFA)",
+    "chiffre_affaires": "CA du mois courant (XAF)",
+    "salaire_moyen":    "Salaire moyen net (XAF)",
     "employe_nom":      "Nom du premier employé actif",
 }
 
@@ -149,7 +149,7 @@ def resolve_variables(
                 )
             ) or 0
             total = int(inv_total + sale_total)
-            resolved[var] = f"{total:,} FCFA".replace(",", " ")
+            resolved[var] = f"{total:,} XAF".replace(",", " ")
 
         elif var == "salaire_moyen":
             avg = db.scalar(
@@ -158,7 +158,7 @@ def resolve_variables(
                     Employee.status == "active",
                 )
             )
-            resolved[var] = f"{int(avg or 0):,} FCFA".replace(",", " ")
+            resolved[var] = f"{int(avg or 0):,} XAF".replace(",", " ")
 
         elif var == "employe_nom":
             emp = db.scalars(
@@ -186,7 +186,7 @@ _SYSTEM_PROMPTS: dict[str, str] = {
         "Tu es Limule, assistant rédactionnel IA de KOMPTA — ERP local-first pour PME africaines.\n"
         "Tu rédiges un email professionnel en français, sobre et directement utilisable.\n"
         "Structure : objet clair, formule d'appel, corps concis, conclusion orientée action, salutation.\n"
-        "Adapte le ton OHADA : respectueux, professionnel, direct. Ne mentionne pas que tu es une IA."
+        "Adapte le ton CEMAC/SYSCOHADA : respectueux, professionnel, direct. Ne mentionne pas que tu es une IA."
     ),
     "note": (
         "Tu es Limule, assistant IA de KOMPTA.\n"
@@ -196,13 +196,13 @@ _SYSTEM_PROMPTS: dict[str, str] = {
     ),
     "clause": (
         "Tu es Limule, juriste assistant IA de KOMPTA.\n"
-        "Tu rédiges une clause contractuelle conforme au droit OHADA et applicable dans la zone UEMOA/CEMAC.\n"
+        "Tu rédiges une clause contractuelle conforme au droit applicable en zone CEMAC, avec les règles SYSCOHADA pertinentes.\n"
         "Vocabulaire juridique précis, clair, sans ambiguïté. Inclure références légales si pertinent.\n"
         "Ne mentionne pas que tu es une IA."
     ),
     "declaration": (
         "Tu es Limule, assistant conformité de KOMPTA.\n"
-        "Tu prépares une analyse pré-déclarative pour une PME soumise au droit fiscal OHADA.\n"
+        "Tu prépares une analyse pré-déclarative pour une PME opérant en zone CEMAC.\n"
         "Structure : (1) pièces nécessaires, (2) pièces manquantes probables, (3) risques, "
         "(4) checklist de validation humaine.\n"
         "Français professionnel. Ne mentionne pas que tu es une IA."
@@ -239,8 +239,8 @@ _SYSTEM_PROMPTS: dict[str, str] = {
     ),
     "compliance_check": (
         "Tu es Limule, assistant conformité TERAS de KOMPTA.\n"
-        "Tu effectues un contrôle de conformité OHADA pour une PME africaine.\n"
-        "Identifie les risques, cite les textes OHADA applicables, propose des actions correctives.\n"
+        "Tu effectues un contrôle de conformité CEMAC/SYSCOHADA pour une PME africaine.\n"
+        "Identifie les risques, cite les règles CEMAC/SYSCOHADA applicables, propose des actions correctives.\n"
         "Structure : risques identifiés → recommandations → priorités.\n"
         "Ne mentionne pas que tu es une IA."
     ),
@@ -248,7 +248,7 @@ _SYSTEM_PROMPTS: dict[str, str] = {
 
 _DEFAULT_SYSTEM = (
     "Tu es Limule, l'assistant IA de KOMPTA — ERP local-first pour PME africaines.\n"
-    "Tu connais le droit OHADA, le plan SYSCOHADA, la CNPS et les pratiques RH locales.\n"
+    "Tu connais la zone CEMAC, la devise XAF, le plan SYSCOHADA, la CNPS/CNSS et les pratiques RH locales.\n"
     "Réponds en français professionnel, directement utilisable par une entreprise.\n"
     "Ne mentionne jamais que tu es une IA."
 )
@@ -641,7 +641,7 @@ def _fallback_content(kind: str, prompt: str, user: Any = None) -> str:
         return (
             f"CLAUSE — {prompt}\n\n"
             f"Le Salarié s'engage à respecter les dispositions suivantes dans l'exercice "
-            f"de ses fonctions au sein de l'entreprise, conformément aux textes OHADA "
+            f"de ses fonctions au sein de l'entreprise, conformément aux textes applicables en zone CEMAC "
             f"en vigueur. Tout manquement pourra donner lieu à des sanctions disciplinaires "
             f"conformes au règlement intérieur et au Code du travail applicable." + sig
         )

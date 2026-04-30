@@ -2,14 +2,14 @@ const FR = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 const FR1 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
 export function money(value: number): string {
-  return `${FR.format(value)} F CFA`;
+  return `${FR.format(value)} XAF`;
 }
 
 export function compactMoney(value: number): string {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M F CFA`;
-  if (abs >= 1_000) return `${FR.format(value / 1_000)} k F CFA`;
-  return `${FR.format(value)} F CFA`;
+  if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M XAF`;
+  if (abs >= 1_000) return `${FR.format(value / 1_000)} k XAF`;
+  return `${FR.format(value)} XAF`;
 }
 
 export function shortDate(value: string | null): string {

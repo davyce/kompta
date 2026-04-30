@@ -1580,7 +1580,7 @@ def export_invoice_html(
             headers={"Content-Disposition": f'attachment; filename="facture-{invoice.number}.pdf"'},
         )
     lines_html = "".join(
-        f"<tr><td>{l.description}</td><td style='text-align:center'>{l.quantity}</td><td style='text-align:right'>{l.unit_price:,.0f} F CFA</td><td style='text-align:right'>{l.total:,.0f} F CFA</td></tr>"
+        f"<tr><td>{l.description}</td><td style='text-align:center'>{l.quantity}</td><td style='text-align:right'>{l.unit_price:,.0f} XAF</td><td style='text-align:right'>{l.total:,.0f} XAF</td></tr>"
         for l in invoice.lines
     )
     html = f"""<!doctype html><html lang="fr"><head><meta charset="UTF-8">
@@ -1614,7 +1614,7 @@ def export_invoice_html(
 </div>
 <table><thead><tr><th>Description</th><th style="text-align:center">Qté</th><th style="text-align:right">Prix unit.</th><th style="text-align:right">Total</th></tr></thead>
 <tbody>{lines_html}</tbody></table>
-<div class="total">Total TTC : {invoice.total_amount:,.0f} F CFA</div>
+<div class="total">Total TTC : {invoice.total_amount:,.0f} XAF</div>
 <div class="footer">KOMPTA · Référentiel SYSCOHADA Révisé · Document généré automatiquement<br>
 <button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">Imprimer / Enregistrer en PDF</button></div>
 </body></html>"""
@@ -1648,9 +1648,9 @@ def export_payroll_html(
           <div style="text-align:right"><span style="background:#f0faf9;color:#0f766e;padding:4px 10px;border-radius:6px;font-weight:700;font-size:13px">BULLETIN DE PAIE</span></div>
         </div>
         <table style="width:100%;border-collapse:collapse">
-          <tr><td style="padding:6px 0;color:#666">Salaire brut</td><td style="text-align:right;font-weight:600">{s.gross_pay:,.0f} F CFA</td></tr>
-          <tr><td style="padding:6px 0;color:#666">Cotisations (10%)</td><td style="text-align:right;color:#e05252">-{s.deductions:,.0f} F CFA</td></tr>
-          <tr style="border-top:2px solid #0f766e"><td style="padding:8px 0;font-weight:900">Net à payer</td><td style="text-align:right;font-weight:900;color:#0f766e;font-size:16px">{s.net_pay:,.0f} F CFA</td></tr>
+          <tr><td style="padding:6px 0;color:#666">Salaire brut</td><td style="text-align:right;font-weight:600">{s.gross_pay:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#666">Cotisations (10%)</td><td style="text-align:right;color:#e05252">-{s.deductions:,.0f} XAF</td></tr>
+          <tr style="border-top:2px solid #0f766e"><td style="padding:8px 0;font-weight:900">Net à payer</td><td style="text-align:right;font-weight:900;color:#0f766e;font-size:16px">{s.net_pay:,.0f} XAF</td></tr>
         </table></div>"""
         for s in run.payslips
     )
@@ -1662,8 +1662,8 @@ def export_payroll_html(
   <div><div style="font-size:26px;font-weight:900;color:#0f766e">{company.name if company else "KOMPTA"}</div>
   <div style="color:#666;font-size:13px">Paie – Période : <strong>{run.period}</strong></div></div>
   <div style="text-align:right;font-size:13px">
-    <div>Brut total : <strong>{run.gross_total:,.0f} F CFA</strong></div>
-    <div>Net total : <strong style="color:#0f766e">{run.net_total:,.0f} F CFA</strong></div>
+    <div>Brut total : <strong>{run.gross_total:,.0f} XAF</strong></div>
+    <div>Net total : <strong style="color:#0f766e">{run.net_total:,.0f} XAF</strong></div>
     <div style="color:#666">{len(run.payslips)} bulletin(s)</div>
   </div>
 </div>

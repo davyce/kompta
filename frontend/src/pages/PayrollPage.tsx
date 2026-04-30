@@ -170,7 +170,7 @@ export function PayrollPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Masse salariale"
-          value={totalGross > 0 ? `${(totalGross / 1_000_000).toFixed(1)} M XOF` : "—"}
+          value={totalGross > 0 ? `${(totalGross / 1_000_000).toFixed(1)} M XAF` : "—"}
           delta={totalGross > 0 ? "+1,2%" : undefined}
           hint="incl. charges sociales"
           accent="teal"
@@ -189,7 +189,7 @@ export function PayrollPage() {
         />
         <KpiCard
           label="Versements"
-          value={totalNet > 0 ? `${(totalNet / 1_000_000).toFixed(1)} M XOF` : "—"}
+          value={totalNet > 0 ? `${(totalNet / 1_000_000).toFixed(1)} M XAF` : "—"}
           hint={latestRun?.payment_account_label || "Mobile money / banque / PayPal"}
           accent="sky"
         />
@@ -301,7 +301,7 @@ export function PayrollPage() {
                 <div className="my-2 border-t border-black/[0.06] dark:border-white/[0.06]" />
                 <div className={`flex items-center justify-between font-semibold ${highlightedColor.text}`}>
                   <span>Net à payer</span>
-                  <span>{money(latestRun.payslips[0].net_pay)} XOF</span>
+                  <span>{money(latestRun.payslips[0].net_pay)}</span>
                 </div>
                 <div className="rounded-lg bg-black/[0.03] px-3 py-2 text-xs text-[#717182] dark:bg-white/[0.05]">
                   Versement : {latestRun.payslips[0].payout_method || "non défini"} · {latestRun.payslips[0].payout_destination || "destination manquante"}
@@ -345,7 +345,7 @@ export function PayrollPage() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm">
                     <span className={`font-semibold ${employeeColor.text}`}>{slip.employee_name}</span>
-                    <span className="text-[#717182]"> — {i === 0 ? "Cotisation CNPS supérieure de 4 200 XOF au plafond — vérifier l'assiette" : `Bulletin ${slip.reference} en attente de validation`}</span>
+                    <span className="text-[#717182]"> — {i === 0 ? "Cotisation CNPS supérieure de 4 200 XAF au plafond — vérifier l'assiette" : `Bulletin ${slip.reference} en attente de validation`}</span>
                   </div>
                     <p className="mt-1 text-xs text-[#717182]">
                       Versement {slip.payout_method || "non défini"} · {slip.payout_destination || "destination manquante"} · {slip.payout_status === "ready" ? "prêt" : "à compléter"}
@@ -397,7 +397,7 @@ export function PayrollPage() {
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${run.status === "validated" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                     {run.status === "validated" ? "Validé" : run.status}
                   </span>
-                  <span className="font-semibold text-sm text-[#17211f] dark:text-white">{money(run.net_total)} XOF</span>
+                  <span className="font-semibold text-sm text-[#17211f] dark:text-white">{money(run.net_total)}</span>
                   <button
                     onClick={() => exportRun(run.id, run.period)}
                     disabled={exportingId === run.id}

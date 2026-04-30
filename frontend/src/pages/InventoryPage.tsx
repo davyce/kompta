@@ -219,7 +219,7 @@ export function InventoryPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "Valeur stock", value: `${(totalValue / 1_000_000).toFixed(1)} M`, hint: "prix de vente · XOF", accent: "indigo" },
+          { label: "Valeur stock", value: `${(totalValue / 1_000_000).toFixed(1)} M`, hint: "prix de vente · XAF", accent: "indigo" },
           { label: "Ruptures", value: ruptures.length.toString(), hint: "à réapprovisionner urgt.", accent: "rose" },
           { label: "Sous seuil", value: lowStock.length.toString(), hint: "seuils d'alerte dépassés", accent: "amber" },
           { label: "Références", value: (products.data?.length ?? "…").toString(), hint: "produits actifs", accent: "sky" },
@@ -443,7 +443,7 @@ export function InventoryPage() {
                       <QRCodeSVG value={p.qr_code || p.sku} size={104} level="M" includeMargin />
                       <p className="font-mono text-[10px] text-[#717182] truncate w-full">{p.sku}</p>
                       <p className="font-medium text-[#17211f] dark:text-white truncate w-full">{p.name}</p>
-                      <p className="text-emerald-600">{p.price.toLocaleString("fr-FR")} XOF</p>
+                      <p className="text-emerald-600">{p.price.toLocaleString("fr-FR")} XAF</p>
                       <button onClick={() => openQr(p)} className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
                         Agrandir
                       </button>
@@ -542,7 +542,7 @@ export function InventoryPage() {
             </label>
           ))}
           {[
-            { label: "Prix unitaire (XOF)", key: "price" },
+            { label: "Prix unitaire (XAF)", key: "price" },
             { label: "Quantité en stock", key: "stock_quantity" },
             { label: "Seuil de réapprovisionnement", key: "reorder_level" },
           ].map((f) => (
@@ -619,7 +619,7 @@ export function InventoryPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-[#17211f] dark:text-white">{scanResult.name} — {scanResult.sku}</p>
-                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {scanResult.price.toLocaleString("fr-FR")} XOF</p>
+                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {scanResult.price.toLocaleString("fr-FR")} XAF</p>
                   </div>
                 </div>
               )}

@@ -169,7 +169,7 @@ export function PosPage() {
       const rows = await listPending();
       setPendingCount(rows.length);
       const tot = cart.reduce((s, i) => s + i.price * i.quantity * 1.18, 0);
-      setOfflineConfirm(`Vente de ${Math.round(tot).toLocaleString("fr-FR")} XOF mise en file hors-ligne.`);
+      setOfflineConfirm(`Vente de ${Math.round(tot).toLocaleString("fr-FR")} XAF mise en file hors-ligne.`);
       setCart([]);
       setTimeout(() => setOfflineConfirm(null), 7000);
     } else {
@@ -291,7 +291,7 @@ export function PosPage() {
                 <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{p.name}</p>
                 <p className="text-xs text-[#717182]">{p.category}</p>
                 <p className="mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                  {p.price.toLocaleString("fr-FR")} XOF
+                  {p.price.toLocaleString("fr-FR")} XAF
                 </p>
               </button>
             ))}
@@ -332,7 +332,7 @@ export function PosPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{item.name}</p>
-                  <p className="text-xs text-[#717182]">{item.price.toLocaleString("fr-FR")} XOF</p>
+                  <p className="text-xs text-[#717182]">{item.price.toLocaleString("fr-FR")} XAF</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => updateQty(item.product_id, item.quantity - 1)} className="flex h-7 w-7 items-center justify-center rounded-md border border-black/[0.08] hover:bg-[#f5f5fa] dark:border-white/10">
@@ -356,15 +356,15 @@ export function PosPage() {
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-[#717182]">
               <span>Sous-total</span>
-              <span>{subtotal.toLocaleString("fr-FR")} XOF</span>
+              <span>{subtotal.toLocaleString("fr-FR")} XAF</span>
             </div>
             <div className="flex justify-between text-[#717182]">
               <span>TVA 18%</span>
-              <span>{tax.toLocaleString("fr-FR")} XOF</span>
+              <span>{tax.toLocaleString("fr-FR")} XAF</span>
             </div>
             <div className="flex justify-between border-t border-black/[0.06] pt-2 text-base font-semibold text-[#17211f] dark:border-white/[0.06] dark:text-white">
               <span>Total</span>
-              <span className="text-emerald-700 dark:text-emerald-400">{total.toLocaleString("fr-FR")} XOF</span>
+              <span className="text-emerald-700 dark:text-emerald-400">{total.toLocaleString("fr-FR")} XAF</span>
             </div>
           </div>
 
@@ -421,14 +421,14 @@ export function PosPage() {
             }`}
           >
             {sale.isPending ? "Traitement…" : !isOnline
-              ? `Sauvegarder hors-ligne${total ? " · " + total.toLocaleString("fr-FR") + " XOF" : ""}`
-              : `Encaisser${total ? " " + total.toLocaleString("fr-FR") + " XOF" : ""}`}
+              ? `Sauvegarder hors-ligne${total ? " · " + total.toLocaleString("fr-FR") + " XAF" : ""}`
+              : `Encaisser${total ? " " + total.toLocaleString("fr-FR") + " XAF" : ""}`}
           </button>
 
           {sale.error && <p className="text-xs text-rose-600">{sale.error.message}</p>}
           {sale.data && (
             <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-              ✓ Reçu {sale.data.receipt_number} · {sale.data.total_amount.toLocaleString("fr-FR")} XOF encaissé
+              ✓ Reçu {sale.data.receipt_number} · {sale.data.total_amount.toLocaleString("fr-FR")} XAF encaissé
             </p>
           )}
         </div>

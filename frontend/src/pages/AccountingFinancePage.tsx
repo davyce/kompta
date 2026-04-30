@@ -14,7 +14,7 @@ import {
 import { api } from "../services/api";
 import { compactMoney, money } from "../utils/format";
 
-const OHADA = [
+const SYSCOHADA_CLASSES = [
   { n: 1, label: "Ressources durables",    desc: "Capitaux propres, dettes financières à long terme",                  c: "#4f46e5" },
   { n: 2, label: "Actifs immobilisés",     desc: "Immobilisations corporelles, incorporelles, financières",             c: "#0f766e" },
   { n: 3, label: "Stocks",                 desc: "Marchandises, matières premières, produits finis",                   c: "#f59e0b" },
@@ -80,7 +80,7 @@ export function AccountingFinancePage() {
   const invoicesTotal = overview.data?.kpis.invoices_total ?? 0;
   const salesTotal    = overview.data?.kpis.sales_total    ?? 0;
 
-  // Cashflow chart in M XOF
+  // Cashflow chart in M XAF
   const cashflowChart = useMemo(
     () => (cashflow.data ?? []).map((p) => ({
       m: p.label,
@@ -147,7 +147,7 @@ export function AccountingFinancePage() {
           </div>
           <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Finance et Comptabilité</h1>
           <p className="mt-1 text-sm text-[#717182]">
-            {invoices.data?.length ?? 0} factures · Référentiel OHADA
+            {invoices.data?.length ?? 0} factures · Référentiel SYSCOHADA · Zone CEMAC/XAF
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -155,7 +155,7 @@ export function AccountingFinancePage() {
             onClick={() => setPlanOpen((v) => !v)}
             className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300 transition"
           >
-            <BookOpen size={16} /> Plan comptable OHADA
+            <BookOpen size={16} /> Plan comptable SYSCOHADA
           </button>
           <button
             onClick={() => setTab(1)}
@@ -176,18 +176,18 @@ export function AccountingFinancePage() {
         </div>
       </div>
 
-      {/* ── OHADA panel ── */}
+      {/* ── SYSCOHADA panel ── */}
       {planOpen && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable OHADA actif — SYSCOHADA Révisé</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCOHADA actif — CEMAC/XAF</h3>
             <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">9 classes</span>
           </div>
           <p className="mb-4 text-sm text-[#717182]">
-            Référentiel comptable unifié de l'OHADA adopté par 17 États membres. Cliquez pour voir le détail.
+            Référentiel comptable SYSCOHADA utilisé en zone CEMAC. Cliquez pour voir le détail des classes.
           </p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {OHADA.map((cls) => (
+            {SYSCOHADA_CLASSES.map((cls) => (
               <button
                 key={cls.n}
                 onClick={() => setExpanded(expanded === cls.n ? null : cls.n)}
@@ -209,11 +209,11 @@ export function AccountingFinancePage() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm">
-            <span className="font-bold text-emerald-800 dark:text-emerald-300">SYSCOHADA Révisé</span>
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">SYSCOHADA Révisé · CEMAC</span>
             <span className="text-emerald-400">·</span>
             <span className="text-emerald-700 dark:text-emerald-400">En vigueur depuis le 1er janvier 2018</span>
             <span className="text-emerald-400">·</span>
-            <span className="text-emerald-700 dark:text-emerald-400">17 États membres</span>
+            <span className="text-emerald-700 dark:text-emerald-400">Devise opérationnelle XAF</span>
           </div>
         </div>
       )}
@@ -254,7 +254,7 @@ export function AccountingFinancePage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
               <h3 className="font-bold text-[#17211f] dark:text-white">Flux entrants vs sortants</h3>
-              <p className="text-xs text-[#717182]">12 derniers mois · M F CFA</p>
+              <p className="text-xs text-[#717182]">12 derniers mois · M XAF</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600"/>Entrées</span>
@@ -277,7 +277,7 @@ export function AccountingFinancePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)"/>
                 <XAxis dataKey="m" stroke="#94a3b8" fontSize={11}/>
                 <YAxis stroke="#94a3b8" fontSize={11}/>
-                <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }} formatter={(v) => [`${v} M XOF`]}/>
+                <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }} formatter={(v) => [`${v} M XAF`]}/>
                 <Area type="monotone" dataKey="in"  stroke="#059669" fill="url(#gcIn)"  strokeWidth={2.5} dot={false}/>
                 <Area type="monotone" dataKey="out" stroke="#f43f5e" fill="url(#gcOut)" strokeWidth={2}   dot={false}/>
               </AreaChart>

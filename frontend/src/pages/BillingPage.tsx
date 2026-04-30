@@ -159,7 +159,7 @@ export function BillingPage() {
                 onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
               />
               <TextInput
-                label="Prix unitaire (F CFA)"
+                label="Prix unitaire (XAF)"
                 type="number"
                 value={form.unit_price}
                 onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })}

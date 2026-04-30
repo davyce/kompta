@@ -22,7 +22,7 @@ SOFT = colors.HexColor("#f0faf9")
 
 
 def _money(amount: float) -> str:
-    return f"{amount:,.0f}".replace(",", " ") + " F CFA"
+    return f"{amount:,.0f}".replace(",", " ") + " XAF"
 
 
 def _styles():

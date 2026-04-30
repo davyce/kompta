@@ -183,7 +183,7 @@ export function AssistantsPage() {
         <p className="text-sm font-semibold text-emerald-600">Rédaction IA</p>
         <h1 className="text-3xl font-black text-ink">Studio Limule</h1>
         <p className="mt-1 text-sm font-medium text-[#717182]">
-          Emails, notes, courriers et clauses générés avec variables dynamiques et contexte OHADA.
+          Emails, notes, courriers et clauses générés avec variables dynamiques et contexte CEMAC.
         </p>
       </div>
 
@@ -215,7 +215,7 @@ export function AssistantsPage() {
               Limule — LLM actif
             </p>
             <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-500">
-              Génération temps-réel · Variables DB · Contexte OHADA
+              Génération temps-réel · Variables DB · Contexte CEMAC
             </p>
           </div>
         </Panel>

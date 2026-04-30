@@ -372,7 +372,7 @@ class PaymentAccountBase(BaseModel):
     bank_name: str = ""
     bank_code: str = ""
     paypal_email: str = ""
-    currency: str = "XOF"
+    currency: str = "XAF"
     instructions: str = ""
     enabled: bool = True
     use_for_pos: bool = True

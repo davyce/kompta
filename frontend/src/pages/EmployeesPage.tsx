@@ -213,7 +213,7 @@ function EmployeeDrawer({
                   <option value="Stage">Stage / Alternance</option>
                 </SelectInput>
                 <TextInput
-                  label="Salaire de base (F CFA)"
+                  label="Salaire de base (XAF)"
                   type="number"
                   value={form.salary}
                   onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })}

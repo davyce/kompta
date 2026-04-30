@@ -90,7 +90,7 @@ export function DashboardPage() {
     if (overview.dataUpdatedAt) setLastRefreshed(new Date(overview.dataUpdatedAt));
   }, [overview.dataUpdatedAt]);
 
-  // Real revenue chart data (M XOF)
+  // Real revenue chart data (M XAF)
   const revenueChartData = useMemo(() => {
     const series = revenueSeries.data ?? [];
     return series.map((p) => ({
@@ -310,7 +310,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
               <h3 className="font-bold text-[#17211f] dark:text-white">Performance commerciale</h3>
-              <p className="text-xs text-[#717182]">Revenus &amp; marge — 12 derniers mois (M XOF)</p>
+              <p className="text-xs text-[#717182]">Revenus &amp; marge — 12 derniers mois (M XAF)</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5">
@@ -339,7 +339,7 @@ export function DashboardPage() {
                 <YAxis stroke="#94a3b8" fontSize={11} />
                 <Tooltip
                   contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
-                  formatter={(value) => [`${value} M XOF`]}
+                  formatter={(value) => [`${value} M XAF`]}
                 />
                 <Area type="monotone" dataKey="v" stroke="#059669" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name="Revenus" />
                 <Area type="monotone" dataKey="e" stroke="#10b981" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
@@ -601,7 +601,7 @@ export function DashboardPage() {
                       <span className="text-xs text-[#717182]">{r.p}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-[#717182]">{r.c} M XOF</td>
+                  <td className="px-5 py-3.5 text-[#717182]">{r.c} M XAF</td>
                   <td className="px-5 py-3.5">
                     <span className={`font-semibold ${r.t.startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
                       {r.t}

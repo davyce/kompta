@@ -98,7 +98,7 @@ class PaymentAccount(TimestampMixin, Base):
     bank_name: Mapped[str] = mapped_column(String(160), default="")
     bank_code: Mapped[str] = mapped_column(String(80), default="")
     paypal_email: Mapped[str] = mapped_column(String(255), default="")
-    currency: Mapped[str] = mapped_column(String(12), default="XOF")
+    currency: Mapped[str] = mapped_column(String(12), default="XAF")
     instructions: Mapped[str] = mapped_column(Text, default="")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     use_for_pos: Mapped[bool] = mapped_column(Boolean, default=True)
