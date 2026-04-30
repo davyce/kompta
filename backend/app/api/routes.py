@@ -25,6 +25,7 @@ from app.models import (
     InventoryMovement,
     Invoice,
     InvoiceLine,
+    LimuleInteraction,
     Meeting,
     Message,
     PaymentAccount,
@@ -60,6 +61,7 @@ from app.schemas import (
     CompanyRegistrationRequest,
     EmployeeCreate,
     EmployeeCreateWithAccount,
+    EmployeePayoutUpdate,
     EmployeeProvisioningResult,
     EmployeeQuickCreate,
     EmployeeRead,
@@ -67,6 +69,7 @@ from app.schemas import (
     EmployabilitySubmitRequest,
     FirstLoginChangePasswordRequest,
     InvoiceCreate,
+    InvoicePaymentCreate,
     InvoiceRead,
     LoginRequest,
     MessageCreate,
@@ -317,6 +320,7 @@ def reset_current_workspace(
     db.execute(delete(Message).where(Message.company_id == company_id))
     db.execute(delete(ChatChannel).where(ChatChannel.company_id == company_id))
     db.execute(delete(AIGeneration).where(AIGeneration.company_id == company_id))
+    db.execute(delete(LimuleInteraction).where(LimuleInteraction.company_id == company_id))
     db.execute(delete(DailyNote).where(DailyNote.company_id == company_id))
     db.execute(delete(DeclarationRecord).where(DeclarationRecord.company_id == company_id))
     db.execute(delete(Meeting).where(Meeting.company_id == company_id))
@@ -517,6 +521,57 @@ def _default_payment_account(db: Session, company_id: int, *, use_case: str) -> 
     )
 
 
+def _payment_account_for_method(
+    db: Session,
+    company_id: int,
+    provider: str,
+    *,
+    use_case: str,
+) -> PaymentAccount | None:
+    provider = _normalize_payment_provider(provider)
+    if provider in {"cash", "card"}:
+        return None
+    use_field = PaymentAccount.use_for_payroll if use_case == "payroll" else PaymentAccount.use_for_pos
+    default_field = PaymentAccount.is_default_payroll if use_case == "payroll" else PaymentAccount.is_default_pos
+    return db.scalar(
+        select(PaymentAccount)
+        .where(
+            PaymentAccount.company_id == company_id,
+            PaymentAccount.enabled == True,  # noqa: E712
+            use_field == True,  # noqa: E712
+            PaymentAccount.provider == provider,
+        )
+        .order_by(default_field.desc(), PaymentAccount.created_at.asc())
+        .limit(1)
+    )
+
+
+def _resolve_payment_account(
+    db: Session,
+    current_user: User,
+    *,
+    payment_method: str,
+    payment_account_id: int | None,
+    use_case: str,
+) -> tuple[str, PaymentAccount | None]:
+    method = _normalize_payment_provider(payment_method)
+    account: PaymentAccount | None = None
+    if payment_account_id:
+        account = _get_payment_account(db, payment_account_id, current_user)
+        allowed = account.use_for_payroll if use_case == "payroll" else account.use_for_pos
+        if not account.enabled or not allowed:
+            raise HTTPException(status_code=400, detail="Ce compte n'est pas active pour ce paiement")
+        method = account.provider
+    elif method not in {"cash", "card"}:
+        account = _payment_account_for_method(db, current_user.company_id, method, use_case=use_case)
+        if not account:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Aucun compte {method} actif n'est configure pour ce paiement",
+            )
+    return method, account
+
+
 @router.get("/payment-accounts", response_model=list[PaymentAccountRead])
 def list_payment_accounts(
     db: Session = Depends(get_db),
@@ -580,6 +635,63 @@ def delete_payment_account(
     db.delete(account)
     db.commit()
     return Response(status_code=204)
+
+
+@router.get("/employees/me/payout", response_model=EmployeeRead)
+def get_my_employee_payout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Employee:
+    if not current_user.employee_id:
+        raise HTTPException(status_code=404, detail="Aucun profil employe lie a ce compte")
+    employee = db.get(Employee, current_user.employee_id)
+    if not employee or employee.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Profil employe introuvable")
+    return employee
+
+
+@router.patch("/employees/me/payout", response_model=EmployeeRead)
+def update_my_employee_payout(
+    payload: EmployeePayoutUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Employee:
+    if not current_user.employee_id:
+        raise HTTPException(status_code=404, detail="Aucun profil employe lie a ce compte")
+    employee = db.get(Employee, current_user.employee_id)
+    if not employee or employee.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Profil employe introuvable")
+
+    method = _normalize_payment_provider(payload.payout_method)
+    if method not in {"mobile_money", "zola", "bank", "paypal"}:
+        raise HTTPException(status_code=400, detail="Methode de paiement paie invalide")
+    if method in {"mobile_money", "zola"} and not payload.payout_phone.strip():
+        raise HTTPException(status_code=400, detail="Numero mobile money requis")
+    if method == "bank" and not payload.payout_account_number.strip():
+        raise HTTPException(status_code=400, detail="Numero de compte bancaire requis")
+    if method == "paypal" and not payload.payout_paypal_email.strip():
+        raise HTTPException(status_code=400, detail="Email PayPal requis")
+
+    employee.payout_method = method
+    employee.payout_phone = payload.payout_phone.strip()
+    employee.payout_bank_name = payload.payout_bank_name.strip()
+    employee.payout_account_number = payload.payout_account_number.strip()
+    employee.payout_paypal_email = payload.payout_paypal_email.strip()
+    if method in {"mobile_money", "zola"} and payload.payout_phone.strip():
+        employee.phone = employee.phone or payload.payout_phone.strip()
+
+    audit_access(
+        db,
+        actor=current_user,
+        company_id=current_user.company_id,
+        action="self_payout_updated",
+        employee=employee,
+        target_user=current_user,
+        details=f"method={method}; confirmed={payload.confirm}",
+    )
+    db.commit()
+    db.refresh(employee)
+    return employee
 
 
 @router.get("/employees/{employee_id}", response_model=EmployeeRead)
@@ -839,6 +951,34 @@ def generate_qr_label(
     return {"product": ProductRead.model_validate(product), "label": label_preview(product)}
 
 
+@router.get("/products/scan/{qr_token}", response_model=ProductRead)
+def scan_product_qr(
+    qr_token: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Product:
+    token = qr_token.strip()
+    product: Product | None = None
+    parts = token.split(":")
+    if len(parts) >= 4 and parts[0] == "KOMPTA":
+        try:
+            product_id = int(parts[-1])
+        except ValueError:
+            product_id = 0
+        if product_id:
+            product = db.get(Product, product_id)
+    if not product:
+        product = db.scalar(
+            select(Product).where(
+                Product.company_id == current_user.company_id,
+                or_(Product.qr_code == token, Product.sku == token),
+            )
+        )
+    if not product or product.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Produit introuvable pour ce QR")
+    return product
+
+
 @router.get("/inventory/movements")
 def inventory_movements(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
     movements = company_scope(db, current_user, InventoryMovement, InventoryMovement.created_at.desc())
@@ -864,17 +1004,13 @@ def create_sale(
 ) -> dict:
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
-    payment_method = _normalize_payment_provider(payload.payment_method)
-    payment_account: PaymentAccount | None = None
-    if payload.payment_account_id:
-        payment_account = _get_payment_account(db, payload.payment_account_id, current_user)
-        if not payment_account.enabled or not payment_account.use_for_pos:
-            raise HTTPException(status_code=400, detail="Ce compte n'est pas active pour la caisse")
-        payment_method = payment_account.provider
-    elif payment_method not in {"cash", "card"}:
-        payment_account = _default_payment_account(db, current_user.company_id, use_case="pos")
-        if payment_account and payment_account.provider != payment_method:
-            payment_account = None
+    payment_method, payment_account = _resolve_payment_account(
+        db,
+        current_user,
+        payment_method=payload.payment_method,
+        payment_account_id=payload.payment_account_id,
+        use_case="pos",
+    )
     sale = Sale(
         receipt_number=f"POS-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
         payment_method=payment_method,
@@ -1023,6 +1159,38 @@ def update_invoice(
     for field, value in payload.items():
         if field in allowed_fields:
             setattr(invoice, field, value)
+    if invoice.status == "paid" and not invoice.paid_at:
+        invoice.payment_method = invoice.payment_method or "cash"
+        invoice.paid_at = datetime.utcnow()
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+@router.post("/invoices/{invoice_id}/pay", response_model=InvoiceRead)
+def pay_invoice(
+    invoice_id: int,
+    payload: InvoicePaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Invoice:
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice or invoice.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == "paid":
+        return invoice
+    payment_method, payment_account = _resolve_payment_account(
+        db,
+        current_user,
+        payment_method=payload.payment_method,
+        payment_account_id=payload.payment_account_id,
+        use_case="pos",
+    )
+    invoice.status = "paid"
+    invoice.payment_method = payment_method
+    invoice.payment_account_id = payment_account.id if payment_account else None
+    invoice.payment_account_label = payment_account.label if payment_account else ""
+    invoice.paid_at = datetime.utcnow()
     db.commit()
     db.refresh(invoice)
     return invoice

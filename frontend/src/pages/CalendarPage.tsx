@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { api, type MeetingDto } from "../services/api";
 import type { Task } from "../types/domain";
@@ -286,6 +287,7 @@ function QuickMeetingModal({
 
 export function CalendarPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const meetings = useQuery({ queryKey: ["meetings"], queryFn: api.meetings });
   const today = startOfDay(new Date());
@@ -384,6 +386,13 @@ export function CalendarPage() {
           <p className="mt-1 text-sm text-[#717182]">Calendrier, reunions, taches, comptes-rendus et synthese journaliere.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => navigate("/meetings")}
+            className="flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 dark:border-violet-500/30 dark:bg-[#1e2229] dark:text-violet-200 dark:hover:bg-violet-500/10"
+          >
+            <Users size={15} />
+            Page réunions
+          </button>
           <button
             onClick={() => exportIcs(meetings.data ?? [])}
             disabled={!meetings.data?.length}
@@ -618,6 +627,13 @@ export function CalendarPage() {
                             Rejoindre
                           </a>
                         ) : null}
+                        <button
+                          onClick={() => navigate("/meetings")}
+                          className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white dark:bg-white/10 dark:hover:bg-white/15"
+                        >
+                          <Users size={12} />
+                          Gérer
+                        </button>
                         <button
                           onClick={() => generateSummary.mutate(meeting.id)}
                           disabled={generateSummary.isPending}

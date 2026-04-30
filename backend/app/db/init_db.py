@@ -16,6 +16,7 @@ from app.models import (
     Employee,
     Invoice,
     InvoiceLine,
+    LimuleInteraction,
     Meeting,
     Message,
     PaymentAccount,
@@ -68,6 +69,12 @@ def ensure_sqlite_migrations() -> None:
                 "payout_account_number": "VARCHAR(120) DEFAULT ''",
                 "payout_paypal_email": "VARCHAR(255) DEFAULT ''",
             },
+        "invoices": {
+            "payment_method": "VARCHAR(80) DEFAULT ''",
+            "payment_account_id": "INTEGER",
+            "payment_account_label": "VARCHAR(160) DEFAULT ''",
+            "paid_at": "DATETIME",
+        },
         "sales": {
             "payment_account_id": "INTEGER",
             "payment_account_label": "VARCHAR(160) DEFAULT ''",
@@ -145,7 +152,7 @@ def seed_demo_data(db: Session) -> None:
         role="caissier_pos",
         department="POS",
         branch="Boutique Plateau",
-        password_hash=hash_password("caisse2026"),
+        password_hash=hash_password("kompta123"),
         company_id=company.id,
     )
     rh_user = User(
@@ -155,7 +162,7 @@ def seed_demo_data(db: Session) -> None:
         role="rh_entreprise",
         department="RH",
         branch="Siege",
-        password_hash=hash_password("rh2026"),
+        password_hash=hash_password("kompta123"),
         company_id=company.id,
     )
     manager_user = User(
@@ -165,7 +172,7 @@ def seed_demo_data(db: Session) -> None:
         role="manager_entreprise",
         department="Direction générale",
         branch="Agence Nord",
-        password_hash=hash_password("dg2026"),
+        password_hash=hash_password("kompta123"),
         company_id=company.id,
     )
     db.add_all([admin, comptable, caissier, rh_user, manager_user])
@@ -752,6 +759,22 @@ def backfill_access_data(db: Session) -> None:
     if not admin.phone:
         admin.phone = "+242060000001"
     admin.account_status = admin.account_status or "active"
+
+    demo_users = {
+        "admin@kompta.local": ("kompta123", "admin_entreprise"),
+        "finance@kompta.local": ("kompta123", "comptable"),
+        "caissier@kompta.local": ("kompta123", "caissier_pos"),
+        "rh@kompta.local": ("kompta123", "rh_entreprise"),
+        "dg@kompta.local": ("kompta123", "manager_entreprise"),
+    }
+    for email, (password, role) in demo_users.items():
+        user = db.scalar(select(User).where(User.email == email))
+        if user:
+            user.password_hash = hash_password(password)
+            user.role = role
+            user.account_status = "active"
+            user.is_active = True
+            user.must_change_password = False
 
     finance = db.scalar(select(User).where(User.email == "finance@kompta.local"))
     employees = db.scalars(select(Employee).where(Employee.company_id == admin.company_id)).all()

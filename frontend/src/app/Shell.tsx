@@ -58,7 +58,7 @@ function LimuleStatus() {
     status === "no_key" ? "bg-amber-400" :
     status === "offline" ? "bg-red-400" : "bg-stone-300";
   const label =
-    status === "ok" ? `Limule · ${data?.provider ?? ""} · ${data?.latency_ms}ms` :
+    status === "ok" ? `Limule · Grand Sage 1.0 · ${data?.latency_ms}ms` :
     status === "no_key" ? "Limule · clé API manquante" :
     status === "offline" ? "Limule · hors ligne" :
     "Limule · vérification…";
@@ -66,7 +66,7 @@ function LimuleStatus() {
     <div title={label} className="hidden items-center gap-1.5 md:flex">
       <span className={`h-2 w-2 rounded-full ${color} ${status === "ok" ? "" : "animate-pulse"}`} />
       <span className="text-xs text-[#717182] dark:text-white/50">
-        {status === "ok" ? `IA · ${data?.provider}` : "IA"}
+        {status === "ok" ? `Limule · ${data?.latency_ms}ms` : "Limule"}
       </span>
     </div>
   );
@@ -75,12 +75,12 @@ function LimuleStatus() {
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/pos", "/inventory", "/chat", "/work", "/calendar", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/settings"],
-  comptable: ["/", "/accounting", "/billing", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/chat", "/calendar", "/notes"],
-  rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/notes"],
-  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/work", "/reports", "/chat", "/calendar", "/notes"],
-  caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/notes"],
-  employe: ["/", "/work", "/chat", "/calendar", "/notes"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/settings"],
+  comptable: ["/", "/accounting", "/billing", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/chat", "/calendar", "/meetings", "/notes"],
+  rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes"],
+  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/work", "/reports", "/chat", "/calendar", "/meetings", "/notes"],
+  caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes"],
+  employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings"],
 };
 
 function canAccess(role: string | undefined, path: string): boolean {

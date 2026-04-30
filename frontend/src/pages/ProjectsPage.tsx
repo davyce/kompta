@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarDays, MessageSquare, Paperclip, Plus,
-  Search, Sparkles, X,
+  Search, Sparkles, UserPlus, X,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import { shortDate } from "../utils/format";
-import type { Task } from "../types/domain";
+import type { Employee, Task } from "../types/domain";
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 function initials(name: string) {
@@ -52,7 +52,17 @@ function catColor(cat: string) {
 }
 
 /* ── Card component ───────────────────────────────────────────────── */
-function TaskCard({ task, onMove }: { task: TaskEx; onMove: (id: number, status: string) => void }) {
+function TaskCard({
+  task,
+  employees,
+  onMove,
+  onAssign,
+}: {
+  task: TaskEx;
+  employees: Employee[];
+  onMove: (id: number, status: string) => void;
+  onAssign: (id: number, assigneeName: string) => void;
+}) {
   const nextStatus: Record<string, string> = { todo: "doing", doing: "review", review: "done" };
   const cat = task.dept || "Général";
   const canMove = task.id > 0 && Boolean(nextStatus[task.status]);
@@ -92,9 +102,24 @@ function TaskCard({ task, onMove }: { task: TaskEx; onMove: (id: number, status:
         )}
       </div>
       {/* Stats */}
-      <div className="mt-3 flex items-center gap-3 border-t border-black/[0.04] pt-2.5 dark:border-white/[0.04]">
+      <div className="mt-3 flex items-center gap-2 border-t border-black/[0.04] pt-2.5 dark:border-white/[0.04]">
         <span className="flex items-center gap-1 text-[11px] text-[#717182]"><MessageSquare size={11}/> 4</span>
         <span className="flex items-center gap-1 text-[11px] text-[#717182]"><Paperclip size={11}/> 2</span>
+        <label className="ml-auto flex items-center gap-1 rounded-lg bg-[#f6f7fb] px-2 py-1 text-[11px] font-bold text-[#717182] dark:bg-white/[0.06]">
+          <UserPlus size={11} />
+          <select
+            value={task.assignee_name || ""}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onAssign(task.id, event.target.value)}
+            className="max-w-[112px] bg-transparent text-[11px] outline-none"
+          >
+            <option value="">Assigner</option>
+            {employees.map((employee) => {
+              const name = `${employee.first_name} ${employee.last_name}`.trim();
+              return <option key={employee.id} value={name}>{name}</option>;
+            })}
+          </select>
+        </label>
       </div>
     </div>
   );
@@ -104,22 +129,33 @@ function TaskCard({ task, onMove }: { task: TaskEx; onMove: (id: number, status:
 export function ProjectsPage() {
   const queryClient = useQueryClient();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
+  const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [newTaskCol, setNewTaskCol] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [newAssignee, setNewAssignee] = useState("");
+  const [newPriority, setNewPriority] = useState("normal");
+  const [newDueDate, setNewDueDate] = useState("");
 
   const updateTask = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => api.updateTask(id, { status }),
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<Task> }) => api.updateTask(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
   const createTask = useMutation({
     mutationFn: (data: { title: string; status: string }) =>
-      api.createTask({ title: data.title, status: data.status, assignee_name: "", priority: "normal" }),
+      api.createTask({
+        title: data.title,
+        status: data.status,
+        assignee_name: newAssignee,
+        priority: newPriority,
+        due_date: newDueDate || null,
+        source: "project_board",
+      }),
     onSuccess: () => {
-      setNewTaskCol(null); setNewTitle("");
+      setNewTaskCol(null); setNewTitle(""); setNewAssignee(""); setNewPriority("normal"); setNewDueDate("");
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
@@ -229,6 +265,36 @@ export function ProjectsPage() {
                       placeholder="Titre de la tâche…"
                       className="w-full bg-transparent text-sm text-[#17211f] outline-none placeholder:text-[#717182] dark:text-white"
                     />
+                    <div className="mt-3 grid gap-2">
+                      <select
+                        value={newAssignee}
+                        onChange={(e) => setNewAssignee(e.target.value)}
+                        className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-xs font-semibold text-[#17211f] dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
+                      >
+                        <option value="">Responsable surprise plus tard</option>
+                        {(employees.data ?? []).map((employee) => {
+                          const name = `${employee.first_name} ${employee.last_name}`.trim();
+                          return <option key={employee.id} value={name}>{name}</option>;
+                        })}
+                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={newPriority}
+                          onChange={(e) => setNewPriority(e.target.value)}
+                          className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-xs font-semibold text-[#17211f] dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
+                        >
+                          <option value="low">Basse</option>
+                          <option value="normal">Normale</option>
+                          <option value="high">Haute</option>
+                        </select>
+                        <input
+                          type="date"
+                          value={newDueDate}
+                          onChange={(e) => setNewDueDate(e.target.value)}
+                          className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-xs font-semibold text-[#17211f] dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
+                        />
+                      </div>
+                    </div>
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => { if (newTitle.trim()) createTask.mutate({ title: newTitle.trim(), status: col.key }); }}
@@ -249,7 +315,9 @@ export function ProjectsPage() {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onMove={(id, status) => updateTask.mutate({ id, status })}
+                    employees={employees.data ?? []}
+                    onMove={(id, status) => updateTask.mutate({ id, payload: { status } })}
+                    onAssign={(id, assignee_name) => updateTask.mutate({ id, payload: { assignee_name } })}
                   />
                 ))}
                 {cards.length === 0 && !newTaskCol && (

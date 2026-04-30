@@ -83,6 +83,9 @@ def test_core_product_flow() -> None:
         label = client.post(f"/api/products/{selected['id']}/qr-label", headers=headers)
         assert label.status_code == 200
         assert label.json()["label"]["qr"]
+        scanned = client.get(f"/api/products/scan/{label.json()['label']['qr']}", headers=headers)
+        assert scanned.status_code == 200
+        assert scanned.json()["id"] == selected["id"]
 
         sale = client.post(
             "/api/pos/sales",
@@ -108,6 +111,14 @@ def test_core_product_flow() -> None:
         )
         assert invoice.status_code == 201
         assert invoice.json()["total_amount"] == 50
+        paid_invoice = client.post(
+            f"/api/invoices/{invoice.json()['id']}/pay",
+            headers=headers,
+            json={"payment_method": "zola", "payment_account_id": payment_account.json()["id"]},
+        )
+        assert paid_invoice.status_code == 200
+        assert paid_invoice.json()["status"] == "paid"
+        assert paid_invoice.json()["payment_account_label"] == payment_account.json()["label"]
 
 
 def test_collaboration_payroll_teras_flow() -> None:
@@ -156,7 +167,22 @@ def test_collaboration_payroll_teras_flow() -> None:
         assert converted.json()["source"] == "teras"
 
 
+def test_demo_secondary_accounts_can_login() -> None:
+    with TestClient(app) as client:
+        for email in [
+            "finance@kompta.local",
+            "caissier@kompta.local",
+            "rh@kompta.local",
+            "dg@kompta.local",
+        ]:
+            response = client.post("/api/auth/login", json={"email": email, "password": "kompta123"})
+            assert response.status_code == 200
+            assert response.json()["user"]["account_status"] == "active"
+
+
 def test_assistant_endpoints_are_wired(monkeypatch) -> None:
+    limule_messages = []
+
     async def fake_writing(payload, signer_name: str):
         return {
             "draft": f"DeepSeek test pour {signer_name}: {payload.notes}",
@@ -175,8 +201,13 @@ def test_assistant_endpoints_are_wired(monkeypatch) -> None:
             "provider": "deepseek-test",
         }
 
+    async def fake_limule(messages, max_tokens=1200, temperature=0.35):
+        limule_messages.append(messages)
+        return "Diagnostic rapide\n\nDonnées utilisées: contexte KOMPTA de test.\n\nActions recommandées: valider les éléments."
+
     monkeypatch.setattr("app.api.routes.generate_writing", fake_writing)
     monkeypatch.setattr("app.api.routes.generate_declaration", fake_declaration)
+    monkeypatch.setattr("app.services.limule._call_llm", fake_limule)
 
     with TestClient(app) as client:
         headers = auth_headers(client)
@@ -214,6 +245,45 @@ def test_assistant_endpoints_are_wired(monkeypatch) -> None:
         variables = client.get("/api/ai/variables", headers=headers)
         assert variables.status_code == 200
         assert "salaire_moyen" in variables.json()["resolved"]
+
+        limule_context = client.get("/api/limule/context?page_path=/payroll", headers=headers)
+        assert limule_context.status_code == 200
+        assert limule_context.json()["context_version"].startswith("kompta-limule-context")
+        assert limule_context.json()["module"] == "payroll"
+        assert "Version contexte" in limule_context.json()["ai_context"]
+        assert "payroll" in limule_context.json()["modules"]
+
+        limule_chat = client.post(
+            "/api/limule/chat",
+            headers=headers,
+            json={"prompt": "Resume la paie et les risques TERAS", "page_path": "/payroll"},
+        )
+        assert limule_chat.status_code == 201
+        assert limule_chat.json()["interaction_id"] > 0
+        assert limule_chat.json()["context_version"].startswith("kompta-limule-context")
+        assert "payroll" in limule_chat.json()["sources"]
+
+        limule_followup = client.post(
+            "/api/limule/chat",
+            headers=headers,
+            json={"prompt": "Continue avec les actions prioritaires", "page_path": "/payroll"},
+        )
+        assert limule_followup.status_code == 201
+        assert len(limule_messages) >= 2
+        assert "Mémoire Limule" in limule_messages[-1][1]["content"]
+        assert "Resume la paie et les risques TERAS" in limule_messages[-1][1]["content"]
+
+        limule_context_after = client.get("/api/limule/context?page_path=/payroll", headers=headers)
+        assert limule_context_after.status_code == 200
+        assert limule_context_after.json()["memory"]["count"] >= 1
+
+        feedback = client.patch(
+            f"/api/limule/interactions/{limule_chat.json()['interaction_id']}/feedback",
+            headers=headers,
+            json={"rating": 5, "feedback": "utile"},
+        )
+        assert feedback.status_code == 200
+        assert feedback.json()["rating"] == 5
 
 
 def test_company_registration_and_workspace_reset_flow() -> None:
@@ -313,6 +383,15 @@ def test_employee_account_access_and_contract_flow() -> None:
         assert activated.status_code == 200
         assert activated.json()["must_change_password"] is False
 
+        payout = client.patch(
+            "/api/employees/me/payout",
+            headers=employee_headers,
+            json={"payout_method": "mobile_money", "payout_phone": "+242069990000", "confirm": True},
+        )
+        assert payout.status_code == 200
+        assert payout.json()["payout_phone"] == "+242069990000"
+        assert client.get("/api/employees/me/payout", headers=employee_headers).json()["payout_method"] == "mobile_money"
+
         reset = client.post(f"/api/employees/{employee_id}/reset-access", headers=headers)
         assert reset.status_code == 200
         assert reset.json()["temporary_password"] != payload["temporary_password"]
@@ -394,11 +473,22 @@ def test_teras_analysis_layer_and_ai_router_flow() -> None:
         assert router.json()["route"] == "limule_with_teras_context"
 
 
-def test_super_admin_console_and_ticket_flow() -> None:
+def test_super_admin_console_and_ticket_flow(monkeypatch) -> None:
+    async def fake_limule(messages, max_tokens=1200, temperature=0.35):
+        return "Diagnostic rapide\n\nDonnées utilisées: contexte TERAS de test.\n\nActions recommandées: suivre les tickets."
+
+    monkeypatch.setattr("app.services.limule._call_llm", fake_limule)
+
     with TestClient(app) as client:
         admin_headers = auth_headers(client)
         forbidden = client.get("/api/admin/overview", headers=admin_headers)
         assert forbidden.status_code == 403
+        seeded_interaction = client.post(
+            "/api/limule/chat",
+            headers=admin_headers,
+            json={"prompt": "Analyse les tickets et la conformite", "page_path": "/reports-teras"},
+        )
+        assert seeded_interaction.status_code == 201
 
         headers = super_admin_headers(client)
         me = client.get("/api/auth/me", headers=headers)
@@ -446,3 +536,16 @@ def test_super_admin_console_and_ticket_flow() -> None:
         logs = client.get("/api/admin/audit-logs", headers=headers)
         assert logs.status_code == 200
         assert isinstance(logs.json(), list)
+
+        limule_insights = client.get("/api/admin/limule/insights", headers=headers)
+        assert limule_insights.status_code == 200
+        assert limule_insights.json()["total_interactions"] >= 1
+
+        limule_dataset = client.get("/api/admin/limule/dataset?limit=10", headers=headers)
+        assert limule_dataset.status_code == 200
+        assert limule_dataset.json()
+        assert {"input", "output", "context", "tags"}.issubset(limule_dataset.json()[0].keys())
+
+        limule_export = client.get("/api/admin/limule/dataset/export?limit=10", headers=headers)
+        assert limule_export.status_code == 200
+        assert "application/x-ndjson" in limule_export.headers["content-type"]

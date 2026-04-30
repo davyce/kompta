@@ -24,6 +24,60 @@ function downloadNote(note: DailyNoteDto) {
   a.download = `note-${note.note_date}-${note.id}.md`; a.click();
 }
 
+function parseNoteSections(body: string) {
+  const sections: Array<{ title: string; items: string[] }> = [];
+  let current: { title: string; items: string[] } | null = null;
+  for (const rawLine of body.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("# ")) continue;
+    if (line.startsWith("## ")) {
+      current = { title: line.replace(/^##\s*/, ""), items: [] };
+      sections.push(current);
+      continue;
+    }
+    if (!current) {
+      current = { title: "Synthèse", items: [] };
+      sections.push(current);
+    }
+    current.items.push(line.replace(/^- \[[ x]\]\s*/i, "").replace(/^-\s*/, ""));
+  }
+  return sections;
+}
+
+function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
+  if (!note) return null;
+  const sections = parseNoteSections(note.body).slice(0, 4);
+  return (
+    <section className="overflow-hidden rounded-2xl border border-violet-200 bg-white dark:border-violet-500/30 dark:bg-[#1e2229]">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-violet-100 bg-violet-50 px-5 py-4 dark:border-violet-500/20 dark:bg-violet-500/10">
+        <div>
+          <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
+            <Sparkles size={18} />
+            <h2 className="font-black">Dernière note Limule</h2>
+          </div>
+          <p className="mt-1 text-sm text-[#717182]">{note.title} · {shortDateLabel(note.note_date)}</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-700 shadow-sm dark:bg-white/10 dark:text-violet-200">journal IA</span>
+      </div>
+      <div className="grid gap-3 p-4 lg:grid-cols-4">
+        {sections.map((section) => (
+          <div key={section.title} className="rounded-xl border border-black/[0.06] bg-[#fbfbfd] p-3 dark:border-white/10 dark:bg-white/[0.04]">
+            <p className="text-xs font-black uppercase tracking-wide text-violet-600">{section.title}</p>
+            <div className="mt-2 space-y-1.5">
+              {section.items.slice(0, 3).map((item, index) => (
+                <p key={`${section.title}-${index}`} className="text-sm leading-5 text-[#17211f] dark:text-white">
+                  {item.includes("_") ? item.replace(/_/g, "") : item}
+                </p>
+              ))}
+              {!section.items.length && <p className="text-sm text-[#717182]">Aucun élément.</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── Auto-generated journal entry from tasks (read-only client-side) ── */
 function buildAutoEntry(date: Date, tasks: Task[]) {
   const key = dayKey(date);
@@ -150,6 +204,7 @@ export function NotesPage() {
   const allNotes = notesQuery.data ?? [];
   const pinnedNotes = allNotes.filter((n) => n.pinned);
   const recentNotes = allNotes.filter((n) => !n.pinned).slice(0, 12);
+  const latestLimuleNote = allNotes.find((note) => note.ai_generated) ?? null;
   const activeTasks = (tasks.data ?? []).filter((t) => t.status !== "done");
   const completedTasks = (tasks.data ?? []).filter((t) => t.status === "done");
 
@@ -195,6 +250,8 @@ export function NotesPage() {
           );
         })}
       </div>
+
+      <LimuleNotePreview note={latestLimuleNote} />
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
 

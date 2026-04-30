@@ -84,6 +84,14 @@ export function ChatPage() {
   const [showDetails, setShowDetails] = useState(true);
   const [showChannelCreate, setShowChannelCreate] = useState(false);
   const [channelForm, setChannelForm] = useState({ name: "", topic: "" });
+  const [taskComposer, setTaskComposer] = useState({
+    open: false,
+    title: "",
+    assignee_name: "",
+    priority: "normal",
+    due_date: "",
+    source: "chat",
+  });
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -134,6 +142,20 @@ export function ChatPage() {
       setShowChannelCreate(false);
       setChannelForm({ name: "", topic: "" });
       setShowSidebar(false);
+    },
+  });
+  const createTask = useMutation({
+    mutationFn: () => api.createTask({
+      title: taskComposer.title,
+      assignee_name: taskComposer.assignee_name,
+      priority: taskComposer.priority,
+      due_date: taskComposer.due_date || null,
+      source: taskComposer.source,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["channelDetail", activeChannelId] });
+      setTaskComposer({ open: false, title: "", assignee_name: "", priority: "normal", due_date: "", source: "chat" });
     },
   });
 
@@ -224,6 +246,27 @@ export function ChatPage() {
     createChannel.mutate({
       name: `direct-${name}`,
       topic: `Conversation directe avec ${name}`,
+    });
+  }
+
+  function suggestAssignee(text: string) {
+    const mention = text.match(/@([\wÀ-ÿ]+)/)?.[1]?.toLowerCase();
+    const list = employees.data ?? [];
+    const match = list.find((employee) => {
+      const full = `${employee.first_name} ${employee.last_name}`.toLowerCase();
+      return mention ? full.includes(mention) : text.toLowerCase().includes(employee.first_name.toLowerCase());
+    });
+    return match ? `${match.first_name} ${match.last_name}`.trim() : "";
+  }
+
+  function openTaskComposer(title: string, source: string) {
+    setTaskComposer({
+      open: true,
+      title: title.length > 140 ? `${title.slice(0, 137)}...` : title,
+      assignee_name: suggestAssignee(title),
+      priority: /urgent|priorit|bloqu|avant vendredi|critique/i.test(title) ? "high" : "normal",
+      due_date: "",
+      source,
     });
   }
 
@@ -398,12 +441,28 @@ export function ChatPage() {
                   <div className={`inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isMe ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white" : "bg-[#ececf2] dark:bg-white/[0.06] text-[#17211f] dark:text-white"}`}>
                     <MessageBody text={m.body} isMe={isMe} />
                   </div>
+                  <div className={`mt-1 flex ${isMe ? "justify-end" : "justify-start"}`}>
+                    <button
+                      onClick={() => openTaskComposer(m.body, `chat:${activeChannelId}:message:${m.id}`)}
+                      className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2.5 py-1 text-[11px] font-bold text-[#717182] transition hover:border-violet-300 hover:text-violet-700 dark:border-white/[0.08] dark:bg-white/[0.04]"
+                    >
+                      <CheckSquare size={11} />
+                      Créer tâche
+                    </button>
+                  </div>
                   {m.ai_suggestion && (
                     <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
                       <div className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-violet-600 dark:text-violet-300">
                         <Sparkles size={10}/> Suggestion Limule
                       </div>
                       <p className="text-[#17211f] dark:text-white">{m.ai_suggestion}</p>
+                      <button
+                        onClick={() => openTaskComposer(m.ai_suggestion || m.body, `chat:${activeChannelId}:suggestion:${m.id}`)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
+                      >
+                        <CheckSquare size={12} />
+                        Transformer en tâche
+                      </button>
                     </div>
                   )}
                 </div>
@@ -504,7 +563,15 @@ export function ChatPage() {
 
             {/* Linked tasks */}
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#717182]">Tâches liées</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">Tâches liées</p>
+                <button
+                  onClick={() => openTaskComposer(`Action #${activeChannel?.name ?? "chat"}`, `chat:${activeChannelId}:channel`)}
+                  className="rounded-lg bg-violet-600 px-2 py-1 text-[11px] font-bold text-white"
+                >
+                  + tâche
+                </button>
+              </div>
               <div className="space-y-2">
                 {(channelDetail.data?.tasks ?? []).map((t) => (
                   <div key={t.id} className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#252931] px-3 py-2 text-sm">
@@ -570,6 +637,72 @@ export function ChatPage() {
               {createChannel.isPending ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
               Créer et ouvrir
             </button>
+          </form>
+        </div>
+      )}
+      {taskComposer.open && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 px-4 backdrop-blur-sm">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (taskComposer.title.trim()) createTask.mutate();
+            }}
+            className="w-full max-w-md rounded-2xl border border-black/[0.06] bg-white p-5 shadow-xl dark:border-white/[0.08] dark:bg-[#1e2229]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-[#17211f] dark:text-white">Créer une tâche</h3>
+                <p className="text-sm text-[#717182]">Depuis le chat, avec responsable et priorité.</p>
+              </div>
+              <button type="button" onClick={() => setTaskComposer((current) => ({ ...current, open: false }))} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              <label className="block text-xs font-bold uppercase text-[#717182]">
+                Titre
+                <textarea
+                  required
+                  rows={3}
+                  value={taskComposer.title}
+                  onChange={(event) => setTaskComposer({ ...taskComposer, title: event.target.value })}
+                  className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                />
+              </label>
+              <label className="block text-xs font-bold uppercase text-[#717182]">
+                Responsable
+                <select
+                  value={taskComposer.assignee_name}
+                  onChange={(event) => setTaskComposer({ ...taskComposer, assignee_name: event.target.value })}
+                  className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                >
+                  <option value="">Non assigné</option>
+                  {(employees.data ?? []).map((employee) => {
+                    const name = `${employee.first_name} ${employee.last_name}`.trim();
+                    return <option key={employee.id} value={name}>{name}</option>;
+                  })}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Priorité
+                  <select value={taskComposer.priority} onChange={(event) => setTaskComposer({ ...taskComposer, priority: event.target.value })} className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
+                    <option value="low">Basse</option>
+                    <option value="normal">Normale</option>
+                    <option value="high">Haute</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Échéance
+                  <input type="date" value={taskComposer.due_date} onChange={(event) => setTaskComposer({ ...taskComposer, due_date: event.target.value })} className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                </label>
+              </div>
+              {createTask.error && <p className="text-sm font-semibold text-rose-600">{createTask.error.message}</p>}
+              <button disabled={!taskComposer.title.trim() || createTask.isPending} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:bg-stone-300">
+                {createTask.isPending ? <Loader2 className="animate-spin" size={16} /> : <CheckSquare size={16} />}
+                Créer la tâche
+              </button>
+            </div>
           </form>
         </div>
       )}

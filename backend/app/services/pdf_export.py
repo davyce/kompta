@@ -103,6 +103,16 @@ def render_invoice_pdf(invoice, company) -> bytes:
     story.append(Spacer(1, 0.4 * cm))
     story.append(Paragraph(f"Total TTC : {_money(invoice.total_amount)}", s["total"]))
 
+    if getattr(invoice, "status", "") == "paid":
+        payment_label = getattr(invoice, "payment_account_label", "") or getattr(invoice, "payment_method", "") or "cash"
+        paid_at = getattr(invoice, "paid_at", None)
+        story.append(Spacer(1, 0.25 * cm))
+        story.append(Paragraph(
+            f"Paiement reçu : <b>{payment_label}</b>"
+            + (f" · {str(paid_at)[:16]}" if paid_at else ""),
+            s["badge"],
+        ))
+
     story.append(Spacer(1, 1.5 * cm))
     story.append(Paragraph(
         "KOMPTA · Référentiel SYSCOHADA Révisé · Document généré automatiquement",

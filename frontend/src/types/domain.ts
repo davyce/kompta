@@ -137,6 +137,10 @@ export type Invoice = {
   status: string;
   total_amount: number;
   due_date: string | null;
+  payment_method: string;
+  payment_account_id: number | null;
+  payment_account_label: string;
+  paid_at: string | null;
   created_at: string;
   lines: Array<{ id: number; description: string; quantity: number; unit_price: number; total: number }>;
 };

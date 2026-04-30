@@ -31,6 +31,7 @@ from app.models import (
     DailyNote,
     Employee,
     Invoice,
+    LimuleInteraction,
     Meeting,
     PayrollRun,
     Sale,
@@ -381,6 +382,260 @@ def ai_status(current_user: User = Depends(get_current_user)) -> dict:
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LIMULE GLOBAL CONTEXT + TRAINING DATASET
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/limule/context")
+def limule_context(
+    page_path: str = "",
+    module: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Retourne le contexte multi-pages que Limule peut utiliser pour raisonner."""
+    from app.services.ai_context import LIMULE_CONTEXT_VERSION, render_limule_context_pack
+    from app.services.limule_context import build_limule_context
+
+    context = build_limule_context(
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        page_path=page_path,
+        focus_module=module,
+    )
+    return {
+        "context_version": LIMULE_CONTEXT_VERSION,
+        "module": context["module"],
+        "page_path": context["page_path"],
+        "summary": context["prompt_context"],
+        "ai_context": render_limule_context_pack(context),
+        "memory": context["memory"],
+        "kpis": context["kpis"],
+        "signals": context["signals"],
+        "sources": context["sources"],
+        "modules": context["modules"],
+    }
+
+
+@router.post("/limule/chat", status_code=201)
+async def limule_chat(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Copilot Limule contextualisé.
+
+    Il lit une synthèse transverse des modules, génère une réponse, puis enregistre
+    prompt/réponse/contexte dans une table exploitable par le super-admin.
+    """
+    from app.core.config import get_settings
+    from app.services.ai_context import LIMULE_CONTEXT_VERSION
+    from app.services.limule import limule_generate
+    from app.services.limule_context import build_limule_context, detect_intent, training_tags
+
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt requis")
+    page_path = str(payload.get("page_path") or "")
+    requested_module = payload.get("module")
+
+    context = build_limule_context(
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        page_path=page_path,
+        focus_module=str(requested_module) if requested_module else None,
+    )
+    intent = detect_intent(prompt)
+    module_key = context["module"]
+
+    content, _ = await limule_generate(
+        kind=intent,
+        prompt=prompt,
+        context=context["prompt_context"],
+        structured_context=context,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=1200,
+    )
+
+    tags = training_tags(prompt, context, intent)
+    settings = get_settings()
+    interaction = LimuleInteraction(
+        prompt=prompt,
+        response=content,
+        page_path=page_path,
+        module_key=module_key,
+        intent=intent,
+        model=settings.ai_model or settings.deepseek_model or "limule",
+        provider=settings.ai_provider or "limule",
+        context_snapshot=json.dumps(context, ensure_ascii=False, default=str),
+        context_sources=json.dumps(context["sources"], ensure_ascii=False),
+        detected_signals=json.dumps(context["signals"], ensure_ascii=False),
+        training_tags=json.dumps(tags, ensure_ascii=False),
+        user_id=current_user.id,
+        company_id=current_user.company_id,
+    )
+    db.add(interaction)
+    db.add(
+        AIGeneration(
+            kind=intent,
+            title=f"Limule · {module_key}",
+            prompt=prompt,
+            content=content,
+            model=interaction.model,
+            teras_used=any(tag == "teras" or tag.startswith("severity:") for tag in tags),
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+        )
+    )
+    db.commit()
+    db.refresh(interaction)
+
+    return {
+        "interaction_id": interaction.id,
+        "answer": content,
+        "context_version": LIMULE_CONTEXT_VERSION,
+        "module": module_key,
+        "intent": intent,
+        "sources": context["sources"],
+        "signals": context["signals"],
+        "training_tags": tags,
+        "context_summary": context["prompt_context"],
+        "confidence": 88 if context["signals"] else 78,
+    }
+
+
+@router.patch("/limule/interactions/{interaction_id}/feedback")
+def limule_feedback(
+    interaction_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    interaction = db.get(LimuleInteraction, interaction_id)
+    if not interaction or interaction.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Interaction Limule introuvable")
+    rating = payload.get("rating")
+    if rating is not None:
+        try:
+            interaction.rating = max(1, min(5, int(rating)))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Note invalide")
+    if "feedback" in payload:
+        interaction.feedback = str(payload.get("feedback") or "")[:1200]
+    db.commit()
+    return {"id": interaction.id, "rating": interaction.rating, "feedback": interaction.feedback}
+
+
+def _require_super_admin(current_user: User) -> None:
+    if current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Super-admin access required")
+
+
+@router.get("/admin/limule/insights")
+def admin_limule_insights(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _require_super_admin(current_user)
+    since = datetime.utcnow() - timedelta(days=7)
+    total = db.scalar(select(func.count()).select_from(LimuleInteraction)) or 0
+    last7 = db.scalar(
+        select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.created_at >= since)
+    ) or 0
+    rated = db.scalar(
+        select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.rating.is_not(None))
+    ) or 0
+    avg_rating = db.scalar(select(func.avg(LimuleInteraction.rating)).where(LimuleInteraction.rating.is_not(None))) or 0
+    by_module_rows = db.execute(
+        select(LimuleInteraction.module_key, func.count())
+        .group_by(LimuleInteraction.module_key)
+        .order_by(func.count().desc())
+    ).all()
+    by_intent_rows = db.execute(
+        select(LimuleInteraction.intent, func.count())
+        .group_by(LimuleInteraction.intent)
+        .order_by(func.count().desc())
+    ).all()
+    recent = db.scalars(
+        select(LimuleInteraction).order_by(LimuleInteraction.created_at.desc()).limit(8)
+    ).all()
+    company_names = {c.id: c.name for c in db.scalars(select(Company)).all()}
+    return {
+        "total_interactions": int(total),
+        "last_7_days": int(last7),
+        "rated": int(rated),
+        "avg_rating": round(float(avg_rating), 2) if avg_rating else 0,
+        "training_ready": int(db.scalar(
+            select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.rating >= 4)
+        ) or 0),
+        "by_module": [{"module": module, "count": int(count)} for module, count in by_module_rows],
+        "by_intent": [{"intent": intent, "count": int(count)} for intent, count in by_intent_rows],
+        "recent": [
+            {
+                "id": row.id,
+                "company": company_names.get(row.company_id, ""),
+                "module": row.module_key,
+                "intent": row.intent,
+                "prompt": row.prompt[:180],
+                "tags": json.loads(row.training_tags or "[]"),
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in recent
+        ],
+    }
+
+
+@router.get("/admin/limule/dataset")
+def admin_limule_dataset(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 100,
+    company_id: int | None = None,
+    module: str | None = None,
+) -> list[dict]:
+    _require_super_admin(current_user)
+    from app.services.limule_context import build_training_record
+
+    stmt = select(LimuleInteraction)
+    if company_id:
+        stmt = stmt.where(LimuleInteraction.company_id == company_id)
+    if module:
+        stmt = stmt.where(LimuleInteraction.module_key == module)
+    stmt = stmt.order_by(LimuleInteraction.created_at.desc()).limit(min(limit, 500))
+    rows = db.scalars(stmt).all()
+    companies = {c.id: c for c in db.scalars(select(Company)).all()}
+    return [build_training_record(row, companies.get(row.company_id)) for row in rows]
+
+
+@router.get("/admin/limule/dataset/export")
+def admin_limule_dataset_export(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 500,
+) -> Response:
+    _require_super_admin(current_user)
+    from app.services.limule_context import build_training_record
+
+    rows = db.scalars(
+        select(LimuleInteraction).order_by(LimuleInteraction.created_at.desc()).limit(min(limit, 2000))
+    ).all()
+    companies = {c.id: c for c in db.scalars(select(Company)).all()}
+    jsonl = "\n".join(
+        json.dumps(build_training_record(row, companies.get(row.company_id)), ensure_ascii=False, default=str)
+        for row in rows
+    )
+    return Response(
+        content=jsonl.encode("utf-8"),
+        media_type="application/x-ndjson; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="limule-training-dataset.jsonl"'},
+    )
+
+
 @router.get("/ai/history/{gen_id}/download")
 def ai_download(
     gen_id: int,
@@ -520,17 +775,36 @@ def generate_daily_note(
     done = [t for t in tasks if t.status == "done"]
     today_tasks = [t for t in tasks if t.due_date == today]
     urgent = [t for t in tasks if t.priority == "high" and t.status != "done"]
+    open_tasks = [t for t in tasks if t.status != "done"]
+    next_task = today_tasks[0] if today_tasks else (urgent[0] if urgent else (open_tasks[0] if open_tasks else None))
     body_lines = [
         f"# Journal du {today.strftime('%d/%m/%Y')}",
         "",
-        f"## Tâches du jour ({len(today_tasks)})",
+        "## Synthèse Limule",
+        (
+            f"Limule détecte {len(today_tasks)} tâche(s) prévues aujourd'hui, "
+            f"{len(urgent)} priorité(s) haute(s), {len(done[:5])} action(s) récemment terminée(s)."
+        ),
+        "",
+        "## À faire aujourd'hui",
     ]
-    body_lines += [f"- [ ] {t.title}" for t in today_tasks] or ["- _aucune tâche planifiée_"]
-    body_lines += ["", f"## Priorités urgentes ({len(urgent)})"]
-    body_lines += [f"- ⚠️ {t.title}" for t in urgent] or ["- _aucune urgence_"]
-    body_lines += ["", f"## Terminées récemment ({len(done)})"]
-    body_lines += [f"- ✅ {t.title}" for t in done[:5]] or ["- _rien à signaler_"]
-    body_lines += ["", "_Généré par Limule — réorganise ces points dans ta journée._"]
+    body_lines += [
+        f"- [ ] {t.title}" + (f" — {t.assignee_name}" if t.assignee_name else "")
+        for t in today_tasks
+    ] or ["- _Aucune tâche planifiée aujourd'hui._"]
+    body_lines += ["", "## Priorités et risques"]
+    body_lines += [
+        f"- {t.title}" + (f" — échéance {t.due_date.strftime('%d/%m/%Y')}" if t.due_date else "")
+        for t in urgent
+    ] or ["- _Aucune priorité haute ouverte._"]
+    body_lines += ["", "## Réalisé récemment"]
+    body_lines += [
+        f"- {t.title}" + (f" — {t.assignee_name}" if t.assignee_name else "")
+        for t in done[:5]
+    ] or ["- _Rien à signaler._"]
+    body_lines += ["", "## Prochaine meilleure action"]
+    body_lines += [f"- {next_task.title}" if next_task else "- Vérifier les alertes TERAS et planifier les prochaines actions."]
+    body_lines += ["", "_Généré par Limule — à valider et compléter par l'équipe._"]
     note = DailyNote(
         note_date=today,
         title=f"Journal Limule — {today.strftime('%d %b')}",

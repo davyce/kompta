@@ -6,6 +6,9 @@ import { api } from "../services/api";
 type Message = {
   author: "user" | "ai";
   text: string;
+  interactionId?: number;
+  sources?: string[];
+  signals?: Array<{ label: string; severity: string; module: string }>;
 };
 
 const suggestions = [
@@ -41,17 +44,18 @@ export function Copilot() {
     setInput("");
     setLoading(true);
     try {
-      const generation = await api.aiGenerate({
-        kind: "text",
-        title: "Copilot Limule",
+      const generation = await api.limuleChat({
         prompt: userMessage,
-        context: `page:${location.pathname}`,
+        page_path: location.pathname,
       });
       setMessages((current) => [
         ...current,
         {
           author: "ai",
-          text: generation.content
+          text: generation.answer,
+          interactionId: generation.interaction_id,
+          sources: generation.sources,
+          signals: generation.signals,
         }
       ]);
     } catch {
@@ -65,6 +69,10 @@ export function Copilot() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function rate(interactionId: number, rating: number) {
+    await api.limuleFeedback(interactionId, { rating }).catch(() => undefined);
   }
 
   return (
@@ -86,8 +94,8 @@ export function Copilot() {
               <p className="text-xl font-black">Limule</p>
               <p className="text-sm font-semibold text-white/75">
                 {aiStatus
-                  ? `${aiStatus.provider} · ${aiStatus.model} · ${aiStatus.key_configured ? "clé prête" : "mode secours"}`
-                  : "Assistant IA de KOMPTA"}
+                  ? `Grand Sage 1.0 · ${aiStatus.key_configured ? "clé prête" : "mode secours"}`
+                  : "Grand Sage 1.0"}
               </p>
             </div>
             <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10" aria-label="Fermer">
@@ -97,13 +105,41 @@ export function Copilot() {
           <div className="flex-1 space-y-4 overflow-y-auto bg-[#fbfbfd] p-5 dark:bg-[#171a21]">
             {messages.map((message, index) => (
               <div key={`${message.author}-${index}`} className={`flex ${message.author === "user" ? "justify-end" : "justify-start"}`}>
-                <p className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
+                <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
                   message.author === "user"
                     ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white"
                     : "bg-white text-ink dark:bg-white/[0.08] dark:text-white"
                 }`}>
                   {message.text}
-                </p>
+                  {message.author === "ai" && (message.sources?.length || message.signals?.length) ? (
+                    <span className="mt-3 block space-y-2 border-t border-black/[0.05] pt-2 text-[11px] leading-5 opacity-80 dark:border-white/10">
+                      {message.signals?.length ? (
+                        <span className="block">
+                          Signaux: {message.signals.slice(0, 2).map((signal) => `${signal.label} · ${signal.module}`).join(" | ")}
+                        </span>
+                      ) : null}
+                      {message.sources?.length ? (
+                        <span className="block">
+                          Sources: {message.sources.slice(0, 6).join(", ")}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {message.author === "ai" && message.interactionId ? (
+                    <span className="mt-2 flex gap-1">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={value}
+                          onClick={() => rate(message.interactionId!, value)}
+                          className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-bold text-[#717182] hover:bg-violet-100 hover:text-violet-700 dark:bg-white/10 dark:text-white/70 dark:hover:bg-violet-500/20"
+                          type="button"
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             ))}
             {loading ? <p className="text-xs font-semibold text-[#717182]">Analyse en cours...</p> : null}

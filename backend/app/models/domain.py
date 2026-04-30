@@ -276,6 +276,10 @@ class Invoice(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(40), default="draft")
     total_amount: Mapped[float] = mapped_column(Float, default=0)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(80), default="")
+    payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
+    payment_account_label: Mapped[str] = mapped_column(String(160), default="")
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     lines: Mapped[list["InvoiceLine"]] = relationship(cascade="all, delete-orphan", back_populates="invoice")
@@ -506,6 +510,27 @@ class AIGeneration(TimestampMixin, Base):
     content: Mapped[str] = mapped_column(Text, default="")
     model: Mapped[str] = mapped_column(String(60), default="limule")
     teras_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class LimuleInteraction(TimestampMixin, Base):
+    __tablename__ = "limule_interactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    response: Mapped[str] = mapped_column(Text, default="")
+    page_path: Mapped[str] = mapped_column(String(160), default="")
+    module_key: Mapped[str] = mapped_column(String(80), default="global")
+    intent: Mapped[str] = mapped_column(String(80), default="question")
+    model: Mapped[str] = mapped_column(String(80), default="limule")
+    provider: Mapped[str] = mapped_column(String(80), default="limule")
+    context_snapshot: Mapped[str] = mapped_column(Text, default="{}")
+    context_sources: Mapped[str] = mapped_column(Text, default="[]")
+    detected_signals: Mapped[str] = mapped_column(Text, default="[]")
+    training_tags: Mapped[str] = mapped_column(Text, default="[]")
+    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feedback: Mapped[str] = mapped_column(Text, default="")
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 

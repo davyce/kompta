@@ -160,6 +160,19 @@ export const api = {
       compliance: { checks: Array<{ label: string; status: string }> };
     }>(branch ? `/reports/overview?branch=${encodeURIComponent(branch)}` : "/reports/overview"),
   employees: () => request<Employee[]>("/employees"),
+  myEmployeePayout: () => request<Employee>("/employees/me/payout"),
+  updateMyEmployeePayout: (payload: {
+    payout_method: string;
+    payout_phone?: string;
+    payout_bank_name?: string;
+    payout_account_number?: string;
+    payout_paypal_email?: string;
+    confirm?: boolean;
+  }) =>
+    request<Employee>("/employees/me/payout", {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   createEmployee: (payload: Partial<Employee>) =>
     request<Employee>("/employees", {
       method: "POST",
@@ -293,6 +306,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  payInvoice: (id: number, payload: { payment_method: string; payment_account_id?: number | null }) =>
+    request<Invoice>(`/invoices/${id}/pay`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   tasks: () => request<Task[]>("/tasks"),
   createTask: (payload: Partial<Task>) =>
     request<Task>("/tasks", {
@@ -309,6 +327,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  scanProductQr: (qr: string) => request<Product>(`/products/scan/${encodeURIComponent(qr)}`),
   uploadProductImages: (productId: number, files: File[]) => {
     const form = new FormData();
     files.forEach((file) => form.append("files", file));
@@ -431,6 +450,16 @@ export const api = {
       action: string; details: string; company_id: number;
       created_at: string | null;
     }>>(`/admin/audit-logs?limit=${limit}`),
+  adminLimuleInsights: () => request<AdminLimuleInsights>("/admin/limule/insights"),
+  adminLimuleDataset: (params: { limit?: number; company_id?: number; module?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.set("limit", String(params.limit));
+    if (params.company_id) qs.set("company_id", String(params.company_id));
+    if (params.module) qs.set("module", params.module);
+    const q = qs.toString();
+    return request<LimuleTrainingRecord[]>(`/admin/limule/dataset${q ? `?${q}` : ""}`);
+  },
+  adminLimuleDatasetExport: (limit = 500) => requestBlob(`/admin/limule/dataset/export?limit=${limit}`),
 
   /* ── User-side tickets (for tenants to open support tickets) ── */
   myTickets: () => request<TicketDto[]>("/tickets"),
@@ -470,6 +499,23 @@ export const api = {
     request<{ catalogue: Record<string, string>; resolved: Record<string, string> }>("/ai/variables"),
   aiStatus: () =>
     request<{ provider: string; model: string; key_configured: boolean; user: string }>("/ai/status"),
+  limuleContext: (params?: { page_path?: string; module?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page_path) qs.set("page_path", params.page_path);
+    if (params?.module) qs.set("module", params.module);
+    const q = qs.toString();
+    return request<LimuleContextDto>(`/limule/context${q ? `?${q}` : ""}`);
+  },
+  limuleChat: (payload: { prompt: string; page_path?: string; module?: string }) =>
+    request<LimuleChatResponse>("/limule/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  limuleFeedback: (interactionId: number, payload: { rating?: number; feedback?: string }) =>
+    request<{ id: number; rating: number | null; feedback: string }>(
+      `/limule/interactions/${interactionId}/feedback`,
+      { method: "PATCH", body: JSON.stringify(payload) }
+    ),
 
   /**
    * Génération Limule en streaming (SSE).
@@ -668,6 +714,35 @@ export type AIGenerationDto = {
   created_at: string;
 };
 
+export type LimuleSignal = {
+  type: string;
+  severity: string;
+  label: string;
+  module: string;
+};
+
+export type LimuleContextDto = {
+  module: string;
+  page_path: string;
+  summary: string;
+  kpis: Record<string, number>;
+  signals: LimuleSignal[];
+  sources: string[];
+  modules: Record<string, unknown>;
+};
+
+export type LimuleChatResponse = {
+  interaction_id: number;
+  answer: string;
+  module: string;
+  intent: string;
+  sources: string[];
+  signals: LimuleSignal[];
+  training_tags: string[];
+  context_summary: string;
+  confidence: number;
+};
+
 export type DailyNoteDto = {
   id: number;
   note_date: string;
@@ -727,6 +802,42 @@ export type TicketDto = {
   }>;
 };
 
+export type AdminLimuleInsights = {
+  total_interactions: number;
+  last_7_days: number;
+  rated: number;
+  avg_rating: number;
+  training_ready: number;
+  by_module: Array<{ module: string; count: number }>;
+  by_intent: Array<{ intent: string; count: number }>;
+  recent: Array<{
+    id: number;
+    company: string;
+    module: string;
+    intent: string;
+    prompt: string;
+    tags: string[];
+    created_at: string | null;
+  }>;
+};
+
+export type LimuleTrainingRecord = {
+  id: number;
+  company: { id: number; name: string; industry: string; country: string };
+  module: string;
+  intent: string;
+  input: string;
+  output: string;
+  context: Record<string, unknown>;
+  sources: string[];
+  signals: LimuleSignal[];
+  tags: string[];
+  rating: number | null;
+  feedback: string;
+  created_at: string | null;
+  privacy_note: string;
+};
+
 export type AuditLogDto = {
   id: number;
   action: string;
@@ -746,4 +857,3 @@ export type LowStockProductDto = {
   deficit: number;
   price: number;
 };
-

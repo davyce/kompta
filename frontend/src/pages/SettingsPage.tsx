@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, BrainCircuit, Building2, Check, ChevronRight,
+  Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
   ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, Zap,
 } from "lucide-react";
@@ -96,6 +96,7 @@ export function SettingsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("general");
+  const isEmployeeSelfService = user?.role === "employe";
 
   const company = useQuery({ queryKey: ["company"], queryFn: api.company });
   const modulesQ = useQuery({ queryKey: ["modules"], queryFn: api.modules });
@@ -105,12 +106,25 @@ export function SettingsPage() {
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
   const myInvoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
   const paymentAccounts = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
+  const myPayout = useQuery({
+    queryKey: ["myEmployeePayout"],
+    queryFn: api.myEmployeePayout,
+    enabled: Boolean(user?.employee_id),
+    retry: false,
+  });
   const auditLogs = useQuery({
     queryKey: ["auditLogs"],
     queryFn: () => api.auditLogs({ limit: 100 }),
     enabled: tab === "audit",
   });
   const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT_FORM);
+  const [myPayoutForm, setMyPayoutForm] = useState({
+    payout_method: "mobile_money",
+    payout_phone: "",
+    payout_bank_name: "",
+    payout_account_number: "",
+    payout_paypal_email: "",
+  });
 
   const toggleModule = useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) => api.toggleModule(key, enabled),
@@ -130,6 +144,17 @@ export function SettingsPage() {
       theme: prefs.data.theme,
     });
   }, [prefs.data]);
+
+  useEffect(() => {
+    if (!myPayout.data) return;
+    setMyPayoutForm({
+      payout_method: myPayout.data.payout_method || "mobile_money",
+      payout_phone: myPayout.data.payout_phone || myPayout.data.phone || "",
+      payout_bank_name: myPayout.data.payout_bank_name || "",
+      payout_account_number: myPayout.data.payout_account_number || "",
+      payout_paypal_email: myPayout.data.payout_paypal_email || "",
+    });
+  }, [myPayout.data]);
 
   const updatePrefs = useMutation({
     mutationFn: (payload: Partial<typeof localPrefs>) => api.updatePreferences(payload),
@@ -162,6 +187,13 @@ export function SettingsPage() {
       api.updatePaymentAccount(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["paymentAccounts"] }),
   });
+  const updateMyPayout = useMutation({
+    mutationFn: () => api.updateMyEmployeePayout({ ...myPayoutForm, confirm: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myEmployeePayout"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
 
   function setPref<K extends keyof typeof localPrefs>(key: K, value: typeof localPrefs[K]) {
     setLocalPrefs((p) => ({ ...p, [key]: value }));
@@ -178,7 +210,7 @@ export function SettingsPage() {
     a.download = `kompta-factures-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   }
 
-  const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+  const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "general",       label: "Général",       icon: Building2   },
     { key: "modules",       label: "Modules",       icon: Zap         },
     { key: "payments",      label: "Paiements",     icon: Wallet      },
@@ -188,6 +220,9 @@ export function SettingsPage() {
     { key: "billing",       label: "Facturation",   icon: CreditCard  },
     { key: "audit",         label: "Journal audit", icon: FileText    },
   ];
+  const TABS = isEmployeeSelfService
+    ? allTabs.filter((item) => ["general", "payments", "notifications", "security"].includes(item.key))
+    : allTabs;
 
   const modulesData = modulesQ.data ?? [];
   const employeesCount = employees.data?.length ?? 0;
@@ -321,6 +356,78 @@ export function SettingsPage() {
                 <h2 className="font-bold text-[#17211f] dark:text-white">Comptes de paiement</h2>
                 <p className="text-sm text-[#717182]">Configurez Zola, mobile money, banque et PayPal pour la caisse et la paie.</p>
               </div>
+              {user?.employee_id && (
+                <div className="border-b border-black/[0.05] p-6 dark:border-white/[0.05]">
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      updateMyPayout.mutate();
+                    }}
+                    className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                          <CheckCircle2 size={18} />
+                          <h3 className="font-black">Réception de ma paie</h3>
+                        </div>
+                        <p className="mt-1 text-sm text-[#717182]">
+                          Confirme ou modifie le compte sur lequel tu veux recevoir ton salaire.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-white/10 dark:text-emerald-200">
+                        {myPayout.data?.payout_phone || myPayout.data?.payout_account_number || myPayout.data?.payout_paypal_email ? "Coordonnées renseignées" : "À compléter"}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr]">
+                      <label className="block text-xs font-bold uppercase text-[#717182]">
+                        Moyen
+                        <select
+                          value={myPayoutForm.payout_method}
+                          onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_method: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white"
+                        >
+                          <option value="mobile_money">Mobile money</option>
+                          <option value="zola">Zola</option>
+                          <option value="bank">Compte bancaire</option>
+                          <option value="paypal">PayPal</option>
+                        </select>
+                      </label>
+                      {myPayoutForm.payout_method === "bank" ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block text-xs font-bold uppercase text-[#717182]">
+                            Banque
+                            <input value={myPayoutForm.payout_bank_name} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_bank_name: event.target.value })} placeholder="Nom de la banque" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                          </label>
+                          <label className="block text-xs font-bold uppercase text-[#717182]">
+                            Numéro de compte
+                            <input value={myPayoutForm.payout_account_number} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_account_number: event.target.value })} placeholder="RIB / compte" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                          </label>
+                        </div>
+                      ) : myPayoutForm.payout_method === "paypal" ? (
+                        <label className="block text-xs font-bold uppercase text-[#717182]">
+                          Email PayPal
+                          <input type="email" value={myPayoutForm.payout_paypal_email} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_paypal_email: event.target.value })} placeholder="monpaypal@email.com" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                        </label>
+                      ) : (
+                        <label className="block text-xs font-bold uppercase text-[#717182]">
+                          Numéro Mobile Money / Zola
+                          <input value={myPayoutForm.payout_phone} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_phone: event.target.value })} placeholder="+242 06..." className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                        </label>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <button disabled={updateMyPayout.isPending || myPayout.isLoading} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-60">
+                        {updateMyPayout.isPending ? "Confirmation..." : "Confirmer pour ma paie"}
+                      </button>
+                      {updateMyPayout.isSuccess && <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Coordonnées paie confirmées.</span>}
+                      {updateMyPayout.error && <span className="text-sm font-bold text-rose-600">{updateMyPayout.error.message}</span>}
+                    </div>
+                  </form>
+                </div>
+              )}
+              {!isEmployeeSelfService && (
               <div className="grid gap-5 p-6 xl:grid-cols-[1fr_360px]">
                 <div className="space-y-3">
                   {(paymentAccounts.data ?? []).length === 0 && (
@@ -443,6 +550,7 @@ export function SettingsPage() {
                   </div>
                 </form>
               </div>
+              )}
             </div>
           )}
 

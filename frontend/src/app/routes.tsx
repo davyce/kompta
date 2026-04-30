@@ -5,6 +5,7 @@ import { AdminCompaniesPage } from "../admin/pages/AdminCompaniesPage";
 import { AdminCompanyDetailPage } from "../admin/pages/AdminCompanyDetailPage";
 import { AdminDashboardPage } from "../admin/pages/AdminDashboardPage";
 import { AdminLogsPage } from "../admin/pages/AdminLogsPage";
+import { AdminLimulePage } from "../admin/pages/AdminLimulePage";
 import { AdminTicketDetailPage } from "../admin/pages/AdminTicketDetailPage";
 import { AdminTicketsPage } from "../admin/pages/AdminTicketsPage";
 import { AdminUsersPage } from "../admin/pages/AdminUsersPage";
@@ -34,6 +35,7 @@ import { WorkPage } from "../pages/WorkPage";
 import { NotesPage } from "../pages/NotesPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { EmployeeProfilePage } from "../pages/EmployeeProfilePage";
+import { MeetingsPage } from "../pages/MeetingsPage";
 
 function ProtectedRoute() {
   const { token } = useAuth();
@@ -63,6 +65,7 @@ export const router = createBrowserRouter([
       { path: "users", element: <AdminUsersPage /> },
       { path: "tickets", element: <AdminTicketsPage /> },
       { path: "tickets/:ticketId", element: <AdminTicketDetailPage /> },
+      { path: "limule", element: <AdminLimulePage /> },
       { path: "logs", element: <AdminLogsPage /> },
     ],
   },
@@ -92,7 +95,7 @@ export const router = createBrowserRouter([
       { path: "settings", element: <SettingsPage /> },
       { path: "accounting", element: <AccountingFinancePage /> },
       { path: "projects", element: <ProjectsPage /> },
-      { path: "meetings", element: <Navigate to="/calendar" replace /> },
+      { path: "meetings", element: <MeetingsPage /> },
       { path: "*", element: <NotFoundPage /> }
     ]
   }

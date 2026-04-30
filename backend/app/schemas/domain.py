@@ -112,6 +112,15 @@ class EmployeeRead(EmployeeBase):
     created_at: datetime
 
 
+class EmployeePayoutUpdate(BaseModel):
+    payout_method: str = "mobile_money"
+    payout_phone: str = ""
+    payout_bank_name: str = ""
+    payout_account_number: str = ""
+    payout_paypal_email: str = ""
+    confirm: bool = True
+
+
 class EmployeeQuickCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
@@ -330,8 +339,17 @@ class InvoiceRead(BaseModel):
     status: str
     total_amount: float
     due_date: date | None
+    payment_method: str = ""
+    payment_account_id: int | None = None
+    payment_account_label: str = ""
+    paid_at: datetime | None = None
     created_at: datetime
     lines: list[InvoiceLineRead] = []
+
+
+class InvoicePaymentCreate(BaseModel):
+    payment_method: str = "cash"
+    payment_account_id: int | None = None
 
 
 class SaleItemCreate(BaseModel):

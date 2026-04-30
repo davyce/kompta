@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   AlertCircle, ArrowDown, ArrowUp, Boxes, Camera, Check, Filter,
   MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Sparkles, X,
@@ -32,6 +33,10 @@ export function InventoryPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanInput, setScanInput] = useState("");
+  const [scanResult, setScanResult] = useState<Product | null>(null);
+  const [scanError, setScanError] = useState("");
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState<EditableProductForm>({
     name: "",
@@ -58,6 +63,21 @@ export function InventoryPage() {
   const uploadImages = useMutation({
     mutationFn: ({ id, files }: { id: number; files: File[] }) => api.uploadProductImages(id, files),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+  const generateQr = useMutation({
+    mutationFn: api.qrLabel,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+  const scanQr = useMutation({
+    mutationFn: api.scanProductQr,
+    onSuccess: (product) => {
+      setScanResult(product);
+      setScanError("");
+    },
+    onError: (error) => {
+      setScanResult(null);
+      setScanError(error instanceof Error ? error.message : "QR introuvable");
+    },
   });
 
   const categories = useMemo(
@@ -141,6 +161,21 @@ export function InventoryPage() {
       await uploadImages.mutateAsync({ id: editingProduct.id, files: editImagePreviews.map((preview) => preview.file) });
     }
     closeEdit();
+  }
+
+  async function openQr(product: Product) {
+    if (!product.qr_generated || !product.qr_code) {
+      const generated = await generateQr.mutateAsync(product.id);
+      setQrProduct(generated.product);
+      return;
+    }
+    setQrProduct(product);
+  }
+
+  function submitScan(event: FormEvent) {
+    event.preventDefault();
+    if (!scanInput.trim()) return;
+    scanQr.mutate(scanInput.trim());
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Boxes }[] = [
@@ -345,10 +380,10 @@ export function InventoryPage() {
                                 Modifier
                               </button>
                               <button
-                                onClick={() => { toggleSelect(p.id); setTab("labels"); }}
+                                onClick={() => openQr(p)}
                                 className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10"
                               >
-                                <QrCode size={12} /> QR
+                                <QrCode size={12} /> Voir QR
                               </button>
                             </div>
                           </td>
@@ -402,13 +437,16 @@ export function InventoryPage() {
                 Sélectionnez des produits dans le catalogue puis générez une planche A4 prête à imprimer.
               </p>
               {selected.length > 0 ? (
-                <div className="mt-6 grid grid-cols-4 gap-3 max-w-xl mx-auto">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-4xl mx-auto">
                   {(products.data ?? []).filter((p) => selected.includes(p.id)).map((p) => (
-                    <div key={p.id} className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-[#c0c0d0] p-3 text-center text-xs">
-                      <div className="text-3xl">{inferProductEmoji(p)}</div>
+                    <div key={p.id} className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[#c0c0d0] bg-white p-3 text-center text-xs dark:bg-white/5">
+                      <QRCodeSVG value={p.qr_code || p.sku} size={104} level="M" includeMargin />
                       <p className="font-mono text-[10px] text-[#717182] truncate w-full">{p.sku}</p>
                       <p className="font-medium text-[#17211f] dark:text-white truncate w-full">{p.name}</p>
                       <p className="text-emerald-600">{p.price.toLocaleString("fr-FR")} XOF</p>
+                      <button onClick={() => openQr(p)} className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                        Agrandir
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -557,15 +595,35 @@ export function InventoryPage() {
               </div>
             </div>
             <div className="p-4">
-              <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                  <Check size={16} />
+              <form onSubmit={submitScan} className="space-y-3">
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">QR code ou SKU</span>
+                  <input
+                    value={scanInput}
+                    onChange={(event) => setScanInput(event.target.value)}
+                    placeholder="Ex : KOMPTA:1:SKU:12 ou SKU"
+                    className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  />
+                </label>
+                <button
+                  disabled={scanQr.isPending || !scanInput.trim()}
+                  className="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {scanQr.isPending ? "Scan…" : "Scanner ce code"}
+                </button>
+              </form>
+              {scanResult && (
+                <div className="mt-3 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                    <Check size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#17211f] dark:text-white">{scanResult.name} — {scanResult.sku}</p>
+                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {scanResult.price.toLocaleString("fr-FR")} XOF</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-[#17211f] dark:text-white">Foulard wax — KMP-FOU-014</p>
-                  <p className="text-xs text-[#717182]">Ajouté au stock · 8 500 XOF</p>
-                </div>
-              </div>
+              )}
+              {scanError && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{scanError}</p>}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10" onClick={() => setScanOpen(false)}>
                   Continuer le scan
@@ -574,6 +632,32 @@ export function InventoryPage() {
                   Confirmer
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {qrProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setQrProduct(null)}>
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 text-center shadow-2xl dark:border-white/10 dark:bg-[#1e2229]" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+              <QrCode size={22} />
+            </div>
+            <h3 className="mt-3 text-lg font-semibold text-[#17211f] dark:text-white">{qrProduct.name}</h3>
+            <p className="text-xs font-mono text-[#717182]">{qrProduct.sku}</p>
+            <div className="mt-4 inline-flex rounded-2xl border border-black/[0.08] bg-white p-4">
+              <QRCodeSVG value={qrProduct.qr_code || qrProduct.sku} size={220} level="M" includeMargin />
+            </div>
+            <p className="mt-3 break-all rounded-lg bg-[#f8f8fc] px-3 py-2 text-[11px] font-mono text-[#717182] dark:bg-white/5">
+              {qrProduct.qr_code || qrProduct.sku}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={() => setQrProduct(null)} className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10">
+                Fermer
+              </button>
+              <button onClick={() => window.print()} className="rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white">
+                Imprimer
+              </button>
             </div>
           </div>
         </div>

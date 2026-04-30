@@ -32,6 +32,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.services.ai_context import (
+    build_limule_fallback_answer,
+    build_limule_system_prompt,
+    build_limule_user_message,
+    infer_module_from_context,
+    postprocess_limule_answer,
+    render_limule_context_pack,
+)
 
 # ─── Catalogue de variables ────────────────────────────────────────────────────
 
@@ -463,10 +471,12 @@ async def limule_generate(
     kind: str,
     prompt: str,
     context: str = "",
+    structured_context: dict[str, Any] | None = None,
     db: Session | None = None,
     company_id: int | None = None,
     user: Any | None = None,
     max_tokens: int = 1200,
+    temperature: float = 0.35,
 ) -> tuple[str, dict[str, str]]:
     """
     Génère du contenu via le vrai LLM avec résolution des variables dynamiques.
@@ -485,7 +495,15 @@ async def limule_generate(
         resolved_context, vars_c = resolve_variables(context, db, company_id, user)
         resolved_vars = {**vars_p, **vars_c}
 
-    system = _SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM)
+    module_key = infer_module_from_context(structured_context)
+    system = build_limule_system_prompt(
+        kind=kind,
+        user=user,
+        module_key=module_key,
+        intent=kind,
+        context=structured_context,
+        base_system=_SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM),
+    )
 
     # Enrichir le system prompt avec le contexte résolu
     if resolved_vars:
@@ -497,9 +515,8 @@ async def limule_generate(
         if ctx_lines:
             system += "\n\nContexte entreprise résolu :\n" + "\n".join(ctx_lines)
 
-    user_msg = resolved_prompt
-    if resolved_context:
-        user_msg += f"\n\nContexte additionnel : {resolved_context}"
+    context_pack = render_limule_context_pack(structured_context) or resolved_context
+    user_msg = build_limule_user_message(resolved_prompt, context_pack)
 
     content = await _call_llm(
         messages=[
@@ -507,10 +524,20 @@ async def limule_generate(
             {"role": "user", "content": user_msg},
         ],
         max_tokens=max_tokens,
+        temperature=temperature,
     )
 
     if not content:
-        content = _fallback_content(kind, resolved_prompt, user)
+        content = build_limule_fallback_answer(
+            kind=kind,
+            prompt=resolved_prompt,
+            context=structured_context,
+            user=user,
+        )
+        if not structured_context:
+            content = _fallback_content(kind, resolved_prompt, user)
+
+    content = postprocess_limule_answer(content, intent=kind, context=structured_context)
 
     return content, resolved_vars
 
@@ -519,10 +546,12 @@ async def limule_stream(
     kind: str,
     prompt: str,
     context: str = "",
+    structured_context: dict[str, Any] | None = None,
     db: Session | None = None,
     company_id: int | None = None,
     user: Any | None = None,
     max_tokens: int = 1200,
+    temperature: float = 0.35,
 ) -> AsyncGenerator[str, None]:
     """
     Version streaming de limule_generate.
@@ -538,7 +567,15 @@ async def limule_stream(
         resolved_context, vars_c = resolve_variables(context, db, company_id, user)
         resolved_vars = {**vars_p, **vars_c}
 
-    system = _SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM)
+    module_key = infer_module_from_context(structured_context)
+    system = build_limule_system_prompt(
+        kind=kind,
+        user=user,
+        module_key=module_key,
+        intent=kind,
+        context=structured_context,
+        base_system=_SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM),
+    )
     if resolved_vars:
         ctx_lines = [
             f"  • {k} : {v}"
@@ -548,9 +585,8 @@ async def limule_stream(
         if ctx_lines:
             system += "\n\nContexte entreprise résolu :\n" + "\n".join(ctx_lines)
 
-    user_msg = resolved_prompt
-    if resolved_context:
-        user_msg += f"\n\nContexte additionnel : {resolved_context}"
+    context_pack = render_limule_context_pack(structured_context) or resolved_context
+    user_msg = build_limule_user_message(resolved_prompt, context_pack)
 
     messages = [
         {"role": "system", "content": system},
@@ -558,12 +594,20 @@ async def limule_stream(
     ]
 
     got_any = False
-    async for chunk in _stream_llm(messages, max_tokens):
+    async for chunk in _stream_llm(messages, max_tokens, temperature):
         got_any = True
         yield chunk
 
     if not got_any:
-        yield _fallback_content(kind, resolved_prompt, user)
+        if structured_context:
+            yield build_limule_fallback_answer(
+                kind=kind,
+                prompt=resolved_prompt,
+                context=structured_context,
+                user=user,
+            )
+        else:
+            yield _fallback_content(kind, resolved_prompt, user)
 
 
 # ─── Contenu de secours ────────────────────────────────────────────────────────
