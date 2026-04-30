@@ -96,3 +96,11 @@ backend/storage/uploads/
 *.tmp
 .cache/
 .parcel-cache/
+storage uploads
+storage/documents/*
+!storage/documents/.gitkeep
+backend/storage/documents/*
+!backend/storage/documents/.gitkeep
+
+backend/storage/products/*
+!backend/storage/products/.gitkeep
