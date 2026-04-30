@@ -1,0 +1,620 @@
+"""
+Limule — couche IA principale de KOMPTA.
+
+Architecture :
+  ┌──────────────┐      ┌──────────────────────┐      ┌───────────┐
+  │  Route FastAPI│──▶  │  resolve_variables()  │──▶   │  LLM API  │
+  └──────────────┘      └──────────────────────┘      └───────────┘
+                                   │
+                    Injecte le contexte réel depuis la DB
+                    (entreprise, employés, TERAS, FCFA…)
+
+Providers supportés via AI_PROVIDER dans .env :
+  - deepseek  (défaut, utilise DEEPSEEK_API_KEY)
+  - openai    (utilise OPENAI_API_KEY)
+  - ollama    (local, aucune clé requise)
+
+Variables dynamiques dans les prompts :
+  {entreprise}, {utilisateur}, {poste}, {date_du_jour}, {mois_en_cours},
+  {annee_en_cours}, {teras_score}, {nb_employes}, {chiffre_affaires},
+  {salaire_moyen}, {employe_nom}
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import date
+from typing import Any, AsyncGenerator
+
+import httpx
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+
+# ─── Catalogue de variables ────────────────────────────────────────────────────
+
+VARIABLE_CATALOGUE: dict[str, str] = {
+    "entreprise":       "Nom de l'entreprise",
+    "utilisateur":      "Nom de l'utilisateur connecté",
+    "poste":            "Rôle / poste de l'utilisateur",
+    "date_du_jour":     "Date du jour (JJ/MM/AAAA)",
+    "mois_en_cours":    "Mois en cours en français",
+    "annee_en_cours":   "Année en cours (AAAA)",
+    "teras_score":      "Score TERAS de conformité global",
+    "nb_employes":      "Nombre d'employés actifs",
+    "chiffre_affaires": "CA du mois courant (FCFA)",
+    "salaire_moyen":    "Salaire moyen net (FCFA)",
+    "employe_nom":      "Nom du premier employé actif",
+}
+
+_MONTHS_FR = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+]
+
+# ─── Résolution des variables ──────────────────────────────────────────────────
+
+
+def resolve_variables(
+    template: str,
+    db: Session,
+    company_id: int,
+    user: Any,
+) -> tuple[str, dict[str, str]]:
+    """
+    Remplace les {variables} du template par leurs valeurs réelles issues de la DB.
+
+    Returns:
+        (resolved_text, resolved_map) — texte résolu + dict var → valeur
+    """
+    # Lazy imports pour éviter les imports circulaires au niveau module
+    from app.models import Company, Employee, Invoice, Sale
+
+    today = date.today()
+    requested: set[str] = set(re.findall(r"\{(\w+)\}", template))
+    resolved: dict[str, str] = {}
+
+    company = db.get(Company, company_id) if company_id else None
+
+    for var in requested:
+        if var not in VARIABLE_CATALOGUE:
+            resolved[var] = f"{{{var}}}"  # conserver tel quel si inconnu
+            continue
+
+        if var == "entreprise":
+            resolved[var] = company.name if company else "Votre entreprise"
+
+        elif var == "utilisateur":
+            resolved[var] = user.full_name or user.email
+
+        elif var == "poste":
+            role_labels = {
+                "super_admin": "Super Administrateur",
+                "admin_entreprise": "Administrateur",
+                "manager_entreprise": "DG",
+                "comptable": "Comptable",
+                "rh_entreprise": "Responsable RH",
+                "caissier_pos": "Caissier",
+                "employe": "Employé",
+            }
+            resolved[var] = role_labels.get(user.role, user.role.replace("_", " ").title())
+
+        elif var == "date_du_jour":
+            resolved[var] = today.strftime("%d/%m/%Y")
+
+        elif var == "mois_en_cours":
+            resolved[var] = _MONTHS_FR[today.month - 1]
+
+        elif var == "annee_en_cours":
+            resolved[var] = str(today.year)
+
+        elif var == "teras_score":
+            score = company.teras_score if company else 0
+            resolved[var] = f"{score}/100"
+
+        elif var == "nb_employes":
+            count = db.scalar(
+                select(func.count())
+                .select_from(Employee)
+                .where(
+                    Employee.company_id == company_id,
+                    Employee.status == "active",
+                )
+            ) or 0
+            resolved[var] = str(count)
+
+        elif var == "chiffre_affaires":
+            from app.models import PayrollRun  # noqa: F401 — kept local
+            inv_total = db.scalar(
+                select(func.sum(Invoice.total_amount)).where(
+                    Invoice.company_id == company_id,
+                    func.strftime("%Y-%m", Invoice.created_at) == today.strftime("%Y-%m"),
+                    Invoice.status.in_(["paid", "sent"]),
+                )
+            ) or 0
+            sale_total = db.scalar(
+                select(func.sum(Sale.total_amount)).where(
+                    Sale.company_id == company_id,
+                    func.strftime("%Y-%m", Sale.created_at) == today.strftime("%Y-%m"),
+                )
+            ) or 0
+            total = int(inv_total + sale_total)
+            resolved[var] = f"{total:,} FCFA".replace(",", " ")
+
+        elif var == "salaire_moyen":
+            avg = db.scalar(
+                select(func.avg(Employee.salary)).where(
+                    Employee.company_id == company_id,
+                    Employee.status == "active",
+                )
+            )
+            resolved[var] = f"{int(avg or 0):,} FCFA".replace(",", " ")
+
+        elif var == "employe_nom":
+            emp = db.scalars(
+                select(Employee)
+                .where(
+                    Employee.company_id == company_id,
+                    Employee.status == "active",
+                )
+                .limit(1)
+            ).first()
+            resolved[var] = f"{emp.first_name} {emp.last_name}".strip() if emp else "Employé"
+
+    # Appliquer les substitutions
+    result = template
+    for var, value in resolved.items():
+        result = result.replace(f"{{{var}}}", value)
+
+    return result, resolved
+
+
+# ─── System prompts par type de document ──────────────────────────────────────
+
+_SYSTEM_PROMPTS: dict[str, str] = {
+    "email": (
+        "Tu es Limule, assistant rédactionnel IA de KOMPTA — ERP local-first pour PME africaines.\n"
+        "Tu rédiges un email professionnel en français, sobre et directement utilisable.\n"
+        "Structure : objet clair, formule d'appel, corps concis, conclusion orientée action, salutation.\n"
+        "Adapte le ton OHADA : respectueux, professionnel, direct. Ne mentionne pas que tu es une IA."
+    ),
+    "note": (
+        "Tu es Limule, assistant IA de KOMPTA.\n"
+        "Tu rédiges une note de service officielle pour une PME africaine.\n"
+        "Forme stricte : EN-TÊTE (À / DE / OBJET / DATE), corps structuré, signature.\n"
+        "Français professionnel et autoritaire. Ne mentionne pas que tu es une IA."
+    ),
+    "clause": (
+        "Tu es Limule, juriste assistant IA de KOMPTA.\n"
+        "Tu rédiges une clause contractuelle conforme au droit OHADA et applicable dans la zone UEMOA/CEMAC.\n"
+        "Vocabulaire juridique précis, clair, sans ambiguïté. Inclure références légales si pertinent.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+    "declaration": (
+        "Tu es Limule, assistant conformité de KOMPTA.\n"
+        "Tu prépares une analyse pré-déclarative pour une PME soumise au droit fiscal OHADA.\n"
+        "Structure : (1) pièces nécessaires, (2) pièces manquantes probables, (3) risques, "
+        "(4) checklist de validation humaine.\n"
+        "Français professionnel. Ne mentionne pas que tu es une IA."
+    ),
+    "meeting_summary": (
+        "Tu es Limule, assistant IA de KOMPTA.\n"
+        "Tu résumes une réunion d'entreprise en points d'action clairs et structurés.\n"
+        "Format : contexte bref → décisions prises → actions à suivre (responsable + délai si connu).\n"
+        "Français professionnel. Ne mentionne pas que tu es une IA."
+    ),
+    "communique": (
+        "Tu es Limule, assistant communication IA de KOMPTA.\n"
+        "Tu rédiges un communiqué officiel (presse ou interne) en français professionnel.\n"
+        "Sobre, factuel, conforme aux pratiques africaines. Structure : titre, chapeau, corps, contact.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+    "courrier": (
+        "Tu es Limule, assistant IA de KOMPTA.\n"
+        "Tu rédiges un courrier officiel en français, conforme aux usages administratifs africains.\n"
+        "Inclus : en-tête avec coordonnées, références, corps bien structuré, salutation de clôture.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+    "reponse_client": (
+        "Tu es Limule, assistant IA de KOMPTA.\n"
+        "Tu rédiges une réponse client professionnelle en français.\n"
+        "Ton : empathique, orienté solution, clair et rassurant. Conclure avec les prochaines étapes.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+    "annonce_interne": (
+        "Tu es Limule, assistant communication IA de KOMPTA.\n"
+        "Tu rédiges une annonce interne pour les collaborateurs d'une PME africaine.\n"
+        "Clair, inclusif, positif, concis. Signe au nom de la direction ou des RH.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+    "compliance_check": (
+        "Tu es Limule, assistant conformité TERAS de KOMPTA.\n"
+        "Tu effectues un contrôle de conformité OHADA pour une PME africaine.\n"
+        "Identifie les risques, cite les textes OHADA applicables, propose des actions correctives.\n"
+        "Structure : risques identifiés → recommandations → priorités.\n"
+        "Ne mentionne pas que tu es une IA."
+    ),
+}
+
+_DEFAULT_SYSTEM = (
+    "Tu es Limule, l'assistant IA de KOMPTA — ERP local-first pour PME africaines.\n"
+    "Tu connais le droit OHADA, le plan SYSCOHADA, la CNPS et les pratiques RH locales.\n"
+    "Réponds en français professionnel, directement utilisable par une entreprise.\n"
+    "Ne mentionne jamais que tu es une IA."
+)
+
+
+# ─── Couche provider LLM ──────────────────────────────────────────────────────
+
+
+async def _call_llm(
+    messages: list[dict[str, str]],
+    max_tokens: int = 1200,
+    temperature: float = 0.5,
+) -> str | None:
+    settings = get_settings()
+    provider = settings.ai_provider
+
+    if provider == "ollama":
+        return await _call_ollama(messages, max_tokens, temperature)
+    elif provider == "openai":
+        return await _call_openai_compatible(
+            messages, max_tokens, temperature,
+            base_url="https://api.openai.com",
+            api_key=settings.openai_api_key,
+            model=settings.ai_model or "gpt-4o-mini",
+        )
+    else:  # deepseek (défaut)
+        return await _call_openai_compatible(
+            messages, max_tokens, temperature,
+            base_url=settings.deepseek_base_url,
+            api_key=settings.deepseek_api_key,
+            model=settings.ai_model or settings.deepseek_model,
+        )
+
+
+async def _call_openai_compatible(
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    base_url: str,
+    api_key: str,
+    model: str,
+) -> str | None:
+    if not api_key:
+        return None
+
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+    except Exception:
+        return None
+
+    choices = data.get("choices") or []
+    if not choices:
+        return None
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    return content.strip() if isinstance(content, str) and content.strip() else None
+
+
+async def _call_ollama(
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+) -> str | None:
+    settings = get_settings()
+    url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
+    payload = {
+        "model": settings.ai_model or "llama3",
+        "messages": messages,
+        "stream": False,
+        "options": {"temperature": temperature, "num_predict": max_tokens},
+    }
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+    except Exception:
+        return None
+
+    msg = data.get("message") or {}
+    content = msg.get("content")
+    return content.strip() if isinstance(content, str) and content.strip() else None
+
+
+# ─── Streaming ────────────────────────────────────────────────────────────────
+
+
+async def _stream_llm(
+    messages: list[dict[str, str]],
+    max_tokens: int = 1200,
+    temperature: float = 0.5,
+) -> AsyncGenerator[str, None]:
+    settings = get_settings()
+    provider = settings.ai_provider
+
+    if provider == "ollama":
+        async for chunk in _stream_ollama(messages, max_tokens, temperature):
+            yield chunk
+    else:
+        api_key = (
+            settings.openai_api_key if provider == "openai"
+            else settings.deepseek_api_key
+        )
+        base_url = (
+            "https://api.openai.com" if provider == "openai"
+            else settings.deepseek_base_url
+        )
+        default_model = "gpt-4o-mini" if provider == "openai" else settings.deepseek_model
+        model = settings.ai_model or default_model
+
+        async for chunk in _stream_openai_compatible(
+            messages, max_tokens, temperature, base_url, api_key, model
+        ):
+            yield chunk
+
+
+async def _stream_openai_compatible(
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    base_url: str,
+    api_key: str,
+    model: str,
+) -> AsyncGenerator[str, None]:
+    if not api_key:
+        return
+
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            async with client.stream(
+                "POST",
+                url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        return
+                    try:
+                        parsed = json.loads(data)
+                        delta = parsed["choices"][0]["delta"].get("content", "")
+                        if delta:
+                            yield delta
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+    except Exception:
+        return
+
+
+async def _stream_ollama(
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+) -> AsyncGenerator[str, None]:
+    settings = get_settings()
+    url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
+    payload = {
+        "model": settings.ai_model or "llama3",
+        "messages": messages,
+        "stream": True,
+        "options": {"temperature": temperature, "num_predict": max_tokens},
+    }
+    try:
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            async with client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        delta = data.get("message", {}).get("content", "")
+                        if delta:
+                            yield delta
+                        if data.get("done"):
+                            return
+                    except json.JSONDecodeError:
+                        continue
+    except Exception:
+        return
+
+
+# ─── API publique ──────────────────────────────────────────────────────────────
+
+
+async def limule_generate(
+    kind: str,
+    prompt: str,
+    context: str = "",
+    db: Session | None = None,
+    company_id: int | None = None,
+    user: Any | None = None,
+    max_tokens: int = 1200,
+) -> tuple[str, dict[str, str]]:
+    """
+    Génère du contenu via le vrai LLM avec résolution des variables dynamiques.
+
+    Returns:
+        (content, resolved_vars)
+        - content       : texte généré par Limule (ou fallback si LLM indisponible)
+        - resolved_vars : dictionnaire {variable → valeur résolue} pour affichage
+    """
+    resolved_vars: dict[str, str] = {}
+    resolved_prompt = prompt
+    resolved_context = context
+
+    if db is not None and company_id and user is not None:
+        resolved_prompt, vars_p = resolve_variables(prompt, db, company_id, user)
+        resolved_context, vars_c = resolve_variables(context, db, company_id, user)
+        resolved_vars = {**vars_p, **vars_c}
+
+    system = _SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM)
+
+    # Enrichir le system prompt avec le contexte résolu
+    if resolved_vars:
+        ctx_lines = [
+            f"  • {k} : {v}"
+            for k, v in resolved_vars.items()
+            if v and not v.startswith("{")
+        ]
+        if ctx_lines:
+            system += "\n\nContexte entreprise résolu :\n" + "\n".join(ctx_lines)
+
+    user_msg = resolved_prompt
+    if resolved_context:
+        user_msg += f"\n\nContexte additionnel : {resolved_context}"
+
+    content = await _call_llm(
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        max_tokens=max_tokens,
+    )
+
+    if not content:
+        content = _fallback_content(kind, resolved_prompt, user)
+
+    return content, resolved_vars
+
+
+async def limule_stream(
+    kind: str,
+    prompt: str,
+    context: str = "",
+    db: Session | None = None,
+    company_id: int | None = None,
+    user: Any | None = None,
+    max_tokens: int = 1200,
+) -> AsyncGenerator[str, None]:
+    """
+    Version streaming de limule_generate.
+    Yield les chunks de texte au fur et à mesure qu'ils arrivent du LLM.
+    Si le LLM est indisponible, yield le fallback en un seul bloc.
+    """
+    resolved_vars: dict[str, str] = {}
+    resolved_prompt = prompt
+    resolved_context = context
+
+    if db is not None and company_id and user is not None:
+        resolved_prompt, vars_p = resolve_variables(prompt, db, company_id, user)
+        resolved_context, vars_c = resolve_variables(context, db, company_id, user)
+        resolved_vars = {**vars_p, **vars_c}
+
+    system = _SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM)
+    if resolved_vars:
+        ctx_lines = [
+            f"  • {k} : {v}"
+            for k, v in resolved_vars.items()
+            if v and not v.startswith("{")
+        ]
+        if ctx_lines:
+            system += "\n\nContexte entreprise résolu :\n" + "\n".join(ctx_lines)
+
+    user_msg = resolved_prompt
+    if resolved_context:
+        user_msg += f"\n\nContexte additionnel : {resolved_context}"
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_msg},
+    ]
+
+    got_any = False
+    async for chunk in _stream_llm(messages, max_tokens):
+        got_any = True
+        yield chunk
+
+    if not got_any:
+        yield _fallback_content(kind, resolved_prompt, user)
+
+
+# ─── Contenu de secours ────────────────────────────────────────────────────────
+
+
+def _fallback_content(kind: str, prompt: str, user: Any = None) -> str:
+    """Contenu professionnel de secours quand le LLM est indisponible."""
+    sig = "\n\n— Limule · KOMPTA"
+    if user and hasattr(user, "full_name"):
+        sig = f"\n\n— Limule · KOMPTA\nGénéré pour {user.full_name}"
+
+    if kind == "email":
+        return (
+            f"Objet : {prompt[:60]}\n\n"
+            f"Bonjour,\n\nSuite à notre échange concernant « {prompt} », "
+            f"voici les éléments à prendre en compte :\n\n"
+            f"1. Contexte et enjeux\n"
+            f"2. Points d'attention\n"
+            f"3. Prochaines étapes\n\n"
+            f"Restant à votre disposition pour tout complément." + sig
+        )
+    if kind == "note":
+        return (
+            f"NOTE DE SERVICE\n\nObjet : {prompt}\n\n"
+            f"Il est porté à la connaissance de l'ensemble des collaborateurs concernés que "
+            f"les dispositions suivantes s'appliquent à compter de ce jour.\n\n"
+            f"Tout collaborateur souhaitant un complément d'information est invité à se "
+            f"rapprocher de sa hiérarchie." + sig
+        )
+    if kind == "clause":
+        return (
+            f"CLAUSE — {prompt}\n\n"
+            f"Le Salarié s'engage à respecter les dispositions suivantes dans l'exercice "
+            f"de ses fonctions au sein de l'entreprise, conformément aux textes OHADA "
+            f"en vigueur. Tout manquement pourra donner lieu à des sanctions disciplinaires "
+            f"conformes au règlement intérieur et au Code du travail applicable." + sig
+        )
+    if kind == "declaration":
+        return (
+            f"ANALYSE DÉCLARATIVE — {prompt}\n\n"
+            f"Pièces nécessaires : justificatifs comptables, relevés bancaires, "
+            f"états de paie de la période.\n"
+            f"Recommandation : vérifier la complétude des pièces avant dépôt. "
+            f"Faire relire par un expert-comptable habilité." + sig
+        )
+    if kind == "meeting_summary":
+        return (
+            f"RÉSUMÉ DE RÉUNION\n\n"
+            f"Objet : {prompt}\n\n"
+            f"Décisions prises : à compléter par les participants.\n"
+            f"Actions à suivre : assigner les responsables et fixer les délais.\n"
+            f"Prochaine réunion : à planifier selon disponibilités." + sig
+        )
+    return f"Réponse à : {prompt}\n\nLimule a bien reçu votre demande." + sig
