@@ -84,6 +84,14 @@ def _meeting_to_read(m: Meeting) -> dict:
     }
 
 
+def _json_list(value: str | None) -> list:
+    try:
+        parsed = json.loads(value or "[]")
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MEETINGS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -416,6 +424,39 @@ def limule_context(
         "sources": context["sources"],
         "modules": context["modules"],
     }
+
+
+@router.get("/limule/chat/history")
+def limule_chat_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 12,
+) -> list[dict]:
+    """Retourne les derniers échanges du chat Limule pour l'utilisateur connecté."""
+    safe_limit = max(1, min(int(limit or 12), 50))
+    rows = db.scalars(
+        select(LimuleInteraction)
+        .where(LimuleInteraction.company_id == current_user.company_id)
+        .where(LimuleInteraction.user_id == current_user.id)
+        .order_by(LimuleInteraction.created_at.desc())
+        .limit(safe_limit)
+    ).all()
+
+    return [
+        {
+            "id": row.id,
+            "prompt": row.prompt,
+            "response": row.response,
+            "module": row.module_key,
+            "intent": row.intent,
+            "page_path": row.page_path,
+            "sources": _json_list(row.context_sources),
+            "signals": _json_list(row.detected_signals),
+            "rating": row.rating,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in reversed(rows)
+    ]
 
 
 @router.post("/limule/chat", status_code=201)

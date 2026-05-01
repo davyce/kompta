@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AlertTriangle, Bot, FileText, ListChecks, Send, Sparkles, Wand2, X } from "lucide-react";
 import { api } from "../services/api";
@@ -9,6 +9,12 @@ type Message = {
   interactionId?: number;
   sources?: string[];
   signals?: Array<{ label: string; severity: string; module: string }>;
+  createdAt?: string | null;
+};
+
+const introMessage: Message = {
+  author: "ai",
+  text: "Je suis Limule. Pose une question, demande un résumé, un risque ou un brouillon: je génère une réponse depuis le backend IA."
 };
 
 const suggestions = [
@@ -22,18 +28,64 @@ export function Copilot() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      author: "ai",
-      text: "Je suis Limule. Pose une question, demande un résumé, un risque ou un brouillon: je génère une réponse depuis le backend IA."
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([introMessage]);
   const [aiStatus, setAiStatus] = useState<{ provider: string; model: string; key_configured: boolean } | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     api.aiStatus().then(setAiStatus).catch(() => setAiStatus(null));
   }, []);
+
+  useEffect(() => {
+    if (!open || historyLoaded) {
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryLoading(true);
+    api.limuleChatHistory(12)
+      .then((history) => {
+        if (cancelled || history.length === 0) {
+          return;
+        }
+        const hydrated: Message[] = history.flatMap((item) => [
+          {
+            author: "user" as const,
+            text: item.prompt,
+            createdAt: item.created_at,
+          },
+          {
+            author: "ai" as const,
+            text: item.response,
+            interactionId: item.id,
+            sources: item.sources,
+            signals: item.signals,
+            createdAt: item.created_at,
+          },
+        ]);
+        setMessages((current) => (current.length > 1 ? current : [introMessage, ...hydrated]));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) {
+          setHistoryLoaded(true);
+          setHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, historyLoaded]);
+
+  useEffect(() => {
+    if (open) {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [messages, loading, historyLoading, open]);
 
   async function send(text: string) {
     if (!text.trim() || loading) {
@@ -94,7 +146,7 @@ export function Copilot() {
               <p className="text-xl font-black">Limule</p>
               <p className="text-sm font-semibold text-white/75">
                 {aiStatus
-                  ? `Grand Sage 1.0 · ${aiStatus.key_configured ? "clé prête" : "mode secours"}`
+                  ? `Grand Sage 1.0 · ${aiStatus.key_configured ? "Limule actif" : "mode secours"}`
                   : "Grand Sage 1.0"}
               </p>
             </div>
@@ -103,6 +155,12 @@ export function Copilot() {
             </button>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto bg-[#fbfbfd] p-5 dark:bg-[#171a21]">
+            {historyLoading ? (
+              <p className="text-center text-[11px] font-bold uppercase tracking-wide text-[#717182]">Chargement de l'historique...</p>
+            ) : null}
+            {historyLoaded && messages.length > 1 ? (
+              <p className="text-center text-[11px] font-bold uppercase tracking-wide text-violet-500">Historique Limule</p>
+            ) : null}
             {messages.map((message, index) => (
               <div key={`${message.author}-${index}`} className={`flex ${message.author === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
@@ -143,6 +201,7 @@ export function Copilot() {
               </div>
             ))}
             {loading ? <p className="text-xs font-semibold text-[#717182]">Analyse en cours...</p> : null}
+            <div ref={endRef} />
           </div>
           <div className="flex flex-wrap gap-1.5 border-t border-black/[0.05] bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1e2229]">
             {suggestions.map((suggestion) => (

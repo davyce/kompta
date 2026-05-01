@@ -511,6 +511,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  limuleChatHistory: (limit = 12) => request<LimuleChatHistoryItem[]>(`/limule/chat/history?limit=${limit}`),
   limuleFeedback: (interactionId: number, payload: { rating?: number; feedback?: string }) =>
     request<{ id: number; rating: number | null; feedback: string }>(
       `/limule/interactions/${interactionId}/feedback`,
@@ -741,6 +742,19 @@ export type LimuleChatResponse = {
   training_tags: string[];
   context_summary: string;
   confidence: number;
+};
+
+export type LimuleChatHistoryItem = {
+  id: number;
+  prompt: string;
+  response: string;
+  module: string;
+  intent: string;
+  page_path: string;
+  sources: string[];
+  signals: LimuleSignal[];
+  rating: number | null;
+  created_at: string | null;
 };
 
 export type DailyNoteDto = {
