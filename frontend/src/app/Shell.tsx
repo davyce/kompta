@@ -168,7 +168,7 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/employees": { section: "RH", title: "Dossiers du personnel" },
   "/documents": { section: "Documents", title: "Bibliothèque intelligente" },
   "/payroll": { section: "Paie", title: "Cycles et bulletins" },
-  "/accounting": { section: "Comptabilité", title: "Finance et SYSCOHADA" },
+  "/accounting": { section: "Comptabilité", title: "Finance et SYSCEMAC" },
   "/billing": { section: "Facturation", title: "Clients et encaissements" },
   "/pos": { section: "POS / Caisse", title: "Caisse et encaissement" },
   "/inventory": { section: "Inventaire", title: "Stock multi-sites" },

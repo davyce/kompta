@@ -115,7 +115,7 @@ def render_invoice_pdf(invoice, company) -> bytes:
 
     story.append(Spacer(1, 1.5 * cm))
     story.append(Paragraph(
-        "KOMPTA · Référentiel SYSCOHADA Révisé · Document généré automatiquement",
+        "KOMPTA · Référentiel SYSCEMAC Révisé · Document généré automatiquement",
         s["footer"],
     ))
 
@@ -166,7 +166,7 @@ def render_payroll_pdf(run, company) -> bytes:
         story.append(table)
         story.append(Spacer(1, 1.0 * cm))
         story.append(Paragraph(
-            "KOMPTA · Référentiel SYSCOHADA · Bulletin certifié",
+            "KOMPTA · Référentiel SYSCEMAC · Bulletin certifié",
             s["footer"],
         ))
 

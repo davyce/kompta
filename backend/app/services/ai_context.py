@@ -43,7 +43,7 @@ MODULE_PLAYBOOKS: dict[str, dict[str, Any]] = {
         "signals": ["bulletins prêts", "destinations de paiement", "CNPS", "écarts paie"],
     },
     "accounting": {
-        "mission": "aider à comprendre la comptabilité, les écritures et le SYSCOHADA",
+        "mission": "aider à comprendre la comptabilité, les écritures et le SYSCEMAC",
         "signals": ["trésorerie", "créances", "dettes", "résultat", "rapprochement"],
     },
     "billing": {
@@ -131,7 +131,7 @@ INTENT_PLAYBOOKS: dict[str, dict[str, str]] = {
         "format": "État opérationnel, blocages, action immédiate, contrôle après action",
     },
     "compliance_check": {
-        "goal": "vérifier la conformité CEMAC/SYSCOHADA/CNPS avec prudence",
+        "goal": "vérifier la conformité CEMACE/SYSCEMAC/CNPS avec prudence",
         "format": "Constats, risques, pièces nécessaires, validation humaine",
     },
     "meeting_summary": {

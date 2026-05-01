@@ -78,7 +78,7 @@ const MODULES = [
   { key: "paie", icon: HandCoins, label: "Paie", desc: "Bulletins, virements, CNSS", color: "blue" },
   { key: "facturation", icon: FileText, label: "Facturation", desc: "Devis, factures, encaissements", color: "violet" },
   { key: "pos", icon: ShoppingCart, label: "POS / Caisse", desc: "Vente directe, caisse, reçus", color: "amber" },
-  { key: "declarations", icon: Shield, label: "Déclarations", desc: "Fiscalité CEMAC, SYSCOHADA, conformité", color: "rose" },
+  { key: "declarations", icon: Shield, label: "Déclarations", desc: "Fiscalité CEMACE, SYSCEMAC, conformité", color: "rose" },
   { key: "assistants", icon: Bot, label: "Rédaction IA", desc: "Emails, contrats, courriers", color: "emerald" },
 ];
 
@@ -316,7 +316,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   { icon: Building2, label: "RH & Personnel", desc: "Gérez vos employés facilement" },
                   { icon: CreditCard, label: "Finance", desc: "Paie, facturation, déclarations" },
                   { icon: Bot, label: "IA Limule", desc: "Rédigez en quelques secondes" },
-                  { icon: Shield, label: "TERAS", desc: "Conformité CEMAC/SYSCOHADA automatique" },
+                  { icon: Shield, label: "TERAS", desc: "Conformité CEMACE/SYSCEMAC automatique" },
                   { icon: ShoppingCart, label: "POS", desc: "Caisse et encaissements" },
                   { icon: BarChart3, label: "Rapports", desc: "Tableaux de bord en temps réel" },
                 ].map(({ icon: Icon, label, desc }) => (
@@ -373,7 +373,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   {
                     num: "4",
                     title: "Limule rédige pour vous",
-                    desc: "L'IA Limule génère emails, contrats, rapports, courriers en français professionnel adapté à votre contexte CEMAC.",
+                    desc: "L'IA Limule génère emails, contrats, rapports, courriers en français professionnel adapté à votre contexte CEMACE.",
                     example: "Exemple : Saisissez « email de bienvenue » et Limule génère un texte complet en 3 secondes.",
                   },
                 ].map(({ num, title, desc, example }) => (
@@ -438,7 +438,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Pays CEMAC</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Pays CEMACE</span>
                   <select
                     value={companyForm.country}
                     onChange={(e) => setCompanyForm({ ...companyForm, country: e.target.value })}
@@ -640,7 +640,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <div className="text-center">
                 <h2 className="text-xl font-black text-[#17211f]">Limule — Votre assistant IA</h2>
                 <p className="text-sm text-[#717182] mt-1">
-                  Limule rédige des documents professionnels en français, adaptés au contexte CEMAC.
+                  Limule rédige des documents professionnels en français, adaptés au contexte CEMACE.
                   <br /><strong>Testez-le maintenant :</strong>
                 </p>
               </div>

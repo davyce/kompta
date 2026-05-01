@@ -1615,7 +1615,7 @@ def export_invoice_html(
 <table><thead><tr><th>Description</th><th style="text-align:center">Qté</th><th style="text-align:right">Prix unit.</th><th style="text-align:right">Total</th></tr></thead>
 <tbody>{lines_html}</tbody></table>
 <div class="total">Total TTC : {invoice.total_amount:,.0f} XAF</div>
-<div class="footer">KOMPTA · Référentiel SYSCOHADA Révisé · Document généré automatiquement<br>
+<div class="footer">KOMPTA · Référentiel SYSCEMAC Révisé · Document généré automatiquement<br>
 <button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">Imprimer / Enregistrer en PDF</button></div>
 </body></html>"""
     return Response(content=html, media_type="text/html", headers={"Content-Disposition": f'inline; filename="facture-{invoice.number}.html"'})
@@ -1669,7 +1669,7 @@ def export_payroll_html(
 </div>
 {slips_html}
 <div style="text-align:center;margin-top:32px;font-size:12px;color:#888">
-  KOMPTA · SYSCOHADA Révisé · Généré le {str(date.today())}
+  KOMPTA · SYSCEMAC Révisé · Généré le {str(date.today())}
   <br><button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">Imprimer / Enregistrer en PDF</button>
 </div></body></html>"""
     return Response(content=html, media_type="text/html", headers={"Content-Disposition": f'inline; filename="paie-{run.period}.html"'})

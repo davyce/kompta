@@ -46,7 +46,7 @@ const staticItems: CommandItem[] = [
   { type: "page", label: "Ressources humaines", hint: "Employés, contrats, accès", icon: Users, path: "/employees", group: "Pages" },
   { type: "page", label: "Documents", hint: "Classement IA et contrats", icon: FolderArchive, path: "/documents", group: "Pages" },
   { type: "page", label: "Paie", hint: "Cycles, bulletins, validation", icon: HandCoins, path: "/payroll", group: "Pages" },
-  { type: "page", label: "Comptabilité", hint: "Finance et SYSCOHADA", icon: Calculator, path: "/accounting", group: "Pages" },
+  { type: "page", label: "Comptabilité", hint: "Finance et SYSCEMAC", icon: Calculator, path: "/accounting", group: "Pages" },
   { type: "page", label: "Facturation", hint: "Clients, factures, encaissements", icon: ReceiptText, path: "/billing", group: "Pages" },
   { type: "page", label: "POS / Caisse", hint: "Caisse, panier, encaissement", icon: ShoppingCart, path: "/pos", group: "Pages" },
   { type: "page", label: "Inventaire", hint: "Stock, produits, QR codes", icon: Boxes, path: "/inventory", group: "Pages" },

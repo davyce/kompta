@@ -14,7 +14,7 @@ import {
 import { api } from "../services/api";
 import { compactMoney, money } from "../utils/format";
 
-const SYSCOHADA_CLASSES = [
+const SYSCEMAC_CLASSES = [
   { n: 1, label: "Ressources durables",    desc: "Capitaux propres, dettes financières à long terme",                  c: "#4f46e5" },
   { n: 2, label: "Actifs immobilisés",     desc: "Immobilisations corporelles, incorporelles, financières",             c: "#0f766e" },
   { n: 3, label: "Stocks",                 desc: "Marchandises, matières premières, produits finis",                   c: "#f59e0b" },
@@ -142,12 +142,12 @@ export function AccountingFinancePage() {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-emerald-600">Comptabilité &amp; finance</p>
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30 tracking-wide">
-              SYSCOHADA RÉVISÉ
+              SYSCEMAC RÉVISÉ
             </span>
           </div>
           <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Finance et Comptabilité</h1>
           <p className="mt-1 text-sm text-[#717182]">
-            {invoices.data?.length ?? 0} factures · Référentiel SYSCOHADA · Zone CEMAC/XAF
+            {invoices.data?.length ?? 0} factures · Référentiel SYSCEMAC · Zone CEMACE/XAF
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -155,7 +155,7 @@ export function AccountingFinancePage() {
             onClick={() => setPlanOpen((v) => !v)}
             className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300 transition"
           >
-            <BookOpen size={16} /> Plan comptable SYSCOHADA
+            <BookOpen size={16} /> Plan comptable SYSCEMAC
           </button>
           <button
             onClick={() => setTab(1)}
@@ -176,18 +176,18 @@ export function AccountingFinancePage() {
         </div>
       </div>
 
-      {/* ── SYSCOHADA panel ── */}
+      {/* ── SYSCEMAC panel ── */}
       {planOpen && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCOHADA actif — CEMAC/XAF</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCEMAC actif — CEMACE/XAF</h3>
             <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">9 classes</span>
           </div>
           <p className="mb-4 text-sm text-[#717182]">
-            Référentiel comptable SYSCOHADA utilisé en zone CEMAC. Cliquez pour voir le détail des classes.
+            Référentiel comptable SYSCEMAC utilisé en zone CEMACE. Cliquez pour voir le détail des classes.
           </p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {SYSCOHADA_CLASSES.map((cls) => (
+            {SYSCEMAC_CLASSES.map((cls) => (
               <button
                 key={cls.n}
                 onClick={() => setExpanded(expanded === cls.n ? null : cls.n)}
@@ -209,7 +209,7 @@ export function AccountingFinancePage() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm">
-            <span className="font-bold text-emerald-800 dark:text-emerald-300">SYSCOHADA Révisé · CEMAC</span>
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">SYSCEMAC Révisé · CEMACE</span>
             <span className="text-emerald-400">·</span>
             <span className="text-emerald-700 dark:text-emerald-400">En vigueur depuis le 1er janvier 2018</span>
             <span className="text-emerald-400">·</span>
@@ -350,10 +350,10 @@ export function AccountingFinancePage() {
         </div>
       </div>
 
-      {/* ── SYSCOHADA journals status ── */}
+      {/* ── SYSCEMAC journals status ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
         <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-          <h3 className="font-bold text-[#17211f] dark:text-white">État des journaux SYSCOHADA</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">État des journaux SYSCEMAC</h3>
           <p className="text-xs text-[#717182]">Calculé en temps réel à partir de tes données</p>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-4">

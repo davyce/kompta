@@ -74,7 +74,7 @@ const MODULE_LABELS: Record<string, { label: string; desc: string }> = {
   dashboard:    { label: "Tableau de bord", desc: "Vue globale pilotage" },
   rh:           { label: "RH",              desc: "Dossiers et profils employés" },
   payroll:      { label: "Paie",            desc: "Bulletins & cycles paie" },
-  accounting:   { label: "Comptabilité",    desc: "SYSCOHADA, journaux, bilan" },
+  accounting:   { label: "Comptabilité",    desc: "SYSCEMAC, journaux, bilan" },
   billing:      { label: "Facturation",     desc: "Devis, factures, encaissements" },
   pos:          { label: "POS / Caisse",    desc: "Vente directe + mobile money" },
   inventory:    { label: "Inventaire",      desc: "Stock multi-sites, QR codes" },
@@ -306,7 +306,7 @@ export function SettingsPage() {
                     <option value="en">English</option>
                   </select>
                 </SettingRow>
-                <SettingRow icon={Globe} label="Devise" description="Devise principale CEMAC (XAF par défaut)">
+                <SettingRow icon={Globe} label="Devise" description="Devise principale CEMACE (XAF par défaut)">
                   <select disabled className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white opacity-70">
                     <option>XAF — Franc CFA BEAC</option>
                   </select>
