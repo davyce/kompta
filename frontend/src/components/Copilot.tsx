@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AlertTriangle, Bot, FileText, ListChecks, Send, Sparkles, Wand2, X } from "lucide-react";
-import { api } from "../services/api";
+import { AlertTriangle, Bot, Clock3, FileText, ListChecks, Plus, Send, Sparkles, Wand2, X } from "lucide-react";
+import { api, type LimuleChatHistoryItem } from "../services/api";
 
 type Message = {
   author: "user" | "ai";
@@ -24,12 +24,42 @@ const suggestions = [
   { label: "Redige un email de relance", icon: Wand2 }
 ];
 
+function historyToMessages(item: LimuleChatHistoryItem): Message[] {
+  return [
+    {
+      author: "user",
+      text: item.prompt,
+      createdAt: item.created_at,
+    },
+    {
+      author: "ai",
+      text: item.response,
+      interactionId: item.id,
+      sources: item.sources,
+      signals: item.signals,
+      createdAt: item.created_at,
+    },
+  ];
+}
+
+function historyDate(value: string | null): string {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function Copilot() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([introMessage]);
   const [aiStatus, setAiStatus] = useState<{ provider: string; model: string; key_configured: boolean } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyItems, setHistoryItems] = useState<LimuleChatHistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,46 +69,26 @@ export function Copilot() {
     api.aiStatus().then(setAiStatus).catch(() => setAiStatus(null));
   }, []);
 
-  useEffect(() => {
-    if (!open || historyLoaded) {
+  async function loadHistory() {
+    if (historyLoading) {
       return;
     }
-
-    let cancelled = false;
     setHistoryLoading(true);
-    api.limuleChatHistory(12)
+    await api.limuleChatHistory(30)
       .then((history) => {
-        if (cancelled || history.length === 0) {
-          return;
-        }
-        const hydrated: Message[] = history.flatMap((item) => [
-          {
-            author: "user" as const,
-            text: item.prompt,
-            createdAt: item.created_at,
-          },
-          {
-            author: "ai" as const,
-            text: item.response,
-            interactionId: item.id,
-            sources: item.sources,
-            signals: item.signals,
-            createdAt: item.created_at,
-          },
-        ]);
-        setMessages((current) => (current.length > 1 ? current : [introMessage, ...hydrated]));
+        setHistoryItems(history);
       })
       .catch(() => undefined)
       .finally(() => {
-        if (!cancelled) {
-          setHistoryLoaded(true);
-          setHistoryLoading(false);
-        }
+        setHistoryLoaded(true);
+        setHistoryLoading(false);
       });
+  }
 
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    if (open && !historyLoaded) {
+      void loadHistory();
+    }
   }, [open, historyLoaded]);
 
   useEffect(() => {
@@ -100,6 +110,7 @@ export function Copilot() {
         prompt: userMessage,
         page_path: location.pathname,
       });
+      const savedAt = new Date().toISOString();
       setMessages((current) => [
         ...current,
         {
@@ -108,8 +119,24 @@ export function Copilot() {
           interactionId: generation.interaction_id,
           sources: generation.sources,
           signals: generation.signals,
+          createdAt: savedAt,
         }
       ]);
+      setHistoryItems((current) => [
+        ...current,
+        {
+          id: generation.interaction_id,
+          prompt: userMessage,
+          response: generation.answer,
+          module: generation.module,
+          intent: generation.intent,
+          page_path: location.pathname,
+          sources: generation.sources,
+          signals: generation.signals,
+          rating: null,
+          created_at: savedAt,
+        },
+      ].slice(-30));
     } catch {
       setMessages((current) => [
         ...current,
@@ -125,6 +152,17 @@ export function Copilot() {
 
   async function rate(interactionId: number, rating: number) {
     await api.limuleFeedback(interactionId, { rating }).catch(() => undefined);
+  }
+
+  function startNewChat() {
+    setMessages([introMessage]);
+    setInput("");
+    setShowHistory(false);
+  }
+
+  function openHistoryItem(item: LimuleChatHistoryItem) {
+    setMessages([introMessage, ...historyToMessages(item)]);
+    setShowHistory(false);
   }
 
   return (
@@ -154,13 +192,60 @@ export function Copilot() {
               <X size={18} />
             </button>
           </div>
+          <div className="flex items-center gap-2 border-b border-black/[0.05] bg-white px-4 py-2 dark:border-white/10 dark:bg-[#1e2229]">
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] px-2.5 py-1.5 text-xs font-bold text-[#17211f] transition hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10"
+            >
+              <Plus size={13} /> Nouveau chat
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowHistory((value) => !value);
+                if (!historyLoaded) void loadHistory();
+              }}
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
+                showHistory
+                  ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200"
+                  : "border-black/[0.06] text-[#17211f] hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10"
+              }`}
+            >
+              <Clock3 size={13} /> Historique{historyItems.length ? ` (${historyItems.length})` : ""}
+            </button>
+          </div>
+          {showHistory ? (
+            <div className="max-h-48 overflow-y-auto border-b border-black/[0.05] bg-[#fbfbfd] p-3 dark:border-white/10 dark:bg-[#171a21]">
+              {historyLoading ? (
+                <p className="text-center text-xs font-semibold text-[#717182]">Chargement de l'historique...</p>
+              ) : historyItems.length === 0 ? (
+                <p className="text-center text-xs font-semibold text-[#717182]">Aucun échange Limule pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {[...historyItems].reverse().map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => openHistoryItem(item)}
+                      className="block w-full rounded-xl border border-black/[0.05] bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.05] dark:hover:bg-violet-500/10"
+                    >
+                      <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-500">
+                        {historyDate(item.created_at)} · {item.module}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs font-bold text-[#17211f] dark:text-white">
+                        {item.prompt}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[#717182]">
+                        {item.response}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
           <div className="flex-1 space-y-4 overflow-y-auto bg-[#fbfbfd] p-5 dark:bg-[#171a21]">
-            {historyLoading ? (
-              <p className="text-center text-[11px] font-bold uppercase tracking-wide text-[#717182]">Chargement de l'historique...</p>
-            ) : null}
-            {historyLoaded && messages.length > 1 ? (
-              <p className="text-center text-[11px] font-bold uppercase tracking-wide text-violet-500">Historique Limule</p>
-            ) : null}
             {messages.map((message, index) => (
               <div key={`${message.author}-${index}`} className={`flex ${message.author === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
