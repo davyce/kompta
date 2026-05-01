@@ -460,6 +460,11 @@ export const api = {
     return request<LimuleTrainingRecord[]>(`/admin/limule/dataset${q ? `?${q}` : ""}`);
   },
   adminLimuleDatasetExport: (limit = 500) => requestBlob(`/admin/limule/dataset/export?limit=${limit}`),
+  adminLimuleChat: (prompt: string) =>
+    request<AdminLimuleChatResponse>("/admin/limule/chat", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    }),
 
   /* ── User-side tickets (for tenants to open support tickets) ── */
   myTickets: () => request<TicketDto[]>("/tickets"),
@@ -833,6 +838,14 @@ export type AdminLimuleInsights = {
     tags: string[];
     created_at: string | null;
   }>;
+};
+
+export type AdminLimuleChatResponse = {
+  interaction_id: number;
+  answer: string;
+  sources: string[];
+  signals: LimuleSignal[];
+  kpis: Record<string, number>;
 };
 
 export type LimuleTrainingRecord = {

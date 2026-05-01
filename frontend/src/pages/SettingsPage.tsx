@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
-  ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, Zap,
+  Save, Search, ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, Zap,
 } from "lucide-react";
 
 import { api } from "../services/api";
@@ -118,6 +118,18 @@ export function SettingsPage() {
     enabled: tab === "audit",
   });
   const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT_FORM);
+  const [paymentDraft, setPaymentDraft] = useState(EMPTY_PAYMENT_FORM);
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [moduleSearch, setModuleSearch] = useState("");
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    legal_name: "",
+    industry: "",
+    organization_type: "PME",
+    country: "République du Congo",
+    primary_color: "#0f766e",
+    accent_color: "#f59e0b",
+  });
   const [myPayoutForm, setMyPayoutForm] = useState({
     payout_method: "mobile_money",
     payout_phone: "",
@@ -130,6 +142,19 @@ export function SettingsPage() {
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) => api.toggleModule(key, enabled),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["modules"] }),
   });
+
+  useEffect(() => {
+    if (!company.data) return;
+    setCompanyForm({
+      name: company.data.name || "",
+      legal_name: company.data.legal_name || "",
+      industry: company.data.industry || "",
+      organization_type: company.data.organization_type || "PME",
+      country: company.data.country || "République du Congo",
+      primary_color: company.data.primary_color || "#0f766e",
+      accent_color: company.data.accent_color || "#f59e0b",
+    });
+  }, [company.data]);
 
   // Local prefs state synced with API
   const [localPrefs, setLocalPrefs] = useState({
@@ -160,6 +185,13 @@ export function SettingsPage() {
     mutationFn: (payload: Partial<typeof localPrefs>) => api.updatePreferences(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["preferences"] }),
   });
+  const updateCompany = useMutation({
+    mutationFn: () => api.updateCompany(companyForm),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+      queryClient.invalidateQueries({ queryKey: ["overview"] });
+    },
+  });
 
   const runTerasAnalysis = useMutation({
     mutationFn: () => api.analyzeTerasCompany(),
@@ -187,6 +219,13 @@ export function SettingsPage() {
       api.updatePaymentAccount(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["paymentAccounts"] }),
   });
+  const deletePaymentAccount = useMutation({
+    mutationFn: api.deletePaymentAccount,
+    onSuccess: () => {
+      setEditingPaymentId(null);
+      queryClient.invalidateQueries({ queryKey: ["paymentAccounts"] });
+    },
+  });
   const updateMyPayout = useMutation({
     mutationFn: () => api.updateMyEmployeePayout({ ...myPayoutForm, confirm: true }),
     onSuccess: () => {
@@ -210,6 +249,27 @@ export function SettingsPage() {
     a.download = `kompta-factures-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   }
 
+  function startPaymentEdit(account: NonNullable<typeof paymentAccounts.data>[number]) {
+    setEditingPaymentId(account.id);
+    setPaymentDraft({
+      provider: account.provider,
+      label: account.label,
+      account_name: account.account_name,
+      phone_number: account.phone_number,
+      account_number: account.account_number,
+      bank_name: account.bank_name,
+      bank_code: account.bank_code,
+      paypal_email: account.paypal_email,
+      currency: account.currency || "XAF",
+      instructions: account.instructions,
+      enabled: account.enabled,
+      use_for_pos: account.use_for_pos,
+      use_for_payroll: account.use_for_payroll,
+      is_default_pos: account.is_default_pos,
+      is_default_payroll: account.is_default_payroll,
+    });
+  }
+
   const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "general",       label: "Général",       icon: Building2   },
     { key: "modules",       label: "Modules",       icon: Zap         },
@@ -225,6 +285,12 @@ export function SettingsPage() {
     : allTabs;
 
   const modulesData = modulesQ.data ?? [];
+  const filteredModules = modulesData.filter((mod) => {
+    const meta = MODULE_LABELS[mod.module_key] ?? { label: mod.module_key, desc: "" };
+    const haystack = `${meta.label} ${meta.desc} ${mod.module_key}`.toLowerCase();
+    return haystack.includes(moduleSearch.trim().toLowerCase());
+  });
+  const activeModulesCount = modulesData.filter((mod) => mod.enabled).length;
   const employeesCount = employees.data?.length ?? 0;
   const aiQueriesCount = aiHistory.data?.length ?? 0;
   const terasScore = overview.data?.kpis.teras_score ?? 0;
@@ -275,23 +341,82 @@ export function SettingsPage() {
                 <p className="text-sm text-[#717182]">Profil entreprise, apparence et langue</p>
               </div>
               <div className="px-6 py-2">
-                <div className="py-4 border-b border-black/[0.04] dark:border-white/[0.04]">
-                  <p className="mb-3 text-sm font-bold text-[#17211f] dark:text-white">Branding entreprise</p>
-                  <div className="flex items-center gap-4">
-                    <div className="grid h-16 w-16 place-items-center rounded-xl text-2xl font-black text-white shadow-sm"
-                      style={{ background: company.data?.primary_color ?? "#059669" }}>
-                      {(company.data?.name ?? "K")[0]}
-                    </div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    updateCompany.mutate();
+                  }}
+                  className="py-4 border-b border-black/[0.04] dark:border-white/[0.04]"
+                >
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-bold text-[#17211f] dark:text-white">{company.data?.name ?? "—"}</p>
-                      <p className="text-sm text-[#717182]">{company.data?.industry ?? "—"}</p>
-                      <div className="mt-2 flex gap-2">
-                        <span className="rounded-full border border-emerald-300 bg-emerald-50 dark:bg-emerald-500/15 dark:border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{company.data?.primary_color ?? "—"}</span>
-                        <span className="rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-500/15 dark:border-amber-500/30 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">{company.data?.accent_color ?? "—"}</span>
+                      <p className="text-sm font-bold text-[#17211f] dark:text-white">Identité & branding entreprise</p>
+                      <p className="text-xs text-[#717182]">Ces informations alimentent les factures, contrats, exports et écrans KOMPTA.</p>
+                    </div>
+                    <button
+                      disabled={updateCompany.isPending || isEmployeeSelfService}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <Save size={15} /> {updateCompany.isPending ? "Sauvegarde..." : "Sauvegarder"}
+                    </button>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-[220px_1fr]">
+                    <div className="rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                      <div className="grid h-20 w-20 place-items-center rounded-2xl text-3xl font-black text-white shadow-sm"
+                        style={{ background: companyForm.primary_color || "#059669" }}>
+                        {(companyForm.name || "K")[0]}
+                      </div>
+                      <p className="mt-3 font-black text-[#17211f] dark:text-white">{companyForm.name || "KOMPTA"}</p>
+                      <p className="text-xs text-[#717182]">{companyForm.industry || "Activité"}</p>
+                      <div className="mt-3 flex gap-2">
+                        <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.primary_color }} />
+                        <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.accent_color }} />
                       </div>
                     </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {[
+                        { label: "Nom commercial", key: "name", placeholder: "KOMPTA Demo" },
+                        { label: "Raison sociale", key: "legal_name", placeholder: "KOMPTA Demo SARL" },
+                        { label: "Activité", key: "industry", placeholder: "Commerce et services" },
+                        { label: "Forme / organisation", key: "organization_type", placeholder: "PME" },
+                        { label: "Pays principal", key: "country", placeholder: "République du Congo" },
+                      ].map((field) => (
+                        <label key={field.key} className="block text-xs font-bold uppercase text-[#717182]">
+                          {field.label}
+                          <input
+                            value={companyForm[field.key as keyof typeof companyForm]}
+                            onChange={(event) => setCompanyForm({ ...companyForm, [field.key]: event.target.value })}
+                            placeholder={field.placeholder}
+                            disabled={isEmployeeSelfService}
+                            className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                          />
+                        </label>
+                      ))}
+                      <label className="block text-xs font-bold uppercase text-[#717182]">
+                        Couleur principale
+                        <input
+                          type="color"
+                          value={companyForm.primary_color}
+                          onChange={(event) => setCompanyForm({ ...companyForm, primary_color: event.target.value })}
+                          disabled={isEmployeeSelfService}
+                          className="mt-1 h-11 w-full rounded-xl border border-black/[0.08] bg-white p-1 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931]"
+                        />
+                      </label>
+                      <label className="block text-xs font-bold uppercase text-[#717182]">
+                        Couleur accent
+                        <input
+                          type="color"
+                          value={companyForm.accent_color}
+                          onChange={(event) => setCompanyForm({ ...companyForm, accent_color: event.target.value })}
+                          disabled={isEmployeeSelfService}
+                          className="mt-1 h-11 w-full rounded-xl border border-black/[0.08] bg-white p-1 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931]"
+                        />
+                      </label>
+                    </div>
                   </div>
-                </div>
+                  {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">Profil entreprise enregistré.</p>}
+                  {updateCompany.error && <p className="mt-3 text-xs font-bold text-red-600">{updateCompany.error.message}</p>}
+                </form>
                 <SettingRow icon={Palette} label="Thème d'affichage" description={theme === "dark" ? "Mode sombre activé" : "Mode clair activé"}>
                   <button onClick={toggleTheme} className="flex items-center gap-2 rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
                     {theme === "dark" ? <><Sun size={15}/> Mode clair</> : <><Moon size={15}/> Mode sombre</>}
@@ -325,11 +450,35 @@ export function SettingsPage() {
                 <h2 className="font-bold text-[#17211f] dark:text-white">Modules actifs</h2>
                 <p className="text-sm text-[#717182]">Activez ou désactivez les fonctionnalités de KOMPTA pour votre entreprise</p>
               </div>
+              <div className="border-b border-black/[0.05] px-6 py-4 dark:border-white/[0.05]">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-black/[0.08] bg-white px-3 py-2 dark:border-white/[0.08] dark:bg-[#252931]">
+                    <Search size={15} className="text-[#717182]" />
+                    <input
+                      value={moduleSearch}
+                      onChange={(event) => setModuleSearch(event.target.value)}
+                      placeholder="Rechercher un module..."
+                      className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white"
+                    />
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    {activeModulesCount}/{modulesData.length || 0} actifs
+                  </span>
+                  <button
+                    type="button"
+                    disabled={toggleModule.isPending || isEmployeeSelfService}
+                    onClick={() => modulesData.filter((mod) => !mod.enabled).forEach((mod) => toggleModule.mutate({ key: mod.module_key, enabled: true }))}
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                  >
+                    Tout activer
+                  </button>
+                </div>
+              </div>
               <div className="grid gap-3 p-6 sm:grid-cols-2">
                 {modulesData.length === 0 && modulesQ.isLoading && (
                   <p className="col-span-2 text-sm text-[#717182]">Chargement…</p>
                 )}
-                {modulesData.map((mod) => {
+                {filteredModules.map((mod) => {
                   const meta = MODULE_LABELS[mod.module_key] ?? { label: mod.module_key, desc: "" };
                   return (
                     <div key={mod.module_key} className={`flex items-center justify-between rounded-xl border p-4 transition ${mod.enabled ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10" : "border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-[#252931]"}`}>
@@ -339,12 +488,17 @@ export function SettingsPage() {
                       </div>
                       <Toggle
                         on={mod.enabled}
-                        disabled={toggleModule.isPending}
+                        disabled={toggleModule.isPending || isEmployeeSelfService}
                         onChange={(v) => toggleModule.mutate({ key: mod.module_key, enabled: v })}
                       />
                     </div>
                   );
                 })}
+                {!modulesQ.isLoading && filteredModules.length === 0 && (
+                  <p className="col-span-2 rounded-xl border border-dashed border-black/[0.12] p-6 text-center text-sm text-[#717182] dark:border-white/[0.12]">
+                    Aucun module ne correspond à cette recherche.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -459,7 +613,10 @@ export function SettingsPage() {
                             {!account.enabled && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-500">Désactivé</span>}
                           </div>
                         </div>
-                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                          <button onClick={() => startPaymentEdit(account)} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-violet-50 dark:border-white/[0.08] dark:bg-white/[0.04]">
+                            Modifier
+                          </button>
                           <button onClick={() => updatePaymentAccount.mutate({ id: account.id, payload: { enabled: !account.enabled } })} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-black/[0.04] dark:border-white/[0.08] dark:bg-white/[0.04]">
                             {account.enabled ? "Désactiver" : "Activer"}
                           </button>
@@ -473,6 +630,85 @@ export function SettingsPage() {
                             Basculer usages
                           </button>
                         </div>
+                        {editingPaymentId === account.id && (
+                          <form
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              updatePaymentAccount.mutate(
+                                { id: account.id, payload: paymentDraft },
+                                { onSuccess: () => setEditingPaymentId(null) }
+                              );
+                            }}
+                            className="mt-4 rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-500/30 dark:bg-[#1e2229]"
+                          >
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <h4 className="font-black text-[#17211f] dark:text-white">Modifier le compte</h4>
+                              <button type="button" onClick={() => setEditingPaymentId(null)} className="text-xs font-bold text-[#717182] hover:text-[#17211f] dark:hover:text-white">Fermer</button>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Libellé
+                                <input value={paymentDraft.label} onChange={(event) => setPaymentDraft({ ...paymentDraft, label: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Titulaire
+                                <input value={paymentDraft.account_name} onChange={(event) => setPaymentDraft({ ...paymentDraft, account_name: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Téléphone / identifiant
+                                <input value={paymentDraft.phone_number} onChange={(event) => setPaymentDraft({ ...paymentDraft, phone_number: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Banque
+                                <input value={paymentDraft.bank_name} onChange={(event) => setPaymentDraft({ ...paymentDraft, bank_name: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Numéro compte
+                                <input value={paymentDraft.account_number} onChange={(event) => setPaymentDraft({ ...paymentDraft, account_number: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="text-xs font-bold uppercase text-[#717182]">
+                                Email PayPal
+                                <input type="email" value={paymentDraft.paypal_email} onChange={(event) => setPaymentDraft({ ...paymentDraft, paypal_email: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                              <label className="md:col-span-2 text-xs font-bold uppercase text-[#717182]">
+                                Instructions
+                                <textarea value={paymentDraft.instructions} onChange={(event) => setPaymentDraft({ ...paymentDraft, instructions: event.target.value })} rows={2} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                              </label>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-xs font-bold text-[#17211f] dark:text-white sm:grid-cols-2 lg:grid-cols-4">
+                              {[
+                                ["enabled", "Compte actif"],
+                                ["use_for_pos", "Utiliser caisse"],
+                                ["use_for_payroll", "Utiliser paie"],
+                                ["is_default_payroll", "Paie par défaut"],
+                              ].map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-2 rounded-lg border border-black/[0.06] p-2 dark:border-white/[0.08]">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(paymentDraft[key as keyof typeof paymentDraft])}
+                                    onChange={(event) => setPaymentDraft({ ...paymentDraft, [key]: event.target.checked })}
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button disabled={updatePaymentAccount.isPending} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+                                Enregistrer
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm("Supprimer ce compte de paiement ?")) deletePaymentAccount.mutate(account.id);
+                                }}
+                                disabled={deletePaymentAccount.isPending}
+                                className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50"
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          </form>
+                        )}
                         {account.instructions && <p className="mt-3 text-xs text-[#717182]">{account.instructions}</p>}
                       </article>
                     );

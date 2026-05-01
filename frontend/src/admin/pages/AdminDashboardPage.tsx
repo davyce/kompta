@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Building2, FileText, LifeBuoy, ShieldAlert, TrendingUp, Users, Wallet } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Building2, FileText, LifeBuoy, ShieldAlert, TrendingUp, Users, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../services/api";
@@ -74,6 +74,24 @@ export function AdminDashboardPage() {
             ? Math.round(companies.data.reduce((s, c) => s + c.teras_score, 0) / companies.data.length)
             : "—"
         } hint="moyenne pondérée" tone="fuchsia" />
+      </div>
+
+      <div className="rounded-xl border border-violet-400/30 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/10 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-violet-500/25 text-violet-100">
+              <BrainCircuit size={22} />
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-violet-300">Grand Sage Limule</p>
+              <h2 className="font-black">Cockpit IA pour diagnostiquer la plateforme et les tickets</h2>
+              <p className="mt-1 text-sm text-white/55">Analyse les entreprises, alertes TERAS, tickets et données Limule en temps réel.</p>
+            </div>
+          </div>
+          <button onClick={() => navigate("/admin/limule")} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-black text-white hover:bg-violet-500">
+            Ouvrir Grand Sage →
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">

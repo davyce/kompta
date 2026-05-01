@@ -36,6 +36,8 @@ from app.models import (
     PayrollRun,
     Sale,
     Task,
+    TerasAlert,
+    Ticket,
     User,
     UserPreference,
 )
@@ -628,6 +630,139 @@ def admin_limule_insights(
             }
             for row in recent
         ],
+    }
+
+
+@router.post("/admin/limule/chat", status_code=201)
+async def admin_limule_chat(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Grand Sage superadmin: analyse cross-tenant et recommandations plateforme."""
+    _require_super_admin(current_user)
+    from app.core.config import get_settings
+    from app.services.limule import limule_generate
+
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt requis")
+
+    companies = db.scalars(select(Company).order_by(Company.created_at.desc())).all()
+    tickets = db.scalars(select(Ticket).order_by(Ticket.created_at.desc()).limit(10)).all()
+    alerts = db.scalars(
+        select(TerasAlert).where(TerasAlert.status == "open").order_by(TerasAlert.created_at.desc()).limit(10)
+    ).all()
+    users_count = db.scalar(select(func.count()).select_from(User)) or 0
+    employees_count = db.scalar(select(func.count()).select_from(Employee)) or 0
+    invoices_count = db.scalar(select(func.count()).select_from(Invoice)) or 0
+    sales_total = db.scalar(select(func.coalesce(func.sum(Sale.total_amount), 0))) or 0
+    limule_total = db.scalar(select(func.count()).select_from(LimuleInteraction)) or 0
+    tickets_open = sum(1 for ticket in tickets if ticket.status in {"open", "in_progress"})
+    tickets_critical = sum(1 for ticket in tickets if ticket.priority == "critical" and ticket.status != "closed")
+    avg_teras = round(sum(c.teras_score for c in companies) / len(companies), 1) if companies else 0
+    company_names = {c.id: c.name for c in companies}
+    risk_companies = sorted(companies, key=lambda company: (company.teras_score, -company.completion_score))[:5]
+
+    context_lines = [
+        "Cockpit superadmin KOMPTA Grand Sage",
+        f"Entreprises: {len(companies)} | Utilisateurs: {users_count} | Employés: {employees_count}",
+        f"Factures: {invoices_count} | CA plateforme: {float(sales_total):,.0f} XAF".replace(",", " "),
+        f"Tickets récents ouverts: {tickets_open} | critiques: {tickets_critical}",
+        f"Alertes TERAS ouvertes: {len(alerts)} | Score TERAS moyen: {avg_teras}/100",
+        f"Interactions Limule enregistrées: {limule_total}",
+        "",
+        "Entreprises à surveiller:",
+        *[
+            f"- {company.name}: TERAS {company.teras_score}/100, setup {company.completion_score}%, {company.industry}, {company.country}"
+            for company in risk_companies
+        ],
+        "",
+        "Tickets récents:",
+        *[
+            f"- #{ticket.id} {ticket.priority}/{ticket.status} | {company_names.get(ticket.company_id, 'Plateforme')} | {ticket.subject}"
+            for ticket in tickets[:6]
+        ],
+        "",
+        "Alertes TERAS récentes:",
+        *[
+            f"- {alert.severity}/{alert.module}: {alert.title}"
+            for alert in alerts[:6]
+        ],
+    ]
+    structured_context = {
+        "module": "superadmin",
+        "page_path": "/admin/limule",
+        "summary": "\n".join(context_lines),
+        "sources": ["admin_overview", "admin_companies", "admin_tickets", "teras_alerts", "limule_dataset"],
+        "signals": [
+            {"label": "Tickets critiques", "severity": "critical", "module": "support", "value": tickets_critical},
+            {"label": "Alertes TERAS ouvertes", "severity": "high", "module": "teras", "value": len(alerts)},
+            {"label": "Score TERAS moyen", "severity": "info", "module": "platform", "value": avg_teras},
+        ],
+        "kpis": {
+            "companies": len(companies),
+            "users": int(users_count),
+            "employees": int(employees_count),
+            "sales_total": float(sales_total),
+            "tickets_open": tickets_open,
+            "tickets_critical": tickets_critical,
+            "alerts_open": len(alerts),
+            "avg_teras": avg_teras,
+            "limule_interactions": int(limule_total),
+        },
+        "modules": {
+            "risk_companies": [
+                {"id": c.id, "name": c.name, "teras_score": c.teras_score, "completion_score": c.completion_score}
+                for c in risk_companies
+            ],
+            "tickets": [
+                {"id": t.id, "subject": t.subject, "status": t.status, "priority": t.priority, "company": company_names.get(t.company_id, "")}
+                for t in tickets[:10]
+            ],
+            "alerts": [
+                {"id": a.id, "title": a.title, "severity": a.severity, "module": a.module}
+                for a in alerts[:10]
+            ],
+        },
+    }
+    content, _ = await limule_generate(
+        kind="platform_admin",
+        prompt=prompt,
+        context="\n".join(context_lines),
+        structured_context=structured_context,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=1400,
+        temperature=0.25,
+    )
+
+    settings = get_settings()
+    interaction = LimuleInteraction(
+        prompt=prompt,
+        response=content,
+        page_path="/admin/limule",
+        module_key="superadmin",
+        intent="platform_admin",
+        model=settings.ai_model or settings.deepseek_model or "limule-grand-sage",
+        provider=settings.ai_provider or "limule",
+        context_snapshot=json.dumps(structured_context, ensure_ascii=False, default=str),
+        context_sources=json.dumps(structured_context["sources"], ensure_ascii=False),
+        detected_signals=json.dumps(structured_context["signals"], ensure_ascii=False),
+        training_tags=json.dumps(["superadmin", "platform", "grand_sage"], ensure_ascii=False),
+        user_id=current_user.id,
+        company_id=current_user.company_id,
+    )
+    db.add(interaction)
+    db.commit()
+    db.refresh(interaction)
+    return {
+        "interaction_id": interaction.id,
+        "answer": content,
+        "sources": structured_context["sources"],
+        "signals": structured_context["signals"],
+        "kpis": structured_context["kpis"],
     }
 
 

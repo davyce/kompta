@@ -24,7 +24,7 @@ const NAV = [
   { to: "/admin/companies", label: "Entreprises", icon: Building2 },
   { to: "/admin/users", label: "Utilisateurs", icon: Users },
   { to: "/admin/tickets", label: "Tickets de support", icon: LifeBuoy },
-  { to: "/admin/limule", label: "Base Limule", icon: BrainCircuit },
+  { to: "/admin/limule", label: "Grand Sage Limule", icon: BrainCircuit },
   { to: "/admin/logs", label: "Audit & logs", icon: Activity },
 ];
 
