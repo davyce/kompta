@@ -32,15 +32,15 @@ KOMPTA couvre l'ensemble du cycle opérationnel d'une entreprise :
 | Module | Ce qu'il fait |
 |--------|---------------|
 | **Tableau de bord** | KPIs temps réel, alertes TERAS, onboarding, score global |
-| **RH / Employés** | Dossiers, accès employé, contrats, statuts, invitation |
+| **RH / Employés** | Dossiers, accès employé, contrats IA in-app, statuts, invitation |
 | **Paie** | Cycles de paie, bulletins PDF, validation, export |
-| **Facturation** | Création, envoi, export PDF (ReportLab) |
-| **POS / Caisse** | Ventes en point de vente, paiements, reçus, mode offline |
-| **Inventaire** | Stock, mouvements, alertes seuil, étiquettes QR |
+| **Facturation** | Création, brouillon/envoi, nom client optionnel, export PDF (ReportLab) |
+| **POS / Caisse** | Ventes, paiements multi-méthodes, TVA manuelle, mode offline |
+| **Inventaire** | Stock, mouvements, alertes seuil, étiquettes QR, icônes SVG produit |
 | **Documents** | Upload, analyse de confiance, association employé |
 | **Comptabilité** | Suivi financier, rapports analytiques |
 | **Déclarations** | Fiscal, social, bailleur — assistant IA intégré |
-| **Chat interne** | Channels temps réel, mentions @, partage de fichiers |
+| **Chat interne** | Channels temps réel, mentions @employé autocomplete, partage de fichiers |
 | **Tâches** | Kanban, priorisation, source TERAS ou manuelle |
 | **Assistants IA** | Studio de rédaction (Limule), routeur de décisions |
 | **TERAS Connect** | Scoring, alertes, recommandations, analyse de conformité |
@@ -59,6 +59,16 @@ rh_entreprise        → RH, paie, documents
 caissier_pos         → POS et inventaire uniquement
 employe              → Accès limité à son propre profil
 ```
+
+Comptes de démo actifs :
+| Email | Mot de passe | Rôle |
+|-------|-------------|------|
+| `admin@kompta.local` | `kompta123` | admin_entreprise |
+| `rh@kompta.local` | `kompta123` | rh_entreprise |
+| `finance@kompta.local` | `kompta123` | comptable |
+| `caissier@kompta.local` | `kompta123` | caissier_pos |
+| `dg@kompta.local` | `kompta123` | manager_entreprise |
+| `superadmin@kompta.io` | `super2026` | super_admin |
 
 ---
 
@@ -188,8 +198,48 @@ Les scores snapshots domain permettent d'aller plus loin (historique par axe).
 
 ## 5. Limule — notre modèle IA
 
-**Limule** est le nom de notre modèle d'intelligence artificielle.  
+**Limule** est le nom de notre modèle d'intelligence artificielle et la mascotte officielle de KOMPTA.  
 Il a été renommé ainsi dans toute l'interface KOMPTA (remplace l'ancienne désignation "DeepSeek").
+
+### Identité visuelle Limule
+
+Limule dispose d'un **système de design complet** intégré dans le frontend :
+
+| Fichier | Rôle |
+|---------|------|
+| `frontend/public/assets/limule.svg` | Logo officiel vectoriel |
+| `frontend/public/assets/limule-idle.gif` | Animation état attente |
+| `frontend/public/assets/limule-thinking.gif` | Animation état analyse (IA en calcul) |
+| `frontend/public/assets/limule-speaking.gif` | Animation état réponse (IA parle) |
+| `frontend/src/components/LimuleAvatar.tsx` | Composant React animé (3 états) |
+| `frontend/src/components/LimuleAvatar.css` | Animations premium (aura, ring, dots en orbite) |
+
+#### Composant `LimuleAvatar`
+```tsx
+<LimuleAvatar state="idle" size={48} />      // attente douce
+<LimuleAvatar state="thinking" size={48} />  // dots en orbite rapides
+<LimuleAvatar state="speaking" size={48} />  // ring doré, float rythmique
+```
+
+#### Composant `LimuleIcon`
+```tsx
+<LimuleIcon size={20} />  // icône SVG simple, sans animation (nav, badges)
+```
+
+### Placement de Limule dans l'interface
+
+| Surface | État | Description |
+|---------|------|-------------|
+| **Copilot FAB flottant** | `idle` / `thinking` | Remplace l'ancienne étoile ✦ — animé selon état IA |
+| **Copilot panel header** | `speaking` | Fond sombre professionnel, avatar Limule |
+| **Copilot loading "Analyse…"** | `thinking` | Affiché pendant la génération IA |
+| **ReportsHubPage — bouton Générer** | `thinking` | Pendant la génération d'un rapport |
+| **ReportsHubPage — header rapport** | `thinking`/`speaking` | Selon état du stream |
+| **AssistantsPage — zone brouillon** | `idle`/`speaking` | Selon état de génération |
+| **AssistantsPage — spinner génération** | `thinking` | Grand format centré |
+| **AssistantsPage — historique** | LimuleIcon | Icône compact par entrée |
+| **LoginPage — panel gauche** | `idle` 64px | Bloc "Votre Grand Sage" sous les modules |
+| **Shell topbar — status** | LimuleIcon | Chip avec latence + dot de statut |
 
 ### Rôle de Limule dans KOMPTA
 
@@ -213,15 +263,6 @@ Quand un utilisateur envoie un message au Copilot KOMPTA, le système décide au
    - TERAS  : non sollicité
 ```
 
-### Où Limule apparaît dans l'interface
-
-| Surface | Libellé |
-|---------|---------|
-| Copilot flottant (bouton ✦) | "Limule parle · TERAS contrôle" |
-| Page Assistants (`/assistants`) | "Studio rédactionnel — assisté par Limule" |
-| CommandPalette | "Studio Limule · emails, courriers" |
-| Réponses du Copilot | "Limule [rôle] ; TERAS [rôle]" |
-
 ### Ce que fait Limule aujourd'hui dans KOMPTA
 
 1. **Studio de rédaction** (`/assistants`) — génère des emails, notes de service, communiqués
@@ -229,10 +270,64 @@ Quand un utilisateur envoie un message au Copilot KOMPTA, le système décide au
 3. **Analyse de documents** — détecte le type, extrait les métadonnées, calcule un score de confiance
 4. **Clauses contractuelles** — génère des clauses de contrat de travail adaptées
 5. **Copilot conversationnel** — répond aux questions opérationnelles, oriente vers les bons modules
+6. **Rapports IA en streaming** (`/reports`) — génère 6 types de rapports (financier, RH, projet, TERAS, RSE, évolution) avec rendu Markdown in-app
+7. **Contrats employés IA** — génère les contrats de travail via `GET /employees/{id}/contract`, visualisés dans une modal iframe in-app
 
 ---
 
-## 6. La Console Super Admin
+## 6. Modules — détails techniques récents
+
+### 6.1 Contrats employés (RH)
+
+- Endpoint : `GET /api/employees/{id}/contract`
+- Retourne du HTML généré par Limule (clauses IA adaptées au profil)
+- Frontend : modal in-app avec `<iframe srcDoc={html}>`, pas de `window.open`
+- Gestion des états : `contractLoading`, `contractError`, `contractModal`
+- Téléchargement via `<a download>` dans la modal
+
+### 6.2 Rapports IA (`/reports`)
+
+- Streaming SSE via `api.aiGenerateStream(payload, onChunk, onDone, onError)`
+- Composant `MarkdownBlock` — renderer Markdown sans dépendance externe
+  - Supporte `##`, `###`, `**bold**`, listes `-` et numérotées
+- 6 types de rapports : financier, RH, projet, conformité TERAS, RSE, évolution 12 mois
+- État IA : `null` → `{ loading: true }` → `{ loading: false, content: "..." }`
+- LimuleAvatar `thinking` pendant génération, `speaking` quand rapport affiché
+
+### 6.3 POS / Caisse
+
+- **TVA manuelle** : toggle on/off + input taux (défaut 18%, modifiable par transaction)
+- **Modes de paiement** complets :
+  - QR Zola, Mobile money, Wave, Orange Money, MTN MoMo, Airtel Money
+  - Banque, PayPal, Carte, Espèces
+- Mode offline : queue IndexedDB via `enqueue/dequeue`, sync automatique à la reconnexion
+- Export CSV ventes avec filtre par date
+
+### 6.4 Facturation (`/billing`)
+
+- Nom client **optionnel** (fallback `"Client anonyme"`)
+- Toggle **Brouillon / Envoyer** (couleur amber vs emerald)
+- Champs : date d'échéance, notes libres
+- Validation : au moins une ligne avec description (pas le nom client)
+
+### 6.5 Chat interne
+
+- **@mention autocomplete** : détection `/@([\wÀ-ÿ]*)$/` en temps réel
+- Dropdown flottant avec navigation clavier (↑↓ Enter Tab Escape)
+- Filtre suggestions Limule : masque les suggestions de type "aucune action / message archivé"
+- Bouton "→ Tâche" masqué par défaut, visible au hover du message (`group-hover`)
+
+### 6.6 Inventaire
+
+- Banque d'icônes SVG produit (`frontend/src/utils/productIcons.ts`)
+  - 67+ entrées `{ key, label, Icon: LucideIcon, bg, color, keywords }`
+  - `inferProductIcon(product)` → meilleure icône par nom/catégorie
+  - `productIconSuggestions(query, limit)` → suggestions filtrées pour le picker
+- Remplace tous les emojis dans InventoryPage et PosPage
+
+---
+
+## 7. La Console Super Admin
 
 Accessible à l'URL `/admin`, réservée au rôle `super_admin`.  
 C'est une interface **cross-tenant** — elle voit toutes les entreprises sur la plateforme.
@@ -244,12 +339,13 @@ C'est une interface **cross-tenant** — elle voit toutes les entreprises sur la
 | Utilisateurs | Tous les comptes, recherche, suspension/réactivation |
 | Tickets support | Triage, réponse staff, workflow open→in_progress→resolved→closed |
 | Audit & logs | Journal centralisé de toutes les actions sensibles |
+| Grand Sage Limule | Monitoring des interactions IA, métriques, tests |
 
 Compte de démo : `superadmin@kompta.io` / `super2026`
 
 ---
 
-## 7. Flux de données TERAS — résumé visuel
+## 8. Flux de données TERAS — résumé visuel
 
 ```
 Utilisateur KOMPTA
@@ -275,7 +371,7 @@ Utilisateur KOMPTA
 
 ---
 
-## 8. État actuel du projet
+## 9. État actuel du projet
 
 | Composant | Statut |
 |-----------|--------|
@@ -285,28 +381,37 @@ Utilisateur KOMPTA
 | Export PDF ReportLab | ✅ Opérationnel (factures + bulletins de paie) |
 | WebSocket (chat + notifications) | ✅ Opérationnel |
 | Console Super Admin | ✅ Complète (6 pages, routing, auth) |
-| Modèle Limule (renommé) | ✅ Renommé dans toute l'interface |
+| Limule brand system | ✅ Composant LimuleAvatar + assets + intégration complète |
+| Rapports IA streaming + Markdown | ✅ Opérationnel (6 types de rapports) |
+| Contrats IA in-app (iframe modal) | ✅ Opérationnel |
+| @mention autocomplete Chat | ✅ Opérationnel |
+| Icônes SVG produit (67+ entrées) | ✅ Inventaire + POS migrés |
+| TVA manuelle POS | ✅ Toggle + input taux |
+| Modes de paiement étendus | ✅ Wave, Orange Money, MTN, Airtel ajoutés |
+| Facturation nom client optionnel | ✅ Brouillon/envoi + date échéance |
+| Comptes démo utilisateurs | ✅ 5 rôles créés (fix seed) |
 | Système de tickets support | ✅ Complet (CRUD, triage, réponses staff) |
 | Audit logs | ✅ Opérationnel |
 | Mode offline POS | ✅ Queue IndexedDB |
 
 ---
 
-## 9. Ce qu'il reste à construire ensemble
+## 10. Ce qu'il reste à construire
 
-Ce briefing décrit ce qui **existe aujourd'hui**.  
-Les prochaines étapes de notre collaboration peuvent inclure :
+Ce briefing décrit ce qui **existe aujourd'hui** (commit `fcf0d0c` — mai 2026).  
+Les prochaines étapes possibles :
 
 - **Connecteur TERAS externe** : remplacer le scoring local par des appels vers une API TERAS hébergée
-- **Webhooks TERAS → KOMPTA** : permettre à TERAS de pousser des alertes sans qu'un utilisateur déclenche l'analyse
+- **Webhooks TERAS → KOMPTA** : permettre à TERAS de pousser des alertes sans déclenchement utilisateur
 - **Limule en mode production** : brancher le vrai modèle LLM derrière les endpoints de génération
-- **Score TERAS dynamique** : mettre à jour `company.teras_score` automatiquement après chaque `run_teras_analysis`
+- **Score TERAS dynamique** : mettre à jour `company.teras_score` automatiquement après chaque analyse
 - **Tableau de bord TERAS avancé** : courbes d'évolution du score dans le temps par domaine
 - **Rapport de conformité PDF** : générer un rapport complet TERAS exportable (ReportLab)
+- **Notifications push mobile** : étendre le système WebSocket vers PWA/mobile
 
 ---
 
-## 10. Références techniques rapides
+## 11. Références techniques rapides
 
 ```bash
 # Lancer le projet
@@ -324,14 +429,30 @@ GET  /api/teras/scores                # derniers snapshots
 GET  /api/teras/alerts                # alertes actives
 GET  /api/teras/recommendations       # recommandations par domaine
 
-# Fichiers clés
+# API Limule / IA
+GET  /api/employees/{id}/contract     # contrat HTML généré par Limule
+POST /api/ai/generate-stream          # génération SSE (rapports, rédaction)
+POST /api/copilot/chat                # Copilot conversationnel
+
+# Fichiers clés — Backend
 backend/app/services/teras.py         # moteur TERAS local
 backend/app/models/domain.py          # modèles SQLAlchemy
 backend/app/api/routes.py             # tous les endpoints
-frontend/src/pages/ReportsTerasPage.tsx  # UI TERAS Connect
-frontend/src/admin/pages/             # console Super Admin
+backend/app/db/init_db.py             # seed + backfill utilisateurs démo
+
+# Fichiers clés — Frontend
+frontend/src/components/LimuleAvatar.tsx     # composant Limule animé
+frontend/src/components/LimuleAvatar.css     # animations premium
+frontend/src/components/Copilot.tsx          # copilot flottant
+frontend/src/utils/productIcons.ts           # banque icônes SVG produit
+frontend/src/pages/ReportsHubPage.tsx        # rapports IA streaming
+frontend/src/pages/EmployeesPage.tsx         # RH + contrats in-app
+frontend/src/pages/AssistantsPage.tsx        # studio rédactionnel
+frontend/src/pages/PosPage.tsx               # caisse + TVA + paiements
+frontend/src/pages/ChatPage.tsx              # chat + @mention
+frontend/src/admin/pages/                    # console Super Admin
 ```
 
 ---
 
-*Document généré le 29 avril 2026 — KOMPTA v1.x — Davy Okemba*
+*Document mis à jour le 1er mai 2026 — KOMPTA v1.x — commit `fcf0d0c` — Davy Okemba*

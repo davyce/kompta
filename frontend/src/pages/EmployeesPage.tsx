@@ -402,6 +402,8 @@ export function EmployeesPage() {
     employeeName: string;
     employeeId: number;
     login: string;
+    email: string;
+    phone: string;
     password: string;
     note: string;
   }>(null);
@@ -415,6 +417,8 @@ export function EmployeesPage() {
         employeeName: `${result.employee.first_name} ${result.employee.last_name}`,
         employeeId: result.employee.id,
         login: result.login_identifier,
+        email: result.employee.email,
+        phone: result.employee.phone,
         password: result.temporary_password,
         note: result.access_note,
       });
@@ -429,6 +433,8 @@ export function EmployeesPage() {
         employeeName: `${result.employee.first_name} ${result.employee.last_name}`,
         employeeId: result.employee.id,
         login: result.login_identifier,
+        email: result.employee.email,
+        phone: result.employee.phone,
         password: result.temporary_password,
         note: result.access_note,
       });
@@ -463,7 +469,7 @@ export function EmployeesPage() {
   function copyProvisioning() {
     if (!provisioning) return;
     navigator.clipboard.writeText(
-      `Identifiant : ${provisioning.login}\nMot de passe temporaire : ${provisioning.password}`
+      `Identifiant recommandé : ${provisioning.login}\nEmail : ${provisioning.email}\nTéléphone : ${provisioning.phone || "Non renseigné"}\nMot de passe temporaire : ${provisioning.password}`
     );
   }
 
@@ -507,15 +513,25 @@ export function EmployeesPage() {
                 <p className="font-bold text-emerald-900">✓ Compte créé — {provisioning.employeeName}</p>
                 <div className="mt-3 grid gap-1.5 rounded-lg bg-white p-4 text-sm sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Identifiant</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">Identifiant recommandé</p>
                     <p className="font-mono font-semibold text-ink">{provisioning.login}</p>
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase text-stone-400">Mot de passe temporaire</p>
                     <p className="font-mono font-semibold text-ink">{provisioning.password}</p>
                   </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase text-stone-400">Email utilisable</p>
+                    <p className="font-mono font-semibold text-ink">{provisioning.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase text-stone-400">Téléphone utilisable</p>
+                    <p className="font-mono font-semibold text-ink">{provisioning.phone || "Non renseigné"}</p>
+                  </div>
                 </div>
-                <p className="mt-2 text-xs text-emerald-700">{provisioning.note}</p>
+                <p className="mt-2 text-xs text-emerald-700">
+                  {provisioning.note} Le login accepte aussi le téléphone avec ou sans espaces et avec ou sans indicatif.
+                </p>
               </div>
               <button onClick={() => setProvisioning(null)} className="text-emerald-600 hover:text-emerald-900">
                 <X size={18} />

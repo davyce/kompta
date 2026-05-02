@@ -96,7 +96,14 @@ export function EmployeeProfilePage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      alert(`✅ Accès réinitialisé\n\nIdentifiant : ${result.login_identifier}\nMot de passe temporaire : ${result.temporary_password}\n\nCommuniquez ces informations à l'employé.`);
+      alert(
+        `✅ Accès réinitialisé\n\n` +
+          `Identifiant recommandé : ${result.login_identifier}\n` +
+          `Email : ${result.employee.email}\n` +
+          `Téléphone : ${result.employee.phone || "Non renseigné"}\n` +
+          `Mot de passe temporaire : ${result.temporary_password}\n\n` +
+          "Le téléphone fonctionne avec ou sans espaces/indicatif. Communiquez ces informations à l'employé."
+      );
     },
   });
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, MessageSquarePlus, PlusCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Lock, MessageSquarePlus, PlusCircle } from "lucide-react";
 
 import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
@@ -94,7 +94,16 @@ export function WorkPage() {
                 <p className="mb-3 text-sm font-bold text-[#17211f]">{STATUS_LABEL[key]}</p>
                 <div className="space-y-3">
                   {grouped[key].map((task) => (
-                    <article key={task.id} className="rounded-lg border border-black/[0.06] bg-white p-3">
+                    <article
+                      key={task.id}
+                      className={`rounded-lg border p-3 ${
+                        task.assigned_to_me
+                          ? "border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100"
+                          : task.can_update
+                            ? "border-black/[0.06] bg-white"
+                            : "border-black/[0.04] bg-white opacity-70"
+                      }`}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-ink text-sm">{task.title}</p>
                         <StatusBadge
@@ -106,10 +115,20 @@ export function WorkPage() {
                       {task.source && (
                         <p className="mt-1 text-xs text-stone-400">{task.source}</p>
                       )}
+                      {task.assigned_to_me && (
+                        <p className="mt-2 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                          À traiter par moi
+                        </p>
+                      )}
+                      {!task.can_update && (
+                        <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-stone-400">
+                          <Lock size={12} /> Lecture seule
+                        </p>
+                      )}
                       {STATUS_FLOW[task.status] && (
                         <button
                           onClick={() => advanceTask(task)}
-                          disabled={updateTask.isPending}
+                          disabled={updateTask.isPending || !task.can_update}
                           className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-800 disabled:text-stone-400"
                         >
                           {task.status === "doing" ? (

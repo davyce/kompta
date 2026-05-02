@@ -102,6 +102,7 @@ from app.services.access import (
     audit_access,
     change_first_login_password,
     create_complete_employee_with_account,
+    normalize_phone,
     quick_create_employee_with_account,
     regenerate_temporary_password,
     render_contract_html,
@@ -120,6 +121,101 @@ from app.services.documents import create_document_from_upload, create_document_
 from app.services.teras import latest_score_snapshots, route_ai_request, run_teras_analysis, submit_employability_to_teras
 
 router = APIRouter()
+
+
+def _login_lookup_conditions(identifier: str):
+    raw_identifier = identifier.strip()
+    email_identifier = raw_identifier.lower()
+    conditions = [func.lower(User.email) == email_identifier]
+
+    normalized_phone = normalize_phone(raw_identifier)
+    digits = normalized_phone[1:] if normalized_phone.startswith("+") else normalized_phone
+    phone_variants = {raw_identifier, normalized_phone}
+    if digits:
+        phone_variants.update({digits, f"+{digits}"})
+        if digits.startswith("0"):
+            phone_variants.update({f"+242{digits}", f"242{digits}", f"+242{digits[1:]}", f"242{digits[1:]}"})
+        if digits.startswith("242"):
+            phone_variants.add(f"+{digits}")
+    phone_variants = {variant for variant in phone_variants if variant}
+    if phone_variants:
+        conditions.append(User.phone.in_(phone_variants))
+    return or_(*conditions)
+
+
+TASK_MANAGER_ROLES = {"rh_entreprise", "manager_entreprise", "super_admin"}
+
+
+def _normalize_task_actor(value: str | None) -> str:
+    return " ".join((value or "").strip().lower().split())
+
+
+def _can_manage_tasks(user: User) -> bool:
+    return user.role.startswith("admin") or user.role in TASK_MANAGER_ROLES
+
+
+def _employee_display_name(employee: Employee | None, user: User) -> str:
+    if employee:
+        return f"{employee.first_name} {employee.last_name}".strip()
+    return user.full_name.strip()
+
+
+def _task_subjects_for_user(db: Session, user: User) -> tuple[set[str], Employee | None]:
+    employee = db.get(Employee, user.employee_id) if user.employee_id else None
+    values = {user.full_name, user.email, user.phone}
+    if employee:
+        values.update(
+            {
+                f"{employee.first_name} {employee.last_name}".strip(),
+                employee.email,
+                employee.phone,
+            }
+        )
+    return {_normalize_task_actor(value) for value in values if value}, employee
+
+
+def _task_assigned_to_user(task: Task, subjects: set[str]) -> bool:
+    assignee = _normalize_task_actor(task.assignee_name)
+    return bool(assignee and assignee in subjects)
+
+
+def _task_assignee_employee(db: Session, task: Task) -> Employee | None:
+    assignee = _normalize_task_actor(task.assignee_name)
+    if not assignee:
+        return None
+    employees = db.scalars(select(Employee).where(Employee.company_id == task.company_id)).all()
+    for employee in employees:
+        candidates = {
+            _normalize_task_actor(f"{employee.first_name} {employee.last_name}".strip()),
+            _normalize_task_actor(employee.email),
+            _normalize_task_actor(employee.phone),
+        }
+        if assignee in candidates:
+            return employee
+    return None
+
+
+def _serialize_task(db: Session, task: Task, current_user: User, subjects: set[str] | None = None) -> dict:
+    user_subjects = subjects if subjects is not None else _task_subjects_for_user(db, current_user)[0]
+    is_manager = _can_manage_tasks(current_user)
+    assigned_to_me = _task_assigned_to_user(task, user_subjects)
+    return {
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "status": task.status,
+        "priority": task.priority,
+        "due_date": task.due_date,
+        "assignee_name": task.assignee_name,
+        "source": task.source,
+        "proof_required": task.proof_required,
+        "company_id": task.company_id,
+        "created_at": task.created_at,
+        "updated_at": task.updated_at,
+        "assigned_to_me": assigned_to_me,
+        "can_update": is_manager or assigned_to_me,
+        "can_delete": is_manager,
+    }
 
 
 class ConnectionManager:
@@ -192,7 +288,7 @@ def health() -> dict[str, str]:
 @router.post("/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     identifier = payload.email.strip()
-    user = db.scalar(select(User).where(or_(User.email == identifier, User.phone == identifier)))
+    user = db.scalar(select(User).where(_login_lookup_conditions(identifier)))
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe invalide")
     if user.account_status in {"suspended", "disabled", "archived"} or not user.is_active:
@@ -1197,8 +1293,10 @@ def pay_invoice(
 
 
 @router.get("/tasks", response_model=list[TaskRead])
-def list_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Task]:
-    return company_scope(db, current_user, Task, Task.created_at.desc())
+def list_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
+    subjects, _ = _task_subjects_for_user(db, current_user)
+    tasks = company_scope(db, current_user, Task, Task.created_at.desc())
+    return [_serialize_task(db, task, current_user, subjects) for task in tasks]
 
 
 @router.post("/tasks", response_model=TaskRead, status_code=201)
@@ -1206,12 +1304,32 @@ def create_task(
     payload: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Task:
-    task = Task(**payload.model_dump(), company_id=current_user.company_id)
+) -> dict:
+    data = payload.model_dump()
+    subjects, employee = _task_subjects_for_user(db, current_user)
+    if not _can_manage_tasks(current_user):
+        if not data.get("assignee_name"):
+            data["assignee_name"] = _employee_display_name(employee, current_user)
+        if _normalize_task_actor(data["assignee_name"]) not in subjects:
+            raise HTTPException(status_code=403, detail="Vous ne pouvez creer que des taches assignees a vous-meme")
+    task = Task(**data, company_id=current_user.company_id)
     db.add(task)
+    db.flush()
+    audit_access(
+        db,
+        actor=current_user,
+        company_id=current_user.company_id,
+        action="task_created",
+        employee=_task_assignee_employee(db, task),
+        target_user=current_user,
+        details=json.dumps(
+            {"task_id": task.id, "title": task.title, "assignee_name": task.assignee_name, "source": task.source},
+            ensure_ascii=False,
+        ),
+    )
     db.commit()
     db.refresh(task)
-    return task
+    return _serialize_task(db, task, current_user, subjects)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
@@ -1220,17 +1338,76 @@ def update_task(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Task:
+) -> dict:
     task = db.get(Task, task_id)
     if not task or task.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    allowed_fields = {"status", "title", "priority", "assignee_name", "due_date"}
+    subjects, _ = _task_subjects_for_user(db, current_user)
+    is_manager = _can_manage_tasks(current_user)
+    assigned_to_me = _task_assigned_to_user(task, subjects)
+    if not is_manager and not assigned_to_me:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que les taches qui vous sont assignees")
+
+    allowed_fields = {"status", "title", "description", "priority", "assignee_name", "due_date", "proof_required", "source"} if is_manager else {"status"}
+    blocked_fields = [field for field in payload if field not in allowed_fields]
+    if blocked_fields:
+        raise HTTPException(status_code=403, detail="Modification non autorisee pour ce profil")
+    changes = {}
     for field, value in payload.items():
         if field in allowed_fields:
+            if field == "due_date" and isinstance(value, str):
+                value = date.fromisoformat(value) if value else None
+            old_value = getattr(task, field)
+            if old_value != value:
+                changes[field] = {"old": str(old_value), "new": str(value)}
             setattr(task, field, value)
+    if changes:
+        audit_access(
+            db,
+            actor=current_user,
+            company_id=current_user.company_id,
+            action="task_updated",
+            employee=_task_assignee_employee(db, task),
+            target_user=current_user,
+            details=json.dumps({"task_id": task.id, "title": task.title, "changes": changes}, ensure_ascii=False),
+        )
     db.commit()
     db.refresh(task)
-    return task
+    return _serialize_task(db, task, current_user, subjects)
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if not _can_manage_tasks(current_user):
+        raise HTTPException(status_code=403, detail="Seuls admin, DG et RH peuvent supprimer une tache")
+    task = db.get(Task, task_id)
+    if not task or task.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    assignee_employee = _task_assignee_employee(db, task)
+    task_snapshot = {
+        "task_id": task.id,
+        "title": task.title,
+        "status": task.status,
+        "priority": task.priority,
+        "assignee_name": task.assignee_name,
+        "source": task.source,
+    }
+    audit_access(
+        db,
+        actor=current_user,
+        company_id=current_user.company_id,
+        action="task_deleted",
+        employee=assignee_employee,
+        target_user=current_user,
+        details=json.dumps(task_snapshot, ensure_ascii=False),
+    )
+    db.delete(task)
+    db.commit()
+    return {"status": "deleted", "task": task_snapshot}
 
 
 @router.patch("/products/{product_id}", response_model=ProductRead)

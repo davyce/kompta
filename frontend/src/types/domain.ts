@@ -156,6 +156,10 @@ export type Task = {
   source: string;
   proof_required: boolean;
   created_at: string;
+  updated_at: string;
+  assigned_to_me: boolean;
+  can_update: boolean;
+  can_delete: boolean;
 };
 
 export type Channel = {

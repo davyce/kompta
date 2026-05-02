@@ -27,11 +27,22 @@ export function ActivationPage() {
   function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
-    if (newPassword !== confirmPassword) {
-      setError("Les deux nouveaux mots de passe doivent etre identiques.");
+    const temporary = currentPassword.trim();
+    const nextPassword = newPassword.trim();
+    const confirmation = confirmPassword.trim();
+    if (!temporary) {
+      setError("Colle le mot de passe temporaire fourni par l'entreprise.");
       return;
     }
-    activate.mutate({ current_password: currentPassword, new_password: newPassword });
+    if (nextPassword.length < 8) {
+      setError("Le nouveau mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (nextPassword !== confirmation) {
+      setError("Les deux nouveaux mots de passe doivent être identiques.");
+      return;
+    }
+    activate.mutate({ current_password: temporary, new_password: nextPassword });
   }
 
   return (
@@ -61,6 +72,7 @@ export function ActivationPage() {
             type="password"
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
+            minLength={8}
             required
           />
           <TextInput
@@ -68,8 +80,12 @@ export function ActivationPage() {
             type="password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
+            minLength={8}
             required
           />
+          <p className="text-xs font-medium text-stone-500">
+            Minimum 8 caractères. Exemple : `Kompta2026!`
+          </p>
           {error || activate.error ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error || activate.error?.message}</p>
           ) : null}

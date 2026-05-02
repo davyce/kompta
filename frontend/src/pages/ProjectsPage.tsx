@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  CalendarDays, MessageSquare, Paperclip, Plus,
-  Search, Sparkles, UserPlus, X,
+  CalendarDays, CheckCircle2, Edit3, Lock, MessageSquare, Paperclip, Plus,
+  Search, Sparkles, Trash2, UserPlus, X,
 } from "lucide-react";
 
+import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
 import { shortDate } from "../utils/format";
 import type { Employee, Task } from "../types/domain";
@@ -57,20 +58,41 @@ function TaskCard({
   employees,
   onMove,
   onAssign,
+  onEdit,
+  onDelete,
 }: {
   task: TaskEx;
   employees: Employee[];
   onMove: (id: number, status: string) => void;
   onAssign: (id: number, assigneeName: string) => void;
+  onEdit: (task: TaskEx) => void;
+  onDelete: (task: TaskEx) => void;
 }) {
   const nextStatus: Record<string, string> = { todo: "doing", doing: "review", review: "done" };
   const cat = task.dept || "Général";
-  const canMove = task.id > 0 && Boolean(nextStatus[task.status]);
+  const canMove = task.id > 0 && Boolean(nextStatus[task.status]) && task.can_update;
+  const locked = !task.can_update;
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-4 shadow-sm hover:shadow-md transition dark:bg-[#252931] dark:border-white/[0.06] cursor-pointer">
+    <div className={`rounded-xl border p-4 shadow-sm transition dark:bg-[#252931] ${
+      task.assigned_to_me
+        ? "border-emerald-300 bg-emerald-50/80 ring-2 ring-emerald-100 dark:border-emerald-500/50 dark:ring-emerald-500/10"
+        : locked
+          ? "border-black/[0.04] bg-white opacity-75 dark:border-white/[0.05]"
+          : "border-black/[0.06] bg-white hover:shadow-md dark:border-white/[0.06]"
+    }`}>
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${catColor(cat)}`}>{cat}</span>
+        {task.assigned_to_me && (
+          <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+            À moi
+          </span>
+        )}
+        {locked && (
+          <span className="flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500">
+            <Lock size={10} /> Lecture seule
+          </span>
+        )}
         {task.priority === "high" && (
           <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
             Priorité haute
@@ -100,17 +122,41 @@ function TaskCard({
             → Avancer
           </button>
         )}
+        {!canMove && task.status === "done" && (
+          <span className="ml-auto flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-700">
+            <CheckCircle2 size={11} /> Fait
+          </span>
+        )}
       </div>
       {/* Stats */}
       <div className="mt-3 flex items-center gap-2 border-t border-black/[0.04] pt-2.5 dark:border-white/[0.04]">
         <span className="flex items-center gap-1 text-[11px] text-[#717182]"><MessageSquare size={11}/> 4</span>
         <span className="flex items-center gap-1 text-[11px] text-[#717182]"><Paperclip size={11}/> 2</span>
+        {task.can_delete && (
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={(event) => { event.stopPropagation(); onEdit(task); }}
+              className="grid h-7 w-7 place-items-center rounded-lg border border-black/[0.06] text-[#717182] transition hover:border-violet-300 hover:text-violet-600"
+              title="Modifier"
+            >
+              <Edit3 size={12} />
+            </button>
+            <button
+              onClick={(event) => { event.stopPropagation(); onDelete(task); }}
+              className="grid h-7 w-7 place-items-center rounded-lg border border-black/[0.06] text-[#717182] transition hover:border-rose-300 hover:text-rose-600"
+              title="Supprimer"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        )}
         <label className="ml-auto flex items-center gap-1 rounded-lg bg-[#f6f7fb] px-2 py-1 text-[11px] font-bold text-[#717182] dark:bg-white/[0.06]">
           <UserPlus size={11} />
           <select
             value={task.assignee_name || ""}
             onClick={(event) => event.stopPropagation()}
             onChange={(event) => onAssign(task.id, event.target.value)}
+            disabled={!task.can_delete}
             className="max-w-[112px] bg-transparent text-[11px] outline-none"
           >
             <option value="">Assigner</option>
@@ -128,6 +174,7 @@ function TaskCard({
 /* ── Main ─────────────────────────────────────────────────────────── */
 export function ProjectsPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
   const navigate = useNavigate();
@@ -138,9 +185,31 @@ export function ProjectsPage() {
   const [newAssignee, setNewAssignee] = useState("");
   const [newPriority, setNewPriority] = useState("normal");
   const [newDueDate, setNewDueDate] = useState("");
+  const [editingTask, setEditingTask] = useState<TaskEx | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    assignee_name: "",
+    priority: "normal",
+    status: "todo",
+    due_date: "",
+    proof_required: false,
+  });
+
+  const canManageTasks = Boolean(
+    user && (user.role.startsWith("admin") || ["rh_entreprise", "manager_entreprise", "super_admin"].includes(user.role))
+  );
 
   const updateTask = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Task> }) => api.updateTask(id, payload),
+    onSuccess: () => {
+      setEditingTask(null);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: api.deleteTask,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
@@ -159,6 +228,40 @@ export function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
+
+  function openEdit(task: TaskEx) {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title,
+      description: task.description || "",
+      assignee_name: task.assignee_name || "",
+      priority: task.priority || "normal",
+      status: task.status || "todo",
+      due_date: task.due_date || "",
+      proof_required: Boolean(task.proof_required),
+    });
+  }
+
+  function submitEdit() {
+    if (!editingTask || !editForm.title.trim()) return;
+    updateTask.mutate({
+      id: editingTask.id,
+      payload: {
+        title: editForm.title.trim(),
+        description: editForm.description,
+        assignee_name: editForm.assignee_name,
+        priority: editForm.priority,
+        status: editForm.status,
+        due_date: editForm.due_date || null,
+        proof_required: editForm.proof_required,
+      },
+    });
+  }
+
+  function confirmDelete(task: TaskEx) {
+    if (!window.confirm(`Supprimer la tâche "${task.title}" ? Une trace restera dans l'audit.`)) return;
+    deleteTask.mutate(task.id);
+  }
 
   /* merge API data with demo (API takes priority) */
   const allTasks: TaskEx[] = (() => {
@@ -217,7 +320,8 @@ export function ProjectsPage() {
           </button>
           <button
             onClick={() => setNewTaskCol("todo")}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+            disabled={!canManageTasks && !user?.employee_id}
+            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition disabled:bg-stone-300"
           >
             <Plus size={15} /> Nouvelle tâche
           </button>
@@ -269,9 +373,10 @@ export function ProjectsPage() {
                       <select
                         value={newAssignee}
                         onChange={(e) => setNewAssignee(e.target.value)}
+                        disabled={!canManageTasks}
                         className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-xs font-semibold text-[#17211f] dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                       >
-                        <option value="">Responsable surprise plus tard</option>
+                        <option value="">{canManageTasks ? "Responsable surprise plus tard" : "Assignée à moi automatiquement"}</option>
                         {(employees.data ?? []).map((employee) => {
                           const name = `${employee.first_name} ${employee.last_name}`.trim();
                           return <option key={employee.id} value={name}>{name}</option>;
@@ -318,6 +423,8 @@ export function ProjectsPage() {
                     employees={employees.data ?? []}
                     onMove={(id, status) => updateTask.mutate({ id, payload: { status } })}
                     onAssign={(id, assignee_name) => updateTask.mutate({ id, payload: { assignee_name } })}
+                    onEdit={openEdit}
+                    onDelete={confirmDelete}
                   />
                 ))}
                 {cards.length === 0 && !newTaskCol && (
@@ -336,6 +443,104 @@ export function ProjectsPage() {
           );
         })}
       </div>
+
+      {editingTask && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl border border-black/[0.06] bg-white p-5 shadow-2xl dark:border-white/[0.08] dark:bg-[#1e2229]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-[#17211f] dark:text-white">Modifier la tâche</h2>
+                <p className="text-sm text-[#717182]">Chaque modification restera visible dans le journal d'audit.</p>
+              </div>
+              <button onClick={() => setEditingTask(null)} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              <label className="block text-xs font-bold uppercase text-[#717182]">
+                Titre
+                <input
+                  value={editForm.title}
+                  onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                />
+              </label>
+              <label className="block text-xs font-bold uppercase text-[#717182]">
+                Description
+                <textarea
+                  rows={3}
+                  value={editForm.description}
+                  onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                />
+              </label>
+              <label className="block text-xs font-bold uppercase text-[#717182]">
+                Assignée à
+                <select
+                  value={editForm.assignee_name}
+                  onChange={(event) => setEditForm({ ...editForm, assignee_name: event.target.value })}
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                >
+                  <option value="">Non assignée</option>
+                  {(employees.data ?? []).map((employee) => {
+                    const name = `${employee.first_name} ${employee.last_name}`.trim();
+                    return <option key={employee.id} value={name}>{name}</option>;
+                  })}
+                </select>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Statut
+                  <select
+                    value={editForm.status}
+                    onChange={(event) => setEditForm({ ...editForm, status: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                  >
+                    {COLUMNS.map((column) => <option key={column.key} value={column.key}>{column.label}</option>)}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Priorité
+                  <select
+                    value={editForm.priority}
+                    onChange={(event) => setEditForm({ ...editForm, priority: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                  >
+                    <option value="low">Basse</option>
+                    <option value="normal">Normale</option>
+                    <option value="high">Haute</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Échéance
+                  <input
+                    type="date"
+                    value={editForm.due_date}
+                    onChange={(event) => setEditForm({ ...editForm, due_date: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case outline-none"
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm font-semibold text-[#17211f]">
+                <input
+                  type="checkbox"
+                  checked={editForm.proof_required}
+                  onChange={(event) => setEditForm({ ...editForm, proof_required: event.target.checked })}
+                />
+                Preuve demandée à l'employé
+              </label>
+              {updateTask.error && <p className="text-sm font-semibold text-rose-600">{updateTask.error.message}</p>}
+              <button
+                onClick={submitEdit}
+                disabled={!editForm.title.trim() || updateTask.isPending}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:bg-stone-300"
+              >
+                {updateTask.isPending ? "Enregistrement..." : "Enregistrer les modifications"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Copilot FAB ── */}
       <button

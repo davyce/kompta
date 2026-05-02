@@ -66,6 +66,25 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function formatApiError(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object") return fallback;
+  const detail = (payload as { detail?: unknown }).detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== "object") return String(item);
+        const record = item as { msg?: unknown; loc?: unknown };
+        const msg = typeof record.msg === "string" ? record.msg : "";
+        const loc = Array.isArray(record.loc) ? record.loc.filter((part) => part !== "body").join(".") : "";
+        return [loc, msg].filter(Boolean).join(" : ");
+      })
+      .filter(Boolean);
+    return messages.length ? messages.join(" · ") : fallback;
+  }
+  return fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
@@ -86,7 +105,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     let message = response.statusText;
     try {
       const payload = await response.json();
-      message = payload.detail ?? message;
+      message = formatApiError(payload, message);
     } catch {
       // The fallback status text is enough for network and empty-body errors.
     }
@@ -321,6 +340,10 @@ export const api = {
     request<Task>(`/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload)
+    }),
+  deleteTask: (id: number) =>
+    request<{ status: string; task: Partial<Task> }>(`/tasks/${id}`, {
+      method: "DELETE"
     }),
   updateProduct: (id: number, payload: Partial<Product>) =>
     request<Product>(`/products/${id}`, {

@@ -78,6 +78,7 @@ function MessageBody({ text, isMe }: { text: string; isMe: boolean }) {
 export function ChatPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const canManageTasks = Boolean(user && (user.role.startsWith("admin") || ["rh_entreprise", "manager_entreprise", "super_admin"].includes(user.role)));
   const [activeChannelId, setActiveChannelId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [showSidebar, setShowSidebar] = useState(true);
@@ -776,9 +777,10 @@ export function ChatPage() {
                 <select
                   value={taskComposer.assignee_name}
                   onChange={(event) => setTaskComposer({ ...taskComposer, assignee_name: event.target.value })}
+                  disabled={!canManageTasks}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
                 >
-                  <option value="">Non assigné</option>
+                  <option value="">{canManageTasks ? "Non assigné" : "Assignée à moi automatiquement"}</option>
                   {(employees.data ?? []).map((employee) => {
                     const name = `${employee.first_name} ${employee.last_name}`.trim();
                     return <option key={employee.id} value={name}>{name}</option>;

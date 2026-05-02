@@ -29,7 +29,7 @@ class CompanyRegistrationRequest(BaseModel):
 
 class FirstLoginChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str = Field(min_length=8)
+    new_password: str
 
 
 class CompanyRead(BaseModel):
@@ -429,6 +429,10 @@ class TaskRead(TaskCreate):
     id: int
     company_id: int
     created_at: datetime
+    updated_at: datetime
+    assigned_to_me: bool = False
+    can_update: bool = False
+    can_delete: bool = False
 
 
 class ChatChannelRead(BaseModel):

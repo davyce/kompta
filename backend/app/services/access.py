@@ -1,7 +1,6 @@
 import html
 import re
 import secrets
-import string
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -26,16 +25,10 @@ def generated_email_from_phone(phone: str) -> str:
 
 
 def generate_temporary_password(length: int = 14) -> str:
-    alphabet = string.ascii_letters + string.digits + "!@#$%?"
-    while True:
-        password = "".join(secrets.choice(alphabet) for _ in range(length))
-        if (
-            any(char.islower() for char in password)
-            and any(char.isupper() for char in password)
-            and any(char.isdigit() for char in password)
-            and any(char in "!@#$%?" for char in password)
-        ):
-            return password
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+    token = "".join(secrets.choice(alphabet) for _ in range(max(length, 12)))
+    groups = [token[index : index + 4] for index in range(0, 12, 4)]
+    return "KPT-" + "-".join(groups)
 
 
 def can_manage_employee_access(user: User) -> bool:
@@ -264,6 +257,10 @@ def regenerate_temporary_password(db: Session, *, employee: Employee, current_us
 def change_first_login_password(db: Session, *, user: User, current_password: str, new_password: str) -> User:
     if user.account_status in {"suspended", "disabled", "archived"}:
         raise HTTPException(status_code=403, detail="Compte suspendu ou desactive")
+    current_password = current_password.strip()
+    new_password = new_password.strip()
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit contenir au moins 8 caracteres")
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=401, detail="Mot de passe temporaire invalide")
     user.password_hash = hash_password(new_password)

@@ -132,6 +132,33 @@ def test_collaboration_payroll_teras_flow() -> None:
             json={"title": "Verifier une action critique", "priority": "high", "assignee_name": "Amina Tamba"},
         )
         assert task.status_code == 201
+        task_id = task.json()["id"]
+        finance_headers = login_headers(client, "finance@kompta.local", "kompta123")
+        employee_task_list = client.get("/api/tasks", headers=finance_headers)
+        assert employee_task_list.status_code == 200
+        employee_task = next(item for item in employee_task_list.json() if item["id"] == task_id)
+        assert employee_task["assigned_to_me"] is True
+        assert employee_task["can_update"] is True
+        assert employee_task["can_delete"] is False
+        employee_status = client.patch(f"/api/tasks/{task_id}", headers=finance_headers, json={"status": "doing"})
+        assert employee_status.status_code == 200
+        forbidden_title = client.patch(f"/api/tasks/{task_id}", headers=finance_headers, json={"title": "Renommer hors scope"})
+        assert forbidden_title.status_code == 403
+        forbidden_create = client.post(
+            "/api/tasks",
+            headers=finance_headers,
+            json={"title": "Tache pour une autre personne", "assignee_name": "Mireille Ngoma"},
+        )
+        assert forbidden_create.status_code == 403
+        forbidden_delete = client.delete(f"/api/tasks/{task_id}", headers=finance_headers)
+        assert forbidden_delete.status_code == 403
+        admin_update = client.patch(
+            f"/api/tasks/{task_id}",
+            headers=headers,
+            json={"title": "Verifier une action critique RH", "assignee_name": "Mireille Ngoma"},
+        )
+        assert admin_update.status_code == 200
+        assert admin_update.json()["assignee_name"] == "Mireille Ngoma"
 
         channels = client.get("/api/chat/channels", headers=headers)
         assert channels.status_code == 200
@@ -153,6 +180,13 @@ def test_collaboration_payroll_teras_flow() -> None:
         )
         assert message.status_code == 201
         assert "Amina" in message.json()["mentions"]
+        deleted = client.delete(f"/api/tasks/{task_id}", headers=headers)
+        assert deleted.status_code == 200
+        audit = client.get("/api/audit-logs?limit=20", headers=headers)
+        assert audit.status_code == 200
+        actions = [item["action"] for item in audit.json()]
+        assert "task_updated" in actions
+        assert "task_deleted" in actions
 
         payroll = client.post("/api/payroll/runs", headers=headers, json={"period": f"Mai 2026 {suffix}"})
         assert payroll.status_code == 201
@@ -339,6 +373,7 @@ def test_employee_account_access_and_contract_flow() -> None:
     with TestClient(app) as client:
         headers = auth_headers(client)
         suffix = uuid4().hex[:8]
+        phone = f"+24206{str(uuid4().int)[-6:]}"
         quick = client.post(
             "/api/employees/quick-create",
             headers=headers,
@@ -346,7 +381,7 @@ def test_employee_account_access_and_contract_flow() -> None:
                 "first_name": "Nadia",
                 "last_name": "Support",
                 "job_title": "Assistante RH",
-                "phone": f"+24206{suffix[:6]}",
+                "phone": phone,
                 "email": f"nadia.{suffix}@kompta.local",
                 "employment_type": "CDD",
                 "department": "RH",
@@ -374,7 +409,27 @@ def test_employee_account_access_and_contract_flow() -> None:
         )
         assert temp_login.status_code == 200
         assert temp_login.json()["must_change_password"] is True
+
+        for login_identifier in [
+            payload["employee"]["email"].upper(),
+            phone.replace("+242", "242 ", 1),
+            phone.removeprefix("+242"),
+        ]:
+            flexible_login = client.post(
+                "/api/auth/login",
+                json={"email": login_identifier, "password": payload["temporary_password"]},
+            )
+            assert flexible_login.status_code == 200
+
         employee_headers = {"Authorization": f"Bearer {temp_login.json()['access_token']}"}
+        short_password = client.post(
+            "/api/auth/first-login-change-password",
+            headers=employee_headers,
+            json={"current_password": payload["temporary_password"], "new_password": "court"},
+        )
+        assert short_password.status_code == 400
+        assert "au moins 8" in short_password.json()["detail"]
+
         activated = client.post(
             "/api/auth/first-login-change-password",
             headers=employee_headers,
