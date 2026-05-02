@@ -761,13 +761,13 @@ def backfill_access_data(db: Session) -> None:
     admin.account_status = admin.account_status or "active"
 
     demo_users = {
-        "admin@kompta.local": ("kompta123", "admin_entreprise"),
-        "finance@kompta.local": ("kompta123", "comptable"),
-        "caissier@kompta.local": ("kompta123", "caissier_pos"),
-        "rh@kompta.local": ("kompta123", "rh_entreprise"),
-        "dg@kompta.local": ("kompta123", "manager_entreprise"),
+        "admin@kompta.local":    ("kompta123", "admin_entreprise",   "Davy Okemba",    "Direction",         "Siege",             "+242060000001"),
+        "finance@kompta.local":  ("kompta123", "comptable",          "Amina Tamba",    "Finance",           "Agence Centre",     "+242060000002"),
+        "caissier@kompta.local": ("kompta123", "caissier_pos",       "Junior Makaya",  "POS",               "Boutique Plateau",  "+242060000010"),
+        "rh@kompta.local":       ("kompta123", "rh_entreprise",      "Mireille Ngoma", "RH",                "Siege",             "+242060000011"),
+        "dg@kompta.local":       ("kompta123", "manager_entreprise", "Serge Bilamba",  "Direction generale","Agence Nord",       "+242060000012"),
     }
-    for email, (password, role) in demo_users.items():
+    for email, (password, role, full_name, department, branch, phone) in demo_users.items():
         user = db.scalar(select(User).where(User.email == email))
         if user:
             user.password_hash = hash_password(password)
@@ -775,6 +775,23 @@ def backfill_access_data(db: Session) -> None:
             user.account_status = "active"
             user.is_active = True
             user.must_change_password = False
+        else:
+            # Create missing demo user (can happen if seed ran before these were added)
+            new_user = User(
+                email=email,
+                phone=phone,
+                full_name=full_name,
+                role=role,
+                department=department,
+                branch=branch,
+                password_hash=hash_password(password),
+                is_active=True,
+                account_status="active",
+                must_change_password=False,
+                company_id=admin.company_id,
+            )
+            db.add(new_user)
+            db.flush()
 
     finance = db.scalar(select(User).where(User.email == "finance@kompta.local"))
     employees = db.scalars(select(Employee).where(Employee.company_id == admin.company_id)).all()

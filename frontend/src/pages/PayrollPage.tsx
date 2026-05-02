@@ -183,8 +183,8 @@ export function PayrollPage() {
         />
         <KpiCard
           label="Anomalies TERAS"
-          value="2"
-          hint="écart cotisations détecté"
+          value={String(allSlips.filter((s) => s.payout_status !== "ready" || !s.payout_destination).length)}
+          hint={allSlips.filter((s) => s.payout_status !== "ready" || !s.payout_destination).length > 0 ? "à corriger avant versement" : "aucune anomalie détectée"}
           accent="amber"
         />
         <KpiCard
@@ -331,12 +331,19 @@ export function PayrollPage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
             <h3 className="font-semibold text-[#17211f] dark:text-white">Anomalies détectées par TERAS</h3>
             <span className="flex items-center gap-1 text-xs text-amber-600">
-              <AlertCircle size={14} /> 2 à examiner
+              <AlertCircle size={14} />
+              {latestRun.payslips.filter((s) => s.payout_status !== "ready" || !s.payout_destination).length} à examiner
             </span>
           </div>
           <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
             {latestRun.payslips.map((slip, i) => {
               const employeeColor = colorForEmployee(slip.employee_name, i);
+              const hasAnomaly = slip.payout_status !== "ready" || !slip.payout_destination;
+              const anomalyMsg = !slip.payout_destination
+                ? "Destination de versement manquante — compléter avant validation"
+                : slip.payout_status !== "ready"
+                ? `Bulletin ${slip.reference} en attente de validation — vérifier les données`
+                : `Bulletin ${slip.reference} validé · versement prêt`;
               return (
                 <div key={slip.id} className="flex items-start gap-3 px-5 py-4">
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${employeeColor.avatar} text-xs font-bold text-white`}>
@@ -344,16 +351,19 @@ export function PayrollPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm">
-                    <span className={`font-semibold ${employeeColor.text}`}>{slip.employee_name}</span>
-                    <span className="text-[#717182]"> — {i === 0 ? "Cotisation CNPS supérieure de 4 200 XAF au plafond — vérifier l'assiette" : `Bulletin ${slip.reference} en attente de validation`}</span>
-                  </div>
+                      <span className={`font-semibold ${employeeColor.text}`}>{slip.employee_name}</span>
+                      <span className="text-[#717182]"> — {anomalyMsg}</span>
+                    </div>
                     <p className="mt-1 text-xs text-[#717182]">
-                      Versement {slip.payout_method || "non défini"} · {slip.payout_destination || "destination manquante"} · {slip.payout_status === "ready" ? "prêt" : "à compléter"}
+                      Versement {slip.payout_method || "non défini"} · {slip.payout_destination || "destination manquante"} · {money(slip.net_pay)}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${i === 0 ? "bg-amber-50 text-amber-700" : employeeColor.badge}`}>
-                      {i === 0 ? "Attention" : "Info"}
+                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                      hasAnomaly ? "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                               : employeeColor.badge
+                    }`}>
+                      {hasAnomaly ? "Attention" : "OK"}
                     </span>
                     <button
                       onClick={async () => {

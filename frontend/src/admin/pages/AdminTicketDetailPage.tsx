@@ -91,9 +91,13 @@ export function AdminTicketDetailPage() {
                 placeholder="Rediger une reponse claire, actionnable, et rassurante..."
               />
             </label>
-            <button className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500">
+            <button
+              type="submit"
+              disabled={replyTicket.isPending || !reply.trim()}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+            >
               <Send size={17} />
-              Envoyer la reponse
+              {replyTicket.isPending ? "Envoi…" : "Envoyer la reponse"}
             </button>
           </form>
         </section>

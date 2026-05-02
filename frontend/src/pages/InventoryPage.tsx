@@ -9,7 +9,16 @@ import {
 import { api } from "../services/api";
 import type { Product } from "../types/domain";
 import { shortDate } from "../utils/format";
-import { emojiSuggestions, inferProductEmoji } from "../utils/productVisuals";
+import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
+
+function ProductIconDisplay({ product, size = 22 }: { product: Pick<Product, "name" | "category">; size?: number }) {
+  const entry = inferProductIcon(product);
+  return (
+    <span className={entry.color}>
+      <entry.Icon size={size} />
+    </span>
+  );
+}
 
 function statusBadge(qty: number, threshold: number) {
   if (qty === 0) return { label: "Rupture", cls: "bg-rose-50 text-rose-700" };
@@ -18,6 +27,79 @@ function statusBadge(qty: number, threshold: number) {
 }
 
 type Tab = "list" | "movements" | "labels" | "alerts";
+
+function AlertsTab({ lowStock, onRestock, restocking }: {
+  lowStock: import("../types/domain").Product[];
+  onRestock: (p: import("../types/domain").Product) => void;
+  restocking: boolean;
+}) {
+  const [restockingId, setRestockingId] = useState<number | null>(null);
+  const [done, setDone] = useState<number[]>([]);
+
+  function handleRestock(p: import("../types/domain").Product) {
+    setRestockingId(p.id);
+    onRestock(p);
+    setTimeout(() => {
+      setDone((d) => [...d, p.id]);
+      setRestockingId(null);
+    }, 1200);
+  }
+
+  if (lowStock.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12">
+        <Check size={40} className="text-emerald-500" />
+        <p className="font-semibold text-[#17211f] dark:text-white">Tout est nominal</p>
+        <p className="text-sm text-[#717182]">Aucun produit sous le seuil de réapprovisionnement</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        {lowStock.length} produit{lowStock.length > 1 ? "s" : ""} nécessitent une action — réapprovisionnement recommandé
+      </div>
+      {lowStock.map((p) => {
+        const isDone = done.includes(p.id);
+        const isRestocking = restockingId === p.id && restocking;
+        const qtyToOrder = Math.max(p.reorder_level * 2 - p.stock_quantity, 10);
+        return (
+          <div key={p.id} className="flex items-start gap-3 rounded-lg border border-black/[0.06] p-4 dark:border-white/[0.06]">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${inferProductIcon(p).bg} dark:bg-white/10`}>
+              <ProductIconDisplay product={p} size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-[#17211f] dark:text-white">{p.name}</p>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${p.stock_quantity === 0 ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
+                  {p.stock_quantity === 0 ? "Rupture" : `Stock bas · ${p.stock_quantity} restants`}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-[#717182]">
+                Seuil : {p.reorder_level} · SKU : {p.sku} · Prix : {p.price.toLocaleString("fr-FR")} XAF
+              </p>
+              <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                Recommandation IA : commander {qtyToOrder} unités → stock cible {p.reorder_level * 2}
+              </p>
+            </div>
+            <button
+              onClick={() => handleRestock(p)}
+              disabled={isRestocking || isDone}
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold transition ${
+                isDone
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+              }`}
+            >
+              {isDone ? "✓ Réappro. lancé" : isRestocking ? "Traitement…" : `+ ${qtyToOrder} unités`}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const EMPTY_FORM = { name: "", sku: "", category: "Général", price: 0, stock_quantity: 0, reorder_level: 5 };
 type EditableProductForm = Omit<typeof EMPTY_FORM, "sku"> & { brand: string; variant: string };
@@ -30,6 +112,8 @@ export function InventoryPage() {
   const [tab, setTab] = useState<Tab>("list");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [scanOpen, setScanOpen] = useState(false);
@@ -90,9 +174,13 @@ export function InventoryPage() {
     return (products.data ?? []).filter((p) => {
       const matchSearch = !q || `${p.name} ${p.sku} ${p.category}`.toLowerCase().includes(q);
       const matchCat = category === "Tous" || p.category === category;
-      return matchSearch && matchCat;
+      const matchStock =
+        stockFilter === "all" ? true :
+        stockFilter === "out" ? p.stock_quantity === 0 :
+        p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level;
+      return matchSearch && matchCat && matchStock;
     });
-  }, [products.data, search, category]);
+  }, [products.data, search, category, stockFilter]);
 
   const lowStock = (products.data ?? []).filter((p) => p.stock_quantity <= p.reorder_level);
   const ruptures = (products.data ?? []).filter((p) => p.stock_quantity === 0);
@@ -182,7 +270,7 @@ export function InventoryPage() {
     { key: "list", label: "Catalogue produits", icon: Boxes },
     { key: "movements", label: "Mouvements", icon: RefreshCcw },
     { key: "labels", label: "Étiquettes QR", icon: QrCode },
-    { key: "alerts", label: "Alertes IA", icon: AlertCircle },
+    { key: "alerts", label: `Alertes IA${lowStock.length ? ` (${lowStock.length})` : ""}`, icon: AlertCircle },
   ];
 
   return (
@@ -291,9 +379,35 @@ export function InventoryPage() {
                     className="min-w-0 flex-1 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
                   />
                 </div>
-                <button className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
-                  <Filter size={14} /> Filtres
+                <button
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    showFilters || stockFilter !== "all"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-300"
+                      : "border-black/[0.08] bg-white hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
+                  }`}
+                >
+                  <Filter size={14} /> Filtres{stockFilter !== "all" ? " ·" : ""}
+                  {stockFilter === "low" && " Stock bas"}
+                  {stockFilter === "out" && " Ruptures"}
                 </button>
+                {showFilters && (
+                  <div className="flex gap-1.5 rounded-lg border border-black/[0.06] bg-white p-1.5 dark:border-white/[0.06] dark:bg-[#1e2229]">
+                    {(["all", "low", "out"] as const).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => { setStockFilter(key); }}
+                        className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                          stockFilter === key
+                            ? "bg-emerald-600 text-white"
+                            : "text-[#717182] hover:bg-stone-100 dark:hover:bg-white/10"
+                        }`}
+                      >
+                        {key === "all" ? "Tous" : key === "low" ? "Stock bas" : "Ruptures"}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {selected.length > 0 && (
                   <button
                     onClick={() => setTab("labels")}
@@ -348,8 +462,8 @@ export function InventoryPage() {
                           </td>
                           <td className="py-3 pr-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-50 to-green-50 text-xl dark:from-emerald-500/10 dark:to-emerald-600/10">
-                                {inferProductEmoji(p)}
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${inferProductIcon(p).bg} dark:bg-white/[0.06]`}>
+                                <ProductIconDisplay product={p} size={18} />
                               </div>
                               <div className="min-w-0">
                                 <span className="block truncate font-medium text-[#17211f] dark:text-white">{p.name}</span>
@@ -409,15 +523,18 @@ export function InventoryPage() {
               {(movements.data ?? []).map((m) => {
                 const isIn = m.movement_type === "in";
                 const Icon = isIn ? ArrowDown : ArrowUp;
-                const color = isIn ? "emerald" : "rose";
+                const productName = (products.data ?? []).find((p) => p.id === m.product_id)?.name ?? `Produit #${m.product_id}`;
                 return (
                   <div key={m.id} className="flex items-center gap-3 rounded-lg border border-black/[0.06] p-3 dark:border-white/[0.06]">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-${color}-50 text-${color}-600 dark:bg-${color}-500/15 dark:text-${color}-400`}>
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isIn ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400"}`}>
                       <Icon size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[#17211f] dark:text-white">{isIn ? "Entrée" : "Sortie"} — {m.reason || m.movement_type}</p>
-                      <p className="text-xs text-[#717182]">{shortDate(m.created_at)} · Produit #{m.product_id}</p>
+                      <p className="text-sm font-medium text-[#17211f] dark:text-white">
+                        {isIn ? "Entrée" : "Sortie"} — <span className="font-semibold">{productName}</span>
+                        {m.reason ? ` · ${m.reason}` : ""}
+                      </p>
+                      <p className="text-xs text-[#717182]">{shortDate(m.created_at)}</p>
                     </div>
                     <span className={`text-sm font-semibold ${isIn ? "text-emerald-600" : "text-rose-600"}`}>
                       {isIn ? "+" : "-"}{m.quantity} unité{m.quantity !== 1 ? "s" : ""}
@@ -466,32 +583,9 @@ export function InventoryPage() {
 
           {/* ── Alertes IA ── */}
           {tab === "alerts" && (
-            <div className="space-y-2">
-              {lowStock.length === 0 && (
-                <div className="flex flex-col items-center gap-2 py-10">
-                  <Check size={36} className="text-emerald-500" />
-                  <p className="text-sm font-semibold text-[#717182]">Aucune alerte IA active — tout est nominal</p>
-                </div>
-              )}
-              {lowStock.map((p) => (
-                <div key={p.id} className="flex items-start gap-3 rounded-lg border border-black/[0.06] p-3 dark:border-white/[0.06]">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${p.stock_quantity === 0 ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"}`}>
-                    <Sparkles size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#17211f] dark:text-white">
-                      {p.name} · {p.stock_quantity === 0 ? "rupture totale" : `stock bas (${p.stock_quantity}/${p.reorder_level})`}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[#717182]">
-                      {p.stock_quantity === 0 ? "Commander immédiatement pour éviter une perte de vente" : `Seuil de réapprovisionnement atteint — commander ${Math.max(p.reorder_level * 2 - p.stock_quantity, 10)} unités`}
-                    </p>
-                  </div>
-                  <button className="shrink-0 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
-                    Agir
-                  </button>
-                </div>
-              ))}
-            </div>
+            <AlertsTab lowStock={lowStock} onRestock={(p) => {
+              updateProduct.mutate({ id: p.id, payload: { stock_quantity: p.stock_quantity + Math.max(p.reorder_level * 2 - p.stock_quantity, 10) } });
+            }} restocking={updateProduct.isPending} />
           )}
         </div>
       </div>
@@ -503,25 +597,30 @@ export function InventoryPage() {
             <h3 className="font-semibold text-[#17211f] dark:text-white">Nouveau produit</h3>
             <p className="mt-1 text-xs text-[#717182]">Le pictogramme se propose automatiquement depuis le nom ou la catégorie.</p>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200">
-            <span className="text-2xl">{inferProductEmoji(form)}</span>
-            <span className="text-xs font-bold uppercase tracking-wide">icône suggérée</span>
+          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${inferProductIcon(form).bg} dark:bg-white/[0.06]`}>
+            <ProductIconDisplay product={form} size={22} />
+            <span className="text-xs font-bold uppercase tracking-wide text-[#17211f] dark:text-white">icône suggérée</span>
           </div>
         </div>
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="sm:col-span-2 lg:col-span-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Panoplie rapide</span>
-            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-              {emojiSuggestions(`${form.name} ${form.category}`, 18).map((option) => (
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône rapide</span>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {productIconSuggestions(`${form.name} ${form.category}`, 20).map((entry) => (
                 <button
-                  key={`${option.emoji}-${option.label}`}
+                  key={entry.key}
                   type="button"
-                  onClick={() => setForm((value) => ({ ...value, category: option.label }))}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10"
-                  title={`Classer comme ${option.label}`}
+                  onClick={() => setForm((value) => ({ ...value, category: entry.label }))}
+                  title={entry.label}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
+                    ${form.category === entry.label
+                      ? `${entry.bg} ${entry.color} border-transparent`
+                      : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                 >
-                  <span className="text-base">{option.emoji}</span>
-                  {option.label}
+                  <span className={form.category === entry.label ? entry.color : "text-[#717182]"}>
+                    <entry.Icon size={13} />
+                  </span>
+                  {entry.label}
                 </button>
               ))}
             </div>
@@ -672,8 +771,8 @@ export function InventoryPage() {
           >
             <div className="flex items-start justify-between gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-violet-50 text-3xl dark:bg-violet-500/10">
-                  {inferProductEmoji(editForm)}
+                <div className={`grid h-12 w-12 place-items-center rounded-xl ${inferProductIcon(editForm).bg} dark:bg-white/10`}>
+                  <ProductIconDisplay product={editForm} size={24} />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#17211f] dark:text-white">Modifier le produit</h3>
@@ -719,17 +818,23 @@ export function InventoryPage() {
                   </label>
                 ))}
                 <div className="sm:col-span-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Emoji de catégorie</span>
-                  <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-                    {emojiSuggestions(`${editForm.name} ${editForm.category}`, 14).map((option) => (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône de catégorie</span>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {productIconSuggestions(`${editForm.name} ${editForm.category}`, 16).map((entry) => (
                       <button
-                        key={`edit-${option.emoji}-${option.label}`}
+                        key={`edit-${entry.key}`}
                         type="button"
-                        onClick={() => setEditForm((value) => ({ ...value, category: option.label }))}
-                        className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10"
+                        onClick={() => setEditForm((value) => ({ ...value, category: entry.label }))}
+                        title={entry.label}
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
+                          ${editForm.category === entry.label
+                            ? `${entry.bg} ${entry.color} border-transparent`
+                            : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                       >
-                        <span className="text-base">{option.emoji}</span>
-                        {option.label}
+                        <span className={editForm.category === entry.label ? entry.color : "text-[#717182]"}>
+                          <entry.Icon size={13} />
+                        </span>
+                        {entry.label}
                       </button>
                     ))}
                   </div>

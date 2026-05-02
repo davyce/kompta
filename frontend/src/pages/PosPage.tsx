@@ -1,24 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CreditCard, Minus, Plus, QrCode, RefreshCcw, Scan,
-  Search, ShoppingCart, Smartphone, Trash2, Wallet, WifiOff, Download,
+  CreditCard, Minus, Percent, Plus, QrCode, RefreshCcw, Scan,
+  Search, ShoppingCart, Smartphone, Trash2, Wallet, WifiOff, Download, Zap,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import { enqueue, listPending, dequeue } from "../lib/offlineQueue";
 import type { PaymentAccount, Product } from "../types/domain";
-import { emojiSuggestions, inferProductEmoji } from "../utils/productVisuals";
+import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
 
-function productEmoji(p: Product) {
-  return inferProductEmoji(p);
+function ProductIcon({ name, category, size = 28 }: { name: string; category: string; size?: number }) {
+  const entry = inferProductIcon({ name, category });
+  return (
+    <span className={entry.color}>
+      <entry.Icon size={size} />
+    </span>
+  );
 }
 
-type CartItem = { product_id: number; name: string; price: number; quantity: number; emoji: string };
+type CartItem = { product_id: number; name: string; price: number; quantity: number; category: string };
 
 const PAYMENT_METHODS = [
   { key: "qr", label: "QR Zola", icon: QrCode },
   { key: "mobile_money", label: "Mobile money", icon: Smartphone },
+  { key: "wave", label: "Wave", icon: Zap },
+  { key: "orange_money", label: "Orange Money", icon: Smartphone },
+  { key: "mtn", label: "MTN MoMo", icon: Smartphone },
+  { key: "airtel", label: "Airtel Money", icon: Smartphone },
   { key: "bank", label: "Banque", icon: CreditCard },
   { key: "paypal", label: "PayPal", icon: CreditCard },
   { key: "card", label: "Carte", icon: CreditCard },
@@ -50,6 +59,9 @@ export function PosPage() {
   const [exportDateFrom, setExportDateFrom] = useState("");
   const [exportDateTo, setExportDateTo] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
+  const [tvaRate, setTvaRate] = useState(18);
+  const [tvaEnabled, setTvaEnabled] = useState(true);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   async function handleExportCsv() {
     setExportLoading(true);
@@ -145,7 +157,7 @@ export function PosPage() {
   }, [products.data, search, category]);
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tax = Math.round(subtotal * 0.18);
+  const tax = tvaEnabled ? Math.round(subtotal * (tvaRate / 100)) : 0;
   const total = subtotal + tax;
 
   function addToCart(p: Product) {
@@ -153,7 +165,7 @@ export function PosPage() {
     setCart((c) => {
       const ex = c.find((i) => i.product_id === p.id);
       if (ex) return c.map((i) => i.product_id === p.id ? { ...i, quantity: Math.min(i.quantity + 1, p.stock_quantity) } : i);
-      return [...c, { product_id: p.id, name: p.name, price: p.price, quantity: 1, emoji: productEmoji(p) }];
+      return [...c, { product_id: p.id, name: p.name, price: p.price, quantity: 1, category: p.category }];
     });
   }
 
@@ -168,7 +180,7 @@ export function PosPage() {
       await enqueue(payload);
       const rows = await listPending();
       setPendingCount(rows.length);
-      const tot = cart.reduce((s, i) => s + i.price * i.quantity * 1.18, 0);
+      const tot = cart.reduce((s, i) => s + i.price * i.quantity * (1 + (tvaEnabled ? tvaRate / 100 : 0)), 0);
       setOfflineConfirm(`Vente de ${Math.round(tot).toLocaleString("fr-FR")} XAF mise en file hors-ligne.`);
       setCart([]);
       setTimeout(() => setOfflineConfirm(null), 7000);
@@ -182,57 +194,71 @@ export function PosPage() {
 
       {/* LEFT — Catalogue */}
       <div className="flex flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
+        {/* Export CSV — dedicated top bar */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-[#f8f8fc] px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.02]">
+          <Download size={13} className="shrink-0 text-[#717182]" />
+          <span className="text-xs font-semibold text-[#717182]">Export ventes</span>
+          <input
+            type="date"
+            value={exportDateFrom}
+            onChange={(e) => setExportDateFrom(e.target.value)}
+            className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
+          />
+          <span className="text-xs text-[#717182]">→</span>
+          <input
+            type="date"
+            value={exportDateTo}
+            onChange={(e) => setExportDateTo(e.target.value)}
+            className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
+          />
+          <button
+            onClick={handleExportCsv}
+            disabled={exportLoading}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+          >
+            <Download size={12} />
+            {exportLoading ? "Export…" : "Télécharger CSV"}
+          </button>
+        </div>
+
         {/* Search bar */}
         <div className="border-b border-black/[0.06] p-3 dark:border-white/[0.06]">
-          {/* CSV Export row */}
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <input
-              type="date"
-              value={exportDateFrom}
-              onChange={(e) => setExportDateFrom(e.target.value)}
-              className="rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
-              placeholder="Du"
-            />
-            <input
-              type="date"
-              value={exportDateTo}
-              onChange={(e) => setExportDateTo(e.target.value)}
-              className="rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
-              placeholder="Au"
-            />
-            <button
-              onClick={handleExportCsv}
-              disabled={exportLoading}
-              className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
-            >
-              <Download size={12} />
-              {exportLoading ? "Export…" : "Exporter CSV"}
-            </button>
-          </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 dark:border-white/10 dark:bg-white/5">
               <Search size={15} className="text-[#717182]" />
               <input
+                ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un produit, un code-barres…"
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
               />
             </div>
-            <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+            <button
+              onClick={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
+              title="Scanner / recherche par code-barres"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+            >
               <Scan size={17} />
             </button>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto">
-            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#717182]">Emoji rapide</span>
-            {emojiSuggestions(search, 14).map((option) => (
+          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#717182]">Filtres rapides</span>
+            {productIconSuggestions(search, 14).map((entry) => (
               <button
-                key={`${option.emoji}-${option.label}`}
-                onClick={() => setSearch(option.label)}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-black/[0.06] bg-white text-lg transition hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-violet-500/10"
-                title={option.label}
+                key={entry.key}
+                onClick={() => setSearch(entry.label)}
+                title={entry.label}
+                className={`flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2 text-xs font-medium transition ${
+                  search === entry.label
+                    ? `${entry.bg} ${entry.color} border-transparent`
+                    : "border-black/[0.06] bg-white text-[#717182] hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5"
+                }`}
               >
-                {option.emoji}
+                <span className={search === entry.label ? entry.color : "text-[#717182]"}>
+                  <entry.Icon size={13} />
+                </span>
+                {entry.label}
               </button>
             ))}
           </div>
@@ -285,14 +311,25 @@ export function PosPage() {
                 disabled={p.stock_quantity <= 0}
                 className="rounded-xl border border-black/[0.06] bg-white p-3 text-left transition hover:border-emerald-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.06] dark:bg-[#1e2229] dark:hover:border-emerald-500"
               >
-                <div className="mb-2 flex aspect-square items-center justify-center rounded-lg bg-gradient-to-br from-emerald-50 to-green-50 text-4xl dark:from-emerald-500/10 dark:to-emerald-600/10">
-                  {productEmoji(p)}
+                <div className={`mb-2 flex aspect-square items-center justify-center rounded-lg ${inferProductIcon(p).bg} dark:bg-white/[0.06]`}>
+                  <ProductIcon name={p.name} category={p.category} size={32} />
                 </div>
                 <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{p.name}</p>
                 <p className="text-xs text-[#717182]">{p.category}</p>
-                <p className="mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                  {p.price.toLocaleString("fr-FR")} XAF
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-1">
+                  <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    {p.price.toLocaleString("fr-FR")} XAF
+                  </p>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    p.stock_quantity <= 0
+                      ? "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                      : p.stock_quantity <= (p.reorder_level ?? 5)
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                      : "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+                  }`}>
+                    {p.stock_quantity <= 0 ? "Épuisé" : `${p.stock_quantity}`}
+                  </span>
+                </div>
               </button>
             ))}
             {!filteredProducts.length && (
@@ -327,8 +364,8 @@ export function PosPage() {
           ) : (
             cart.map((item) => (
               <div key={item.product_id} className="flex items-center gap-3 px-5 py-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#ececf0] text-xl dark:bg-white/10">
-                  {item.emoji}
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${inferProductIcon({ name: item.name, category: item.category }).bg} dark:bg-white/10`}>
+                  <ProductIcon name={item.name} category={item.category} size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{item.name}</p>
@@ -358,9 +395,35 @@ export function PosPage() {
               <span>Sous-total</span>
               <span>{subtotal.toLocaleString("fr-FR")} XAF</span>
             </div>
-            <div className="flex justify-between text-[#717182]">
-              <span>TVA 18%</span>
-              <span>{tax.toLocaleString("fr-FR")} XAF</span>
+            {/* TVA row with inline controls */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setTvaEnabled((v) => !v)}
+                  className={`flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${tvaEnabled ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600"}`}
+                  title={tvaEnabled ? "Désactiver TVA" : "Activer TVA"}
+                >
+                  <span className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${tvaEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                </button>
+                <Percent size={12} className="text-[#717182]" />
+                <span className="text-[#717182]">TVA</span>
+                {tvaEnabled && (
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={tvaRate}
+                      onChange={(e) => setTvaRate(Math.min(100, Math.max(0, Number(e.target.value))))}
+                      className="w-10 rounded border border-black/[0.08] bg-white px-1 py-0.5 text-center text-xs font-semibold text-ink outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    />
+                    <span className="text-xs text-[#717182]">%</span>
+                  </div>
+                )}
+              </div>
+              <span className={tvaEnabled ? "text-[#717182]" : "text-stone-300 line-through"}>
+                {tax.toLocaleString("fr-FR")} XAF
+              </span>
             </div>
             <div className="flex justify-between border-t border-black/[0.06] pt-2 text-base font-semibold text-[#17211f] dark:border-white/[0.06] dark:text-white">
               <span>Total</span>
@@ -369,7 +432,7 @@ export function PosPage() {
           </div>
 
           {/* Payment methods */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {[
               ...posAccounts.map((account) => ({
                 key: `account-${account.id}`,
@@ -379,7 +442,7 @@ export function PosPage() {
                 icon: PAYMENT_METHODS.find((m) => m.key === accountMethodKey(account))?.icon ?? Wallet,
                 hint: `${providerLabel(account.provider)} · ${account.masked_identifier || account.currency}`,
               })),
-              ...PAYMENT_METHODS.filter((method) => ["card", "cash"].includes(method.key)).map((method) => ({
+              ...PAYMENT_METHODS.filter((method) => ["wave", "orange_money", "mtn", "airtel", "card", "cash"].includes(method.key)).map((method) => ({
                 key: method.key,
                 method: method.key,
                 accountId: null,

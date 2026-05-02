@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AlertTriangle, Bot, Clock3, FileText, ListChecks, Plus, Send, Sparkles, Wand2, X } from "lucide-react";
+import { AlertTriangle, Clock3, FileText, ListChecks, Plus, Send, Wand2, X } from "lucide-react";
 import { api, type LimuleChatHistoryItem } from "../services/api";
+import { LimuleAvatar, LimuleIcon } from "./LimuleAvatar";
 
 type Message = {
   author: "user" | "ai";
@@ -167,24 +168,24 @@ export function Copilot() {
 
   return (
     <>
+      {/* FAB — Limule avatar (idle / thinking when AI is loading) */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-30 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-[0_18px_50px_rgba(124,58,237,0.35)] transition hover:scale-[1.03]"
+        className="fixed bottom-5 right-5 z-30 rounded-full p-0 transition hover:scale-[1.06] focus:outline-none"
         aria-label="Ouvrir Limule"
+        style={{ background: "none", border: "none" }}
       >
-        <Sparkles size={25} />
+        <LimuleAvatar state={loading ? "thinking" : "idle"} size={56} />
       </button>
       {open ? (
         <section className="fixed bottom-24 right-5 z-40 flex h-[36rem] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]">
-          <div className="flex items-center gap-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-4 text-white">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15">
-              <Bot size={18} />
-            </span>
+          <div className="flex items-center gap-3 bg-gradient-to-r from-[#0b1f3a] to-[#1a3a5c] px-5 py-4 text-white">
+            <LimuleAvatar state={loading ? "thinking" : "speaking"} size={44} />
             <div className="min-w-0 flex-1">
-              <p className="text-xl font-black">Limule</p>
-              <p className="text-sm font-semibold text-white/75">
+              <p className="text-xl font-black tracking-tight">Limule</p>
+              <p className="text-sm font-semibold text-white/70">
                 {aiStatus
-                  ? `Grand Sage 1.0 · ${aiStatus.key_configured ? "Limule actif" : "mode secours"}`
+                  ? `Grand Sage 1.0 · ${aiStatus.key_configured ? "✦ actif" : "mode secours"}`
                   : "Grand Sage 1.0"}
               </p>
             </div>
@@ -285,7 +286,12 @@ export function Copilot() {
                 </div>
               </div>
             ))}
-            {loading ? <p className="text-xs font-semibold text-[#717182]">Analyse en cours...</p> : null}
+            {loading ? (
+              <div className="flex items-center gap-2 py-1">
+                <LimuleAvatar state="thinking" size={28} />
+                <p className="text-xs font-semibold text-[#717182]">Limule analyse…</p>
+              </div>
+            ) : null}
             <div ref={endRef} />
           </div>
           <div className="flex flex-wrap gap-1.5 border-t border-black/[0.05] bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1e2229]">
@@ -302,7 +308,7 @@ export function Copilot() {
           </div>
           <div className="border-t border-black/[0.05] p-3">
             <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white px-3 py-2.5 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <Sparkles size={16} className="text-violet-600" />
+              <LimuleIcon size={18} className="opacity-80" />
               <input
                 value={input}
                 onChange={(event) => setInput(event.target.value)}

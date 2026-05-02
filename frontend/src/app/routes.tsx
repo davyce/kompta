@@ -25,7 +25,6 @@ import { EmployeesPage } from "../pages/EmployeesPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import { PosPage } from "../pages/PosPage";
 import { LoginPage } from "../pages/LoginPage";
-import { ModuleBoardPage } from "../pages/ModuleBoardPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { PayrollPage } from "../pages/PayrollPage";
 import { ReportsHubPage } from "../pages/ReportsHubPage";
@@ -36,6 +35,7 @@ import { NotesPage } from "../pages/NotesPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { EmployeeProfilePage } from "../pages/EmployeeProfilePage";
 import { MeetingsPage } from "../pages/MeetingsPage";
+import { HelpCenterPage } from "../pages/HelpCenterPage";
 
 function ProtectedRoute() {
   const { token } = useAuth();
@@ -96,6 +96,7 @@ export const router = createBrowserRouter([
       { path: "accounting", element: <AccountingFinancePage /> },
       { path: "projects", element: <ProjectsPage /> },
       { path: "meetings", element: <MeetingsPage /> },
+      { path: "help", element: <HelpCenterPage /> },
       { path: "*", element: <NotFoundPage /> }
     ]
   }

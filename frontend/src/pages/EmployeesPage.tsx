@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Briefcase, CalendarDays, Clipboard, Clock3, ExternalLink, FileCheck2, FileText,
-  KeyRound, Search, Send, ShieldOff, UserPlus, Users, Wallet, X,
+  KeyRound, Loader2, Maximize2, Search, Send, ShieldOff, UserPlus, Users, Wallet, X,
 } from "lucide-react";
 
 import { EmptyState } from "../components/EmptyState";
@@ -395,6 +395,9 @@ export function EmployeesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tab, setTab] = useState<"list" | "presence" | "leaves" | "contracts">("list");
   const [search, setSearch] = useState("");
+  const [contractModal, setContractModal] = useState<{ html: string; name: string } | null>(null);
+  const [contractLoading, setContractLoading] = useState<number | null>(null);
+  const [contractError, setContractError] = useState<string | null>(null);
   const [provisioning, setProvisioning] = useState<null | {
     employeeName: string;
     employeeId: number;
@@ -442,10 +445,19 @@ export function EmployeesPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employabilityChecks"] }),
   });
 
-  async function openContract(employeeId: number) {
-    const blob = await api.downloadEmployeeContract(employeeId);
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
+  async function openContract(employeeId: number, employeeName?: string) {
+    setContractError(null);
+    setContractLoading(employeeId);
+    try {
+      const blob = await api.downloadEmployeeContract(employeeId);
+      const html = await blob.text();
+      setContractModal({ html, name: employeeName ?? "Contrat" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Impossible de charger le contrat.";
+      setContractError(msg);
+    } finally {
+      setContractLoading(null);
+    }
   }
 
   function copyProvisioning() {
@@ -518,11 +530,12 @@ export function EmployeesPage() {
                 Copier les identifiants
               </button>
               <button
-                onClick={() => openContract(provisioning.employeeId)}
-                className="flex items-center gap-2 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white"
+                onClick={() => openContract(provisioning.employeeId, provisioning.employeeName)}
+                disabled={contractLoading === provisioning.employeeId}
+                className="flex items-center gap-2 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
-                <FileText size={15} />
-                Ouvrir le contrat
+                {contractLoading === provisioning.employeeId ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+                {contractLoading === provisioning.employeeId ? "Génération…" : "Ouvrir le contrat"}
               </button>
             </div>
           </div>
@@ -626,7 +639,7 @@ export function EmployeesPage() {
                         <div className="flex items-center gap-1.5">
                           <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Voir la fiche"><ExternalLink size={15} /></Link>
                           <button onClick={() => resetAccess.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Régénérer accès"><KeyRound size={15} /></button>
-                          <button onClick={() => openContract(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Contrat imprimable"><FileText size={15} /></button>
+                          <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title="Contrat imprimable">{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
                           <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Employabilité TERAS"><Send size={15} /></button>
                           <button
                             onClick={() => updateStatus.mutate({ employeeId: emp.id, status: emp.account_status === "suspended" ? "active" : "suspended" })}
@@ -643,56 +656,129 @@ export function EmployeesPage() {
               </table>
             </div>
           ) : tab === "presence" ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {(filteredEmployees ?? []).slice(0, 8).map((emp, i) => (
-                <article key={emp.id} className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2 text-sm">
+                <span className="font-semibold text-ink">Présence du jour — {new Intl.DateTimeFormat("fr-FR", { dateStyle: "full" }).format(new Date())}</span>
+                <span className="font-bold text-emerald-600">{(filteredEmployees ?? []).filter((e) => e.account_status === "active").length} actifs</span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {(filteredEmployees ?? []).map((emp) => {
+                  const isActive = emp.account_status === "active";
+                  const isSuspended = emp.account_status === "suspended";
+                  return (
+                    <article key={emp.id} className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: emp.badge_color }}>
+                          {emp.first_name[0]}{emp.last_name[0]}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-ink">{emp.first_name} {emp.last_name}</p>
+                          <p className="text-xs text-[#717182]">{emp.branch} · {emp.job_title}</p>
+                        </div>
+                      </div>
+                      <StatusBadge
+                        label={isSuspended ? "suspendu" : isActive ? "actif" : "inactif"}
+                        tone={isSuspended ? "red" : isActive ? "green" : "amber"}
+                      />
+                    </article>
+                  );
+                })}
+              </div>
+              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title="Aucun employé trouvé" />}
+            </div>
+          ) : tab === "leaves" ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3 mb-2">
+                <div className="rounded-lg border border-black/[0.05] bg-stone-50 p-3 text-center">
+                  <p className="text-2xl font-black text-ink">{(employees.data ?? []).filter((e) => e.employment_type === "CDI").length}</p>
+                  <p className="text-xs text-[#717182]">CDI actifs</p>
+                </div>
+                <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-center">
+                  <p className="text-2xl font-black text-amber-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDD").length}</p>
+                  <p className="text-xs text-amber-700">CDD — à surveiller</p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
+                  <p className="text-2xl font-black text-emerald-600">{(employees.data ?? []).filter((e) => e.employment_type === "Stage").length}</p>
+                  <p className="text-xs text-emerald-700">Stagiaires</p>
+                </div>
+              </div>
+              {(filteredEmployees ?? []).map((emp) => (
+                <article key={emp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: emp.badge_color }}>
+                    <span className="grid h-9 w-9 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: emp.badge_color }}>
                       {emp.first_name[0]}{emp.last_name[0]}
                     </span>
                     <div>
                       <p className="font-semibold text-ink">{emp.first_name} {emp.last_name}</p>
-                      <p className="text-xs text-[#717182]">{emp.branch} · arrivée 08:{String(10 + i * 4).padStart(2, "0")}</p>
+                      <p className="text-sm text-[#717182]">{emp.employment_type} · {emp.department}</p>
                     </div>
                   </div>
-                  <StatusBadge label={i % 5 === 0 ? "à vérifier" : "présent"} tone={i % 5 === 0 ? "amber" : "green"} />
-                </article>
-              ))}
-            </div>
-          ) : tab === "leaves" ? (
-            <div className="space-y-3">
-              {[
-                { who: "Amina Tamba", kind: "Congés annuels", dates: "05 mai → 09 mai", status: "en attente" },
-                { who: "Junior Makaya", kind: "Repos compensateur", dates: "02 mai", status: "approuvé" },
-                { who: "Mireille Ngoma", kind: "Mission terrain", dates: "30 avr → 04 mai", status: "planifié" },
-              ].map((leave) => (
-                <article key={leave.who} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3">
-                  <div>
-                    <p className="font-semibold text-ink">{leave.who}</p>
-                    <p className="text-sm text-[#717182]">{leave.kind} · {leave.dates}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <StatusBadge label={leave.status} tone={leave.status === "en attente" ? "amber" : "green"} />
-                    {leave.status === "en attente" && (
-                      <button className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white">Approuver</button>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <StatusBadge
+                      label={emp.employment_type === "CDD" ? "CDD" : emp.employment_type === "Stage" ? "Stage" : "CDI"}
+                      tone={emp.employment_type === "CDD" ? "amber" : emp.employment_type === "Stage" ? "blue" : "green"}
+                    />
+                    <button
+                      onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)}
+                      disabled={contractLoading === emp.id}
+                      className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-stone-50 disabled:opacity-50"
+                    >
+                      {contractLoading === emp.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                      Contrat
+                    </button>
                   </div>
                 </article>
               ))}
+              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title="Aucun employé trouvé" />}
             </div>
           ) : tab === "contracts" ? (
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-black/[0.05] bg-stone-50 p-4">
-                <p className="text-2xl font-black text-ink">{employees.data?.length ?? 0}</p>
-                <p className="text-sm font-medium text-[#717182]">contrats actifs</p>
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border border-black/[0.05] bg-stone-50 p-4">
+                  <p className="text-2xl font-black text-ink">{employees.data?.length ?? 0}</p>
+                  <p className="text-sm font-medium text-[#717182]">contrats actifs</p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-2xl font-black text-emerald-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDI").length}</p>
+                  <p className="text-sm font-medium text-emerald-700">CDI</p>
+                </div>
+                <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
+                  <p className="text-2xl font-black text-amber-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDD").length}</p>
+                  <p className="text-sm font-medium text-amber-800">CDD · à renouveler</p>
+                </div>
+                <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
+                  <p className="text-2xl font-black text-sky-700">{(employees.data ?? []).filter((e) => e.employment_type === "Stage" || e.employment_type === "Mission").length}</p>
+                  <p className="text-sm font-medium text-sky-700">Stages / Missions</p>
+                </div>
               </div>
-              <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
-                <p className="text-2xl font-black text-amber-700">3</p>
-                <p className="text-sm font-medium text-amber-800">à renouveler sous 30 jours</p>
-              </div>
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-2xl font-black text-emerald-600">IA</p>
-                <p className="text-sm font-medium text-emerald-700">génération et archivage auto</p>
+              <div className="space-y-2">
+                {(filteredEmployees ?? []).map((emp) => (
+                  <div key={emp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: emp.badge_color }}>
+                        {emp.first_name[0]}{emp.last_name[0]}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-ink">{emp.first_name} {emp.last_name}</p>
+                        <p className="text-xs text-[#717182]">{emp.job_title} · {emp.department}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge
+                        label={emp.employment_type}
+                        tone={emp.employment_type === "CDI" ? "green" : emp.employment_type === "CDD" ? "amber" : "blue"}
+                      />
+                      <button
+                        onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)}
+                        disabled={contractLoading === emp.id}
+                        className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {contractLoading === emp.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                        {contractLoading === emp.id ? "Génération…" : "Voir contrat IA"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
@@ -709,6 +795,72 @@ export function EmployeesPage() {
         isPending={create.isPending}
         error={create.error?.message ?? null}
       />
+
+      {/* Contract error toast */}
+      {contractError && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-red-200 bg-white px-5 py-3 shadow-xl">
+          <span className="text-sm font-semibold text-red-700">{contractError}</span>
+          <button onClick={() => setContractError(null)} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
+        </div>
+      )}
+
+      {/* Contract preview modal */}
+      {contractModal && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm" onClick={() => setContractModal(null)}>
+          <div
+            className="relative mx-auto mt-8 flex w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            style={{ maxHeight: "calc(100vh - 4rem)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-100">
+                  <FileText size={18} className="text-emerald-700" />
+                </div>
+                <div>
+                  <p className="font-bold text-ink">Contrat — {contractModal.name}</p>
+                  <p className="text-xs text-[#717182]">Généré par Limule IA · Valeur juridique conditionnelle à la signature</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const blob = new Blob([contractModal.html], { type: "text/html" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `contrat_${contractModal.name.replace(/\s+/g, "_")}.html`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-stone-50 px-3 py-1.5 text-sm font-semibold text-ink hover:bg-stone-100"
+                  title="Télécharger"
+                >
+                  <Maximize2 size={15} />
+                  Télécharger
+                </button>
+                <button
+                  onClick={() => setContractModal(null)}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-black/[0.06] text-[#717182] hover:bg-stone-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Iframe content */}
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                srcDoc={contractModal.html}
+                title={`Contrat ${contractModal.name}`}
+                className="h-full w-full border-0"
+                sandbox="allow-same-origin"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -73,9 +73,13 @@ export function ActivationPage() {
           {error || activate.error ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error || activate.error?.message}</p>
           ) : null}
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">
+          <button
+            type="submit"
+            disabled={activate.isPending}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white disabled:bg-stone-300"
+          >
             <KeyRound size={18} />
-            Activer mon compte
+            {activate.isPending ? "Activation…" : "Activer mon compte"}
           </button>
         </form>
       </Panel>

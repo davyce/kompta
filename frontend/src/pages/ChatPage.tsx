@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Hash, Paperclip, Plus, Search,
   Send, Sparkles, X, Info,
@@ -93,14 +93,26 @@ export function ChatPage() {
     source: "chat",
   });
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState(0);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftInputRef = useRef<HTMLInputElement>(null);
   const typingClearTimer = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const channels = useQuery({ queryKey: ["channels"], queryFn: api.channels });
   const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
+  const mentionSuggestions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return (employees.data ?? [])
+      .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionQuery, employees.data]);
+
   const dms = useMemo(() => {
     const list = employees.data ?? [];
     return list.slice(0, 6).map((e) => ({
@@ -223,8 +235,55 @@ export function ChatPage() {
       wsRef.current.send(JSON.stringify({ event: "typing", user: user.full_name }));
   }
 
+  function insertMention(first: string, last: string) {
+    const name = `${first} ${last}`.trim();
+    const before = draft.slice(0, mentionStart);
+    const after = draft.slice(mentionStart + 1 + (mentionQuery?.length ?? 0));
+    const next = `${before}@${name} ${after}`;
+    setDraft(next);
+    setMentionQuery(null);
+    setTimeout(() => {
+      const pos = before.length + name.length + 2; // after "@Name "
+      draftInputRef.current?.setSelectionRange(pos, pos);
+      draftInputRef.current?.focus();
+    }, 0);
+  }
+
+  function handleDraftChange(e: ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setDraft(val);
+    broadcastTyping();
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@([\wÀ-ÿ]*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1]);
+      setMentionStart(cursor - atMatch[0].length);
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  }
+
+  function handleDraftKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (mentionSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionIndex((i) => (i + 1) % mentionSuggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionIndex((i) => (i - 1 + mentionSuggestions.length) % mentionSuggestions.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      const emp = mentionSuggestions[mentionIndex];
+      if (emp) { e.preventDefault(); insertMention(emp.first_name, emp.last_name); }
+    } else if (e.key === "Escape") {
+      setMentionQuery(null);
+    }
+  }
+
   function submitMessage(e: FormEvent) {
     e.preventDefault();
+    if (mentionSuggestions.length > 0) return; // let Enter close the mention dropdown first
     if (!draft.trim() || activeChannelId === null) return;
     send.mutate({ channelId: activeChannelId, body: draft.trim() });
     setDraft("");
@@ -430,8 +489,11 @@ export function ChatPage() {
           {displayMessages.map((m) => {
             const isMe = m.author_id === user?.id;
             const name = m.author_name || `Utilisateur ${m.author_id}`;
+            // Only show Limule suggestion when it contains a real action (not "no action" noise)
+            const hasRealSuggestion = m.ai_suggestion &&
+              !/aucune action|no action|message archive|message archivé/i.test(m.ai_suggestion);
             return (
-              <div key={m.id} className={`flex gap-3 py-1 ${isMe ? "flex-row-reverse" : ""}`}>
+              <div key={m.id} className={`group flex gap-3 py-1 ${isMe ? "flex-row-reverse" : ""}`}>
                 <Avatar name={name} size={36} />
                 <div className={`max-w-[75%] ${isMe ? "items-end text-right" : ""}`}>
                   <div className={`mb-1 flex items-center gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
@@ -441,27 +503,29 @@ export function ChatPage() {
                   <div className={`inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isMe ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white" : "bg-[#ececf2] dark:bg-white/[0.06] text-[#17211f] dark:text-white"}`}>
                     <MessageBody text={m.body} isMe={isMe} />
                   </div>
-                  <div className={`mt-1 flex ${isMe ? "justify-end" : "justify-start"}`}>
+                  {/* "Créer tâche" — visible only on hover */}
+                  <div className={`mt-1 flex opacity-0 transition-opacity group-hover:opacity-100 ${isMe ? "justify-end" : "justify-start"}`}>
                     <button
                       onClick={() => openTaskComposer(m.body, `chat:${activeChannelId}:message:${m.id}`)}
-                      className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2.5 py-1 text-[11px] font-bold text-[#717182] transition hover:border-violet-300 hover:text-violet-700 dark:border-white/[0.08] dark:bg-white/[0.04]"
+                      className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2.5 py-1 text-[11px] font-bold text-[#717182] transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-violet-500/10"
                     >
                       <CheckSquare size={11} />
-                      Créer tâche
+                      → Tâche
                     </button>
                   </div>
-                  {m.ai_suggestion && (
-                    <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
-                      <div className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-violet-600 dark:text-violet-300">
-                        <Sparkles size={10}/> Suggestion Limule
+                  {/* Only real Limule suggestions (filter out "no action" noise) */}
+                  {hasRealSuggestion && (
+                    <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-left dark:border-violet-500/30 dark:bg-violet-500/10">
+                      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">
+                        <Sparkles size={10}/> Action détectée par Limule
                       </div>
-                      <p className="text-[#17211f] dark:text-white">{m.ai_suggestion}</p>
+                      <p className="text-sm leading-5 text-[#17211f] dark:text-white">{m.ai_suggestion}</p>
                       <button
                         onClick={() => openTaskComposer(m.ai_suggestion || m.body, `chat:${activeChannelId}:suggestion:${m.id}`)}
-                        className="mt-2 inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
                       >
                         <CheckSquare size={12} />
-                        Transformer en tâche
+                        Créer cette tâche
                       </button>
                     </div>
                   )}
@@ -493,33 +557,71 @@ export function ChatPage() {
 
         {/* Input bar */}
         <form onSubmit={submitMessage} className="border-t border-black/[0.05] dark:border-white/[0.05] p-4">
-          <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f6f8] dark:bg-[#252931] px-3 py-2.5">
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={upload.isPending || activeChannelId === null}
-              className="text-[#717182] transition hover:text-violet-600 disabled:opacity-40"
-              title="Joindre un fichier"
-            >
-              <Paperclip size={16} />
-            </button>
-            <input
-              value={draft}
-              onChange={(e) => { setDraft(e.target.value); broadcastTyping(); }}
-              placeholder={activeChannel ? `Écrire à #${activeChannel.name}…` : "Sélectionner un canal…"}
-              disabled={activeChannelId === null}
-              className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none disabled:cursor-not-allowed placeholder:text-[#717182]"
-            />
-            <button
-              type="submit"
-              disabled={!draft.trim() || send.isPending || activeChannelId === null}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-700 disabled:bg-black/10 dark:disabled:bg-white/10"
-            >
-              <Send size={14} />
-            </button>
+          <div className="relative">
+            {/* @mention autocomplete dropdown */}
+            {mentionSuggestions.length > 0 && (
+              <div className="absolute bottom-full mb-2 left-0 z-40 w-72 rounded-xl border border-black/[0.08] bg-white shadow-xl dark:border-white/[0.1] dark:bg-[#252931] overflow-hidden">
+                <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#717182] border-b border-black/[0.05] dark:border-white/[0.05]">
+                  Mentionner un collègue
+                </p>
+                {mentionSuggestions.map((emp, idx) => {
+                  const name = `${emp.first_name} ${emp.last_name}`.trim();
+                  return (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); insertMention(emp.first_name, emp.last_name); }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition ${
+                        idx === mentionIndex
+                          ? "bg-violet-50 dark:bg-violet-500/15"
+                          : "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${GRADS[hashName(name) % GRADS.length]} text-[11px] font-bold text-white`}>
+                        {name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#17211f] dark:text-white">{name}</p>
+                        <p className="text-xs text-[#717182]">{emp.job_title || emp.department || "Employé"}</p>
+                      </div>
+                      {idx === mentionIndex && (
+                        <span className="ml-auto text-[10px] text-[#717182]">↵</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f6f8] dark:bg-[#252931] px-3 py-2.5">
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={upload.isPending || activeChannelId === null}
+                className="text-[#717182] transition hover:text-violet-600 disabled:opacity-40"
+                title="Joindre un fichier"
+              >
+                <Paperclip size={16} />
+              </button>
+              <input
+                ref={draftInputRef}
+                value={draft}
+                onChange={handleDraftChange}
+                onKeyDown={handleDraftKeyDown}
+                placeholder={activeChannel ? `Écrire à #${activeChannel.name}… (@nom pour mentionner)` : "Sélectionner un canal…"}
+                disabled={activeChannelId === null}
+                className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none disabled:cursor-not-allowed placeholder:text-[#717182]"
+              />
+              <button
+                type="submit"
+                disabled={!draft.trim() || send.isPending || activeChannelId === null}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-700 disabled:bg-black/10 dark:disabled:bg-white/10"
+              >
+                <Send size={14} />
+              </button>
+            </div>
           </div>
-        {send.error && <p className="mt-1 text-xs text-rose-600">{send.error.message}</p>}
+          {send.error && <p className="mt-1 text-xs text-rose-600">{send.error.message}</p>}
           {summarizeChannel.error && <p className="mt-1 text-xs text-rose-600">{summarizeChannel.error.message}</p>}
         </form>
       </div>

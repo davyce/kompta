@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, ArrowUpRight, CheckCircle2, Download,
@@ -84,11 +84,44 @@ export function DashboardPage() {
   const sales         = useQuery({ queryKey: ["sales"],            queryFn: () => api.posSales(), refetchInterval: 30_000 });
   const invoices      = useQuery({ queryKey: ["invoices"],         queryFn: api.invoices, refetchInterval: 60_000 });
   const terasScores   = useQuery({ queryKey: ["terasScores"],      queryFn: api.terasScores, refetchInterval: 60_000 });
+  const meetings      = useQuery({ queryKey: ["meetings"],         queryFn: api.meetings, refetchInterval: 60_000 });
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Track last refresh time
   useEffect(() => {
     if (overview.dataUpdatedAt) setLastRefreshed(new Date(overview.dataUpdatedAt));
   }, [overview.dataUpdatedAt]);
+
+  // Résumé IA Limule streaming
+  async function launchAiSummary() {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setAiSummary("");
+    const kpisText = data
+      ? `CA: ${compactMoney(revenue)}, Paie: ${compactMoney(payroll)}, TERAS: ${terasScore}/100, Alertes: ${activeAlerts.length}`
+      : "KPIs non disponibles";
+    await api.aiGenerateStream(
+      {
+        kind: "dashboard_summary",
+        title: "Résumé tableau de bord",
+        prompt: `Génère un résumé exécutif de 3-4 lignes en français pour le tableau de bord KOMPTA. Données actuelles: ${kpisText}. Mets en avant les points d'attention et les bonnes nouvelles. Sois concis et actionnable.`,
+        context: "dashboard",
+      },
+      (partial) => setAiSummary(partial),
+      (final) => { setAiSummary(final); setAiLoading(false); },
+      () => { setAiSummary("Limule indisponible pour le moment. Vérifie que le backend est lancé."); setAiLoading(false); },
+    );
+  }
+
+  // Réunions du jour
+  const todayMeetings = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (meetings.data ?? [])
+      .filter((m) => m.start_at?.startsWith(today))
+      .sort((a, b) => (a.start_at ?? "").localeCompare(b.start_at ?? ""))
+      .slice(0, 4);
+  }, [meetings.data]);
 
   // Real revenue chart data (M XAF)
   const revenueChartData = useMemo(() => {
@@ -258,10 +291,12 @@ export function DashboardPage() {
             <Download size={16} /> Exporter KPI
           </button>
           <button
-            onClick={() => navigate("/assistants")}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition"
+            onClick={launchAiSummary}
+            disabled={aiLoading}
+            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-70"
           >
-            <Sparkles size={16} /> Résumé IA
+            <Sparkles size={16} className={aiLoading ? "animate-pulse" : ""} />
+            {aiLoading ? "Analyse…" : "Résumé IA"}
           </button>
         </div>
       </div>
@@ -301,6 +336,20 @@ export function DashboardPage() {
           accent="sky"
         />
       </div>
+
+      {/* ── Résumé IA (visible si lancé) ── */}
+      {(aiSummary !== null) && (
+        <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-5 dark:border-violet-500/30 dark:from-violet-500/10 dark:to-fuchsia-500/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles size={18} className="text-violet-600 dark:text-violet-400" />
+            <span className="text-sm font-black text-violet-700 dark:text-violet-300">Analyse IA — Grand Sage 1.0</span>
+            {aiLoading && <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />}
+          </div>
+          <p className="text-sm leading-7 text-[#17211f] dark:text-white whitespace-pre-wrap">
+            {aiSummary || <span className="text-[#717182] animate-pulse">Limule analyse vos données…</span>}
+          </p>
+        </div>
+      )}
 
       {/* ── Charts row ── */}
       <div className="grid gap-5 lg:grid-cols-3">
@@ -559,6 +608,39 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Agenda du jour ── */}
+      {todayMeetings.length > 0 && (
+        <div className="rounded-xl border border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-[#1e2229]">
+          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
+            <h3 className="font-bold text-[#17211f] dark:text-white">Agenda du jour</h3>
+            <button onClick={() => navigate("/calendar")} className="flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700">
+              Tout voir <ArrowUpRight size={15} />
+            </button>
+          </div>
+          <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+            {todayMeetings.map((m) => (
+              <div key={m.id} className="flex items-center gap-4 px-5 py-3">
+                <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/15">
+                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">
+                    {m.start_at ? new Date(m.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "--"}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-[#17211f] dark:text-white">{m.title}</p>
+                  <p className="text-xs text-[#717182]">{m.location || "Sans lieu"}{m.join_url ? " · Visio" : ""}</p>
+                </div>
+                {m.join_url && (
+                  <a href={m.join_url} target="_blank" rel="noopener noreferrer"
+                    className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">
+                    Rejoindre
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Department table ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">

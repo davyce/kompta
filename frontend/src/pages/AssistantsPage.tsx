@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useCallback, useRef, useState } from "react";
 import {
-  Bot, Braces, ChevronDown, ChevronUp, ClipboardCheck,
+  Braces, ChevronDown, ChevronUp, ClipboardCheck,
   Copy, Download, Mail, RefreshCcw, Save, Send, Sparkles, Trash2, Zap,
 } from "lucide-react";
+import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 
 import { TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
@@ -14,7 +15,7 @@ import { api } from "../services/api";
 const TEMPLATES = [
   { key: "email",          label: "Email professionnel",  icon: Mail },
   { key: "note",           label: "Note de service",       icon: ClipboardCheck },
-  { key: "communique",     label: "Communiqué",            icon: Bot },
+  { key: "communique",     label: "Communiqué",            icon: Sparkles },
   { key: "courrier",       label: "Courrier officiel",     icon: ClipboardCheck },
   { key: "reponse_client", label: "Réponse client",        icon: Mail },
   { key: "annonce_interne",label: "Annonce interne",       icon: Sparkles },
@@ -314,14 +315,10 @@ export function AssistantsPage() {
             {/* ── Zone de brouillon ── */}
             <div className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-stone-50 dark:bg-white/[0.02] p-4">
               <div className="mb-3 flex items-center gap-2">
-                <Sparkles
-                  className={`text-emerald-600 ${isStreaming ? "animate-pulse" : ""}`}
-                  size={18}
-                />
+                <LimuleAvatar state={isStreaming ? "speaking" : "idle"} size={28} />
                 <p className="font-bold text-emerald-600">
                   {isStreaming ? "Limule génère en temps réel…" : "Brouillon généré"}
                 </p>
-                {isStreaming && <RefreshCcw className="animate-spin text-[#717182]" size={13} />}
               </div>
 
               {hasContent ? (
@@ -333,7 +330,7 @@ export function AssistantsPage() {
                 </pre>
               ) : isStreaming ? (
                 <div className="flex h-20 items-center justify-center">
-                  <RefreshCcw className="animate-spin text-emerald-400" size={28} />
+                  <LimuleAvatar state="thinking" size={56} />
                 </div>
               ) : (
                 <div className="space-y-2 text-sm leading-7 text-[#717182] italic">
@@ -363,7 +360,7 @@ export function AssistantsPage() {
                   disabled={isStreaming}
                   className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
                 >
-                  {isStreaming ? <RefreshCcw className="animate-spin" size={15} /> : <Bot size={16} />}
+                  {isStreaming ? <LimuleAvatar state="thinking" size={18} /> : <LimuleIcon size={16} className="brightness-0" />}
                   {isStreaming ? "Génération…" : "Générer"}
                 </button>
                 <button
@@ -418,8 +415,8 @@ export function AssistantsPage() {
         <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
           {(history.data ?? []).map(g => (
             <div key={g.id} className="flex items-start gap-3 py-3">
-              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Sparkles size={15} />
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
+                <LimuleIcon size={22} />
               </span>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-[#17211f] dark:text-white truncate">{g.title || "(sans titre)"}</p>

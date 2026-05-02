@@ -1,6 +1,5 @@
 import {
   Bell,
-  Bot,
   Building2,
   CalendarDays,
   Calculator,
@@ -19,6 +18,7 @@ import {
   MessageSquare,
   Moon,
   Plus,
+  Sparkles,
   Sun,
   ReceiptText,
   Search,
@@ -37,6 +37,7 @@ import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { OnboardingWizard } from "../components/OnboardingWizard";
 import { ToastStack } from "../components/Toast";
+import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useTheme } from "../hooks/useTheme";
 import { useWebSocketNotifications } from "../hooks/useWebSocketNotifications";
 import { api } from "../services/api";
@@ -44,7 +45,7 @@ import { useQuery } from "@tanstack/react-query";
 import { initials } from "../utils/format";
 import { useAuth } from "./AuthContext";
 
-/** Small LLM status dot shown in header */
+/** Limule status chip shown in the topbar */
 function LimuleStatus() {
   const { data } = useQuery({
     queryKey: ["ai-health"],
@@ -53,21 +54,24 @@ function LimuleStatus() {
     refetchInterval: 120_000,
   });
   const status = data?.status ?? "unknown";
-  const color =
+  const label =
+    status === "ok" ? `Limule · ${data?.latency_ms}ms` :
+    status === "no_key" ? "Limule · clé manquante" :
+    status === "offline" ? "Limule · hors-ligne" :
+    "Limule…";
+  const dot =
     status === "ok" ? "bg-emerald-400" :
     status === "no_key" ? "bg-amber-400" :
     status === "offline" ? "bg-red-400" : "bg-stone-300";
-  const label =
-    status === "ok" ? `Limule · Grand Sage 1.0 · ${data?.latency_ms}ms` :
-    status === "no_key" ? "Limule · clé API manquante" :
-    status === "offline" ? "Limule · hors ligne" :
-    "Limule · vérification…";
+
   return (
-    <div title={label} className="hidden items-center gap-1.5 md:flex">
-      <span className={`h-2 w-2 rounded-full ${color} ${status === "ok" ? "" : "animate-pulse"}`} />
-      <span className="text-xs text-[#717182] dark:text-white/50">
-        {status === "ok" ? `Limule · ${data?.latency_ms}ms` : "Limule"}
-      </span>
+    <div
+      title={`Grand Sage 1.0 · ${label}`}
+      className="hidden items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] md:flex cursor-default"
+    >
+      <LimuleIcon size={18} />
+      <span className="text-xs font-semibold text-[#717182] dark:text-white/50">{label}</span>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot} ${status !== "ok" ? "animate-pulse" : ""}`} />
     </div>
   );
 }
@@ -75,12 +79,12 @@ function LimuleStatus() {
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/settings"],
-  comptable: ["/", "/accounting", "/billing", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/chat", "/calendar", "/meetings", "/notes"],
-  rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes"],
-  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/work", "/reports", "/chat", "/calendar", "/meetings", "/notes"],
-  caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes"],
-  employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/settings", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/work", "/reports", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
 };
 
 function canAccess(role: string | undefined, path: string): boolean {
@@ -152,7 +156,7 @@ const navSections: NavSection[] = [
     items: [
       { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
       { label: "Déclarations", to: "/declarations", icon: ClipboardList },
-      { label: "Rédaction IA", to: "/assistants", icon: Bot },
+      { label: "Rédaction IA", to: "/assistants", icon: Sparkles },
       { label: "TERAS Connect", to: "/reports-teras", icon: ShieldCheck, badge: "!" },
     ],
   },
@@ -183,6 +187,7 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/assistants": { section: "Rédaction IA", title: "Studio rédactionnel" },
   "/declarations": { section: "Déclarations", title: "Obligations légales & fiscales" },
   "/settings": { section: "Paramètres", title: "Configuration" },
+  "/help": { section: "Support", title: "Centre d'aide" },
   "/activation": { section: "Compte", title: "Activation sécurisée" },
 };
 
@@ -315,6 +320,7 @@ export function Shell() {
       <div className={`border-b border-white/[0.08] ${collapsed ? "flex flex-col items-center gap-2 p-3" : "p-4"}`}>
         {collapsed ? (
           <>
+            {/* Collapsed : logo K */}
             <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-black text-white">
               K
             </div>
@@ -331,11 +337,12 @@ export function Shell() {
             onClick={toggleCollapsed}
             className="flex w-full items-center gap-3 rounded-lg p-1.5 hover:bg-white/[0.06] transition"
           >
+            {/* Expanded : logo K + nom entreprise */}
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 font-black text-white text-sm">
               K
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-sm text-white font-semibold">{user?.company_id ? "KOMPTA" : "KOMPTA"} {user?.branch ? `· ${user.branch}` : ""}</p>
+              <p className="truncate text-sm text-white font-semibold">{user?.branch ? `KOMPTA · ${user.branch}` : "KOMPTA"}</p>
               <p className="truncate text-xs text-white/50">Plan local · {roleLabel(user?.role)}</p>
             </div>
             <ChevronLeft size={14} className="text-white/45 shrink-0" />
@@ -431,7 +438,7 @@ export function Shell() {
               <p className="text-[9px] font-bold text-white/50 uppercase">TERAS</p>
               <p className="text-sm font-black text-white">{terasScore}</p>
             </div>
-            <button className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title="Centre d'aide">
+            <button onClick={() => navigate("/help")} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title="Centre d'aide">
               <HelpCircle size={17} />
             </button>
             <button onClick={() => { logout(); navigate("/login"); }} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title="Déconnexion">
@@ -453,7 +460,7 @@ export function Shell() {
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500" style={{ width: `${terasScore}%` }} />
               </div>
             </div>
-            <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
+            <button onClick={() => navigate("/help")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
               <HelpCircle size={16} /> Centre d'aide
             </button>
             <button onClick={() => { logout(); navigate("/login"); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
@@ -535,11 +542,19 @@ export function Shell() {
               >
                 {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
               </button>
-              <button className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60">
+              <button
+                onClick={() => navigate("/work")}
+                title="Tâches"
+                className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
+              >
                 <CheckSquare size={17} />
                 <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
               </button>
-              <button className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60">
+              <button
+                onClick={() => navigate("/chat")}
+                title="Messagerie"
+                className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
+              >
                 <MessageSquare size={17} />
                 {(terasModuleBadges["/chat"] ?? 0) > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold text-white">

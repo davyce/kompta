@@ -64,7 +64,18 @@ export function CompanyPage() {
               value={form.accent_color}
               onChange={(event) => setForm({ ...form, accent_color: event.target.value })}
             />
-            <button className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white md:col-span-2">Enregistrer</button>
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:bg-stone-300 md:col-span-2"
+            >
+              {mutation.isPending ? "Enregistrement…" : "Enregistrer"}
+            </button>
+            {mutation.isSuccess && (
+              <p className="col-span-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                ✓ Profil mis à jour
+              </p>
+            )}
           </form>
         </Panel>
         <Panel title="Apercu documents">

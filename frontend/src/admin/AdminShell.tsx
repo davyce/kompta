@@ -143,7 +143,11 @@ export function AdminShell() {
               />
             </div>
             <div className="flex items-center gap-3">
-              <button className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/70 hover:bg-white/10">
+              <button
+                onClick={() => navigate("/admin/tickets")}
+                title="Tickets de support"
+                className="relative grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+              >
                 <Bell size={16} />
               </button>
               <div className="flex items-center gap-2">
