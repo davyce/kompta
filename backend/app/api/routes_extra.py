@@ -494,6 +494,10 @@ async def limule_chat(
     intent = detect_intent(prompt)
     module_key = context["module"]
 
+    # Intents analytiques complexes → plus de tokens pour des réponses détaillées
+    _HEAVY_INTENTS = {"prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie", "risk_analysis"}
+    _max_tokens = 2800 if intent in _HEAVY_INTENTS else 1600
+
     content, _ = await limule_generate(
         kind=intent,
         prompt=prompt,
@@ -502,7 +506,8 @@ async def limule_chat(
         db=db,
         company_id=current_user.company_id,
         user=current_user,
-        max_tokens=1200,
+        max_tokens=_max_tokens,
+        temperature=0.3 if intent in _HEAVY_INTENTS else 0.4,
     )
 
     tags = training_tags(prompt, context, intent)

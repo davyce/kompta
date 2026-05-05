@@ -67,9 +67,45 @@ def module_from_path(page_path: str | None) -> str:
 
 def detect_intent(prompt: str) -> str:
     text = prompt.lower()
+    # Prédiction / prévision économique
+    if any(word in text for word in [
+        "prévision", "prevision", "prévoir", "prevoir", "prédiction", "prediction",
+        "tendance", "projection", "forecast", "anticip", "évolution", "evolution",
+        "croissance", "déclin", "décroissance", "prochains mois", "prochain mois",
+        "prochains 3", "prochains 6", "prochain trimestre", "prochain semestre",
+        "fin d'année", "fin de l'année", "2025", "2026", "2027", "horizon", "scénario",
+        "va-t-il se passer", "que va-t-il", "à quoi s'attendre", "dans les prochains",
+        "d'ici", "dans 30 jours", "dans 60 jours", "dans 90 jours",
+    ]):
+        return "prediction_economique"
+    # Investissement / stratégie financière
+    if any(word in text for word in [
+        "investir", "investissement", "placement", "capital", "financer", "financement",
+        "rentabilité", "retour sur investissement", "roi", "rentable", "embaucher ou",
+        "devrais-je", "devrais je", "vaut-il mieux", "vaut il mieux", "opportunité",
+        "expansion", "croître", "développer", "stratégie", "strategie", "plan",
+        "budget", "priorité d'investissement", "allouer",
+    ]):
+        return "conseil_investissement"
+    # Analyse sectorielle / marché
+    if any(word in text for word in [
+        "secteur", "marché", "marche", "concurrent", "concurrence", "industrie",
+        "benchmark", "comparaison", "positionnement", "part de marché",
+        "contexte économique", "conjoncture", "zone cemac", "afrique centrale",
+        "congo", "gabon", "cameroun", "tchad", "rca", "guinée",
+    ]):
+        return "analyse_secteur"
+    # Trésorerie / liquidité / cash
+    if any(word in text for word in [
+        "trésorerie", "tresorerie", "liquidité", "liquidite", "cash", "flux",
+        "cashflow", "solde", "encaissement", "décaissement", "besoin en fonds",
+        "bfr", "financement court terme", "découvert", "decouvert",
+    ]):
+        return "tresorerie"
+    # Risques / conformité
     if any(word in text for word in ["risque", "alerte", "anomalie", "conform", "teras"]):
         return "risk_analysis"
-    if any(word in text for word in ["resume", "résume", "synthese", "synthèse"]):
+    if any(word in text for word in ["resume", "résume", "résumé", "resume", "synthese", "synthèse", "résumé du", "resumé"]):
         return "summary"
     if any(word in text for word in ["tache", "tâche", "action", "todo"]):
         return "task_creation"
