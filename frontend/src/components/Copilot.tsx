@@ -278,7 +278,7 @@ export function Copilot() {
                 )}
               </div>
               <p className="text-xs text-white/60">
-                Conseiller stratégique · {aiStatus ? aiStatus.provider : "KOMPTA"}
+                Grand Sage V1.1 · Conseiller stratégique
               </p>
             </div>
             {/* Fullscreen toggle */}
