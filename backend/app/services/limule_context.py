@@ -424,11 +424,15 @@ def build_limule_context(
                 "count": documents_count,
                 "recent": [
                     {
+                        "id": doc.id,
                         "title": doc.title,
                         "type": doc.document_type,
                         "status": doc.status,
                         "confidence": doc.confidence,
-                        "summary": _short(doc.ai_summary, 160),
+                        "summary": _short(doc.ai_summary, 220),
+                        "text_length": doc.text_length,
+                        "parse_method": doc.parse_method,
+                        "extracted": _safe_json(doc.extracted_data, {}),
                     }
                     for doc in recent_docs
                 ],
@@ -591,9 +595,18 @@ def render_context_for_prompt(context: dict[str, Any]) -> str:
             f"{t['title']} ({t['priority']})" for t in modules["work"]["open_tasks"][:4]
         ))
     if modules["documents"]["recent"]:
-        lines.append("Documents récents: " + "; ".join(
-            f"{d['title']} [{d['type']}]" for d in modules["documents"]["recent"][:3]
-        ))
+        doc_parts = []
+        for d in modules["documents"]["recent"][:4]:
+            part = f"{d['title']} [{d['type']}]"
+            ext = d.get("extracted") or {}
+            montants = ext.get("montants") or {}
+            total = montants.get("total_ttc") or montants.get("net_a_payer")
+            if total:
+                part += f" {float(total):,.0f} XAF"
+            if d.get("text_length", 0) > 0:
+                part += f" ({d['text_length']} cars)"
+            doc_parts.append(part)
+        lines.append("Documents récents: " + "; ".join(doc_parts))
     if modules["calendar"]["upcoming_meetings"]:
         lines.append("Réunions à venir: " + "; ".join(
             f"{m['title']} ({m['tag']})" for m in modules["calendar"]["upcoming_meetings"][:3]

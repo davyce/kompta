@@ -91,7 +91,13 @@ def ensure_sqlite_migrations() -> None:
         "meetings": {
             "agenda": "TEXT DEFAULT ''",
         },
-            "company_documents": {},
+        "company_documents": {
+            "raw_text":          "TEXT DEFAULT ''",
+            "extracted_data":    "TEXT DEFAULT '{}'",
+            "text_length":       "INTEGER DEFAULT 0",
+            "parse_method":      "VARCHAR(40) DEFAULT ''",
+            "source_document_id": "INTEGER",
+        },
             "employability_checks": {},
             "teras_analysis_jobs": {},
             "teras_score_snapshots": {},

@@ -785,6 +785,88 @@ export const api = {
   /* ── Inventory low stock ──────────────────────────────────── */
   lowStockProducts: () =>
     request<LowStockProductDto[]>("/inventory/low-stock"),
+
+  /* ── Limule document intelligence ────────────────────────── */
+  limuleAnalyzeDocument: (documentId: number) =>
+    request<{
+      id: number;
+      title: string;
+      document_type: string;
+      ai_summary: string;
+      ai_tags: string;
+      confidence: number;
+      text_length: number;
+      parse_method: string;
+      extracted: Record<string, unknown>;
+    }>(`/limule/documents/${documentId}/analyze`, { method: "POST" }),
+
+  limuleDocumentChat: (
+    documentId: number,
+    payload: { prompt: string; conversation_history?: Array<{ role: "user" | "assistant"; content: string }> },
+  ) =>
+    request<{
+      interaction_id: number | null;
+      response: string;
+      document: { id: number; title: string; type: string; confidence: number; text_length: number };
+      intent: string;
+      module: string;
+      sources: string[];
+    }>(`/limule/documents/${documentId}/chat`, { method: "POST", body: JSON.stringify(payload) }),
+
+  limuleDocumentChatStream: async (
+    documentId: number,
+    payload: { prompt: string; conversation_history?: Array<{ role: "user" | "assistant"; content: string }> },
+    onChunk: (partial: string) => void,
+    onDone: (final: string, meta: { interactionId: number | null; intent: string; module: string; sources: string[]; signals: LimuleSignal[] }) => void,
+    onError?: (err: Error) => void,
+  ): Promise<void> => {
+    const token = getToken();
+    let text = "";
+    let meta = { interactionId: null as number | null, intent: "question", module: "documents", sources: [] as string[], signals: [] as LimuleSignal[] };
+    try {
+      const response = await fetch(`${API_URL}/limule/documents/${documentId}/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") { onDone(text, meta); return; }
+          try {
+            const parsed = JSON.parse(data) as Record<string, unknown>;
+            if (typeof parsed.delta === "string") { text += parsed.delta; onChunk(text); }
+            if (parsed.done === true) {
+              meta = {
+                interactionId: typeof parsed.interaction_id === "number" ? parsed.interaction_id : null,
+                intent: typeof parsed.intent === "string" ? parsed.intent : "question",
+                module: typeof parsed.module === "string" ? parsed.module : "documents",
+                sources: Array.isArray(parsed.sources) ? parsed.sources as string[] : [],
+                signals: Array.isArray(parsed.signals) ? parsed.signals as LimuleSignal[] : [],
+              };
+            }
+            if (parsed.error) throw new Error(String(parsed.error));
+          } catch (pe) { if (pe instanceof ApiError) throw pe; }
+        }
+      }
+      onDone(text, meta);
+    } catch (e) {
+      onError?.(e instanceof Error ? e : new Error(String(e)));
+    }
+  },
 };
 
 export type MeetingDto = {

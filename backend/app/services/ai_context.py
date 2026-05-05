@@ -204,6 +204,20 @@ INTENT_PLAYBOOKS: dict[str, dict[str, str]] = {
         "goal": "répondre simplement et directement en s'appuyant sur les données disponibles",
         "format": "Réponse directe, justification par les données, prochaine étape actionnable",
     },
+    "document_analysis": {
+        "goal": (
+            "analyser un document d'entreprise (facture, contrat, bulletin, bilan, relevé…) "
+            "pour en extraire toutes les données structurées : montants, parties, dates, "
+            "risques, actions requises, et impact sur la comptabilité ou la conformité KOMPTA."
+        ),
+        "format": (
+            "1. Identification du document (type, période, parties)\n"
+            "2. Données clés extraites (montants, références, dates importantes)\n"
+            "3. Conformité et risques détectés\n"
+            "4. Impact sur les modules KOMPTA (facturation, RH, trésorerie, déclarations)\n"
+            "5. Actions recommandées et prochaines étapes"
+        ),
+    },
 }
 
 

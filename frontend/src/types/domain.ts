@@ -75,6 +75,11 @@ export type CompanyDocument = {
   ai_summary: string;
   ai_tags: string;
   confidence: number;
+  // Champs intelligence documentaire (v2)
+  raw_text?: string;
+  extracted_data?: string;       // JSON string
+  text_length?: number;
+  parse_method?: string;
   employee_id: number | null;
   created_at: string;
 };

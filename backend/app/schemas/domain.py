@@ -201,6 +201,10 @@ class CompanyDocumentRead(BaseModel):
     ai_summary: str
     ai_tags: str
     confidence: int
+    raw_text: str = ""
+    extracted_data: str = "{}"
+    text_length: int = 0
+    parse_method: str = ""
     employee_id: int | None = None
     created_at: datetime
 

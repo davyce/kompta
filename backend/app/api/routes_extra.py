@@ -27,6 +27,7 @@ from app.db.session import get_db
 from app.models import (
     AIGeneration,
     Company,
+    CompanyDocument,
     CompanyModule,
     DailyNote,
     Employee,
@@ -1364,3 +1365,287 @@ def revenue_series(
             RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(margin))
         )
     return points
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LIMULE — Analyse & Chat documentaire
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.post("/limule/documents/{doc_id}/analyze")
+async def limule_analyze_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Déclenche le pipeline complet d'extraction sur un document existant :
+    - Re-lecture du fichier depuis le disque
+    - Extraction texte brut (PDF / Excel / Word / CSV…)
+    - Extraction LLM structurée (montants, parties, risques…)
+    - Ingestion automatique dans la DB (factures, etc.)
+    Retourne les données extraites + le résumé.
+    """
+    doc = db.get(CompanyDocument, doc_id)
+    if not doc or doc.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+
+    from app.services.documents import reanalyze_document, get_document_extracted
+
+    updated = await reanalyze_document(db, document=doc, full_reextract=True)
+    extracted = get_document_extracted(updated)
+
+    return {
+        "id": updated.id,
+        "title": updated.title,
+        "document_type": updated.document_type,
+        "ai_summary": updated.ai_summary,
+        "ai_tags": updated.ai_tags,
+        "confidence": updated.confidence,
+        "text_length": updated.text_length,
+        "parse_method": updated.parse_method,
+        "extracted": extracted,
+    }
+
+
+@router.post("/limule/documents/{doc_id}/chat")
+async def limule_document_chat(
+    doc_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Permet d'interroger Limule sur le contenu d'un document spécifique.
+    Le texte brut extrait + les données structurées sont injectés comme contexte.
+
+    Body: { "prompt": str, "conversation_history": [...] }
+    """
+    doc = db.get(CompanyDocument, doc_id)
+    if not doc or doc.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=422, detail="prompt requis")
+
+    from app.services.limule import limule_generate
+    from app.services.limule_context import build_limule_context, detect_intent, training_tags
+    from app.services.ai_context import build_limule_system_prompt, render_limule_context_pack
+    from app.services.doc_extractor import format_extracted_for_context
+    from app.services.documents import get_document_extracted
+    from app.core.config import get_settings
+
+    # Contexte entreprise global
+    ctx = build_limule_context(db, current_user.company_id, current_user)
+    intent = detect_intent(prompt)
+
+    # Données du document
+    extracted = get_document_extracted(doc)
+    doc_context_text = format_extracted_for_context(extracted, title=doc.title)
+
+    # Texte brut tronqué pour le LLM (12 000 chars max)
+    raw_text_snippet = (doc.raw_text or "")[:12_000]
+
+    # Construit le system prompt adapté à l'analyse documentaire
+    system = build_limule_system_prompt(
+        kind="document_analysis",
+        user=current_user,
+        module_key="documents",
+        intent=intent,
+        context=ctx,
+    )
+
+    # Construit le user message avec le contenu du document
+    doc_block = ""
+    if doc_context_text:
+        doc_block += f"\n\n=== DONNÉES EXTRAITES DU DOCUMENT ===\n{doc_context_text}"
+    if raw_text_snippet:
+        doc_block += f"\n\n=== TEXTE BRUT DU DOCUMENT (extrait) ===\n{raw_text_snippet}"
+
+    ctx_text = render_limule_context_pack(ctx)
+    full_prompt = (
+        f"L'utilisateur analyse le document : « {doc.title} » (type: {doc.document_type})\n"
+        f"Question: {prompt}"
+        f"{doc_block}\n\n"
+        f"Contexte entreprise:\n{ctx_text}"
+    )
+
+    # Historique de conversation
+    conversation_history = payload.get("conversation_history") or []
+
+    # Appel LLM
+    answer = await limule_generate(
+        user_msg=full_prompt,
+        system=system,
+        conversation_history=conversation_history,
+    )
+
+    # Persistance
+    interaction_id = None
+    try:
+        _tags = training_tags(prompt, ctx, intent)
+        _settings = get_settings()
+        _interaction = LimuleInteraction(
+            prompt=prompt,
+            response=answer,
+            page_path=f"/documents/{doc_id}",
+            module_key="documents",
+            intent=intent,
+            model=_settings.ai_model or _settings.deepseek_model or "limule",
+            provider=_settings.ai_provider or "limule",
+            context_snapshot=json.dumps(ctx, ensure_ascii=False, default=str),
+            context_sources=json.dumps(["documents", "extracted_data", "raw_text"], ensure_ascii=False),
+            detected_signals=json.dumps([], ensure_ascii=False),
+            training_tags=json.dumps(_tags, ensure_ascii=False),
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+        )
+        db.add(_interaction)
+        db.add(AIGeneration(
+            kind=intent,
+            title=f"Limule · documents · {doc.title[:60]}",
+            prompt=prompt,
+            content=answer,
+            model=_interaction.model,
+            teras_used=False,
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+        ))
+        db.commit()
+        db.refresh(_interaction)
+        interaction_id = _interaction.id
+    except Exception:
+        pass
+
+    return {
+        "interaction_id": interaction_id,
+        "response": answer,
+        "document": {
+            "id": doc.id,
+            "title": doc.title,
+            "type": doc.document_type,
+            "confidence": doc.confidence,
+            "text_length": doc.text_length,
+        },
+        "intent": intent,
+        "module": "documents",
+        "sources": ["documents", "extracted_data", "raw_text", "limule_context"],
+    }
+
+
+@router.post("/limule/documents/{doc_id}/chat/stream")
+async def limule_document_chat_stream(
+    doc_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """
+    Version streaming SSE du chat documentaire Limule.
+    """
+    doc = db.get(CompanyDocument, doc_id)
+    if not doc or doc.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=422, detail="prompt requis")
+
+    from app.services.limule import limule_stream
+    from app.services.limule_context import build_limule_context, detect_intent
+    from app.services.ai_context import build_limule_system_prompt, render_limule_context_pack
+    from app.services.doc_extractor import format_extracted_for_context
+    from app.services.documents import get_document_extracted
+
+    ctx = build_limule_context(db, current_user.company_id, current_user)
+    intent = detect_intent(prompt)
+    extracted = get_document_extracted(doc)
+    doc_context_text = format_extracted_for_context(extracted, title=doc.title)
+    raw_text_snippet = (doc.raw_text or "")[:12_000]
+
+    system = build_limule_system_prompt(
+        kind="document_analysis",
+        user=current_user,
+        module_key="documents",
+        intent=intent,
+        context=ctx,
+    )
+
+    doc_block = ""
+    if doc_context_text:
+        doc_block += f"\n\n=== DONNÉES EXTRAITES DU DOCUMENT ===\n{doc_context_text}"
+    if raw_text_snippet:
+        doc_block += f"\n\n=== TEXTE BRUT DU DOCUMENT (extrait) ===\n{raw_text_snippet}"
+
+    ctx_text = render_limule_context_pack(ctx)
+    full_prompt = (
+        f"L'utilisateur analyse le document : « {doc.title} » (type: {doc.document_type})\n"
+        f"Question: {prompt}"
+        f"{doc_block}\n\n"
+        f"Contexte entreprise:\n{ctx_text}"
+    )
+
+    conversation_history = payload.get("conversation_history") or []
+
+    async def event_stream():
+        full_text = ""
+        async for chunk in limule_stream(
+            user_msg=full_prompt,
+            system=system,
+            conversation_history=conversation_history,
+        ):
+            full_text += chunk
+            yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
+
+        # Persistance de l'interaction
+        interaction_id = None
+        try:
+            from app.services.limule_context import training_tags
+            from app.core.config import get_settings as _gs
+            _tags = training_tags(prompt, ctx, intent)
+            _settings = _gs()
+            _interaction = LimuleInteraction(
+                prompt=prompt,
+                response=full_text,
+                page_path=f"/documents/{doc_id}",
+                module_key="documents",
+                intent=intent,
+                model=_settings.ai_model or _settings.deepseek_model or "limule",
+                provider=_settings.ai_provider or "limule",
+                context_snapshot=json.dumps(ctx, ensure_ascii=False, default=str),
+                context_sources=json.dumps(["documents", "extracted_data", "raw_text"], ensure_ascii=False),
+                detected_signals=json.dumps([], ensure_ascii=False),
+                training_tags=json.dumps(_tags, ensure_ascii=False),
+                user_id=current_user.id,
+                company_id=current_user.company_id,
+            )
+            db.add(_interaction)
+            db.add(AIGeneration(
+                kind=intent,
+                title=f"Limule · documents · {doc.title[:60]}",
+                prompt=prompt,
+                content=full_text,
+                model=_interaction.model,
+                teras_used=False,
+                user_id=current_user.id,
+                company_id=current_user.company_id,
+            ))
+            db.commit()
+            db.refresh(_interaction)
+            interaction_id = _interaction.id
+        except Exception:
+            pass
+
+        meta = json.dumps({
+            "done": True,
+            "interaction_id": interaction_id,
+            "intent": intent,
+            "module": "documents",
+            "sources": ["documents", "extracted_data", "raw_text"],
+            "signals": [],
+        }, ensure_ascii=False)
+        yield f"data: {meta}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

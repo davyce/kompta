@@ -158,6 +158,13 @@ class CompanyDocument(TimestampMixin, Base):
     ai_summary: Mapped[str] = mapped_column(Text, default="")
     ai_tags: Mapped[str] = mapped_column(String(255), default="")
     confidence: Mapped[int] = mapped_column(Integer, default=70)
+    # ── Champs d'intelligence documentaire (ajoutés v2) ─────────────────────
+    raw_text: Mapped[str] = mapped_column(Text, default="")          # texte extrait (PDF/Excel/Word…)
+    extracted_data: Mapped[str] = mapped_column(Text, default="{}")  # JSON structuré (montants, parties…)
+    text_length: Mapped[int] = mapped_column(Integer, default=0)     # longueur du texte extrait
+    parse_method: Mapped[str] = mapped_column(String(40), default="") # pdf|excel|csv|docx|text|ocr
+    source_document_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # doc source si dérivé
+    # ───────────────────────────────────────────────────────────────────────
     employee_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"), nullable=True)
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
