@@ -20,7 +20,7 @@ import io
 import json
 import secrets
 import textwrap
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -78,7 +78,7 @@ def request_password_reset(
     token = secrets.token_urlsafe(32)
     _reset_tokens[token] = {
         "user_id": user.id,
-        "expires_at": datetime.utcnow() + timedelta(minutes=30),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=30),
     }
 
     # En mode local on retourne le token directement (pas d'email)
@@ -107,7 +107,7 @@ def reset_password(
     entry = _reset_tokens.get(token)
     if not entry:
         raise HTTPException(status_code=400, detail="Token invalide ou expiré")
-    if datetime.utcnow() > entry["expires_at"]:
+    if datetime.now(timezone.utc) > entry["expires_at"]:
         del _reset_tokens[token]
         raise HTTPException(status_code=400, detail="Token expiré")
 
@@ -277,7 +277,7 @@ def teras_export_report(
         .order_by(TerasAlert.severity)
     ).all()
 
-    now = datetime.utcnow().strftime("%d/%m/%Y %H:%M")
+    now = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
     lines = [
         f"RAPPORT TERAS — {company_name}",
         f"Généré le : {now}",
@@ -320,7 +320,7 @@ BT /F1 9 Tf 40 800 Td 12 TL
     pdf_content += "ET\nendstream\nendobj\nxref\n0 5\ntrailer << /Root 1 0 R /Size 5 >>\nstartxref\n0\n%%EOF"
 
     pdf_bytes = pdf_content.encode("latin-1", errors="replace")
-    filename = f"teras_report_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    filename = f"teras_report_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
 
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -452,7 +452,7 @@ def export_pos_sales_csv(
         ])
 
     output.seek(0)
-    filename = f"ventes_pos_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    filename = f"ventes_pos_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
 
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode("utf-8-sig")),  # utf-8-sig for Excel compatibility

@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -85,8 +85,8 @@ def submit_employability_to_teras(
             if status == "confirmed"
             else "Dossier employabilite incomplet: contrat/contact/remuneration a verifier."
         ),
-        submitted_at=datetime.utcnow(),
-        confirmed_at=datetime.utcnow() if status == "confirmed" else None,
+        submitted_at=datetime.now(timezone.utc),
+        confirmed_at=datetime.now(timezone.utc) if status == "confirmed" else None,
         company_id=company.id,
     )
     db.add(check)

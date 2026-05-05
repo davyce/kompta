@@ -14,7 +14,7 @@ Tous les endpoints sont scopés par company_id (multi-tenant) et exigent un user
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -585,7 +585,7 @@ def admin_limule_insights(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     _require_super_admin(current_user)
-    since = datetime.utcnow() - timedelta(days=7)
+    since = datetime.now(timezone.utc) - timedelta(days=7)
     total = db.scalar(select(func.count()).select_from(LimuleInteraction)) or 0
     last7 = db.scalar(
         select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.created_at >= since)

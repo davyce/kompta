@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models import Employee, Product
 
@@ -20,7 +20,7 @@ def label_preview(product: Product) -> dict[str, str | float]:
 
 def payslip_reference(period: str, employee: Employee, index: int) -> str:
     compact_period = "".join(ch for ch in period.upper() if ch.isalnum())[:10]
-    suffix = datetime.utcnow().strftime("%H%M%S%f")
+    suffix = datetime.now(timezone.utc).strftime("%H%M%S%f")
     return f"PAY-{compact_period}-{employee.id:04d}-{index:03d}-{suffix}"
 
 
@@ -45,7 +45,7 @@ def chat_ai_suggestion(body: str) -> str:
 
 def compliance_snapshot() -> dict:
     return {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "checks": [
             {"label": "Identite entreprise", "status": "ok"},
             {"label": "Dossiers RH", "status": "warning"},

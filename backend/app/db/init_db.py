@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
@@ -498,7 +498,7 @@ def seed_demo_data(db: Session) -> None:
             company_id=company.id,
             requester_user_id=admin.id,
             assignee_user_id=super_admin.id,
-            resolved_at=datetime.utcnow(),
+            resolved_at=datetime.now(timezone.utc),
         ),
     ]
     db.add_all(tickets)
@@ -519,7 +519,7 @@ def seed_demo_data(db: Session) -> None:
     ])
 
     # ── Seed enrichissement (Meetings, Notes, AI history, Modules) ──
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today = now.replace(hour=10, minute=0, second=0, microsecond=0)
     tomorrow = today + timedelta(days=1)
 
@@ -728,7 +728,7 @@ def ensure_super_admin_and_demo_tickets(db: Session, admin: User) -> None:
             company_id=admin.company_id,
             requester_user_id=admin.id,
             assignee_user_id=super_admin.id,
-            resolved_at=datetime.utcnow(),
+            resolved_at=datetime.now(timezone.utc),
         ),
     ]
     db.add_all(tickets)

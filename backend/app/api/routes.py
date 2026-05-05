@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -294,7 +294,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
     if user.account_status in {"suspended", "disabled", "archived"} or not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Compte suspendu ou desactive")
     if not user.must_change_password:
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now(timezone.utc)
         if user.employee_id:
             employee = db.get(Employee, user.employee_id)
             if employee:
@@ -1108,7 +1108,7 @@ def create_sale(
         use_case="pos",
     )
     sale = Sale(
-        receipt_number=f"POS-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
+        receipt_number=f"POS-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
         payment_method=payment_method,
         payment_account_id=payment_account.id if payment_account else None,
         payment_account_label=payment_account.label if payment_account else "",
@@ -1257,7 +1257,7 @@ def update_invoice(
             setattr(invoice, field, value)
     if invoice.status == "paid" and not invoice.paid_at:
         invoice.payment_method = invoice.payment_method or "cash"
-        invoice.paid_at = datetime.utcnow()
+        invoice.paid_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -1286,7 +1286,7 @@ def pay_invoice(
     invoice.payment_method = payment_method
     invoice.payment_account_id = payment_account.id if payment_account else None
     invoice.payment_account_label = payment_account.label if payment_account else ""
-    invoice.paid_at = datetime.utcnow()
+    invoice.paid_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -2455,7 +2455,7 @@ def admin_update_ticket(
     if payload.status is not None:
         ticket.status = payload.status
         if payload.status in ("resolved", "closed") and not ticket.resolved_at:
-            ticket.resolved_at = datetime.utcnow()
+            ticket.resolved_at = datetime.now(timezone.utc)
     if payload.priority is not None:
         ticket.priority = payload.priority
     if payload.category is not None:

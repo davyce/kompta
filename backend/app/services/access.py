@@ -1,7 +1,7 @@
 import html
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
@@ -89,7 +89,7 @@ def _create_employee_account(
         password_hash=hash_password(temporary_password),
         must_change_password=True,
         account_status="pending_first_login",
-        invited_at=datetime.utcnow(),
+        invited_at=datetime.now(timezone.utc),
         is_active=True,
         company_id=current_user.company_id,
         employee_id=employee.id,
@@ -106,7 +106,7 @@ def _create_employee_account(
         password_hash=hash_password(temporary_password),
         status="active",
         generated_by_user_id=current_user.id,
-        expires_at=datetime.utcnow() + timedelta(days=14),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=14),
         company_id=current_user.company_id,
     )
     db.add(credential)
@@ -236,7 +236,7 @@ def regenerate_temporary_password(db: Session, *, employee: Employee, current_us
             password_hash=hash_password(temporary_password),
             status="active",
             generated_by_user_id=current_user.id,
-            expires_at=datetime.utcnow() + timedelta(days=14),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=14),
             company_id=current_user.company_id,
         )
     )
@@ -266,8 +266,8 @@ def change_first_login_password(db: Session, *, user: User, current_password: st
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
     user.account_status = "active"
-    user.activated_at = datetime.utcnow()
-    user.last_login_at = datetime.utcnow()
+    user.activated_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(timezone.utc)
     employee = db.get(Employee, user.employee_id) if user.employee_id else None
     if employee:
         employee.account_status = "active"
@@ -276,7 +276,7 @@ def change_first_login_password(db: Session, *, user: User, current_password: st
     db.query(TemporaryCredential).filter(
         TemporaryCredential.user_id == user.id,
         TemporaryCredential.status == "active",
-    ).update({"status": "used", "viewed_at": datetime.utcnow()})
+    ).update({"status": "used", "viewed_at": datetime.now(timezone.utc)})
     audit_access(
         db,
         actor=user,
@@ -299,7 +299,7 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     department = html.escape(employee.department)
     employment_type = html.escape(employee.employment_type)
     salary = f"{employee.salary:,.2f}".replace(",", " ")
-    today = datetime.utcnow().strftime("%d/%m/%Y")
+    today = datetime.now(timezone.utc).strftime("%d/%m/%Y")
     phone = html.escape(employee.phone or "Non renseigne")
     email = html.escape(employee.email)
     clauses = ai_clauses or [

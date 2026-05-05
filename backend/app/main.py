@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,10 +12,20 @@ from app.db.session import SessionLocal
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_tables()
+    with SessionLocal() as db:
+        seed_demo_data(db)
+    yield
+
+
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     description="API locale KOMPTA: ERP intelligent, RH, finance, POS, chat, paie et TERAS.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -23,13 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    create_tables()
-    with SessionLocal() as db:
-        seed_demo_data(db)
 
 
 app.include_router(router, prefix=settings.api_prefix)

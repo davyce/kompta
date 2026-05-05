@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select
@@ -167,7 +167,7 @@ def build_limule_context(
     company = db.get(Company, company_id)
     module_key = focus_module or module_from_path(page_path)
     today = date.today()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     employees = db.scalars(
         select(Employee)
