@@ -256,6 +256,9 @@ export function Copilot() {
   const [messages, setMessages] = useState<Message[]>([mkIntro()]);
   const [aiStatus, setAiStatus] = useState<{ provider: string; model: string; key_configured: boolean } | null>(null);
 
+  /* ── Branchement (#8) ───────────────────────────────────────────────────── */
+  const [branchAnchorId, setBranchAnchorId] = useState<string | null>(null);
+
   /* ── Historique ─────────────────────────────────────────────────────────── */
   const [showHistory, setShowHistory] = useState(false);
   const [historyItems, setHistoryItems] = useState<LimuleChatHistoryItem[]>([]);
@@ -369,16 +372,17 @@ export function Copilot() {
   }
 
   /* ── Envoyer (#1 streaming + #12 multi-tour) ─────────────────────────────── */
-  async function send(text: string, fromBranch?: string) {
+  async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
     setInput("");
 
-    // Branching (#8) : couper après le point d'ancrage
+    // Branching (#8) : utilise l'ancre active si présente
     let base = messages;
-    if (fromBranch) {
-      const idx = messages.findIndex((m) => m.id === fromBranch);
+    if (branchAnchorId) {
+      const idx = messages.findIndex((m) => m.id === branchAnchorId);
       base = idx >= 0 ? messages.slice(0, idx + 1) : messages;
+      setBranchAnchorId(null);
     }
 
     const userMsg: Message = { id: uid(), author: "user", text: trimmed, createdAt: new Date().toISOString() };
@@ -470,6 +474,15 @@ export function Copilot() {
   /* ── Rating ─────────────────────────────────────────────────────────────── */
   async function rate(interactionId: number, rating: number) {
     await api.limuleFeedback(interactionId, { rating }).catch(() => undefined);
+  }
+
+  /* ── Reprendre ici (#8) — coupe la conv + focus saisie ─────────────────── */
+  function reprendreIci(msg: Message) {
+    const idx = messages.findIndex((m) => m.id === msg.id);
+    if (idx >= 0) setMessages(messages.slice(0, idx + 1));
+    setBranchAnchorId(msg.id);
+    setTimeout(() => inputRef.current?.focus(), 60);
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
   /* ── Nouveau chat / ouvrir historique ───────────────────────────────────── */
@@ -746,9 +759,9 @@ export function Copilot() {
                       </p>
                     )}
 
-                    {/* ── Barre d'actions — visible au survol seulement ────── */}
+                    {/* ── Barre d'actions — toujours visible ───────────────── */}
                     {msg.author === "ai" && !msg.isStreaming && msg.id !== "intro" && (
-                      <div className="mt-1.5 hidden group-hover:flex flex-wrap items-center gap-0.5 rounded-xl border border-black/[0.05] bg-white px-2 py-1 shadow-sm dark:border-white/10 dark:bg-white/5">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-0.5 rounded-xl border border-black/[0.05] bg-white px-2 py-1 shadow-sm dark:border-white/10 dark:bg-white/5">
                         {/* Copier */}
                         <button onClick={() => copyMsg(msg)} title="Copier" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10 dark:hover:text-white">
                           {copiedId === msg.id ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} />}
@@ -780,7 +793,7 @@ export function Copilot() {
                           <Download size={10} /> Export
                         </button>
                         {/* Branchement */}
-                        <button onClick={() => send("", msg.id)} title="Reprendre la conversation à partir d'ici" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-indigo-50 hover:text-indigo-700 transition dark:hover:bg-indigo-500/10">
+                        <button onClick={() => reprendreIci(msg)} title="Repartir de ce point — les messages suivants seront effacés" className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${branchAnchorId === msg.id ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300" : "text-stone-500 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-500/10"}`}>
                           <GitBranch size={10} /> Reprendre ici
                         </button>
                         {/* Rating 👍 / 👎 */}
@@ -834,6 +847,19 @@ export function Copilot() {
             ))}
           </div>
           )} {/* fin !showHistory suggestions */}
+
+          {/* ── Indicateur branchement actif ────────────────────────────── */}
+          {branchAnchorId && (
+            <div className="shrink-0 flex items-center gap-2 border-t border-indigo-100 bg-indigo-50 px-3 py-1.5 dark:border-indigo-500/20 dark:bg-indigo-500/10">
+              <GitBranch size={11} className="shrink-0 text-indigo-500" />
+              <p className="flex-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                Repartir de ce point — tapez votre question
+              </p>
+              <button onClick={() => setBranchAnchorId(null)} className="rounded p-0.5 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-700 dark:hover:bg-indigo-500/20" title="Annuler">
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           {/* ── Saisie (toujours visible) ─────────────────────────────────── */}
           <div className="shrink-0 border-t border-black/[0.05] p-3 dark:border-white/10">
