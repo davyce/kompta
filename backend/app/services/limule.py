@@ -475,6 +475,18 @@ async def _stream_ollama(
 # ─── API publique ──────────────────────────────────────────────────────────────
 
 
+def _build_history_messages(conversation_history: list[dict] | None) -> list[dict[str, str]]:
+    """Convertit l'historique frontend [{role, content}] en messages LLM (max 10 derniers)."""
+    if not conversation_history:
+        return []
+    valid = [
+        {"role": str(h.get("role")), "content": str(h.get("content", ""))}
+        for h in conversation_history
+        if h.get("role") in ("user", "assistant") and h.get("content")
+    ]
+    return valid[-10:]  # 5 échanges max
+
+
 async def limule_generate(
     kind: str,
     prompt: str,
@@ -485,14 +497,14 @@ async def limule_generate(
     user: Any | None = None,
     max_tokens: int = 1200,
     temperature: float = 0.35,
+    conversation_history: list[dict] | None = None,
 ) -> tuple[str, dict[str, str]]:
     """
     Génère du contenu via le vrai LLM avec résolution des variables dynamiques.
+    conversation_history : échanges précédents [{role, content}] pour le multi-tour.
 
     Returns:
         (content, resolved_vars)
-        - content       : texte généré par Limule (ou fallback si LLM indisponible)
-        - resolved_vars : dictionnaire {variable → valeur résolue} pour affichage
     """
     resolved_vars: dict[str, str] = {}
     resolved_prompt = prompt
@@ -513,7 +525,6 @@ async def limule_generate(
         base_system=_SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM),
     )
 
-    # Enrichir le system prompt avec le contexte résolu
     if resolved_vars:
         ctx_lines = [
             f"  • {k} : {v}"
@@ -526,14 +537,15 @@ async def limule_generate(
     context_pack = render_limule_context_pack(structured_context) or resolved_context
     user_msg = build_limule_user_message(resolved_prompt, context_pack)
 
-    content = await _call_llm(
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user_msg},
-        ],
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
+    # ── Multi-tour : insérer l'historique entre system et message courant ──
+    history_msgs = _build_history_messages(conversation_history)
+    messages = [
+        {"role": "system", "content": system},
+        *history_msgs,
+        {"role": "user", "content": user_msg},
+    ]
+
+    content = await _call_llm(messages=messages, max_tokens=max_tokens, temperature=temperature)
 
     if not content:
         content = build_limule_fallback_answer(
@@ -560,9 +572,11 @@ async def limule_stream(
     user: Any | None = None,
     max_tokens: int = 1200,
     temperature: float = 0.35,
+    conversation_history: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Version streaming de limule_generate.
+    conversation_history : échanges précédents pour le multi-tour.
     Yield les chunks de texte au fur et à mesure qu'ils arrivent du LLM.
     Si le LLM est indisponible, yield le fallback en un seul bloc.
     """
@@ -596,8 +610,10 @@ async def limule_stream(
     context_pack = render_limule_context_pack(structured_context) or resolved_context
     user_msg = build_limule_user_message(resolved_prompt, context_pack)
 
+    history_msgs = _build_history_messages(conversation_history)
     messages = [
         {"role": "system", "content": system},
+        *history_msgs,
         {"role": "user", "content": user_msg},
     ]
 

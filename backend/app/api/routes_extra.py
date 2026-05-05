@@ -483,6 +483,7 @@ async def limule_chat(
         raise HTTPException(status_code=400, detail="Prompt requis")
     page_path = str(payload.get("page_path") or "")
     requested_module = payload.get("module")
+    conversation_history = payload.get("conversation_history") or []
 
     context = build_limule_context(
         db=db,
@@ -508,6 +509,7 @@ async def limule_chat(
         user=current_user,
         max_tokens=_max_tokens,
         temperature=0.3 if intent in _HEAVY_INTENTS else 0.4,
+        conversation_history=conversation_history,
     )
 
     tags = training_tags(prompt, context, intent)
@@ -555,6 +557,112 @@ async def limule_chat(
         "context_summary": context["prompt_context"],
         "confidence": 88 if context["signals"] else 78,
     }
+
+
+@router.post("/limule/chat/stream")
+async def limule_chat_stream(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """
+    Copilot Limule en streaming (SSE).
+
+    Format SSE :
+      data: {"delta": "chunk de texte"}\\n\\n
+      data: {"done": true, "interaction_id": 123, "intent": "...", "module": "...",
+             "sources": [...], "signals": [...]}\\n\\n
+      data: [DONE]\\n\\n
+    """
+    from app.core.config import get_settings
+    from app.services.ai_context import LIMULE_CONTEXT_VERSION
+    from app.services.limule import limule_stream
+    from app.services.limule_context import build_limule_context, detect_intent, training_tags
+
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt requis")
+    page_path = str(payload.get("page_path") or "")
+    requested_module = payload.get("module")
+    conversation_history = payload.get("conversation_history") or []
+
+    context = build_limule_context(
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        page_path=page_path,
+        focus_module=str(requested_module) if requested_module else None,
+    )
+    intent = detect_intent(prompt)
+    module_key = context["module"]
+
+    _HEAVY_INTENTS = {"prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie", "risk_analysis"}
+    _max_tokens = 2800 if intent in _HEAVY_INTENTS else 1600
+
+    settings = get_settings()
+
+    async def event_stream():
+        full_content = ""
+        try:
+            async for chunk in limule_stream(
+                kind=intent,
+                prompt=prompt,
+                context=context["prompt_context"],
+                structured_context=context,
+                db=db,
+                company_id=current_user.company_id,
+                user=current_user,
+                max_tokens=_max_tokens,
+                temperature=0.3 if intent in _HEAVY_INTENTS else 0.4,
+                conversation_history=conversation_history,
+            ):
+                full_content += chunk
+                yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+        # Persister l'interaction après le streaming
+        try:
+            tags = training_tags(prompt, context, intent)
+            interaction = LimuleInteraction(
+                prompt=prompt,
+                response=full_content,
+                page_path=page_path,
+                module_key=module_key,
+                intent=intent,
+                model=settings.ai_model or settings.deepseek_model or "limule",
+                provider=settings.ai_provider or "limule",
+                context_snapshot=json.dumps(context, ensure_ascii=False, default=str),
+                context_sources=json.dumps(context["sources"], ensure_ascii=False),
+                detected_signals=json.dumps(context["signals"], ensure_ascii=False),
+                training_tags=json.dumps(tags, ensure_ascii=False),
+                user_id=current_user.id,
+                company_id=current_user.company_id,
+            )
+            db.add(interaction)
+            db.add(AIGeneration(
+                kind=intent,
+                title=f"Limule · {module_key}",
+                prompt=prompt,
+                content=full_content,
+                model=interaction.model,
+                teras_used=any(t == "teras" or t.startswith("severity:") for t in tags),
+                user_id=current_user.id,
+                company_id=current_user.company_id,
+            ))
+            db.commit()
+            db.refresh(interaction)
+            yield f"data: {json.dumps({'done': True, 'interaction_id': interaction.id, 'intent': intent, 'module': module_key, 'sources': context['sources'], 'signals': context['signals']}, ensure_ascii=False)}\n\n"
+        except Exception:
+            yield f"data: {json.dumps({'done': True, 'interaction_id': None, 'intent': intent, 'module': module_key, 'sources': [], 'signals': []})}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
 
 
 @router.patch("/limule/interactions/{interaction_id}/feedback")

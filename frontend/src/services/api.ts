@@ -534,11 +534,86 @@ export const api = {
     const q = qs.toString();
     return request<LimuleContextDto>(`/limule/context${q ? `?${q}` : ""}`);
   },
-  limuleChat: (payload: { prompt: string; page_path?: string; module?: string }) =>
+  limuleChat: (payload: {
+    prompt: string;
+    page_path?: string;
+    module?: string;
+    conversation_history?: Array<{ role: "user" | "assistant"; content: string }>;
+  }) =>
     request<LimuleChatResponse>("/limule/chat", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /**
+   * Streaming SSE du chat Limule (multi-tour).
+   * onChunk(partialText) : appelé à chaque token avec le texte cumulé.
+   * onDone(fullText, meta) : appelé à la fin avec le texte complet et les métadonnées.
+   */
+  limuleChatStream: async (
+    payload: {
+      prompt: string;
+      page_path?: string;
+      conversation_history?: Array<{ role: "user" | "assistant"; content: string }>;
+    },
+    onChunk: (partial: string) => void,
+    onDone: (final: string, meta: {
+      interactionId: number | null;
+      intent: string;
+      module: string;
+      sources: string[];
+      signals: LimuleSignal[];
+    }) => void,
+    onError?: (err: Error) => void,
+  ): Promise<void> => {
+    const token = getToken();
+    let text = "";
+    let meta = { interactionId: null as number | null, intent: "question", module: "global", sources: [] as string[], signals: [] as LimuleSignal[] };
+    try {
+      const response = await fetch(`${API_URL}/limule/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") { onDone(text, meta); return; }
+          try {
+            const parsed = JSON.parse(data) as Record<string, unknown>;
+            if (typeof parsed.delta === "string") { text += parsed.delta; onChunk(text); }
+            if (parsed.done === true) {
+              meta = {
+                interactionId: typeof parsed.interaction_id === "number" ? parsed.interaction_id : null,
+                intent: typeof parsed.intent === "string" ? parsed.intent : "question",
+                module: typeof parsed.module === "string" ? parsed.module : "global",
+                sources: Array.isArray(parsed.sources) ? parsed.sources as string[] : [],
+                signals: Array.isArray(parsed.signals) ? parsed.signals as LimuleSignal[] : [],
+              };
+            }
+            if (parsed.error) throw new Error(String(parsed.error));
+          } catch (pe) { if (pe instanceof ApiError) throw pe; }
+        }
+      }
+      onDone(text, meta);
+    } catch (e) {
+      onError?.(e instanceof Error ? e : new Error(String(e)));
+    }
+  },
+
   limuleChatHistory: (limit = 12) => request<LimuleChatHistoryItem[]>(`/limule/chat/history?limit=${limit}`),
   limuleFeedback: (interactionId: number, payload: { rating?: number; feedback?: string }) =>
     request<{ id: number; rating: number | null; feedback: string }>(
