@@ -180,10 +180,67 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 function uid() { return Math.random().toString(36).slice(2); }
 
-function historyDate(v: string | null) {
+/** Heure courte : "14:32" */
+function msgTime(v: string | null | undefined) {
   if (!v) return "";
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(v));
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(v));
 }
+
+/** Label relatif : "Aujourd'hui", "Hier", "Lun 28 avr.", … */
+function relativeDay(v: string | null) {
+  if (!v) return "Inconnu";
+  const d = new Date(v);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const itemDay = new Date(d); itemDay.setHours(0, 0, 0, 0);
+  if (itemDay.getTime() === today.getTime()) return "Aujourd'hui";
+  if (itemDay.getTime() === yesterday.getTime()) return "Hier";
+  const diffDays = Math.floor((today.getTime() - itemDay.getTime()) / 86400000);
+  if (diffDays < 7) return new Intl.DateTimeFormat("fr-FR", { weekday: "long" }).format(d);
+  if (diffDays < 30) return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(d);
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(d);
+}
+
+/** Groupe les items d'historique par bucket de date */
+function groupByDate(items: LimuleChatHistoryItem[]): { label: string; items: LimuleChatHistoryItem[] }[] {
+  const buckets = new Map<string, LimuleChatHistoryItem[]>();
+  for (const item of items) {
+    const label = relativeDay(item.created_at);
+    if (!buckets.has(label)) buckets.set(label, []);
+    buckets.get(label)!.push(item);
+  }
+  return Array.from(buckets.entries()).map(([label, items]) => ({ label, items }));
+}
+
+const INTENT_LABELS: Record<string, string> = {
+  prediction_economique: "Prévision",
+  conseil_investissement: "Investissement",
+  analyse_secteur: "Secteur",
+  tresorerie: "Trésorerie",
+  risk_analysis: "Risque",
+  summary: "Résumé",
+  task_creation: "Tâche",
+  drafting: "Rédaction",
+  payroll_support: "Paie",
+  operations_support: "Opérations",
+  document_analysis: "Document",
+  question: "Question",
+};
+
+const INTENT_COLORS: Record<string, string> = {
+  prediction_economique: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  conseil_investissement: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  analyse_secteur: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  tresorerie: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  risk_analysis: "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300",
+  summary: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  task_creation: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  drafting: "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300",
+  payroll_support: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  operations_support: "bg-lime-50 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300",
+  document_analysis: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  question: "bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-stone-300",
+};
 
 const SEV: Record<string, string> = { critical: "text-red-500", high: "text-orange-500", medium: "text-amber-500", low: "text-sky-400" };
 
@@ -204,6 +261,7 @@ export function Copilot() {
   const [historyItems, setHistoryItems] = useState<LimuleChatHistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
 
   /* ── Streaming (#1) ─────────────────────────────────────────────────────── */
   const [isStreaming, setIsStreaming] = useState(false);
@@ -512,22 +570,105 @@ export function Copilot() {
             </div>
           )}
 
-          {/* ── Historique dropdown ──────────────────────────────────────── */}
+          {/* ── Panneau Historique (remplace le flux de messages) ─────── */}
           {showHistory && (
-            <div className="max-h-52 shrink-0 overflow-y-auto border-b border-black/[0.05] bg-[#fbfbfd] p-3 dark:border-white/10 dark:bg-[#171a21]">
-              {historyLoading ? <p className="text-center text-xs text-stone-400 py-4">Chargement…</p>
-                : historyItems.length === 0 ? <p className="text-center text-xs text-stone-400 py-4">Aucun échange enregistré.</p>
-                : (
-                  <div className="space-y-1.5">
-                    {[...historyItems].reverse().map((item) => (
-                      <button key={item.id} type="button" onClick={() => openHistoryItem(item)} className="block w-full rounded-xl border border-black/[0.05] bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.05] dark:hover:bg-violet-500/10">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-500">{historyDate(item.created_at)} · {item.module}</span>
-                        <span className="mt-0.5 block truncate text-xs font-bold text-[#17211f] dark:text-white">{item.prompt}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-stone-400">{item.response}</span>
-                      </button>
-                    ))}
+            <div className="flex flex-1 flex-col overflow-hidden bg-[#f8f8fb] dark:bg-[#171a21]">
+              {/* Barre de recherche */}
+              <div className="shrink-0 border-b border-black/[0.05] bg-white px-3 py-2 dark:border-white/10 dark:bg-[#1e2229]">
+                <div className="flex items-center gap-2 rounded-lg border border-black/[0.07] bg-[#f8f8fb] px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5">
+                  <Clock3 size={12} className="shrink-0 text-stone-400" />
+                  <input
+                    autoFocus
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Rechercher dans l'historique…"
+                    className="min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white placeholder:text-stone-400"
+                  />
+                  {historySearch && (
+                    <button onClick={() => setHistorySearch("")} className="text-stone-400 hover:text-stone-600 dark:hover:text-white">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Liste */}
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                {historyLoading ? (
+                  <div className="flex flex-col items-center gap-3 py-12 text-stone-400">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
+                    <p className="text-xs">Chargement…</p>
                   </div>
-                )}
+                ) : historyItems.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-stone-400">
+                    <Clock3 size={28} className="opacity-30" />
+                    <p className="text-xs font-semibold">Aucun échange enregistré</p>
+                    <p className="text-[11px] text-stone-300">Posez votre première question à Limule</p>
+                  </div>
+                ) : (() => {
+                  const q = historySearch.toLowerCase();
+                  const filtered = q
+                    ? [...historyItems].reverse().filter((it) =>
+                        it.prompt.toLowerCase().includes(q) || it.response.toLowerCase().includes(q)
+                      )
+                    : [...historyItems].reverse();
+
+                  if (filtered.length === 0) return (
+                    <p className="py-8 text-center text-xs text-stone-400">Aucun résultat pour « {historySearch} »</p>
+                  );
+
+                  const groups = q ? [{ label: `${filtered.length} résultat${filtered.length > 1 ? "s" : ""}`, items: filtered }] : groupByDate(filtered);
+
+                  return (
+                    <div className="space-y-5">
+                      {groups.map((group) => (
+                        <div key={group.label}>
+                          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">
+                            {group.label}
+                          </p>
+                          <div className="space-y-1.5">
+                            {group.items.map((item) => {
+                              const intentLabel = INTENT_LABELS[item.intent] ?? item.intent;
+                              const intentCls = INTENT_COLORS[item.intent] ?? INTENT_COLORS.question;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => openHistoryItem(item)}
+                                  className="group block w-full rounded-xl border border-black/[0.05] bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-violet-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-violet-500/40 dark:hover:bg-violet-500/5"
+                                >
+                                  {/* Ligne supérieure : intent + heure + module */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${intentCls}`}>
+                                      {intentLabel}
+                                    </span>
+                                    {item.module && item.module !== "global" && (
+                                      <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 dark:bg-white/10 dark:text-stone-400">
+                                        {item.module}
+                                      </span>
+                                    )}
+                                    <span className="ml-auto text-[10px] text-stone-300 dark:text-stone-600">
+                                      {msgTime(item.created_at)}
+                                    </span>
+                                  </div>
+                                  {/* Prompt */}
+                                  <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-snug text-[#17211f] dark:text-white group-hover:text-violet-700 dark:group-hover:text-violet-300 transition">
+                                    {item.prompt}
+                                  </p>
+                                  {/* Réponse preview */}
+                                  <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-stone-400">
+                                    {item.response.replace(/[#*_`]/g, "").slice(0, 140)}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           )}
 
@@ -549,77 +690,106 @@ export function Copilot() {
             </div>
           )}
 
-          {/* ── Messages ─────────────────────────────────────────────────── */}
+          {/* ── Messages (masqués quand historique actif) ───────────────── */}
+          {!showHistory && (
           <div className="flex-1 space-y-3 overflow-y-auto bg-[#fbfbfd] p-4 dark:bg-[#171a21]">
             {messages.map((msg, idx) => (
               <div key={msg.id}>
-                <div className={`flex ${msg.author === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`flex items-end gap-2 ${msg.author === "user" ? "justify-end" : "justify-start"}`}>
+                  {/* Avatar Limule */}
                   {msg.author === "ai" && (
-                    <div className="mr-2 mt-1 shrink-0 self-start">
-                      <LimuleIcon size={20} className="opacity-60" />
+                    <div className="mb-0.5 shrink-0 self-end">
+                      <LimuleIcon size={18} className="opacity-50" />
                     </div>
                   )}
-                  <div className={`group relative max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${
-                    msg.author === "user"
-                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm leading-[1.65]"
-                      : "bg-white text-[#17211f] dark:bg-white/[0.08] dark:text-white"
-                  }`}>
-                    {msg.author === "user" ? msg.text : <MsgContent text={msg.text} streaming={msg.isStreaming} />}
 
-                    {/* Signaux */}
-                    {msg.author === "ai" && msg.signals?.length ? (
-                      <div className="mt-2 space-y-0.5 border-t border-black/[0.06] pt-2 dark:border-white/10">
-                        {msg.signals.slice(0, 2).map((s, i) => (
-                          <p key={i} className={`text-[10px] font-semibold ${SEV[s.severity] ?? "text-stone-400"}`}>⚡ {s.label} · {s.module}</p>
-                        ))}
-                      </div>
-                    ) : null}
+                  <div className={`group relative max-w-[88%] ${msg.author === "user" ? "" : "flex-1"}`}>
+                    {/* Bulle */}
+                    <div className={`rounded-2xl px-4 py-3 shadow-sm ${
+                      msg.author === "user"
+                        ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white text-sm leading-relaxed rounded-br-md"
+                        : "bg-white text-[#17211f] dark:bg-white/[0.07] dark:text-white rounded-bl-md"
+                    }`}>
+                      {msg.author === "user" ? (
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                      ) : (
+                        <MsgContent text={msg.text} streaming={msg.isStreaming} />
+                      )}
 
-                    {/* Sources */}
-                    {msg.author === "ai" && msg.sources?.length && !msg.isStreaming ? (
-                      <p className="mt-1.5 text-[10px] text-stone-400 border-t border-black/[0.04] pt-1.5 dark:border-white/10">
-                        Sources: {msg.sources.slice(0, 5).join(", ")}
+                      {/* Intent badge sur les messages IA (non-intro) */}
+                      {msg.author === "ai" && msg.intent && msg.intent !== "question" && msg.id !== "intro" && !msg.isStreaming && (
+                        <div className="mt-2 flex items-center gap-1.5 border-t border-black/[0.05] pt-2 dark:border-white/10">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${INTENT_COLORS[msg.intent] ?? INTENT_COLORS.question}`}>
+                            {INTENT_LABELS[msg.intent] ?? msg.intent}
+                          </span>
+                          {/* Signaux */}
+                          {msg.signals?.slice(0, 1).map((s, i) => (
+                            <span key={i} className={`text-[10px] font-semibold ${SEV[s.severity] ?? "text-stone-400"}`}>
+                              ⚡ {s.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Sources discrètes */}
+                      {msg.author === "ai" && msg.sources?.length && !msg.isStreaming && msg.id !== "intro" ? (
+                        <p className="mt-1 text-[10px] text-stone-300 dark:text-stone-600">
+                          {msg.sources.slice(0, 4).join(" · ")}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {/* Timestamp sous la bulle */}
+                    {msg.createdAt && (
+                      <p className={`mt-0.5 text-[10px] text-stone-300 dark:text-stone-600 ${msg.author === "user" ? "text-right" : "text-left"}`}>
+                        {msgTime(msg.createdAt)}
                       </p>
-                    ) : null}
+                    )}
 
-                    {/* Barre d'actions (hover) sur messages IA ─────────────────── */}
+                    {/* ── Barre d'actions — visible au survol seulement ────── */}
                     {msg.author === "ai" && !msg.isStreaming && msg.id !== "intro" && (
-                      <div className="mt-2 flex flex-wrap items-center gap-1">
-                        {/* Copier (#2) */}
-                        <button onClick={() => copyMsg(msg)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10 dark:hover:text-white">
-                          {copiedId === msg.id ? <><Check size={10} className="text-emerald-500" /> Copié</> : <><Copy size={10} /> Copier</>}
+                      <div className="mt-1.5 hidden group-hover:flex flex-wrap items-center gap-0.5 rounded-xl border border-black/[0.05] bg-white px-2 py-1 shadow-sm dark:border-white/10 dark:bg-white/5">
+                        {/* Copier */}
+                        <button onClick={() => copyMsg(msg)} title="Copier" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10 dark:hover:text-white">
+                          {copiedId === msg.id ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} />}
+                          {copiedId === msg.id ? "Copié" : "Copier"}
                         </button>
-                        {/* Épingler (#5) */}
-                        <button onClick={() => togglePin(msg.id)} className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold transition ${pinnedIds.has(msg.id) ? "text-amber-500 hover:bg-amber-50" : "text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/10"}`}>
-                          {pinnedIds.has(msg.id) ? <><PinOff size={10} /> Désépingler</> : <><Pin size={10} /> Épingler</>}
+                        {/* Épingler */}
+                        <button onClick={() => togglePin(msg.id)} title={pinnedIds.has(msg.id) ? "Désépingler" : "Épingler"} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${pinnedIds.has(msg.id) ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10" : "text-stone-500 hover:bg-stone-100 hover:text-amber-600 dark:hover:bg-white/10"}`}>
+                          {pinnedIds.has(msg.id) ? <PinOff size={10} /> : <Pin size={10} />}
+                          {pinnedIds.has(msg.id) ? "Désépingler" : "Épingler"}
                         </button>
-                        {/* Mode rapport (#10) — sur réponses longues */}
+                        {/* Rapport (longues réponses) */}
                         {msg.text.length > 350 && (
-                          <button onClick={() => setReportMsg(msg)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-violet-50 hover:text-violet-700 transition dark:hover:bg-violet-500/10">
+                          <button onClick={() => setReportMsg(msg)} title="Voir en plein écran" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-violet-50 hover:text-violet-700 transition dark:hover:bg-violet-500/10">
                             <ZoomIn size={10} /> Rapport
                           </button>
                         )}
-                        {/* Actions rapides (#6) */}
-                        <button onClick={() => actionTask(msg)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-emerald-50 hover:text-emerald-700 transition dark:hover:bg-emerald-500/10">
+                        {/* Séparateur */}
+                        <span className="mx-0.5 h-3 w-px bg-stone-200 dark:bg-white/10" />
+                        {/* Tâche */}
+                        <button onClick={() => actionTask(msg)} title="Créer une tâche" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-emerald-50 hover:text-emerald-700 transition dark:hover:bg-emerald-500/10">
                           <CheckCircle2 size={10} /> Tâche
                         </button>
-                        <button onClick={() => actionAssistant(msg)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-blue-50 hover:text-blue-700 transition dark:hover:bg-blue-500/10">
+                        {/* Email */}
+                        <button onClick={() => actionAssistant(msg)} title="Rédiger un email" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-blue-50 hover:text-blue-700 transition dark:hover:bg-blue-500/10">
                           <Wand2 size={10} /> Email
                         </button>
-                        <button onClick={() => actionExport(msg)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10">
+                        {/* Export */}
+                        <button onClick={() => actionExport(msg)} title="Exporter" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10">
                           <Download size={10} /> Export
                         </button>
-                        {/* Branchement (#8) */}
-                        <button onClick={() => send("", msg.id)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-400 hover:bg-indigo-50 hover:text-indigo-700 transition dark:hover:bg-indigo-500/10" title="Repartir de ce point">
+                        {/* Branchement */}
+                        <button onClick={() => send("", msg.id)} title="Reprendre la conversation à partir d'ici" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-indigo-50 hover:text-indigo-700 transition dark:hover:bg-indigo-500/10">
                           <GitBranch size={10} /> Reprendre ici
                         </button>
-                        {/* Rating */}
+                        {/* Rating 👍 / 👎 */}
                         {msg.interactionId && (
-                          <div className="flex items-center gap-0.5 ml-auto">
-                            {[1,2,3,4,5].map((v) => (
-                              <button key={v} onClick={() => rate(msg.interactionId!, v)} className="rounded px-1 py-0.5 text-[10px] text-stone-300 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-500/20">{v}</button>
-                            ))}
-                          </div>
+                          <>
+                            <span className="mx-0.5 h-3 w-px bg-stone-200 dark:bg-white/10" />
+                            <button onClick={() => rate(msg.interactionId!, 5)} title="Utile" className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition dark:hover:bg-emerald-500/10">👍</button>
+                            <button onClick={() => rate(msg.interactionId!, 1)} title="Pas utile" className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-red-50 hover:text-red-500 transition dark:hover:bg-red-500/10">👎</button>
+                          </>
                         )}
                       </div>
                     )}
@@ -628,7 +798,7 @@ export function Copilot() {
 
                 {/* Quick replies après le dernier message IA (#7) */}
                 {msg.author === "ai" && !msg.isStreaming && msg.id !== "intro" && idx === messages.length - 1 && quickReplies.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 pl-8">
+                  <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
                     {quickReplies.map((qr) => (
                       <button key={qr} onClick={() => send(qr)} disabled={isStreaming} className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:opacity-40 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300">
                         {qr}
@@ -651,8 +821,10 @@ export function Copilot() {
             )}
             <div ref={endRef} />
           </div>
+          )} {/* fin !showHistory */}
 
-          {/* ── Suggestions contextuelles (#3) ──────────────────────────── */}
+          {/* ── Suggestions contextuelles (#3) — masquées pendant historique */}
+          {!showHistory && (
           <div className="shrink-0 flex flex-wrap gap-1 border-t border-black/[0.05] bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#1e2229]">
             {suggestions.slice(0, fullscreen ? 6 : 3).map((s) => (
               <button key={s.label} onClick={() => send(s.label)} disabled={isStreaming} className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10">
@@ -661,8 +833,9 @@ export function Copilot() {
               </button>
             ))}
           </div>
+          )} {/* fin !showHistory suggestions */}
 
-          {/* ── Saisie ───────────────────────────────────────────────────── */}
+          {/* ── Saisie (toujours visible) ─────────────────────────────────── */}
           <div className="shrink-0 border-t border-black/[0.05] p-3 dark:border-white/10">
             <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white px-3 py-2.5 shadow-sm focus-within:border-violet-400 transition dark:border-white/10 dark:bg-white/5">
               <LimuleIcon size={17} className="opacity-50 shrink-0" />
