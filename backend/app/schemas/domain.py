@@ -422,6 +422,7 @@ class TaskCreate(BaseModel):
     status: str = "todo"
     priority: str = "normal"
     due_date: date | None = None
+    due_time: str | None = None
     assignee_name: str = ""
     source: str = "manual"
     proof_required: bool = False
@@ -438,6 +439,7 @@ class TaskRead(TaskCreate):
     can_update: bool = False
     can_delete: bool = False
     proof_url: str | None = None
+    due_time: str | None = None
 
 
 class ChatChannelRead(BaseModel):
@@ -730,6 +732,42 @@ class CompanyModuleUpdate(BaseModel):
     enabled: bool
 
 
+class InvestmentCreate(BaseModel):
+    ticker: str
+    display_name: str
+    exchange: str = ""
+    currency_stock: str = "USD"
+    shares: float
+    invested_amount: float
+    purchase_price_ref: float
+    purchase_date: str | None = None
+    notes: str | None = None
+
+
+class InvestmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    ticker: str
+    display_name: str
+    exchange: str
+    currency_stock: str
+    shares: float
+    invested_amount: float
+    purchase_price_ref: float
+    purchase_date: str | None
+    notes: str | None
+    last_analysis: str | None
+    last_analysis_at: str | None
+
+
+class InvestmentUpdate(BaseModel):
+    shares: float | None = None
+    invested_amount: float | None = None
+    purchase_price_ref: float | None = None
+    purchase_date: str | None = None
+    notes: str | None = None
+
+
 class UserPreferenceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     notify_chat: bool
@@ -739,6 +777,7 @@ class UserPreferenceRead(BaseModel):
     digest_frequency: str
     language: str
     theme: str
+    currency: str = "XAF"
 
 
 class UserPreferenceUpdate(BaseModel):
@@ -749,6 +788,7 @@ class UserPreferenceUpdate(BaseModel):
     digest_frequency: str | None = None
     language: str | None = None
     theme: str | None = None
+    currency: str | None = None
 
 
 class CashFlowPoint(BaseModel):
@@ -767,3 +807,169 @@ class RevenueSeriesPoint(BaseModel):
     label: str
     revenue: float
     margin: float
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Clients / CRM
+# ─────────────────────────────────────────────────────────────────────────
+
+class ClientCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = "Congo"
+    notes: str | None = None
+    status: str = "active"
+
+
+class ClientUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
+    notes: str | None = None
+    status: str | None = None
+
+
+class ClientRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str | None
+    phone: str | None
+    address: str | None
+    city: str | None
+    country: str | None
+    notes: str | None
+    status: str
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientStatsRead(BaseModel):
+    client_id: int
+    invoice_count: int
+    total_revenue: float
+    unpaid_count: int
+    last_invoice_date: str | None
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Budget
+# ─────────────────────────────────────────────────────────────────────────
+
+class BudgetCategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    icon: str = "circle"
+    color: str = "#059669"
+    planned_amount: float = 0
+    period: str = "monthly"  # monthly | quarterly | yearly
+    category_type: str = "expense"  # expense | income | investment
+
+
+class BudgetCategoryUpdate(BaseModel):
+    name: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    planned_amount: float | None = None
+    period: str | None = None
+    category_type: str | None = None
+
+
+class BudgetCategoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    icon: str
+    color: str
+    planned_amount: float
+    period: str
+    category_type: str
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class BudgetSummaryItem(BaseModel):
+    id: int
+    name: str
+    icon: str
+    color: str
+    planned_amount: float
+    period: str
+    category_type: str
+    spent: float
+    remaining: float
+    progress_pct: float
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Transactions bancaires
+# ─────────────────────────────────────────────────────────────────────────
+
+class BankTransactionCreate(BaseModel):
+    date: str
+    label: str
+    amount: float = 0
+    debit: float | None = None
+    credit: float | None = None
+    balance: float | None = None
+    currency: str = "XAF"
+    category: str = ""
+    sub_category: str | None = None
+    counterpart: str | None = None
+    reference: str | None = None
+    source_type: str = "manual"
+    source_file: str | None = None
+    status: str = "confirmed"
+    notes: str | None = None
+    raw_line: str | None = None
+    document_id: int | None = None
+
+
+class BankTransactionUpdate(BaseModel):
+    date: str | None = None
+    label: str | None = None
+    amount: float | None = None
+    debit: float | None = None
+    credit: float | None = None
+    balance: float | None = None
+    currency: str | None = None
+    category: str | None = None
+    sub_category: str | None = None
+    counterpart: str | None = None
+    reference: str | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
+class BankTransactionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    company_id: int
+    document_id: int | None
+    date: str
+    label: str
+    amount: float
+    debit: float | None
+    credit: float | None
+    balance: float | None
+    currency: str
+    category: str
+    sub_category: str | None
+    counterpart: str | None
+    reference: str | None
+    source_type: str
+    source_file: str | None
+    status: str
+    notes: str | None
+    raw_line: str | None
+    created_at: datetime
+    updated_at: datetime

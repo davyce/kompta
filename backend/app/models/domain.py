@@ -347,6 +347,7 @@ class Task(TimestampMixin, Base):
     source: Mapped[str] = mapped_column(String(100), default="manual")
     proof_required: Mapped[bool] = mapped_column(Boolean, default=False)
     proof_url: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    due_time: Mapped[str | None] = mapped_column(String(5), nullable=True)   # "HH:MM"
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
@@ -565,6 +566,78 @@ class CompanyModule(TimestampMixin, Base):
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
+class Investment(TimestampMixin, Base):
+    """Suivi des investissements boursiers de l'entreprise."""
+    __tablename__ = "investments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ticker: Mapped[str] = mapped_column(String(20))               # ex: "AAPL", "TSLA"
+    display_name: Mapped[str] = mapped_column(String(200))        # "Apple Inc."
+    exchange: Mapped[str] = mapped_column(String(50), default="") # "NASDAQ"
+    currency_stock: Mapped[str] = mapped_column(String(10), default="USD")  # devise de la bourse
+    shares: Mapped[float] = mapped_column(Float, default=0)
+    invested_amount: Mapped[float] = mapped_column(Float, default=0)        # montant investi (devise locale)
+    purchase_price_ref: Mapped[float] = mapped_column(Float, default=0)     # prix d'achat (devise stock)
+    purchase_date: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_analysis_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class Client(TimestampMixin, Base):
+    __tablename__ = "clients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True, default="Congo")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | inactive | prospect
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class BudgetCategory(TimestampMixin, Base):
+    __tablename__ = "budget_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    icon: Mapped[str] = mapped_column(String(40), default="circle")
+    color: Mapped[str] = mapped_column(String(20), default="#059669")
+    planned_amount: Mapped[float] = mapped_column(Float, default=0)
+    period: Mapped[str] = mapped_column(String(20), default="monthly")  # monthly | quarterly | yearly
+    category_type: Mapped[str] = mapped_column(String(20), default="expense")  # expense | income | investment
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class BankTransaction(TimestampMixin, Base):
+    __tablename__ = "bank_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    document_id: Mapped[int | None] = mapped_column(ForeignKey("company_documents.id"), nullable=True)
+
+    date: Mapped[str] = mapped_column(String(20))           # YYYY-MM-DD
+    label: Mapped[str] = mapped_column(String(400))         # libellé / description
+    amount: Mapped[float] = mapped_column(Float, default=0) # positif = crédit, négatif = débit
+    debit: Mapped[float | None] = mapped_column(Float, nullable=True)
+    credit: Mapped[float | None] = mapped_column(Float, nullable=True)
+    balance: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    category: Mapped[str] = mapped_column(String(80), default="")      # catégorie Limule
+    sub_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    counterpart: Mapped[str | None] = mapped_column(String(200), nullable=True)  # tiers
+    reference: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(40), default="import")  # "releve_bancaire"|"facture_externe"|"manual"|"csv"
+    source_file: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="confirmed")  # "confirmed"|"pending"|"reconciled"
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_line: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class UserPreference(TimestampMixin, Base):
     __tablename__ = "user_preferences"
 
@@ -577,4 +650,5 @@ class UserPreference(TimestampMixin, Base):
     digest_frequency: Mapped[str] = mapped_column(String(40), default="daily")  # off | daily | weekly
     language: Mapped[str] = mapped_column(String(10), default="fr")
     theme: Mapped[str] = mapped_column(String(20), default="auto")  # auto | light | dark
+    currency: Mapped[str] = mapped_column(String(5), default="XAF")  # XAF | EUR | USD
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))

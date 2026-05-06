@@ -12,7 +12,8 @@ import {
 } from "recharts";
 
 import { api } from "../services/api";
-import { compactMoney, money } from "../utils/format";
+import { compactMoney, money, currencyLabel } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 const SYSCEMAC_CLASSES = [
   { n: 1, label: "Ressources durables",    desc: "Capitaux propres, dettes financières à long terme",                  c: "#4f46e5" },
@@ -68,11 +69,13 @@ function Card({
 /* ── main ────────────────────────────────────────────────────────── */
 export function AccountingFinancePage() {
   const navigate = useNavigate();
+  // Subscribe to currency changes for reactive re-render
+  useCurrency();
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
   const cashflow = useQuery({ queryKey: ["cashflow"], queryFn: () => api.cashflow() });
   const expenses = useQuery({ queryKey: ["expenses"], queryFn: api.expenses });
-  const syscohada = useQuery({ queryKey: ["syscohada"], queryFn: api.syscohada });
+  const syscemac = useQuery({ queryKey: ["syscemac"], queryFn: api.syscemac });
   const [tab, setTab]           = useState(0);
   const [planOpen, setPlanOpen] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -213,7 +216,7 @@ export function AccountingFinancePage() {
             <span className="text-emerald-400">·</span>
             <span className="text-emerald-700 dark:text-emerald-400">En vigueur depuis le 1er janvier 2018</span>
             <span className="text-emerald-400">·</span>
-            <span className="text-emerald-700 dark:text-emerald-400">Devise opérationnelle XAF</span>
+            <span className="text-emerald-700 dark:text-emerald-400">Devise opérationnelle {currencyLabel()}</span>
           </div>
         </div>
       )}
@@ -254,7 +257,7 @@ export function AccountingFinancePage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
               <h3 className="font-bold text-[#17211f] dark:text-white">Flux entrants vs sortants</h3>
-              <p className="text-xs text-[#717182]">12 derniers mois · M XAF</p>
+              <p className="text-xs text-[#717182]">12 derniers mois · M {currencyLabel()}</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600"/>Entrées</span>
@@ -277,7 +280,7 @@ export function AccountingFinancePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)"/>
                 <XAxis dataKey="m" stroke="#94a3b8" fontSize={11}/>
                 <YAxis stroke="#94a3b8" fontSize={11}/>
-                <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }} formatter={(v) => [`${v} M XAF`]}/>
+                <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }} formatter={(v) => [`${v} M ${currencyLabel()}`]}/>
                 <Area type="monotone" dataKey="in"  stroke="#059669" fill="url(#gcIn)"  strokeWidth={2.5} dot={false}/>
                 <Area type="monotone" dataKey="out" stroke="#f43f5e" fill="url(#gcOut)" strokeWidth={2}   dot={false}/>
               </AreaChart>
@@ -372,7 +375,7 @@ export function AccountingFinancePage() {
           <p className="text-xs text-[#717182]">Calculé en temps réel à partir de tes données</p>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-4">
-          {(syscohada.data ?? []).map((j) => (
+          {(syscemac.data ?? []).map((j) => (
             <div key={j.code} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#717182]">{j.code}</span>

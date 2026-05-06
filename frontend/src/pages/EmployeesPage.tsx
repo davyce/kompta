@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   Briefcase, CalendarDays, Clipboard, Clock3, ExternalLink, FileCheck2, FileText,
   KeyRound, Loader2, Maximize2, Search, Send, ShieldOff, UserPlus, Users, Wallet, X,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 
 import { EmptyState } from "../components/EmptyState";
@@ -12,6 +13,7 @@ import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
 import { money } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 const EMPTY_FORM = {
   first_name: "",
@@ -392,9 +394,28 @@ function EmployeeDrawer({
 /* ─── Page principale ──────────────────────────────────────────────────── */
 export function EmployeesPage() {
   const queryClient = useQueryClient();
+  useCurrency();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tab, setTab] = useState<"list" | "presence" | "leaves" | "contracts">("list");
   const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<"name" | "department" | "salary" | "branch" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(field: "name" | "department" | "salary" | "branch") {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
+
+  function SortIcon({ field }: { field: "name" | "department" | "salary" | "branch" }) {
+    if (sortField !== field) return <ArrowUpDown size={12} className="ml-1 opacity-40" />;
+    return sortDir === "asc"
+      ? <ArrowUp size={12} className="ml-1 text-emerald-500" />
+      : <ArrowDown size={12} className="ml-1 text-emerald-500" />;
+  }
   const [contractModal, setContractModal] = useState<{ html: string; name: string } | null>(null);
   const [contractLoading, setContractLoading] = useState<number | null>(null);
   const [contractError, setContractError] = useState<string | null>(null);
@@ -473,13 +494,29 @@ export function EmployeesPage() {
     );
   }
 
-  const filteredEmployees = employees.data?.filter((emp) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return `${emp.first_name} ${emp.last_name} ${emp.email} ${emp.job_title} ${emp.department} ${emp.branch}`
-      .toLowerCase()
-      .includes(q);
-  });
+  const filteredEmployees = (() => {
+    const filtered = (employees.data ?? []).filter((emp) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return `${emp.first_name} ${emp.last_name} ${emp.email} ${emp.job_title} ${emp.department} ${emp.branch}`
+        .toLowerCase()
+        .includes(q);
+    });
+    if (!sortField) return filtered;
+    return [...filtered].sort((a, b) => {
+      let va: string | number = "";
+      let vb: string | number = "";
+      if (sortField === "name")       { va = `${a.last_name} ${a.first_name}`; vb = `${b.last_name} ${b.first_name}`; }
+      if (sortField === "department") { va = a.department ?? ""; vb = b.department ?? ""; }
+      if (sortField === "salary")     { va = a.salary ?? 0; vb = b.salary ?? 0; }
+      if (sortField === "branch")     { va = a.branch ?? ""; vb = b.branch ?? ""; }
+      if (typeof va === "number" && typeof vb === "number") {
+        return sortDir === "asc" ? va - vb : vb - va;
+      }
+      const cmp = String(va).localeCompare(String(vb), "fr");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  })();
 
   const TABS = [
     { key: "list", label: "Employés", icon: Users },
@@ -598,12 +635,28 @@ export function EmployeesPage() {
               <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="text-xs uppercase text-stone-400">
                   <tr>
-                    <th className="pb-2">Nom</th>
+                    <th className="pb-2">
+                      <button onClick={() => toggleSort("name")} className="flex items-center hover:text-emerald-600 transition">
+                        Nom <SortIcon field="name" />
+                      </button>
+                    </th>
                     <th className="pb-2">Contact</th>
                     <th className="pb-2">Rôle</th>
-                    <th className="pb-2">Service</th>
-                    <th className="pb-2">Agence</th>
-                    <th className="pb-2">Salaire</th>
+                    <th className="pb-2">
+                      <button onClick={() => toggleSort("department")} className="flex items-center hover:text-emerald-600 transition">
+                        Service <SortIcon field="department" />
+                      </button>
+                    </th>
+                    <th className="pb-2">
+                      <button onClick={() => toggleSort("branch")} className="flex items-center hover:text-emerald-600 transition">
+                        Agence <SortIcon field="branch" />
+                      </button>
+                    </th>
+                    <th className="pb-2">
+                      <button onClick={() => toggleSort("salary")} className="flex items-center hover:text-emerald-600 transition">
+                        Salaire <SortIcon field="salary" />
+                      </button>
+                    </th>
                     <th className="pb-2">Paiement</th>
                     <th className="pb-2">Compte</th>
                     <th className="pb-2">Accès</th>

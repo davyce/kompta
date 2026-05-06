@@ -13,6 +13,7 @@ import {
 import { api } from "../services/api";
 import type { Employee } from "../types/domain";
 import { money, shortDate } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 const formatCurrency = money;
 const formatDate = shortDate;
@@ -80,6 +81,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function EmployeeProfilePage() {
+  useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

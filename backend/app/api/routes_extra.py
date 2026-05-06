@@ -5,7 +5,7 @@ Endpoints additionnels pour la passe "remove all mocks" :
 - Daily Notes (lecture + écriture utilisateur + IA)
 - Company Modules (toggles tenant-scoped)
 - User Preferences
-- Accounting aggregates (cashflow, expenses, syscohada)
+- Accounting aggregates (cashflow, expenses, syscemac)
 - Reports revenue-series
 
 Tous les endpoints sont scopés par company_id (multi-tenant) et exigent un user authentifié.
@@ -1305,11 +1305,7 @@ def accounting_expenses(
     ]
 
 
-@router.get("/accounting/syscohada-status")
-def accounting_syscohada(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[dict]:
+def _accounting_syscemac_status(db: Session, current_user: User) -> list[dict]:
     invoices = db.scalars(
         select(Invoice).where(Invoice.company_id == current_user.company_id)
     ).all()
@@ -1342,6 +1338,14 @@ def accounting_syscohada(
             "count": 0,
         },
     ]
+
+
+@router.get("/accounting/syscemac-status")
+def accounting_syscemac(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    return _accounting_syscemac_status(db, current_user)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

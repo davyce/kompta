@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCircle2, CreditCard, Download, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText } from "lucide-react";
+import { CheckCircle2, CreditCard, Download, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 import { TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
 import { money, shortDate, compactMoney } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
 type StatusFilter = "all" | "sent" | "paid" | "draft" | "overdue";
@@ -46,11 +47,23 @@ function KpiCard({ label, value, hint, icon: Icon, tone = "emerald" }: {
 
 export function BillingPage() {
   const queryClient = useQueryClient();
+  useCurrency();
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
   const paymentAccounts = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
+  type BillSortField = "date" | "amount" | "customer" | "status";
+  const [sortField, setSortField] = useState<BillSortField>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  function toggleBillSort(f: BillSortField) {
+    if (sortField === f) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(f); setSortDir("asc"); }
+  }
+  function BillSortIcon({ field }: { field: BillSortField }) {
+    if (sortField !== field) return <ArrowUpDown size={11} className="ml-0.5 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp size={11} className="ml-0.5 text-emerald-500" /> : <ArrowDown size={11} className="ml-0.5 text-emerald-500" />;
+  }
   const [paymentChoice, setPaymentChoice] = useState<Record<number, string>>({});
   const [lines, setLines] = useState<InvoiceLine[]>([{ description: "", quantity: 1, unit_price: 0 }]);
   const [customerName, setCustomerName] = useState("");
@@ -118,7 +131,7 @@ export function BillingPage() {
   const filtered = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const q = search.trim().toLowerCase();
-    return (invoices.data ?? []).filter((inv) => {
+    const base = (invoices.data ?? []).filter((inv) => {
       const isOverdue = inv.status === "sent" && inv.due_date && inv.due_date < today;
       const matchStatus =
         statusFilter === "all" ? true :
@@ -127,7 +140,15 @@ export function BillingPage() {
       const matchSearch = !q || `${inv.number} ${inv.customer_name}`.toLowerCase().includes(q);
       return matchStatus && matchSearch;
     });
-  }, [invoices.data, statusFilter, search]);
+    return [...base].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "date")     cmp = (a.due_date ?? "").localeCompare(b.due_date ?? "");
+      if (sortField === "amount")   cmp = (a.total_amount ?? 0) - (b.total_amount ?? 0);
+      if (sortField === "customer") cmp = a.customer_name.localeCompare(b.customer_name, "fr");
+      if (sortField === "status")   cmp = a.status.localeCompare(b.status);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [invoices.data, statusFilter, search, sortField, sortDir]);
 
   const totalLines = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
 
@@ -190,7 +211,7 @@ export function BillingPage() {
                 className="bg-transparent text-sm outline-none min-w-0 flex-1"
               />
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               {STATUS_FILTERS.map((f) => (
                 <button
                   key={f.key}
@@ -202,6 +223,20 @@ export function BillingPage() {
                   }`}
                 >
                   {f.label}
+                </button>
+              ))}
+            </div>
+            {/* Sort controls */}
+            <div className="flex gap-1 ml-auto">
+              {([["date","Date"],["amount","Montant"],["customer","Client"],["status","Statut"]] as [BillSortField, string][]).map(([f, label]) => (
+                <button
+                  key={f}
+                  onClick={() => toggleBillSort(f)}
+                  className={`flex items-center rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
+                    sortField === f ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" : "text-[#717182] hover:bg-black/[0.04]"
+                  }`}
+                >
+                  {label}<BillSortIcon field={f} />
                 </button>
               ))}
             </div>

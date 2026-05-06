@@ -71,6 +71,7 @@ function MarkdownBlock({ content }: { content: string }) {
 import { Panel } from "../components/Panel";
 import { api } from "../services/api";
 import { compactMoney, shortDate } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 interface ReportCard {
   title: string;
@@ -179,6 +180,7 @@ type AiState = {
 
 export function ReportsHubPage() {
   const navigate = useNavigate();
+  useCurrency();
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
   const payrollRuns = useQuery({ queryKey: ["payrollRuns"], queryFn: () => api.payrollRuns() });
   const [aiState, setAiState] = useState<AiState>(null);

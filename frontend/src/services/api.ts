@@ -85,10 +85,29 @@ function formatApiError(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+async function readApiError(response: Response): Promise<string> {
+  const fallback = response.statusText || `HTTP ${response.status}`;
+  const text = await response.text();
+  if (!text) return fallback;
+  try {
+    return formatApiError(JSON.parse(text), fallback);
+  } catch {
+    return text;
+  }
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  // Ne pas forcer JSON si le body est un FormData (multipart géré par le navigateur)
-  if (!(options.body instanceof FormData)) {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  // Ne pas forcer JSON si le body est un FormData (multipart géré par le navigateur).
+  if (!isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   const token = getToken();
@@ -105,16 +124,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     );
   }
   if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const payload = await response.json();
-      message = formatApiError(payload, message);
-    } catch {
-      // The fallback status text is enough for network and empty-body errors.
-    }
+    const message = await readApiError(response);
     throw new ApiError(response.status, message);
   }
-  return response.json() as Promise<T>;
+  return readJsonResponse<T>(response);
 }
 
 async function requestBlob(path: string, options: RequestInit = {}): Promise<Blob> {
@@ -125,7 +138,7 @@ async function requestBlob(path: string, options: RequestInit = {}): Promise<Blo
   }
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!response.ok) {
-    throw new ApiError(response.status, response.statusText);
+    throw new ApiError(response.status, await readApiError(response));
   }
   return response.blob();
 }
@@ -166,10 +179,7 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   deletePaymentAccount: (id: number) =>
-    fetch(`${API_URL}/payment-accounts/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    }).then(() => undefined),
+    request<void>(`/payment-accounts/${id}`, { method: "DELETE" }),
   onboarding: () =>
     request<{ completion_score: number; steps: Array<{ key: string; label: string; done: boolean }> }>("/onboarding"),
   overview: (branch?: string) =>
@@ -244,12 +254,7 @@ export const api = {
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    return fetch(`${API_URL}/documents/upload`, { method: "POST", headers, body: form }).then(async (response) => {
-      if (!response.ok) {
-        throw new ApiError(response.status, response.statusText);
-      }
-      return response.json() as Promise<CompanyDocument>;
-    });
+    return request<CompanyDocument>("/documents/upload", { method: "POST", headers, body: form });
   },
   analyzeDocument: (documentId: number) =>
     request<CompanyDocument>(`/documents/${documentId}/analyze`, {
@@ -367,12 +372,7 @@ export const api = {
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    return fetch(`${API_URL}/products/${productId}/images`, { method: "POST", headers, body: form }).then(async (response) => {
-      if (!response.ok) {
-        throw new ApiError(response.status, response.statusText);
-      }
-      return response.json() as Promise<Product>;
-    });
+    return request<Product>(`/products/${productId}/images`, { method: "POST", headers, body: form });
   },
   channels: () => request<Channel[]>("/chat/channels"),
   createChannel: (payload: { name: string; topic?: string }) =>
@@ -512,10 +512,7 @@ export const api = {
   updateMeeting: (id: number, payload: Partial<MeetingDto>) =>
     request<MeetingDto>(`/meetings/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteMeeting: (id: number) =>
-    fetch(`${API_URL}/meetings/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    }).then(() => undefined),
+    request<void>(`/meetings/${id}`, { method: "DELETE" }),
   generateMeetingSummary: (id: number) =>
     request<MeetingDto>(`/meetings/${id}/generate-summary`, { method: "POST" }),
 
@@ -525,10 +522,7 @@ export const api = {
     request<AIGenerationDto>("/ai/generate", { method: "POST", body: JSON.stringify(payload) }),
   aiDownload: (id: number) => requestBlob(`/ai/history/${id}/download`),
   aiDelete: (id: number) =>
-    fetch(`${API_URL}/ai/history/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    }).then(() => undefined),
+    request<void>(`/ai/history/${id}`, { method: "DELETE" }),
 
   /** Variables dynamiques Limule — catalogue + valeurs résolues depuis la DB */
   aiVariables: () =>
@@ -708,10 +702,7 @@ export const api = {
   updateNote: (id: number, payload: { title?: string; body?: string; pinned?: boolean }) =>
     request<DailyNoteDto>(`/notes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteNote: (id: number) =>
-    fetch(`${API_URL}/notes/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    }).then(() => undefined),
+    request<void>(`/notes/${id}`, { method: "DELETE" }),
   generateDailyNote: () => request<DailyNoteDto>("/notes/generate", { method: "POST" }),
 
   /* ── Company Modules ──────────────────────────────────────── */
@@ -732,7 +723,7 @@ export const api = {
   cashflow: (period = "month") =>
     request<CashFlowDto[]>(`/accounting/cashflow?period=${period}`),
   expenses: () => request<ExpenseDto[]>("/accounting/expenses"),
-  syscohada: () => request<SyscohadaDto[]>("/accounting/syscohada-status"),
+  syscemac: () => request<SyscemacDto[]>("/accounting/syscemac-status"),
 
   /* ── Reports revenue series ───────────────────────────────── */
   revenueSeries: (period = "month") =>
@@ -824,6 +815,136 @@ export const api = {
       module: string;
       sources: string[];
     }>(`/limule/documents/${documentId}/chat`, { method: "POST", body: JSON.stringify(payload) }),
+
+  /* ── Investments ─────────────────────────────────────────── */
+  investments: () => request<InvestmentDto[]>("/investments"),
+  createInvestment: (payload: InvestmentCreateDto) =>
+    request<InvestmentDto>("/investments", { method: "POST", body: JSON.stringify(payload) }),
+  updateInvestment: (id: number, payload: Partial<InvestmentCreateDto>) =>
+    request<InvestmentDto>(`/investments/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteInvestment: (id: number) =>
+    request<void>(`/investments/${id}`, { method: "DELETE" }),
+  searchTickers: (q: string) =>
+    request<TickerSearchResult[]>(`/investments/search?q=${encodeURIComponent(q)}`),
+  stockQuote: (ticker: string) =>
+    request<StockQuoteDto>(`/investments/quote/${ticker}`),
+  stockHistory: (ticker: string, period = "1y") =>
+    request<StockHistoryPoint[]>(`/investments/history/${ticker}?period=${period}`),
+  stockNews: (ticker: string) =>
+    request<StockNewsItem[]>(`/investments/news/${ticker}`),
+  analyzeInvestment: (ticker: string, invId?: number) =>
+    request<InvestmentAnalysisDto>(
+      `/investments/analyze/${ticker}${invId ? `?inv_id=${invId}` : ""}`,
+      { method: "POST" },
+    ),
+  analyzePortfolio: () =>
+    request<{ analysis: string; generated_at: string; portfolio_snapshot: Record<string, number> }>(
+      `/investments/analyze/portfolio`,
+      { method: "POST" },
+    ),
+  downloadAnalysisPdf: (invId: number) =>
+    fetch(`${API_URL}/investments/${invId}/analysis/pdf`, {
+      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+    }),
+
+  /* ── Budget ──────────────────────────────────────────────── */
+  budgetCategories: () => request<BudgetCategoryDto[]>("/budget/categories"),
+  budgetSummary: (period?: string) =>
+    request<BudgetSummaryDto[]>(`/budget/summary${period ? `?period=${period}` : ""}`),
+  createBudgetCategory: (payload: BudgetCategoryCreateDto) =>
+    request<BudgetCategoryDto>("/budget/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateBudgetCategory: (id: number, payload: Partial<BudgetCategoryCreateDto>) =>
+    request<BudgetCategoryDto>(`/budget/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteBudgetCategory: (id: number) =>
+    request<void>(`/budget/categories/${id}`, { method: "DELETE" }),
+
+  /* ── Clients / CRM ───────────────────────────────────────── */
+  clients: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return request<ClientDto[]>(`/clients${q ? `?${q}` : ""}`);
+  },
+  clientStats: (id: number) => request<ClientStatsDto>(`/clients/${id}/stats`),
+  createClient: (payload: Omit<ClientDto, "id" | "company_id" | "created_at" | "updated_at">) =>
+    request<ClientDto>("/clients", { method: "POST", body: JSON.stringify(payload) }),
+  updateClient: (id: number, payload: Partial<Omit<ClientDto, "id" | "company_id" | "created_at" | "updated_at">>) =>
+    request<ClientDto>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteClient: (id: number) =>
+    request<void>(`/clients/${id}`, { method: "DELETE" }),
+
+  /* ── Transactions ─────────────────────────────────────────── */
+  transactions: (params?: { category?: string; source_type?: string; date_from?: string; date_to?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.category)    q.set("category",    params.category);
+    if (params?.source_type) q.set("source_type", params.source_type);
+    if (params?.date_from)   q.set("date_from",   params.date_from);
+    if (params?.date_to)     q.set("date_to",     params.date_to);
+    const qs = q.toString();
+    return request<BankTransactionDto[]>(`/transactions${qs ? `?${qs}` : ""}`);
+  },
+  transactionStats: () => request<TransactionStatsDto>("/transactions/stats"),
+  createTransaction: (payload: BankTransactionCreateDto) =>
+    request<BankTransactionDto>("/transactions", { method: "POST", body: JSON.stringify(payload) }),
+  updateTransaction: (id: number, payload: BankTransactionUpdateDto) =>
+    request<BankTransactionDto>(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteTransaction: (id: number) =>
+    request<void>(`/transactions/${id}`, { method: "DELETE" }),
+  importTransactions: (file: File, sourceType?: string): Promise<TransactionImportResult> => {
+    const form = new FormData();
+    form.append("file", file);
+    if (sourceType) form.append("source_type", sourceType);
+    const token = getToken();
+    return fetch(`${API_URL}/transactions/import`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new ApiError(res.status, (err as { detail: string }).detail ?? res.statusText);
+      }
+      return res.json() as Promise<TransactionImportResult>;
+    });
+  },
+  exportTransactionsCsv: () =>
+    fetch(`${API_URL}/transactions/export`, {
+      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+    }),
+
+  /* ── Safe Mode ────────────────────────────────────────────── */
+  safeMode: {
+    export: async (): Promise<void> => {
+      const token = getToken() ?? "";
+      const res = await fetch(`${API_URL}/safe-mode/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur lors de la génération du pack");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const match = cd.match(/filename=(.+)/);
+      a.download = match ? match[1] : "kompta_safe_mode.pdf";
+      a.href = url;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    },
+    analyze: (file: File): Promise<{ status: string; preview?: SafeModePreview; snapshot?: object; message?: string }> => {
+      const form = new FormData();
+      form.append("file", file);
+      return request("/safe-mode/analyze", { method: "POST", body: form });
+    },
+    restore: (snapshot: object, sections: string[]): Promise<{ status: string; restored: Record<string, number> }> =>
+      request("/safe-mode/restore", { method: "POST", body: JSON.stringify({ snapshot, sections }) }),
+  },
 
   limuleDocumentChatStream: async (
     documentId: number,
@@ -980,11 +1101,12 @@ export type UserPreferenceDto = {
   digest_frequency: string;
   language: string;
   theme: string;
+  currency: string;
 };
 
 export type CashFlowDto = { label: string; inflow: number; outflow: number };
 export type ExpenseDto = { name: string; amount: number; color: string };
-export type SyscohadaDto = { code: string; label: string; status: string; count: number };
+export type SyscemacDto = { code: string; label: string; status: string; count: number };
 export type RevenueSeriesDto = { label: string; revenue: number; margin: number };
 
 export type TicketDto = {
@@ -1075,4 +1197,221 @@ export type LowStockProductDto = {
   reorder_level: number;
   deficit: number;
   price: number;
+};
+
+export type SafeModePreview = {
+  company_name: string;
+  exported_at: string;
+  version: string;
+  counts: Record<string, number>;
+};
+
+/* ── Investments ──────────────────────────────────────────────── */
+export type InvestmentDto = {
+  id: number;
+  ticker: string;
+  display_name: string;
+  exchange: string;
+  currency_stock: string;
+  shares: number;
+  invested_amount: number;
+  purchase_price_ref: number;
+  purchase_date: string | null;
+  notes: string | null;
+  last_analysis: string | null;
+  last_analysis_at: string | null;
+};
+
+export type InvestmentCreateDto = Omit<InvestmentDto, "id" | "last_analysis" | "last_analysis_at">;
+
+export type TickerSearchResult = {
+  ticker: string;
+  name: string;
+  exchange: string;
+  type: string;
+};
+
+export type StockQuoteDto = {
+  ticker: string;
+  name: string;
+  exchange: string;
+  currency: string;
+  price: number | null;
+  prev_close: number | null;
+  change: number;
+  change_pct: number;
+  market_cap: number | null;
+  market_cap_fmt: string;
+  pe_ratio: number | null;
+  eps: number | null;
+  dividend_yield: number | null;
+  week52_high: number | null;
+  week52_low: number | null;
+  volume: number | null;
+  avg_volume: number | null;
+  open: number | null;
+  day_high: number | null;
+  day_low: number | null;
+  beta: number | null;
+  sector: string;
+  industry: string;
+  country: string;
+  website: string;
+  description: string;
+};
+
+export type StockHistoryPoint = {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+export type StockNewsItem = {
+  title: string;
+  summary: string;
+  provider: string;
+  published: string;
+  url: string;
+};
+
+export type InvestmentAnalysisDto = {
+  ticker: string;
+  name: string;
+  analysis: string;
+  generated_at: string;
+  context_snapshot: {
+    price: number | null;
+    change_pct: number;
+    market_cap: string;
+    pe: number | null;
+    sector: string;
+    perf_1y: string;
+  };
+};
+
+/* ── Clients / CRM ────────────────────────────────────────────── */
+export type ClientDto = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  notes: string | null;
+  status: string;
+  company_id: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientStatsDto = {
+  client_id: number;
+  invoice_count: number;
+  total_revenue: number;
+  unpaid_count: number;
+  last_invoice_date: string | null;
+};
+
+/* ── Budget ───────────────────────────────────────────────────── */
+export type BudgetCategoryDto = {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+  planned_amount: number;
+  period: string;
+  category_type: string;
+  company_id: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetCategoryCreateDto = {
+  name: string;
+  icon?: string;
+  color?: string;
+  planned_amount?: number;
+  period?: string;
+  category_type?: string;
+};
+
+export type BudgetSummaryDto = {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+  planned_amount: number;
+  period: string;
+  category_type: string;
+  spent: number;
+  remaining: number;
+  progress_pct: number;
+};
+
+/* ── Transactions ──────────────────────────────────────────── */
+export type BankTransactionDto = {
+  id: number;
+  company_id: number;
+  document_id: number | null;
+  date: string;
+  label: string;
+  amount: number;
+  debit: number | null;
+  credit: number | null;
+  balance: number | null;
+  currency: string;
+  category: string;
+  sub_category: string | null;
+  counterpart: string | null;
+  reference: string | null;
+  source_type: string;
+  source_file: string | null;
+  status: string;
+  notes: string | null;
+  raw_line: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BankTransactionCreateDto = {
+  date: string;
+  label: string;
+  amount?: number;
+  debit?: number | null;
+  credit?: number | null;
+  balance?: number | null;
+  currency?: string;
+  category?: string;
+  sub_category?: string | null;
+  counterpart?: string | null;
+  reference?: string | null;
+  source_type?: string;
+  source_file?: string | null;
+  status?: string;
+  notes?: string | null;
+  raw_line?: string | null;
+  document_id?: number | null;
+};
+
+export type BankTransactionUpdateDto = Partial<BankTransactionCreateDto>;
+
+export type TransactionImportResult = {
+  imported: number;
+  source_file: string;
+  source_type: string;
+  parse_method: string;
+  text_length: number;
+  transactions: BankTransactionDto[];
+};
+
+export type TransactionStatsDto = {
+  count: number;
+  total_credits: number;
+  total_debits: number;
+  balance: number;
+  by_category: Record<string, number>;
 };

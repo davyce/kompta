@@ -2,14 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  AlertCircle, ArrowDown, ArrowUp, Boxes, Camera, Check, Filter,
+  AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, Filter,
   MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Sparkles, X,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import type { Product } from "../types/domain";
-import { shortDate } from "../utils/format";
+import { shortDate, money, compactMoney } from "../utils/format";
 import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 function ProductIconDisplay({ product, size = 22 }: { product: Pick<Product, "name" | "category">; size?: number }) {
   const entry = inferProductIcon(product);
@@ -77,7 +78,7 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
                 </span>
               </div>
               <p className="mt-1 text-xs text-[#717182]">
-                Seuil : {p.reorder_level} · SKU : {p.sku} · Prix : {p.price.toLocaleString("fr-FR")} XAF
+                Seuil : {p.reorder_level} · SKU : {p.sku} · Prix : {money(p.price)}
               </p>
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
                 Recommandation IA : commander {qtyToOrder} unités → stock cible {p.reorder_level * 2}
@@ -107,12 +108,25 @@ type ImagePreview = { file: File; url: string };
 
 export function InventoryPage() {
   const queryClient = useQueryClient();
+  // Subscribe to currency changes so money() calls re-render with new currency
+  useCurrency();
   const products = useQuery({ queryKey: ["products"], queryFn: api.products });
   const movements = useQuery({ queryKey: ["inventoryMovements"], queryFn: api.inventoryMovements });
   const [tab, setTab] = useState<Tab>("list");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  type InvSortField = "name" | "price" | "stock" | "category";
+  const [invSortField, setInvSortField] = useState<InvSortField>("name");
+  const [invSortDir, setInvSortDir] = useState<"asc" | "desc">("asc");
+  function toggleInvSort(f: InvSortField) {
+    if (invSortField === f) setInvSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setInvSortField(f); setInvSortDir("asc"); }
+  }
+  function InvSortIcon({ field }: { field: InvSortField }) {
+    if (invSortField !== field) return <ArrowUpDown size={11} className="ml-0.5 opacity-40" />;
+    return invSortDir === "asc" ? <ArrowUp size={11} className="ml-0.5 text-emerald-500" /> : <ArrowDown size={11} className="ml-0.5 text-emerald-500" />;
+  }
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -171,7 +185,7 @@ export function InventoryPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (products.data ?? []).filter((p) => {
+    const base = (products.data ?? []).filter((p) => {
       const matchSearch = !q || `${p.name} ${p.sku} ${p.category}`.toLowerCase().includes(q);
       const matchCat = category === "Tous" || p.category === category;
       const matchStock =
@@ -180,7 +194,15 @@ export function InventoryPage() {
         p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level;
       return matchSearch && matchCat && matchStock;
     });
-  }, [products.data, search, category, stockFilter]);
+    return [...base].sort((a, b) => {
+      let cmp = 0;
+      if (invSortField === "name")     cmp = a.name.localeCompare(b.name, "fr");
+      if (invSortField === "price")    cmp = a.price - b.price;
+      if (invSortField === "stock")    cmp = a.stock_quantity - b.stock_quantity;
+      if (invSortField === "category") cmp = (a.category ?? "").localeCompare(b.category ?? "", "fr");
+      return invSortDir === "asc" ? cmp : -cmp;
+    });
+  }, [products.data, search, category, stockFilter, invSortField, invSortDir]);
 
   const lowStock = (products.data ?? []).filter((p) => p.stock_quantity <= p.reorder_level);
   const ruptures = (products.data ?? []).filter((p) => p.stock_quantity === 0);
@@ -307,7 +329,7 @@ export function InventoryPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "Valeur stock", value: `${(totalValue / 1_000_000).toFixed(1)} M`, hint: "prix de vente · XAF", accent: "indigo" },
+          { label: "Valeur stock", value: compactMoney(totalValue), hint: "prix de vente total", accent: "indigo" },
           { label: "Ruptures", value: ruptures.length.toString(), hint: "à réapprovisionner urgt.", accent: "rose" },
           { label: "Sous seuil", value: lowStock.length.toString(), hint: "seuils d'alerte dépassés", accent: "amber" },
           { label: "Références", value: (products.data?.length ?? "…").toString(), hint: "produits actifs", accent: "sky" },
@@ -442,12 +464,20 @@ export function InventoryPage() {
                       <th className="w-10 py-2 pr-3">
                         <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
                       </th>
-                      <th className="py-2 pr-4">Produit</th>
+                      <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleInvSort("name")}>
+                        <span className="flex items-center">Produit<InvSortIcon field="name" /></span>
+                      </th>
                       <th className="py-2 pr-4 hidden sm:table-cell">SKU</th>
-                      <th className="py-2 pr-4 hidden md:table-cell">Catégorie</th>
+                      <th className="py-2 pr-4 hidden md:table-cell cursor-pointer" onClick={() => toggleInvSort("category")}>
+                        <span className="flex items-center">Catégorie<InvSortIcon field="category" /></span>
+                      </th>
                       <th className="py-2 pr-4 hidden lg:table-cell">Site</th>
-                      <th className="py-2 pr-4 text-right">Prix</th>
-                      <th className="py-2 pr-4 text-right">Stock</th>
+                      <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("price")}>
+                        <span className="flex items-center justify-end">Prix<InvSortIcon field="price" /></span>
+                      </th>
+                      <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("stock")}>
+                        <span className="flex items-center justify-end">Stock<InvSortIcon field="stock" /></span>
+                      </th>
                       <th className="py-2 pr-4">Statut</th>
                       <th className="py-2" />
                     </tr>
@@ -560,7 +590,7 @@ export function InventoryPage() {
                       <QRCodeSVG value={p.qr_code || p.sku} size={104} level="M" includeMargin />
                       <p className="font-mono text-[10px] text-[#717182] truncate w-full">{p.sku}</p>
                       <p className="font-medium text-[#17211f] dark:text-white truncate w-full">{p.name}</p>
-                      <p className="text-emerald-600">{p.price.toLocaleString("fr-FR")} XAF</p>
+                      <p className="text-emerald-600">{money(p.price)}</p>
                       <button onClick={() => openQr(p)} className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
                         Agrandir
                       </button>
@@ -718,7 +748,7 @@ export function InventoryPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-[#17211f] dark:text-white">{scanResult.name} — {scanResult.sku}</p>
-                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {scanResult.price.toLocaleString("fr-FR")} XAF</p>
+                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {money(scanResult.price)}</p>
                   </div>
                 </div>
               )}

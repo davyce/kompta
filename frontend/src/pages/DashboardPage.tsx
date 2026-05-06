@@ -1,9 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, ArrowUpRight, CheckCircle2, Download,
-  Filter, ShieldCheck, TrendingUp, WalletCards,
-  ReceiptText, Users,
+  AlertTriangle, ArrowUpRight, ArrowDownRight, CheckCircle2, Download,
+  Filter, ShieldCheck, TrendingUp, TrendingDown, WalletCards,
+  ReceiptText, Users, Landmark,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,7 +14,8 @@ import {
 import { useAuth } from "../app/AuthContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { api } from "../services/api";
-import { compactMoney, money, shortDate } from "../utils/format";
+import { compactMoney, money, shortDate, currencyLabel } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 type Period = "mois" | "trimestre" | "annee";
 const PERIODS: { key: Period; label: string }[] = [
@@ -84,6 +85,8 @@ function KpiCard({
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Subscribe to currency changes for reactive re-render
+  useCurrency();
   const [period, setPeriod] = useState<Period>("annee");
 
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -98,13 +101,38 @@ export function DashboardPage() {
   const invoices      = useQuery({ queryKey: ["invoices"],         queryFn: api.invoices, refetchInterval: 60_000 });
   const terasScores   = useQuery({ queryKey: ["terasScores"],      queryFn: api.terasScores, refetchInterval: 60_000 });
   const meetings      = useQuery({ queryKey: ["meetings"],         queryFn: api.meetings, refetchInterval: 60_000 });
+  const investments   = useQuery({ queryKey: ["investments"],      queryFn: api.investments, refetchInterval: 120_000 });
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [cashFlow, setCashFlow] = useState<string | null>(null);
+  const [cashFlowLoading, setCashFlowLoading] = useState(false);
 
   // Track last refresh time
   useEffect(() => {
     if (overview.dataUpdatedAt) setLastRefreshed(new Date(overview.dataUpdatedAt));
   }, [overview.dataUpdatedAt]);
+
+  // Cash flow prediction streaming
+  async function launchCashFlowPrediction() {
+    if (cashFlowLoading) return;
+    setCashFlowLoading(true);
+    setCashFlow("");
+    const invoiceTotal  = data?.kpis.invoices_total ?? 0;
+    const salesTotal    = data?.kpis.sales_total    ?? 0;
+    const employeeCount = data?.kpis.employees      ?? 0;
+    const estimatedPayroll = Math.max(employeeCount * 775_000, 3_600_000);
+    await api.aiGenerateStream(
+      {
+        kind:   "cashflow_prediction",
+        title:  "Prévision trésorerie",
+        prompt: `En tant que directeur financier expert PME Afrique centrale, fournis une prévision de trésorerie sur 30, 60 et 90 jours en français, concise et chiffrée. Données actuelles : CA facturé ${compactMoney(invoiceTotal)}, ventes POS ${compactMoney(salesTotal)}, effectif ${employeeCount} (masse salariale estimée ${compactMoney(estimatedPayroll)}). Inclus : (1) Prévision entrées/sorties 30j, (2) Point de vigilance à 60j, (3) Recommandation stratégique à 90j. Format lisible, 5-7 lignes max.`,
+        context: "dashboard_cashflow",
+      },
+      (partial) => setCashFlow(partial),
+      (final)   => { setCashFlow(final); setCashFlowLoading(false); },
+      ()        => { setCashFlow("Limule indisponible. Vérifie que le backend est lancé."); setCashFlowLoading(false); },
+    );
+  }
 
   // Résumé IA Limule streaming
   async function launchAiSummary() {
@@ -378,7 +406,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
               <h3 className="font-bold text-[#17211f] dark:text-white">Performance commerciale</h3>
-              <p className="text-xs text-[#717182]">Revenus &amp; marge — données réelles (M XAF)</p>
+              <p className="text-xs text-[#717182]">Revenus &amp; marge — données réelles (M {currencyLabel()})</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5">
@@ -407,7 +435,7 @@ export function DashboardPage() {
                 <YAxis stroke="#94a3b8" fontSize={11} />
                 <Tooltip
                   contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
-                  formatter={(value) => [`${value} M XAF`]}
+                  formatter={(value) => [`${value} M ${currencyLabel()}`]}
                 />
                 <Area type="monotone" dataKey="v" stroke="#6366f1" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name="Revenus" />
                 <Area type="monotone" dataKey="e" stroke="#059669" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
@@ -708,7 +736,7 @@ export function DashboardPage() {
                       <span className="text-xs text-[#717182]">{r.p}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-[#717182]">{r.c} M XAF</td>
+                  <td className="px-5 py-3.5 text-[#717182]">{r.c} M {currencyLabel()}</td>
                   <td className="px-5 py-3.5">
                     <span className={`font-semibold ${r.t.startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
                       {r.t}
@@ -723,6 +751,87 @@ export function DashboardPage() {
           Total facturé : {money(data?.kpis.invoices_total ?? 0)} · Données en temps réel
         </div>
       </div>
+
+      {/* ── Cash Flow Prediction ── */}
+      <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
+        <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Landmark size={16} className="text-emerald-600" />
+            <div>
+              <h3 className="font-bold text-[#17211f] dark:text-white">Prévision Trésorerie Limule</h3>
+              <p className="text-xs text-[#717182]">Analyse 30 / 60 / 90 jours générée par IA</p>
+            </div>
+          </div>
+          <button
+            onClick={launchCashFlowPrediction}
+            disabled={cashFlowLoading}
+            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-70"
+          >
+            <LimuleIcon size={14} className={cashFlowLoading ? "animate-pulse" : ""} />
+            {cashFlowLoading ? "Analyse…" : cashFlow !== null ? "Rafraîchir" : "Prédire"}
+          </button>
+        </div>
+        {cashFlow !== null ? (
+          <div className="px-5 py-4">
+            <p className="text-sm leading-7 text-[#17211f] dark:text-white whitespace-pre-wrap">
+              {cashFlow || <span className="text-[#717182] animate-pulse">Limule analyse votre trésorerie…</span>}
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 px-5 py-6 text-[#717182]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600">
+              <Landmark size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#17211f] dark:text-white">Anticipez vos flux de trésorerie</p>
+              <p className="text-xs">Cliquez sur "Prédire" pour que Limule analyse vos données et génère une prévision 30/60/90 jours.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Investments widget ── */}
+      {(investments.data?.length ?? 0) > 0 && (
+        <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
+          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-emerald-600" />
+              <h3 className="font-bold text-[#17211f] dark:text-white">Portefeuille boursier</h3>
+            </div>
+            <button
+              onClick={() => navigate("/investments")}
+              className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition"
+            >
+              Voir tout <ArrowUpRight size={12} />
+            </button>
+          </div>
+          <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+            {(investments.data ?? []).map((inv) => {
+              const isPos = true; // static in dashboard (no live quote to keep it light)
+              return (
+                <div key={inv.id} className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-extrabold text-xs">
+                      {inv.ticker.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#17211f] dark:text-white">{inv.ticker}</p>
+                      <p className="text-xs text-[#717182] truncate max-w-[160px]">{inv.display_name}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-[#17211f] dark:text-white">{compactMoney(inv.invested_amount)}</p>
+                    <p className="text-xs text-[#717182]">{inv.shares.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} actions</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-black/[0.04] dark:border-white/[0.04] px-5 py-3 text-xs text-[#717182]">
+            {investments.data?.length} position{(investments.data?.length ?? 0) > 1 ? "s" : ""} · Total investi : {compactMoney((investments.data ?? []).reduce((s, i) => s + i.invested_amount, 0))}
+          </div>
+        </div>
+      )}
 
     </div>
   );

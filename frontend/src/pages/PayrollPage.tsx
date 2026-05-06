@@ -3,7 +3,8 @@ import { AlertCircle, Download, FileCheck2, Send, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api";
-import { money, shortDate } from "../utils/format";
+import { money, shortDate, compactMoney } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 function openBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -92,6 +93,7 @@ function initials(name: string) {
 
 export function PayrollPage() {
   const queryClient = useQueryClient();
+  useCurrency();
   const [period, setPeriod] = useState("Mai 2026");
   const [activeStep, setActiveStep] = useState(3); // 0-indexed, step 4 is current
   const [exportingId, setExportingId] = useState<number | null>(null);
@@ -170,7 +172,7 @@ export function PayrollPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Masse salariale"
-          value={totalGross > 0 ? `${(totalGross / 1_000_000).toFixed(1)} M XAF` : "—"}
+          value={totalGross > 0 ? compactMoney(totalGross) : "—"}
           delta={totalGross > 0 ? "+1,2%" : undefined}
           hint="incl. charges sociales"
           accent="teal"
@@ -189,7 +191,7 @@ export function PayrollPage() {
         />
         <KpiCard
           label="Versements"
-          value={totalNet > 0 ? `${(totalNet / 1_000_000).toFixed(1)} M XAF` : "—"}
+          value={totalNet > 0 ? compactMoney(totalNet) : "—"}
           hint={latestRun?.payment_account_label || "Mobile money / banque / PayPal"}
           accent="sky"
         />

@@ -10,6 +10,8 @@ import {
 import { api } from "../services/api";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
+import { useCurrency } from "../contexts/CurrencyContext";
+import type { CurrencyCode } from "../utils/format";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type Tab = "general" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
@@ -95,6 +97,7 @@ const MODULE_LABELS: Record<string, { label: string; desc: string }> = {
 export function SettingsPage() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { currency: activeCurrency, setCurrency } = useCurrency();
   const queryClient = useQueryClient();
   const location = useLocation();
   const initialTab = (new URLSearchParams(location.search).get("tab") as Tab | null) ?? "general";
@@ -434,9 +437,14 @@ export function SettingsPage() {
                     <option value="en">English</option>
                   </select>
                 </SettingRow>
-                <SettingRow icon={Globe} label="Devise" description="Devise principale CEMACE (XAF par défaut)">
-                  <select disabled className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white opacity-70">
-                    <option>XAF — Franc CFA BEAC</option>
+                <SettingRow icon={Globe} label="Devise de référence" description="Monnaie affichée dans toute l'interface">
+                  <select
+                    value={activeCurrency}
+                    onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                    className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
+                    <option value="XAF">XAF — Franc CFA BEAC</option>
+                    <option value="EUR">EUR — Euro €</option>
+                    <option value="USD">USD — Dollar américain $</option>
                   </select>
                 </SettingRow>
                 <SettingRow icon={User} label="Compte connecté" description={user?.email}>

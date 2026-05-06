@@ -98,11 +98,13 @@ def ensure_sqlite_migrations() -> None:
             "parse_method":      "VARCHAR(40) DEFAULT ''",
             "source_document_id": "INTEGER",
         },
-            "employability_checks": {},
-            "teras_analysis_jobs": {},
-            "teras_score_snapshots": {},
-            "teras_sync_events": {},
-        }
+        "employability_checks": {},
+        "teras_analysis_jobs": {},
+        "teras_score_snapshots": {},
+        "teras_sync_events": {},
+        # bank_transactions : created fresh by create_all — no ALTER needed
+        "bank_transactions": {},
+    }
     with engine.begin() as connection:
         for table, columns in additions.items():
             existing = table_columns.get(table, set())

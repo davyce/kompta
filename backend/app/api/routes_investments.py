@@ -1,0 +1,646 @@
+"""
+routes_investments.py — Module de suivi des investissements boursiers.
+
+Endpoints:
+  GET    /investments                  — liste du portefeuille
+  POST   /investments                  — créer un investissement
+  PUT    /investments/{id}             — modifier
+  DELETE /investments/{id}             — supprimer
+
+  GET    /investments/search?q=…       — recherche de ticker (proxy Yahoo Finance)
+  GET    /investments/quote/{ticker}   — cours + métriques clés
+  GET    /investments/history/{ticker}?period=1y  — historique OHLCV
+  GET    /investments/news/{ticker}    — articles de presse récents
+
+  POST   /investments/analyze/{ticker} — analyse Limule + persistance
+  GET    /investments/{id}/analysis/pdf — télécharger le PDF de la dernière analyse
+"""
+
+from __future__ import annotations
+
+import io
+import json
+from datetime import datetime, timezone
+from typing import Any
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
+from app.db.session import get_db
+from app.models import Investment
+from app.schemas.domain import InvestmentCreate, InvestmentRead, InvestmentUpdate
+
+router = APIRouter(tags=["investments"])
+
+
+# ═══════════════════════════════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════════════════════════════
+
+def _safe(info: dict, *keys: str, default: Any = None) -> Any:
+    for k in keys:
+        v = info.get(k)
+        if v not in (None, "N/A", "", "None", "Infinity"):
+            return v
+    return default
+
+
+def _fmt_large(val: float | None) -> str:
+    if val is None:
+        return "—"
+    if val >= 1_000_000_000_000:
+        return f"{val / 1_000_000_000_000:.2f}T"
+    if val >= 1_000_000_000:
+        return f"{val / 1_000_000_000:.2f}B"
+    if val >= 1_000_000:
+        return f"{val / 1_000_000:.2f}M"
+    return f"{val:,.0f}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CRUD
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/investments", response_model=list[InvestmentRead])
+def list_investments(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[Investment]:
+    return db.scalars(
+        select(Investment).where(Investment.company_id == current_user.company_id)
+    ).all()
+
+
+@router.post("/investments", response_model=InvestmentRead, status_code=201)
+def create_investment(
+    payload: InvestmentCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> Investment:
+    inv = Investment(
+        **payload.model_dump(),
+        company_id=current_user.company_id,
+    )
+    db.add(inv)
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+
+@router.put("/investments/{inv_id}", response_model=InvestmentRead)
+def update_investment(
+    inv_id: int,
+    payload: InvestmentUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> Investment:
+    inv = db.get(Investment, inv_id)
+    if not inv or inv.company_id != current_user.company_id:
+        raise HTTPException(404, "Investissement introuvable")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(inv, k, v)
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+
+@router.delete("/investments/{inv_id}", status_code=204)
+def delete_investment(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> None:
+    inv = db.get(Investment, inv_id)
+    if not inv or inv.company_id != current_user.company_id:
+        raise HTTPException(404, "Investissement introuvable")
+    db.delete(inv)
+    db.commit()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MARKET DATA
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/investments/search")
+async def search_tickers(q: str, current_user=Depends(get_current_user)):
+    """Recherche d'entreprises cotées via l'API Yahoo Finance."""
+    if not q or len(q.strip()) < 1:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.get(
+                "https://query1.finance.yahoo.com/v1/finance/search",
+                params={"q": q, "newsCount": "0", "listsCount": "0", "quotesCount": "10"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; KOMPTA/1.0)"},
+            )
+        data = resp.json()
+        results = []
+        for r in data.get("quotes", []):
+            if r.get("quoteType") not in ("EQUITY", "ETF"):
+                continue
+            results.append({
+                "ticker": r.get("symbol", ""),
+                "name": r.get("shortname") or r.get("longname") or r.get("symbol", ""),
+                "exchange": r.get("exchange", ""),
+                "type": r.get("quoteType", ""),
+            })
+        return results[:8]
+    except Exception:
+        return []
+
+
+@router.get("/investments/quote/{ticker}")
+async def get_quote(ticker: str, current_user=Depends(get_current_user)):
+    """Cours en temps réel + métriques financières clés."""
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker.upper())
+        info = t.info or {}
+        hist = t.history(period="2d", interval="1d")
+
+        # Prix courant (plusieurs sources possibles selon le marché)
+        price = _safe(info, "currentPrice", "regularMarketPrice", "previousClose")
+        prev  = _safe(info, "previousClose", "regularMarketPreviousClose")
+
+        if price is None and not hist.empty:
+            price = float(hist["Close"].iloc[-1])
+        if prev is None and len(hist) >= 2:
+            prev = float(hist["Close"].iloc[-2])
+
+        change     = round(price - prev, 4) if price and prev else 0
+        change_pct = round(change / prev * 100, 2) if prev else 0
+
+        return {
+            "ticker": ticker.upper(),
+            "name": _safe(info, "longName", "shortName") or ticker.upper(),
+            "exchange": _safe(info, "exchange", "fullExchangeName") or "",
+            "currency": _safe(info, "currency") or "USD",
+            "price": price,
+            "prev_close": prev,
+            "change": change,
+            "change_pct": change_pct,
+            # Métriques clés
+            "market_cap": _safe(info, "marketCap"),
+            "market_cap_fmt": _fmt_large(_safe(info, "marketCap")),
+            "pe_ratio": _safe(info, "trailingPE", "forwardPE"),
+            "eps": _safe(info, "trailingEps"),
+            "dividend_yield": round(_safe(info, "dividendYield", default=0) * 100, 2) if _safe(info, "dividendYield") else None,
+            "week52_high": _safe(info, "fiftyTwoWeekHigh"),
+            "week52_low": _safe(info, "fiftyTwoWeekLow"),
+            "volume": _safe(info, "volume", "regularMarketVolume"),
+            "avg_volume": _safe(info, "averageVolume"),
+            "open": _safe(info, "open", "regularMarketOpen"),
+            "day_high": _safe(info, "dayHigh", "regularMarketDayHigh"),
+            "day_low": _safe(info, "dayLow", "regularMarketDayLow"),
+            "beta": _safe(info, "beta"),
+            "sector": _safe(info, "sector") or "",
+            "industry": _safe(info, "industry") or "",
+            "country": _safe(info, "country") or "",
+            "website": _safe(info, "website") or "",
+            "description": _safe(info, "longBusinessSummary") or "",
+        }
+    except Exception as e:
+        raise HTTPException(502, f"Données boursières indisponibles : {e}")
+
+
+@router.get("/investments/history/{ticker}")
+async def get_history(
+    ticker: str,
+    period: str = "1y",
+    current_user=Depends(get_current_user),
+):
+    """Historique OHLCV pour le graphique de cours."""
+    PERIOD_MAP = {
+        "1d":  ("1d",  "5m"),
+        "5d":  ("5d",  "1h"),
+        "1mo": ("1mo", "1d"),
+        "3mo": ("3mo", "1d"),
+        "6mo": ("6mo", "1wk"),
+        "1y":  ("1y",  "1wk"),
+        "5y":  ("5y",  "1mo"),
+        "max": ("max", "1mo"),
+    }
+    yf_period, yf_interval = PERIOD_MAP.get(period, ("1y", "1wk"))
+    try:
+        import yfinance as yf
+        hist = yf.Ticker(ticker.upper()).history(period=yf_period, interval=yf_interval)
+        if hist.empty:
+            return []
+        hist.index = hist.index.tz_localize(None) if hist.index.tzinfo else hist.index
+        rows = []
+        for ts, row in hist.iterrows():
+            rows.append({
+                "t": ts.strftime("%Y-%m-%dT%H:%M:%S"),
+                "o": round(float(row["Open"]),  4),
+                "h": round(float(row["High"]),  4),
+                "l": round(float(row["Low"]),   4),
+                "c": round(float(row["Close"]), 4),
+                "v": int(row["Volume"]),
+            })
+        return rows
+    except Exception as e:
+        raise HTTPException(502, f"Historique indisponible : {e}")
+
+
+@router.get("/investments/news/{ticker}")
+async def get_news(ticker: str, current_user=Depends(get_current_user)):
+    """Articles de presse récents liés à l'action."""
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker.upper())
+        raw_news = t.news or []
+        articles = []
+        for n in raw_news[:12]:
+            content = n.get("content", {})
+            # Handle both old and new yfinance news format
+            title = content.get("title") or n.get("title", "")
+            summary = content.get("summary") or n.get("summary", "")
+            provider = ""
+            pub_date = ""
+            url = ""
+
+            if content:
+                prov = content.get("provider", {})
+                provider = prov.get("displayName", "") if isinstance(prov, dict) else str(prov)
+                pub_date = content.get("pubDate") or content.get("displayTime", "")
+                cf = content.get("canonicalUrl", {})
+                url = cf.get("url", "") if isinstance(cf, dict) else str(cf)
+            else:
+                provider = n.get("publisher", "")
+                pub_date = str(n.get("providerPublishTime", ""))
+                url = n.get("link", "")
+
+            if title:
+                articles.append({
+                    "title": title,
+                    "summary": summary[:300] if summary else "",
+                    "provider": provider,
+                    "published": pub_date,
+                    "url": url,
+                })
+        return articles
+    except Exception:
+        return []
+
+
+# ═══════════════════════════════════════════════════════════════════
+# LIMULE ANALYSIS
+# ═══════════════════════════════════════════════════════════════════
+
+@router.post("/investments/analyze/portfolio")
+async def analyze_portfolio(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Évalue l'intégralité du portefeuille avec Limule."""
+    from app.services.limule import limule_generate
+
+    investments_list = db.scalars(
+        select(Investment).where(Investment.company_id == current_user.company_id)
+    ).all()
+
+    if not investments_list:
+        raise HTTPException(400, "Aucun investissement dans le portefeuille.")
+
+    total_invested = 0.0
+    total_current  = 0.0
+    positions_data = []
+
+    for inv in investments_list:
+        total_invested += inv.invested_amount
+        current_price  = None
+        perf_1y_val    = None
+
+        try:
+            import yfinance as yf
+            t = yf.Ticker(inv.ticker.upper())
+            info = t.info or {}
+            hist_1y = t.history(period="1y", interval="1wk")
+
+            current_price = _safe(info, "currentPrice", "regularMarketPrice")
+            if current_price is None and not hist_1y.empty:
+                current_price = float(hist_1y["Close"].iloc[-1])
+
+            if not hist_1y.empty and len(hist_1y) >= 2:
+                first_c = float(hist_1y["Close"].iloc[0])
+                last_c  = float(hist_1y["Close"].iloc[-1])
+                perf_1y_val = round((last_c - first_c) / first_c * 100, 1) if first_c else 0
+        except Exception:
+            pass
+
+        current_value = round(inv.shares * (current_price or 0), 2)
+        gain          = round(current_value - inv.invested_amount, 2)
+        gain_pct      = round(gain / inv.invested_amount * 100, 1) if inv.invested_amount else 0
+
+        total_current += current_value
+        positions_data.append({
+            "ticker":        inv.ticker,
+            "name":          inv.display_name,
+            "shares":        inv.shares,
+            "invested":      inv.invested_amount,
+            "current_value": current_value,
+            "gain":          gain,
+            "gain_pct":      gain_pct,
+            "weight":        0.0,
+            "perf_1y":       perf_1y_val,
+            "purchase_date": inv.purchase_date,
+        })
+
+    # Weights
+    for p in positions_data:
+        p["weight"] = round(p["current_value"] / total_current * 100, 1) if total_current else 0
+
+    total_gain     = total_current - total_invested
+    total_gain_pct = round(total_gain / total_invested * 100, 1) if total_invested else 0
+
+    # Build context string
+    lines = []
+    for p in positions_data:
+        perf_str = f", perf 1an: {p['perf_1y']:+.1f}%" if p["perf_1y"] is not None else ""
+        lines.append(
+            f"  • {p['name']} ({p['ticker']}): {p['shares']} actions, "
+            f"investi {p['invested']:,.0f}, valeur {p['current_value']:,.0f} "
+            f"({p['gain']:+,.0f} / {p['gain_pct']:+.1f}%), poids {p['weight']}%{perf_str}"
+        )
+    positions_str = "\n".join(lines)
+
+    context = (
+        f"ÉVALUATION PORTEFEUILLE BOURSIER\n"
+        f"Date : {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}\n\n"
+        f"== Résumé ==\n"
+        f"Positions : {len(positions_data)}\n"
+        f"Montant total investi : {total_invested:,.0f}\n"
+        f"Valeur actuelle : {total_current:,.0f}\n"
+        f"P&L global : {total_gain:+,.0f} ({total_gain_pct:+.1f}%)\n\n"
+        f"== Détail des positions ==\n"
+        f"{positions_str}"
+    )
+
+    prompt = (
+        f"Effectue une évaluation stratégique du portefeuille boursier "
+        f"({len(positions_data)} position(s), valeur totale {total_current:,.0f}, "
+        f"P&L {total_gain_pct:+.1f}%). "
+        f"Fournis : (1) Performance globale, (2) Diversification et exposition sectorielle, "
+        f"(3) Points forts et faiblesses, (4) Recommandations de rééquilibrage, "
+        f"(5) Stratégie adaptée à un investisseur PME africain. "
+        f"Sois précis et actionnable."
+    )
+
+    analysis, _ = await limule_generate(
+        kind="portfolio_analysis",
+        prompt=prompt,
+        context=context,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=2500,
+        temperature=0.3,
+    )
+
+    return {
+        "analysis":      analysis,
+        "generated_at":  datetime.now(timezone.utc).isoformat(),
+        "portfolio_snapshot": {
+            "positions":      len(positions_data),
+            "total_invested": total_invested,
+            "total_current":  total_current,
+            "total_gain":     total_gain,
+            "total_gain_pct": total_gain_pct,
+        },
+    }
+
+
+@router.post("/investments/analyze/{ticker}")
+async def analyze_investment(
+    ticker: str,
+    inv_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Génère une analyse Limule de l'action, croise avec le portefeuille si inv_id fourni."""
+    from app.services.limule import limule_generate
+
+    # ── 1. Récupérer les données marché ──────────────────────────
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker.upper())
+        info = t.info or {}
+        hist_1y = t.history(period="1y", interval="1wk")
+        news = (t.news or [])[:6]
+    except Exception as e:
+        raise HTTPException(502, f"Données boursières indisponibles : {e}")
+
+    price     = _safe(info, "currentPrice", "regularMarketPrice")
+    prev      = _safe(info, "previousClose")
+    change_pct = round((price - prev) / prev * 100, 2) if price and prev else 0
+    name      = _safe(info, "longName", "shortName") or ticker.upper()
+    sector    = _safe(info, "sector") or "N/A"
+    industry  = _safe(info, "industry") or "N/A"
+    mktcap    = _fmt_large(_safe(info, "marketCap"))
+    pe        = _safe(info, "trailingPE")
+    eps       = _safe(info, "trailingEps")
+    high52    = _safe(info, "fiftyTwoWeekHigh")
+    low52     = _safe(info, "fiftyTwoWeekLow")
+    beta      = _safe(info, "beta")
+    desc      = (_safe(info, "longBusinessSummary") or "")[:600]
+
+    # Résumé des headlines
+    headlines = ""
+    for n in news:
+        content = n.get("content", {})
+        title = content.get("title") or n.get("title", "")
+        if title:
+            headlines += f"• {title}\n"
+
+    # Performance historique simplified
+    perf_str = ""
+    if not hist_1y.empty:
+        first_c = float(hist_1y["Close"].iloc[0])
+        last_c  = float(hist_1y["Close"].iloc[-1])
+        perf_1y = round((last_c - first_c) / first_c * 100, 1) if first_c else 0
+        perf_str = f"Performance 1 an : {perf_1y:+.1f}%"
+
+    # ── 2. Position portefeuille ──────────────────────────────────
+    portfolio_str = ""
+    if inv_id:
+        inv = db.get(Investment, inv_id)
+        if inv and inv.company_id == current_user.company_id:
+            current_val = round(inv.shares * (price or 0), 2) if price else 0
+            gain        = round(current_val - inv.invested_amount, 2)
+            gain_pct    = round(gain / inv.invested_amount * 100, 1) if inv.invested_amount else 0
+            portfolio_str = (
+                f"\n\n== Position de l'entreprise ==\n"
+                f"Nombre d'actions : {inv.shares}\n"
+                f"Montant investi : {inv.invested_amount:,.2f}\n"
+                f"Valeur actuelle estimée : {current_val:,.2f} {_safe(info, 'currency') or 'USD'}\n"
+                f"Plus/moins-value : {gain:+,.2f} ({gain_pct:+.1f}%)\n"
+                f"Date d'achat : {inv.purchase_date or 'non précisée'}\n"
+                f"Prix d'achat moyen : {inv.purchase_price_ref or '?'} {_safe(info, 'currency') or 'USD'}"
+            )
+
+    # ── 3. Prompt Limule ─────────────────────────────────────────
+    context = f"""
+ANALYSE BOURSIÈRE — {name} ({ticker.upper()})
+Date : {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}
+
+== Données marché ==
+Cours actuel : {price} {_safe(info, 'currency') or 'USD'} ({change_pct:+.2f}% vs clôture précédente)
+Capitalisation : {mktcap}
+Secteur : {sector} / {industry}
+P/E : {pe or 'N/A'} | BPA : {eps or 'N/A'} | Bêta : {beta or 'N/A'}
+Plus haut 52 sem : {high52} | Plus bas 52 sem : {low52}
+{perf_str}
+
+== Description ==
+{desc}
+
+== Actualités récentes ==
+{headlines or 'Aucune actualité disponible.'}
+{portfolio_str}
+"""
+
+    portfolio_clause = (
+        "Évalue également la position de portefeuille de l'entreprise et son exposition au risque. "
+        if portfolio_str else ""
+    )
+    prompt = (
+        f"Effectue une analyse approfondie de l'action {name} ({ticker.upper()}) "
+        f"en croisant les données de marché, les métriques fondamentales et les dernières actualités. "
+        f"{portfolio_clause}"
+        f"Fournis : (1) Synthèse de la situation actuelle, (2) Analyse fondamentale, "
+        f"(3) Facteurs de risque et opportunités, (4) Perspectives à court et moyen terme, "
+        f"(5) Recommandation stratégique pour un investisseur PME africain."
+    )
+
+    analysis, _ = await limule_generate(
+        kind="investment_analysis",
+        prompt=prompt,
+        context=context,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=2000,
+        temperature=0.3,
+    )
+
+    # ── 4. Persister l'analyse si lié à un investissement ─────────
+    if inv_id:
+        inv = db.get(Investment, inv_id)
+        if inv and inv.company_id == current_user.company_id:
+            inv.last_analysis = analysis
+            inv.last_analysis_at = datetime.now(timezone.utc).isoformat()
+            db.commit()
+
+    return {
+        "ticker": ticker.upper(),
+        "name": name,
+        "analysis": analysis,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "context_snapshot": {
+            "price": price,
+            "change_pct": change_pct,
+            "market_cap": mktcap,
+            "pe": pe,
+            "sector": sector,
+            "perf_1y": perf_str,
+        },
+    }
+
+
+@router.get("/investments/{inv_id}/analysis/pdf")
+def download_analysis_pdf(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Génère et télécharge le PDF de la dernière analyse Limule pour cet investissement."""
+    inv = db.get(Investment, inv_id)
+    if not inv or inv.company_id != current_user.company_id:
+        raise HTTPException(404, "Investissement introuvable")
+    if not inv.last_analysis:
+        raise HTTPException(400, "Aucune analyse disponible — générez-en une d'abord.")
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        topMargin=2 * cm, bottomMargin=2 * cm,
+        leftMargin=2.5 * cm, rightMargin=2.5 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    brand  = colors.HexColor("#059669")
+
+    title_style = ParagraphStyle(
+        "InvTitle", parent=styles["Title"],
+        textColor=brand, fontSize=22, spaceAfter=6,
+    )
+    sub_style = ParagraphStyle(
+        "InvSub", parent=styles["Normal"],
+        textColor=colors.HexColor("#717182"), fontSize=10, spaceAfter=18,
+    )
+    body_style = ParagraphStyle(
+        "InvBody", parent=styles["Normal"],
+        fontSize=10, leading=15, spaceAfter=8,
+    )
+    h2_style = ParagraphStyle(
+        "InvH2", parent=styles["Heading2"],
+        textColor=brand, fontSize=13, spaceBefore=14, spaceAfter=4,
+    )
+
+    story = []
+    story.append(Paragraph(f"Analyse Limule — {inv.display_name} ({inv.ticker})", title_style))
+    generated_at = inv.last_analysis_at or datetime.now(timezone.utc).isoformat()
+    story.append(Paragraph(
+        f"Généré le {generated_at[:10]} · {inv.shares} actions · "
+        f"Investi : {inv.invested_amount:,.2f} {inv.currency_stock}",
+        sub_style,
+    ))
+    story.append(HRFlowable(width="100%", thickness=1, color=brand, spaceAfter=20))
+
+    # Découpe l'analyse en sections (délimitées par des lignes ##, **, ou numérotées)
+    import re
+    lines = inv.last_analysis.split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1, 4))
+            continue
+        # Détection de titre de section
+        if re.match(r"^#{1,3}\s+", line):
+            clean = re.sub(r"^#{1,3}\s+", "", line)
+            story.append(Paragraph(clean, h2_style))
+        elif re.match(r"^\*\*(.+)\*\*$", line):
+            clean = re.sub(r"\*\*", "", line)
+            story.append(Paragraph(f"<b>{clean}</b>", body_style))
+        else:
+            # Formater les **bold** inline
+            formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", line)
+            story.append(Paragraph(formatted, body_style))
+
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    story.append(Paragraph(
+        "Analyse générée par Limule AI · KOMPTA ERP · À titre informatif uniquement.",
+        ParagraphStyle("footer", parent=styles["Normal"],
+                       fontSize=8, textColor=colors.grey, alignment=TA_CENTER),
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    filename = f"limule-analyse-{inv.ticker}-{datetime.now().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

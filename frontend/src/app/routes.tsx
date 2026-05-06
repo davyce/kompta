@@ -36,6 +36,11 @@ import { ProjectsPage } from "../pages/ProjectsPage";
 import { EmployeeProfilePage } from "../pages/EmployeeProfilePage";
 import { MeetingsPage } from "../pages/MeetingsPage";
 import { HelpCenterPage } from "../pages/HelpCenterPage";
+import { SafeModePage } from "../pages/SafeModePage";
+import { ClientsPage } from "../pages/ClientsPage";
+import { InvestmentsPage } from "../pages/InvestmentsPage";
+import { BudgetPage } from "../pages/BudgetPage";
+import { TransactionsPage } from "../pages/TransactionsPage";
 
 function ProtectedRoute() {
   const { token } = useAuth();
@@ -97,6 +102,11 @@ export const router = createBrowserRouter([
       { path: "projects", element: <ProjectsPage /> },
       { path: "meetings", element: <MeetingsPage /> },
       { path: "help", element: <HelpCenterPage /> },
+      { path: "safe-mode", element: <SafeModePage /> },
+      { path: "clients", element: <ClientsPage /> },
+      { path: "investments", element: <InvestmentsPage /> },
+      { path: "budget", element: <BudgetPage /> },
+      { path: "transactions", element: <TransactionsPage /> },
       { path: "*", element: <NotFoundPage /> }
     ]
   }

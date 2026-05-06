@@ -43,6 +43,7 @@ type TaskDraft = {
   assignee_name: string;
   priority: "low" | "normal" | "high";
   due_date: string;
+  due_time: string;
   proof_required: boolean;
   autoDetectedPriority: "low" | "normal" | "high";
 };
@@ -584,6 +585,7 @@ export function Copilot() {
       assignee_name: "",
       priority: pri,
       due_date: "",
+      due_time: "",
       proof_required: false,
       autoDetectedPriority: pri,
     });
@@ -606,6 +608,7 @@ export function Copilot() {
         assignee_name: taskDraft.assignee_name || undefined,
         priority: taskDraft.priority,
         due_date: taskDraft.due_date || null,
+        due_time: taskDraft.due_time || null,
         source: "limule",
         proof_required: taskDraft.proof_required,
         status: "todo",
@@ -1082,17 +1085,31 @@ export function Copilot() {
                     </div>
                   </div>
 
-                  {/* Date d'échéance */}
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Échéance</label>
-                    <div className="relative">
-                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={taskDraft.due_date}
-                        onChange={(e) => setTaskDraft({ ...taskDraft, due_date: e.target.value })}
-                        className="w-full rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-3 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
-                      />
+                  {/* Date + Heure d'échéance */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Échéance</label>
+                      <div className="relative">
+                        <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          value={taskDraft.due_date}
+                          onChange={(e) => setTaskDraft({ ...taskDraft, due_date: e.target.value })}
+                          className="w-full rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-2 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Heure</label>
+                      <div className="relative">
+                        <Clock3 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                        <input
+                          type="time"
+                          value={taskDraft.due_time}
+                          onChange={(e) => setTaskDraft({ ...taskDraft, due_time: e.target.value })}
+                          className="w-full rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-2 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
+                        />
+                      </div>
                     </div>
                   </div>
 

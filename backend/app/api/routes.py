@@ -216,6 +216,7 @@ def _serialize_task(db: Session, task: Task, current_user: User, subjects: set[s
         "can_update": is_manager or assigned_to_me,
         "can_delete": is_manager,
         "proof_url": task.proof_url,
+        "due_time": task.due_time,
     }
 
 
@@ -1349,7 +1350,7 @@ def update_task(
     if not is_manager and not assigned_to_me:
         raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que les taches qui vous sont assignees")
 
-    allowed_fields = {"status", "title", "description", "priority", "assignee_name", "due_date", "proof_required", "source"} if is_manager else {"status"}
+    allowed_fields = {"status", "title", "description", "priority", "assignee_name", "due_date", "due_time", "proof_required", "source"} if is_manager else {"status"}
     blocked_fields = [field for field in payload if field not in allowed_fields]
     if blocked_fields:
         raise HTTPException(status_code=403, detail="Modification non autorisee pour ce profil")

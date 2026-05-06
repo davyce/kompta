@@ -4,8 +4,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from app.api.routes_budget import router as budget_router
+from app.api.routes_clients import router as clients_router
 from app.api.routes_extra import router as extra_router
 from app.api.routes_features import router as features_router
+from app.api.routes_safe_mode import router as safe_mode_router
+from app.api.routes_investments import router as investments_router
+from app.api.routes_transactions import router as transactions_router
 from app.core.config import get_settings
 from app.db.init_db import create_tables, seed_demo_data
 from app.db.session import SessionLocal
@@ -38,8 +43,13 @@ app.add_middleware(
 
 
 app.include_router(router, prefix=settings.api_prefix)
+app.include_router(budget_router, prefix=settings.api_prefix)
+app.include_router(clients_router, prefix=settings.api_prefix)
 app.include_router(extra_router, prefix=settings.api_prefix)
 app.include_router(features_router, prefix=settings.api_prefix)
+app.include_router(safe_mode_router, prefix=settings.api_prefix)
+app.include_router(investments_router, prefix=settings.api_prefix)
+app.include_router(transactions_router, prefix=settings.api_prefix)
 
 
 @app.get("/")

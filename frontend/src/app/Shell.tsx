@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Calculator,
   ChartNoAxesCombined,
+  TrendingUp,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -12,11 +13,13 @@ import {
   FolderArchive,
   HandCoins,
   HelpCircle,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageSquare,
   Moon,
+  PiggyBank,
   Plus,
   Sun,
   ReceiptText,
@@ -25,6 +28,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Boxes,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -78,10 +82,10 @@ function LimuleStatus() {
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/settings", "/help"],
-  comptable: ["/", "/accounting", "/billing", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/settings", "/safe-mode", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
-  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/work", "/reports", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
 };
@@ -136,9 +140,17 @@ const navSections: NavSection[] = [
     label: "Finance",
     items: [
       { label: "Comptabilité", to: "/accounting", icon: Calculator },
-      { label: "Facturation", to: "/billing", icon: ReceiptText },
+      { label: "Budget", to: "/budget", icon: PiggyBank },
+      { label: "Transactions", to: "/transactions", icon: Landmark },
       { label: "POS / Caisse", to: "/pos", icon: ShoppingCart },
       { label: "Inventaire", to: "/inventory", icon: Boxes },
+    ],
+  },
+  {
+    label: "Commercial",
+    items: [
+      { label: "Facturation", to: "/billing", icon: ReceiptText },
+      { label: "Clients", to: "/clients", icon: UserCheck },
     ],
   },
   {
@@ -154,6 +166,7 @@ const navSections: NavSection[] = [
     label: "Intelligence",
     items: [
       { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
+      { label: "Investissements", to: "/investments", icon: TrendingUp },
       { label: "Déclarations", to: "/declarations", icon: ClipboardList },
       { label: "Rédaction IA", to: "/assistants", icon: LimuleIcon },
       { label: "TERAS Connect", to: "/reports-teras", icon: ShieldCheck, badge: "!" },
@@ -161,7 +174,10 @@ const navSections: NavSection[] = [
   },
   {
     label: "Système",
-    items: [{ label: "Paramètres", to: "/settings", icon: Settings }],
+    items: [
+      { label: "Safe Mode", to: "/safe-mode", icon: ShieldCheck },
+      { label: "Paramètres", to: "/settings", icon: Settings },
+    ],
   },
 ];
 
@@ -172,7 +188,10 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/documents": { section: "Documents", title: "Bibliothèque intelligente" },
   "/payroll": { section: "Paie", title: "Cycles et bulletins" },
   "/accounting": { section: "Comptabilité", title: "Finance et SYSCEMAC" },
+  "/budget": { section: "Finance", title: "Gestion budgétaire" },
+  "/transactions": { section: "Finance", title: "Relevés & transactions" },
   "/billing": { section: "Facturation", title: "Clients et encaissements" },
+  "/clients": { section: "Commercial", title: "CRM & Clients" },
   "/pos": { section: "POS / Caisse", title: "Caisse et encaissement" },
   "/inventory": { section: "Inventaire", title: "Stock multi-sites" },
   "/projects": { section: "Projets", title: "Boards et budgets" },
@@ -182,10 +201,12 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/notes": { section: "Notes IA", title: "Journal quotidien" },
   "/meetings": { section: "Agenda", title: "Calendrier & réunions" },
   "/reports": { section: "Rapports", title: "Hub d'analyse" },
+  "/investments": { section: "Investissements", title: "Portefeuille boursier" },
   "/reports-teras": { section: "TERAS", title: "Conformité et risques" },
   "/assistants": { section: "Rédaction IA", title: "Studio rédactionnel" },
   "/declarations": { section: "Déclarations", title: "Obligations légales & fiscales" },
   "/settings": { section: "Paramètres", title: "Configuration" },
+  "/safe-mode": { section: "Système", title: "Sauvegarde & Restauration" },
   "/help": { section: "Support", title: "Centre d'aide" },
   "/activation": { section: "Compte", title: "Activation sécurisée" },
 };
@@ -281,14 +302,48 @@ export function Shell() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // Don't trigger shortcuts when typing in inputs / textareas
+      const tag = (event.target as HTMLElement)?.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (event.target as HTMLElement)?.isContentEditable;
+
+      // ⌘K / Ctrl+K — command palette
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setPaletteOpen(true);
+        return;
+      }
+
+      // Single-letter navigation shortcuts (only when not typing)
+      if (!isInput && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const shortcuts: Record<string, string> = {
+          "g": "/",              // G → Dashboard (go home)
+          "e": "/employees",     // E → Employés
+          "b": "/billing",       // B → Facturation
+          "p": "/pos",           // P → POS / Caisse
+          "i": "/inventory",     // I → Inventaire
+          "c": "/clients",       // C → Clients
+          "r": "/reports",       // R → Rapports
+          "t": "/transactions",  // T → Transactions
+          "w": "/work",          // W → Work/Tâches
+          "n": "/notes",         // N → Notes IA
+          "m": "/meetings",      // M → Meetings
+          "s": "/settings",      // S → Paramètres
+        };
+        const dest = shortcuts[event.key.toLowerCase()];
+        if (dest) {
+          event.preventDefault();
+          navigate(dest);
+        }
+        // ? → show shortcuts help (palette)
+        if (event.key === "?") {
+          event.preventDefault();
+          setPaletteOpen(true);
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [navigate]);
 
   const currentRoute = useMemo(
     () => routeLabels[location.pathname] ?? { section: "KOMPTA", title: "Espace local" },
@@ -584,10 +639,49 @@ export function Shell() {
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-5 md:px-6 md:py-7">
+        <main className="mx-auto w-full max-w-7xl px-4 py-5 pb-24 md:pb-7 md:px-6 md:py-7">
           <Outlet />
         </main>
       </div>
+
+      {/* ── Mobile bottom navigation bar ── */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2">
+        {[
+          { to: "/",           icon: LayoutDashboard, label: "Accueil"  },
+          { to: "/billing",    icon: ReceiptText,      label: "Factures" },
+          { to: "/pos",        icon: ShoppingCart,     label: "Caisse"   },
+          { to: "/chat",       icon: MessageSquare,    label: "Chat"     },
+          { to: "/settings",   icon: Settings,         label: "Params"   },
+        ].map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition text-xs font-semibold ${
+                isActive
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white"
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <span>{label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+        <button
+          onClick={() => setPaletteOpen(true)}
+          className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl text-xs font-semibold text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white transition"
+        >
+          <Search size={20} strokeWidth={2} />
+          <span>Recherche</span>
+        </button>
+      </nav>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <NotificationCenter

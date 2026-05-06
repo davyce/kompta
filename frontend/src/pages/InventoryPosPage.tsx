@@ -7,6 +7,7 @@ import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
 import { money } from "../utils/format";
+import { useCurrency } from "../contexts/CurrencyContext";
 import type { Product } from "../types/domain";
 
 const productForm = { name: "", sku: "", category: "General", price: 0, stock_quantity: 0, reorder_level: 5 };
@@ -20,6 +21,7 @@ type CartItem = {
 
 export function InventoryPosPage() {
   const queryClient = useQueryClient();
+  useCurrency();
   const products = useQuery({ queryKey: ["products"], queryFn: api.products });
   const [form, setForm] = useState(productForm);
   const [search, setSearch] = useState("");

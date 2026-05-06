@@ -10,6 +10,7 @@ import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
+import { shortDateTime } from "../utils/format";
 import type { Task } from "../types/domain";
 
 /* ── Constantes ─────────────────────────────────────────────────────────── */
@@ -23,10 +24,6 @@ const STATUS_COLOR: Record<string, string> = {
 const PRIORITY_LABEL: Record<string, string> = { high: "Haute", normal: "Normal", low: "Basse" };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
-function fmtDate(d: string | null) {
-  if (!d) return null;
-  return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
 
 function isOverdue(due: string | null, status: string) {
   if (!due || status === "done") return false;
@@ -68,7 +65,7 @@ export function WorkPage() {
   });
 
   /* ── Formulaire création ── */
-  const [taskForm, setTaskForm] = useState({ title: "", assignee_name: "", priority: "normal" });
+  const [taskForm, setTaskForm] = useState({ title: "", assignee_name: "", priority: "normal", due_date: "", due_time: "" });
   const [message, setMessage] = useState("");
 
   /* ── Filtres / recherche ── */
@@ -89,7 +86,7 @@ export function WorkPage() {
   const createTask = useMutation({
     mutationFn: api.createTask,
     onSuccess: () => {
-      setTaskForm({ title: "", assignee_name: "", priority: "normal" });
+      setTaskForm({ title: "", assignee_name: "", priority: "normal", due_date: "", due_time: "" });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
@@ -116,7 +113,11 @@ export function WorkPage() {
   function submitTask(e: FormEvent) {
     e.preventDefault();
     if (!taskForm.title.trim()) return;
-    createTask.mutate(taskForm);
+    createTask.mutate({
+      ...taskForm,
+      due_date: taskForm.due_date || null,
+      due_time: taskForm.due_time || null,
+    });
   }
 
   function submitMessage(e: FormEvent) {
@@ -254,7 +255,7 @@ export function WorkPage() {
                   <Clock3 size={14} className="shrink-0 text-stone-400" />
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Créée le</p>
-                    <p className="text-sm font-semibold text-[#17211f]">{fmtDate(selectedTask.created_at) ?? "—"}</p>
+                    <p className="text-sm font-semibold text-[#17211f]">{shortDateTime(selectedTask.created_at) ?? "—"}</p>
                   </div>
                 </div>
                 {selectedTask.due_date && (
@@ -267,7 +268,7 @@ export function WorkPage() {
                     <div>
                       <p className={`text-[10px] font-bold uppercase tracking-wide ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-400" : "text-stone-400"}`}>Échéance</p>
                       <p className={`text-sm font-semibold ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-700" : "text-[#17211f]"}`}>
-                        {fmtDate(selectedTask.due_date)}
+                        {shortDateTime(selectedTask.due_date, selectedTask.due_time)}
                       </p>
                     </div>
                   </div>
@@ -621,7 +622,7 @@ export function WorkPage() {
                           {task.due_date && (
                             <p className={`mt-1.5 flex items-center gap-1 text-[11px] font-semibold ${isOverdue(task.due_date, task.status) ? "text-red-500" : "text-stone-400"}`}>
                               <CalendarDays size={10} className="shrink-0" />
-                              {fmtDate(task.due_date)}
+                              {shortDateTime(task.due_date, task.due_time)}
                             </p>
                           )}
 
@@ -693,6 +694,35 @@ export function WorkPage() {
                   <option value="high">Haute</option>
                   <option value="low">Basse</option>
                 </SelectInput>
+
+                {/* Échéance + Heure */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Échéance</label>
+                    <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
+                      <CalendarDays size={13} className="shrink-0 text-stone-400" />
+                      <input
+                        type="date"
+                        value={taskForm.due_date}
+                        onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-[#17211f] outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Heure</label>
+                    <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
+                      <Clock3 size={13} className="shrink-0 text-stone-400" />
+                      <input
+                        type="time"
+                        value={taskForm.due_time}
+                        onChange={(e) => setTaskForm({ ...taskForm, due_time: e.target.value })}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-[#17211f] outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={createTask.isPending}
