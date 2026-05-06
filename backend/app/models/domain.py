@@ -346,6 +346,7 @@ class Task(TimestampMixin, Base):
     assignee_name: Mapped[str] = mapped_column(String(160), default="")
     source: Mapped[str] = mapped_column(String(100), default="manual")
     proof_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    proof_url: Mapped[str | None] = mapped_column(String(400), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 

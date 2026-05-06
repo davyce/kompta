@@ -437,6 +437,7 @@ class TaskRead(TaskCreate):
     assigned_to_me: bool = False
     can_update: bool = False
     can_delete: bool = False
+    proof_url: str | None = None
 
 
 class ChatChannelRead(BaseModel):

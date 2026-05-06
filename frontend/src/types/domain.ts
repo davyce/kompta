@@ -160,6 +160,7 @@ export type Task = {
   assignee_name: string;
   source: string;
   proof_required: boolean;
+  proof_url: string | null;
   created_at: string;
   updated_at: string;
   assigned_to_me: boolean;

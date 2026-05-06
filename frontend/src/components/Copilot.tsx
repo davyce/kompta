@@ -7,13 +7,13 @@
  * 5. Messages épinglés   11. Alertes proactives (badge FAB)
  * 6. Actions rapides     12. Multi-tour (historique injecté)
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  AlertTriangle, BarChart3, Bell, Check, CheckCircle2,
-  Clock3, Copy, Download, FileText, GitBranch, Maximize2, Minimize2,
-  Pin, PinOff, Plus, Send, ShieldCheck, Sparkles, TrendingUp, Wallet,
-  Wand2, X, ZoomIn,
+  AlertTriangle, BarChart3, Bell, CalendarDays, Check, CheckCircle2,
+  ChevronDown, Clock3, Copy, Download, FileText, GitBranch, ListTodo,
+  Maximize2, Minimize2, Pin, PinOff, Plus, Send, ShieldCheck, Sparkles,
+  Trash2, TrendingUp, User2, Wallet, Wand2, X, ZoomIn,
 } from "lucide-react";
 import { api, type LimuleChatHistoryItem, type LimuleSignal } from "../services/api";
 import { LimuleAvatar, LimuleIcon } from "./LimuleAvatar";
@@ -35,6 +35,17 @@ type Message = {
 };
 
 type ConvEntry = { role: "user" | "assistant"; content: string };
+
+type TaskDraft = {
+  msgId: string;
+  title: string;
+  description: string;
+  assignee_name: string;
+  priority: "low" | "normal" | "high";
+  due_date: string;
+  proof_required: boolean;
+  autoDetectedPriority: "low" | "normal" | "high";
+};
 
 /* ─── Message d'intro ─────────────────────────────────────────────────────── */
 function mkIntro(): Message {
@@ -98,6 +109,87 @@ const HEAVY_INTENTS = new Set(["prediction_economique", "conseil_investissement"
 function detectHeavy(text: string): boolean {
   const t = text.toLowerCase();
   return ["prévision", "investir", "secteur", "trésorerie", "risque", "analyse", "prédiction", "tendance"].some((w) => t.includes(w));
+}
+
+/* ─── Helpers tâche inline ────────────────────────────────────────────────── */
+/** Extrait un titre propre depuis un texte IA (première phrase, sans markdown, ≤80 chars) */
+/** Termes génériques à ignorer comme titre de tâche */
+const VAGUE_TITLE = /^(diagnostic|analyse|résumé|rapport|note|alerte|synthèse|bilan|revue|voici|ci-dessous|suite à|limule|bonjour|conclusion|recommandation|évaluation|aperçu)\b/i;
+
+/**
+ * Extrait un titre pertinent depuis un message IA :
+ * - ignore les en-têtes markdown et les phrases génériques
+ * - cherche la première ligne descriptive (≥ 10 chars, non vague)
+ * - sinon prend le premier point de liste, sinon la première phrase
+ */
+function extractTaskTitle(text: string): string {
+  const trim80 = (s: string) => s.length > 80 ? s.slice(0, 77) + "…" : s;
+
+  // Découpe en lignes, nettoie le markdown
+  const lines = text
+    .split("\n")
+    .map((l) =>
+      l
+        .replace(/^#{1,3}\s+/, "")          // titres markdown
+        .replace(/^[-•*]\s+/, "")           // puces
+        .replace(/\*\*(.*?)\*\*/g, "$1")    // gras
+        .replace(/[*_`>]/g, "")             // reste du markdown
+        .trim()
+    )
+    .filter((l) => l.length >= 10);         // trop courts → ignorés
+
+  // 1. Première ligne non-vague
+  const good = lines.find((l) => !VAGUE_TITLE.test(l));
+  if (good) return trim80(good.split(/[.!?]/)[0].trim() || good);
+
+  // 2. Fallback : première ligne disponible (même vague)
+  if (lines[0]) return trim80(lines[0].split(/[.!?]/)[0].trim() || lines[0]);
+
+  // 3. Dernier recours : brute force
+  const raw = text.replace(/[#*_`>]/g, "").trim();
+  return trim80(raw.split(/[.!?\n]/)[0].trim() || raw.slice(0, 80));
+}
+
+/**
+ * Génère une description structurée à partir du message IA :
+ * - extrait les points de liste (actions concrètes) en priorité
+ * - sinon prend le premier paragraphe non-générique
+ * - toujours court et actionnable (≤ 350 chars)
+ */
+function extractTaskDescription(text: string): string {
+  const stripMd = (s: string) =>
+    s.replace(/^#{1,3}\s+/, "").replace(/\*\*(.*?)\*\*/g, "$1").replace(/[*_`>]/g, "").trim();
+
+  // 1. Collecter les puces/listes numérotées
+  const bullets = text
+    .split("\n")
+    .filter((l) => /^(\s*[-•*]|\s*\d+\.)\s+/.test(l))
+    .map((l) => stripMd(l.replace(/^(\s*[-•*]|\s*\d+\.)\s+/, "")))
+    .filter((l) => l.length > 8)
+    .slice(0, 5);
+
+  if (bullets.length >= 2) {
+    return bullets.map((b) => `• ${b}`).join("\n").slice(0, 350);
+  }
+
+  // 2. Premier paragraphe significatif non-générique
+  const paras = text
+    .split(/\n{2,}/)
+    .map(stripMd)
+    .filter((p) => p.length > 20 && !VAGUE_TITLE.test(p));
+
+  if (paras.length) return paras[0].slice(0, 350);
+
+  // 3. Fallback brut
+  return stripMd(text).slice(0, 350);
+}
+
+/** Détecte la priorité à partir des mots-clés du message IA */
+function detectPriority(text: string): "low" | "normal" | "high" {
+  const t = text.toLowerCase();
+  if (/urgent|critique|immédiat|bloqu|alerte critique|risque élevé|en retard|prioritaire/.test(t)) return "high";
+  if (/important|surveillance|attention|vérifi|délai|rappel|suivi/.test(t)) return "normal";
+  return "normal";
 }
 
 /* ─── Markdown léger ─────────────────────────────────────────────────────── */
@@ -265,6 +357,9 @@ export function Copilot() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   /* ── Streaming (#1) ─────────────────────────────────────────────────────── */
   const [isStreaming, setIsStreaming] = useState(false);
@@ -280,15 +375,20 @@ export function Copilot() {
   /* ── Mode rapport (#10) ─────────────────────────────────────────────────── */
   const [reportMsg, setReportMsg] = useState<Message | null>(null);
 
-  /* ── Alertes proactives (#11) ───────────────────────────────────────────── */
-  const [alertBadge, setAlertBadge] = useState(0);
-  const alertSeenRef = useRef<Set<number>>(new Set());
-
   /* ── Indicateur durée (#4) ──────────────────────────────────────────────── */
   const [isHeavy, setIsHeavy] = useState(false);
 
   /* ── Mémoire semaine (#9) ───────────────────────────────────────────────── */
   const [weekSummary, setWeekSummary] = useState<string | null>(null);
+
+  /* ── Création de tâche inline ───────────────────────────────────────────── */
+  const [taskDraft, setTaskDraft] = useState<TaskDraft | null>(null);
+  const [taskEmployees, setTaskEmployees] = useState<{ name: string }[]>([]);
+  const [taskEmployeesLoaded, setTaskEmployeesLoaded] = useState(false);
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [taskCreated, setTaskCreated] = useState<{ id: number; title: string } | null>(null);
+  const [taskDescOpen, setTaskDescOpen] = useState(false);
+  const [taskDescEditing, setTaskDescEditing] = useState(false);
 
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -298,35 +398,7 @@ export function Copilot() {
     api.aiStatus().then(setAiStatus).catch(() => setAiStatus(null));
   }, []);
 
-  /* ── Alertes proactives — polling toutes les 90s (#11) ─────────────────── */
-  useEffect(() => {
-    function checkAlerts() {
-      api.terasAlerts().then((alerts) => {
-        const openCritical = alerts.filter((a) => a.status === "open" && (a.severity === "critical" || a.severity === "high"));
-        const newCount = openCritical.filter((a) => !alertSeenRef.current.has(a.id)).length;
-        if (newCount > 0) setAlertBadge((c) => c + newCount);
-      }).catch(() => undefined);
-    }
-    checkAlerts();
-    const timer = setInterval(checkAlerts, 90_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  /* ── Injecter alertes en message à l'ouverture (#11) ───────────────────── */
-  useEffect(() => {
-    if (!open || alertBadge === 0) return;
-    setAlertBadge(0);
-    api.terasAlerts().then((alerts) => {
-      const openCritical = alerts.filter((a) => a.status === "open" && (a.severity === "critical" || a.severity === "high"));
-      const unseen = openCritical.filter((a) => !alertSeenRef.current.has(a.id)).slice(0, 3);
-      if (!unseen.length) return;
-      unseen.forEach((a) => alertSeenRef.current.add(a.id));
-      const text = `⚡ **${unseen.length} alerte${unseen.length > 1 ? "s" : ""} TERAS critique${unseen.length > 1 ? "s" : ""} détectée${unseen.length > 1 ? "s" : ""} :**\n\n` +
-        unseen.map((a) => `- **[${a.severity.toUpperCase()}]** ${a.title} — ${a.recommendation ?? ""}`).join("\n") +
-        "\n\nSouhaitez-vous un plan d'action correctif ?";
-      setMessages((c) => [...c, { id: uid(), author: "ai", text, intent: "risk_analysis", signals: unseen.map((a) => ({ type: "alert", label: a.title, severity: a.severity, module: a.module })) }]);
-    }).catch(() => undefined);
-  }, [open, alertBadge]);
+  /* Alertes proactives désactivées — l'utilisateur consulte TERAS depuis la page dédiée */
 
   /* ── Historique ─────────────────────────────────────────────────────────── */
   async function loadHistory() {
@@ -350,9 +422,55 @@ export function Copilot() {
       .finally(() => { setHistoryLoaded(true); setHistoryLoading(false); });
   }
 
+  async function deleteInteraction(id: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    await api.limuleDeleteInteraction(id).catch(() => undefined);
+    setHistoryItems((c) => c.filter((it) => it.id !== id));
+  }
+
+  async function clearHistory() {
+    await api.limuleClearHistory().catch(() => undefined);
+    setHistoryItems([]);
+    setWeekSummary(null);
+    setClearConfirm(false);
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelection(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function deleteSelected() {
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map((id) => api.limuleDeleteInteraction(id).catch(() => undefined)));
+    setHistoryItems((c) => c.filter((it) => !selectedIds.has(it.id)));
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
   useEffect(() => { if (open && !historyLoaded) void loadHistory(); }, [open, historyLoaded]);
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages, isStreaming, open]);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 80); }, [open]);
+
+  /* Préchargement des employés dès l'ouverture — évite la race condition */
+  useEffect(() => {
+    if (open && !taskEmployeesLoaded) {
+      api.employees()
+        .then((emps) => setTaskEmployees(emps.map((e) => ({ name: `${e.first_name} ${e.last_name}`.trim() }))))
+        .catch(() => undefined)
+        .finally(() => setTaskEmployeesLoaded(true));
+    }
+  }, [open, taskEmployeesLoaded]);
 
   /* ── Escape ─────────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -456,13 +574,47 @@ export function Copilot() {
 
   /* ── Quick actions (#6) ─────────────────────────────────────────────────── */
   function actionTask(msg: Message) {
-    navigate("/work", { state: { prefill: msg.text.slice(0, 120) } });
-    setOpen(false);
+    const title = extractTaskTitle(msg.text);
+    const pri = detectPriority(msg.text);
+    const description = extractTaskDescription(msg.text);
+    setTaskDraft({
+      msgId: msg.id,
+      title,
+      description,
+      assignee_name: "",
+      priority: pri,
+      due_date: "",
+      proof_required: false,
+      autoDetectedPriority: pri,
+    });
+    setTaskCreated(null);
+    setTaskDescOpen(true);
+    setTaskDescEditing(false);
   }
   function actionAssistant(msg: Message) {
     navigate("/assistants", { state: { prefill: msg.text.slice(0, 600) } });
     setOpen(false);
   }
+
+  async function saveTask() {
+    if (!taskDraft || taskSaving) return;
+    setTaskSaving(true);
+    try {
+      const task = await api.createTask({
+        title: taskDraft.title,
+        description: taskDraft.description || undefined,
+        assignee_name: taskDraft.assignee_name || undefined,
+        priority: taskDraft.priority,
+        due_date: taskDraft.due_date || null,
+        source: "limule",
+        proof_required: taskDraft.proof_required,
+        status: "todo",
+      });
+      setTaskCreated({ id: task.id, title: task.title });
+    } catch { /* ignore */ }
+    finally { setTaskSaving(false); }
+  }
+
   function actionExport(msg: Message) {
     const blob = new Blob([msg.text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -556,7 +708,7 @@ export function Copilot() {
             <button type="button" onClick={startNewChat} className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2 py-1 text-[11px] font-bold text-[#17211f] hover:bg-violet-50 hover:text-violet-700 transition dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10">
               <Plus size={11} /> Nouveau
             </button>
-            <button type="button" onClick={() => { setShowHistory((v) => !v); if (!historyLoaded) void loadHistory(); }} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${showHistory ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200" : "border-black/[0.06] text-[#17211f] hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10"}`}>
+            <button type="button" onClick={() => { setShowHistory((v) => !v); if (!historyLoaded) void loadHistory(); exitSelectionMode(); }} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${showHistory ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200" : "border-black/[0.06] text-[#17211f] hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10"}`}>
               <Clock3 size={11} /> Historique{historyItems.length ? ` (${historyItems.length})` : ""}
             </button>
             {pinnedMsgs.length > 0 && (
@@ -581,23 +733,85 @@ export function Copilot() {
           {/* ── Panneau Historique (remplace le flux de messages) ─────── */}
           {showHistory && (
             <div className="flex flex-1 flex-col overflow-hidden bg-[#f8f8fb] dark:bg-[#171a21]">
-              {/* Barre de recherche */}
+              {/* Barre de recherche + actions */}
               <div className="shrink-0 border-b border-black/[0.05] bg-white px-3 py-2 dark:border-white/10 dark:bg-[#1e2229]">
-                <div className="flex items-center gap-2 rounded-lg border border-black/[0.07] bg-[#f8f8fb] px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5">
-                  <Clock3 size={12} className="shrink-0 text-stone-400" />
-                  <input
-                    autoFocus
-                    value={historySearch}
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder="Rechercher dans l'historique…"
-                    className="min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white placeholder:text-stone-400"
-                  />
-                  {historySearch && (
-                    <button onClick={() => setHistorySearch("")} className="text-stone-400 hover:text-stone-600 dark:hover:text-white">
-                      <X size={12} />
+                {/* Ligne recherche */}
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-1 items-center gap-2 rounded-lg border border-black/[0.07] bg-[#f8f8fb] px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5">
+                    <Clock3 size={12} className="shrink-0 text-stone-400" />
+                    <input
+                      autoFocus={!selectionMode}
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      placeholder="Rechercher dans l'historique…"
+                      className="min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white placeholder:text-stone-400"
+                    />
+                    {historySearch && (
+                      <button onClick={() => setHistorySearch("")} className="text-stone-400 hover:text-stone-600 dark:hover:text-white">
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {/* Bouton Sélectionner / Terminer */}
+                  {historyItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+                      className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                        selectionMode
+                          ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-300"
+                          : "border-black/[0.06] text-stone-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-stone-400 dark:hover:bg-violet-500/10"
+                      }`}
+                    >
+                      {selectionMode ? "Terminer" : "Sélectionner"}
                     </button>
                   )}
                 </div>
+
+                {/* Ligne actions contextuelles */}
+                {historyItems.length > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                    {selectionMode ? (
+                      /* Mode sélection : tout sélect / désélect + confirmation suppression */
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const visible = [...historyItems].reverse();
+                            const allSelected = visible.every((it) => selectedIds.has(it.id));
+                            if (allSelected) setSelectedIds(new Set());
+                            else setSelectedIds(new Set(visible.map((it) => it.id)));
+                          }}
+                          className="text-[11px] font-semibold text-violet-600 hover:underline dark:text-violet-400"
+                        >
+                          {[...historyItems].every((it) => selectedIds.has(it.id)) ? "Désélectionner tout" : "Tout sélectionner"}
+                        </button>
+                        {selectedIds.size > 0 && (
+                          <>
+                            <span className="text-stone-300 dark:text-stone-600">·</span>
+                            <span className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+                              {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : clearConfirm ? (
+                      <div className="flex w-full items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 dark:border-red-500/20 dark:bg-red-500/10">
+                        <p className="flex-1 text-[11px] font-semibold text-red-700 dark:text-red-300">Effacer tout l'historique ?</p>
+                        <button onClick={clearHistory} className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-700 transition">Confirmer</button>
+                        <button onClick={() => setClearConfirm(false)} className="rounded-md px-2 py-1 text-[11px] font-bold text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10 transition">Annuler</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setClearConfirm(true)}
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-stone-400 hover:bg-red-50 hover:text-red-600 transition dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                      >
+                        <Trash2 size={11} /> Tout effacer
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Liste */}
@@ -638,36 +852,68 @@ export function Copilot() {
                             {group.items.map((item) => {
                               const intentLabel = INTENT_LABELS[item.intent] ?? item.intent;
                               const intentCls = INTENT_COLORS[item.intent] ?? INTENT_COLORS.question;
+                              const isSelected = selectedIds.has(item.id);
                               return (
-                                <button
+                                <div
                                   key={item.id}
-                                  type="button"
-                                  onClick={() => openHistoryItem(item)}
-                                  className="group block w-full rounded-xl border border-black/[0.05] bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-violet-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-violet-500/40 dark:hover:bg-violet-500/5"
+                                  className={`group relative flex items-stretch gap-0 rounded-xl border shadow-sm transition ${
+                                    isSelected
+                                      ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-500/10"
+                                      : "border-black/[0.05] bg-white dark:border-white/10 dark:bg-white/[0.04]"
+                                  } ${selectionMode ? "cursor-pointer" : ""}`}
+                                  onClick={() => selectionMode ? toggleSelection(item.id) : openHistoryItem(item)}
                                 >
-                                  {/* Ligne supérieure : intent + heure + module */}
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${intentCls}`}>
-                                      {intentLabel}
-                                    </span>
-                                    {item.module && item.module !== "global" && (
-                                      <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 dark:bg-white/10 dark:text-stone-400">
-                                        {item.module}
+                                  {/* Checkbox (mode sélection) */}
+                                  {selectionMode && (
+                                    <div className="flex shrink-0 items-center pl-3 pr-1">
+                                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 transition ${
+                                        isSelected
+                                          ? "border-violet-500 bg-violet-500"
+                                          : "border-stone-300 dark:border-stone-600"
+                                      }`}>
+                                        {isSelected && <Check size={9} className="text-white" strokeWidth={3} />}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Contenu de la carte */}
+                                  <div className={`min-w-0 flex-1 px-3.5 py-3 ${selectionMode ? "pl-2" : ""}`}>
+                                    {/* Ligne supérieure : intent + heure + module + corbeille */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${intentCls}`}>
+                                        {intentLabel}
                                       </span>
-                                    )}
-                                    <span className="ml-auto text-[10px] text-stone-300 dark:text-stone-600">
-                                      {msgTime(item.created_at)}
-                                    </span>
+                                      {item.module && item.module !== "global" && (
+                                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 dark:bg-white/10 dark:text-stone-400">
+                                          {item.module}
+                                        </span>
+                                      )}
+                                      <span className="ml-auto text-[10px] text-stone-300 dark:text-stone-600">
+                                        {msgTime(item.created_at)}
+                                      </span>
+                                      {/* Corbeille unitaire (hors mode sélection) */}
+                                      {!selectionMode && (
+                                        <button
+                                          onClick={(e) => deleteInteraction(item.id, e)}
+                                          title="Supprimer cet échange"
+                                          className="ml-1 grid h-5 w-5 place-items-center rounded-md text-stone-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      )}
+                                    </div>
+                                    {/* Prompt */}
+                                    <p className={`mt-1.5 line-clamp-2 text-xs font-semibold leading-snug transition ${
+                                      isSelected ? "text-violet-700 dark:text-violet-300" : "text-[#17211f] dark:text-white group-hover:text-violet-700 dark:group-hover:text-violet-300"
+                                    }`}>
+                                      {item.prompt}
+                                    </p>
+                                    {/* Réponse preview */}
+                                    <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-stone-400">
+                                      {item.response.replace(/[#*_`]/g, "").slice(0, 140)}
+                                    </p>
                                   </div>
-                                  {/* Prompt */}
-                                  <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-snug text-[#17211f] dark:text-white group-hover:text-violet-700 dark:group-hover:text-violet-300 transition">
-                                    {item.prompt}
-                                  </p>
-                                  {/* Réponse preview */}
-                                  <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-stone-400">
-                                    {item.response.replace(/[#*_`]/g, "").slice(0, 140)}
-                                  </p>
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -677,6 +923,20 @@ export function Copilot() {
                   );
                 })()}
               </div>
+
+              {/* Barre d'action sélection (sticky bas) */}
+              {selectionMode && selectedIds.size > 0 && (
+                <div className="shrink-0 border-t border-black/[0.05] bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#1e2229]">
+                  <button
+                    type="button"
+                    onClick={deleteSelected}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700"
+                  >
+                    <Trash2 size={14} />
+                    Supprimer {selectedIds.size} échange{selectedIds.size > 1 ? "s" : ""}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -698,8 +958,252 @@ export function Copilot() {
             </div>
           )}
 
-          {/* ── Messages (masqués quand historique actif) ───────────────── */}
-          {!showHistory && (
+          {/* ── Compositeur de tâche inline ──────────────────────────────── */}
+          {!showHistory && taskDraft && (
+            <div className="flex flex-1 flex-col overflow-hidden bg-[#f8f8fb] dark:bg-[#171a21]">
+              {/* Header */}
+              <div className="shrink-0 flex items-center gap-2.5 border-b border-black/[0.05] bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1e2229]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                  <ListTodo size={14} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-black text-[#17211f] dark:text-white">Créer une tâche</p>
+                  <p className="text-[10px] text-stone-400">Pré-rempli depuis la réponse de Limule</p>
+                </div>
+                <button onClick={() => setTaskDraft(null)} className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition dark:hover:bg-white/10" title="Fermer">
+                  <X size={14} />
+                </button>
+              </div>
+
+              {taskCreated ? (
+                /* ── État succès ── */
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+                    <CheckCircle2 size={36} className="text-emerald-500" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-black text-[#17211f] dark:text-white">Tâche créée !</p>
+                    <p className="mt-1 max-w-[220px] text-sm text-stone-500 dark:text-stone-400 line-clamp-2">
+                      « {taskCreated.title} »
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { navigate("/work"); setOpen(false); setTaskDraft(null); }}
+                      className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      <ListTodo size={14} /> Voir la tâche
+                    </button>
+                    <button
+                      onClick={() => setTaskDraft(null)}
+                      className="rounded-xl border border-black/[0.06] px-4 py-2.5 text-sm font-bold text-[#17211f] transition hover:bg-stone-50 dark:border-white/10 dark:text-white dark:hover:bg-white/5"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Formulaire ── */
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+                  {/* Titre */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Titre *</label>
+                    <input
+                      autoFocus
+                      value={taskDraft.title}
+                      onChange={(e) => setTaskDraft({ ...taskDraft, title: e.target.value })}
+                      placeholder="Titre de la tâche…"
+                      className="w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm font-semibold text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Priorité */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">Priorité</span>
+                      {taskDraft.priority === taskDraft.autoDetectedPriority && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
+                          <Sparkles size={9} /> Détecté par IA
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {(["low", "normal", "high"] as const).map((p) => {
+                        const labels = { low: "Faible", normal: "Normal", high: "Haute" };
+                        const activeCls = {
+                          low: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-300",
+                          normal: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300",
+                          high: "border-red-300 bg-red-50 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-300",
+                        };
+                        const inactiveCls = "border-black/[0.06] bg-white text-stone-500 hover:bg-stone-50 dark:border-white/10 dark:bg-white/5 dark:text-stone-400";
+                        const isActive = taskDraft.priority === p;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setTaskDraft({ ...taskDraft, priority: p })}
+                            className={`flex-1 rounded-xl border py-2.5 text-[11px] font-bold transition ${isActive ? activeCls[p] : inactiveCls}`}
+                          >
+                            {labels[p]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Responsable */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <label className="text-[11px] font-bold uppercase tracking-wide text-stone-400">Responsable</label>
+                      {!taskEmployeesLoaded && (
+                        <span className="flex items-center gap-1 text-[10px] text-stone-400">
+                          <div className="h-2.5 w-2.5 animate-spin rounded-full border border-stone-300 border-t-stone-500" />
+                          Chargement…
+                        </span>
+                      )}
+                      {taskEmployeesLoaded && taskEmployees.length === 0 && (
+                        <span className="text-[10px] text-amber-500">Aucun employé trouvé</span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <User2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                      <select
+                        value={taskDraft.assignee_name}
+                        onChange={(e) => setTaskDraft({ ...taskDraft, assignee_name: e.target.value })}
+                        disabled={!taskEmployeesLoaded}
+                        className="w-full appearance-none rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-3 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      >
+                        <option value="">— Non assigné —</option>
+                        {taskEmployees.map((emp) => (
+                          <option key={emp.name} value={emp.name}>{emp.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Date d'échéance */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Échéance</label>
+                    <div className="relative">
+                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                      <input
+                        type="date"
+                        value={taskDraft.due_date}
+                        onChange={(e) => setTaskDraft({ ...taskDraft, due_date: e.target.value })}
+                        className="w-full rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-3 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description (collapsible — lecture + édition) */}
+                  <div>
+                    {/* En-tête */}
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setTaskDescOpen((v) => !v); if (taskDescOpen) setTaskDescEditing(false); }}
+                        className="flex flex-1 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400 hover:text-stone-600 transition"
+                      >
+                        <span className="flex-1 text-left">Description</span>
+                        <ChevronDown size={11} className={`transition-transform ${taskDescOpen ? "" : "-rotate-180"}`} />
+                      </button>
+                      {taskDescOpen && (
+                        taskDescEditing ? (
+                          <button
+                            type="button"
+                            onClick={() => setTaskDescEditing(false)}
+                            className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 transition dark:bg-emerald-500/10 dark:text-emerald-400"
+                          >
+                            ✓ Terminé
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setTaskDescEditing(true)}
+                            className="shrink-0 rounded-md border border-black/[0.06] px-2 py-0.5 text-[10px] font-semibold text-stone-400 hover:border-stone-300 hover:text-stone-600 transition dark:border-white/10 dark:hover:text-white"
+                          >
+                            Modifier
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    {/* Corps */}
+                    {taskDescOpen && (
+                      taskDescEditing ? (
+                        <textarea
+                          autoFocus
+                          value={taskDraft.description}
+                          onChange={(e) => setTaskDraft({ ...taskDraft, description: e.target.value })}
+                          rows={5}
+                          placeholder="Description optionnelle…"
+                          className="w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-xs text-[#17211f] outline-none transition resize-none dark:border-emerald-500/40 dark:bg-white/5 dark:text-white"
+                        />
+                      ) : (
+                        /* Vue lecture */
+                        <div className="rounded-xl border border-black/[0.06] bg-stone-50 px-3.5 py-3 dark:border-white/10 dark:bg-white/[0.03]">
+                          {taskDraft.description ? (
+                            <div className="space-y-1.5">
+                              {taskDraft.description.split("\n").map((line, i) =>
+                                line.startsWith("•") ? (
+                                  <div key={i} className="flex items-start gap-2">
+                                    <span className="mt-0.5 shrink-0 text-[9px] text-emerald-500">▸</span>
+                                    <span className="text-xs leading-snug text-[#17211f] dark:text-stone-200">{line.slice(1).trim()}</span>
+                                  </div>
+                                ) : line.trim() ? (
+                                  <p key={i} className="text-xs leading-snug text-[#17211f] dark:text-stone-200">{line}</p>
+                                ) : null
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs italic text-stone-400">Aucune description — cliquez sur « Modifier » pour en ajouter une.</p>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {/* Preuve requise */}
+                  <div className="flex items-center justify-between rounded-xl border border-black/[0.05] bg-white px-3.5 py-3 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div>
+                      <p className="text-xs font-bold text-[#17211f] dark:text-white">Preuve requise</p>
+                      <p className="text-[10px] text-stone-400">Le responsable doit joindre un justificatif</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTaskDraft({ ...taskDraft, proof_required: !taskDraft.proof_required })}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${taskDraft.proof_required ? "bg-emerald-500" : "bg-stone-200 dark:bg-white/20"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${taskDraft.proof_required ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bouton Créer */}
+              {!taskCreated && (
+                <div className="shrink-0 border-t border-black/[0.05] px-4 py-3 dark:border-white/10">
+                  <button
+                    type="button"
+                    disabled={!taskDraft.title.trim() || taskSaving}
+                    onClick={saveTask}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-40"
+                  >
+                    {taskSaving ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <CheckCircle2 size={15} />
+                    )}
+                    {taskSaving ? "Création en cours…" : "Créer la tâche"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Messages (masqués quand historique ou compositeur actif) ─── */}
+          {!showHistory && !taskDraft && (
           <div className="flex-1 space-y-3 overflow-y-auto bg-[#fbfbfd] p-4 dark:bg-[#171a21]">
             {messages.map((msg, idx) => (
               <div key={msg.id}>
@@ -829,10 +1333,10 @@ export function Copilot() {
             )}
             <div ref={endRef} />
           </div>
-          )} {/* fin !showHistory */}
+          )} {/* fin !showHistory && !taskDraft */}
 
-          {/* ── Suggestions contextuelles (#3) — masquées pendant historique */}
-          {!showHistory && (
+          {/* ── Suggestions contextuelles (#3) — masquées pendant historique / compositeur */}
+          {!showHistory && !taskDraft && (
           <div className="shrink-0 flex flex-wrap gap-1 border-t border-black/[0.05] bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#1e2229]">
             {suggestions.slice(0, fullscreen ? 6 : 3).map((s) => (
               <button key={s.label} onClick={() => send(s.label)} disabled={isStreaming} className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10">
@@ -841,10 +1345,10 @@ export function Copilot() {
               </button>
             ))}
           </div>
-          )} {/* fin !showHistory suggestions */}
+          )} {/* fin !showHistory && !taskDraft suggestions */}
 
           {/* ── Indicateur branchement actif ────────────────────────────── */}
-          {branchAnchorId && (
+          {branchAnchorId && !taskDraft && (
             <div className="shrink-0 flex items-center gap-2 border-t border-indigo-100 bg-indigo-50 px-3 py-1.5 dark:border-indigo-500/20 dark:bg-indigo-500/10">
               <GitBranch size={11} className="shrink-0 text-indigo-500" />
               <p className="flex-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">

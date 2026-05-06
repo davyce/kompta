@@ -291,24 +291,39 @@ export function AccountingFinancePage() {
             <h3 className="font-bold text-[#17211f] dark:text-white">Structure des dépenses</h3>
             <p className="text-xs text-[#717182]">Par poste</p>
           </div>
-          <div className="flex-1 h-48 px-2 pt-2">
+          <div className="flex items-center justify-center" style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={expensesChart} dataKey="v" innerRadius={48} outerRadius={76} paddingAngle={3} strokeWidth={0}>
-                  {expensesChart.map((e, i) => <Cell key={i} fill={e.c}/>)}
+              <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                <Pie
+                  data={expensesChart}
+                  dataKey="v"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={82}
+                  paddingAngle={2}
+                  strokeWidth={0}
+                >
+                  {expensesChart.map((e, i) => <Cell key={i} fill={e.c} />)}
                 </Pie>
-                <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(v) => [`${v}%`]}/>
+                <Tooltip
+                  contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
+                  formatter={(v, name) => [`${v}%`, name]}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2 px-5 pb-5 pt-1">
+          <div className="space-y-2 px-5 pb-5 pt-2">
             {expensesChart.map((e) => (
-              <div key={e.name} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: e.c }}/>
-                  <span className="text-[#17211f] dark:text-white">{e.name}</span>
+              <div key={e.name} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: e.c }} />
+                <span className="flex-1 text-sm text-[#17211f] dark:text-white">{e.name}</span>
+                <span
+                  className="min-w-[36px] rounded-full px-2 py-0.5 text-center text-[11px] font-bold"
+                  style={{ background: e.c + "22", color: e.c }}
+                >
+                  {e.v}%
                 </span>
-                <span className="font-semibold text-[#717182]">{e.v}%</span>
               </div>
             ))}
           </div>

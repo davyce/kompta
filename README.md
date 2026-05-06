@@ -1,8 +1,8 @@
-# KOMPTA — Gestion d'entreprise locale
+# KOMPTA — Plateforme de gestion d'entreprise intelligente
 
-> Application de gestion tout-en-un pour PME de la zone CEMACE (XAF) avec référentiel SYSCEMAC.
-> Stack : **FastAPI 0.111** + **SQLite** · **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**.
-> IA intégrée via **Limule** (DeepSeek `deepseek-chat`) avec streaming SSE.
+> Solution de gestion tout-en-un pour PME de la zone CEMAC (XAF) avec référentiel SYSCEMAC.
+> Stack : **FastAPI** + **SQLite** · **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**.
+> IA intégrée via **Limule** (DeepSeek `deepseek-chat`) avec streaming SSE temps réel.
 > Conformité réglementaire via **TERAS Connect** (moteur local + connecteur API).
 
 ---
@@ -23,6 +23,8 @@
 12. [Onboarding](#onboarding)
 13. [Déploiement](#déploiement)
 14. [Comptes de test](#comptes-de-test)
+15. [Changelog](#changelog)
+16. [Licence](#licence)
 
 ---
 
@@ -30,20 +32,21 @@
 
 | Domaine | Détail |
 |---|---|
-| **RH** | Fiches employés, contrats IA, organigramme, présences, congés |
+| **Tableau de bord** | KPIs temps réel, graphiques, rafraîchissement auto 30 s, résumé IA |
+| **RH & Employés** | Fiches, contrats IA, organigramme, présences, congés, profil détaillé |
 | **Paie** | Bulletins de salaire, calcul net/brut, anomalies, export PDF |
 | **Facturation** | Devis, factures, avoirs, suivi paiements, export PDF |
 | **Inventaire** | Produits, stock temps réel, alertes seuil bas, mouvements |
 | **POS** | Caisse enregistreuse, ventes, tickets, export CSV |
 | **Documents** | Upload, classification IA, analyse, rattachement employé |
 | **Agenda** | Réunions, ordre du jour, participants, liens visio |
-| **Tâches** | Kanban board, priorités, affectation équipe |
-| **Déclarations** | Assistance IA déclarations fiscales/sociales CEMACE |
-| **TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA |
-| **Limule (IA)** | Assistant conversationnel streaming, rédaction, analyse |
-| **Paramètres** | Profil entreprise, utilisateurs, RBAC, journal d'audit |
-| **Réinitialisation mdp** | Flux token en mode local (sans email) |
-| **Tableau de bord** | KPIs temps réel, rafraîchissement auto 30 s |
+| **Tâches** | Kanban board, filtres, recherche, upload de preuves (image/vidéo/PDF) |
+| **Déclarations** | Assistance IA déclarations fiscales/sociales CEMAC |
+| **TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA, module activable |
+| **Limule (IA)** | Assistant conversationnel streaming, création de tâches, historique multi-tour |
+| **Rédaction IA** | Emails, courriers, contrats, clauses assistés par Limule |
+| **Rapports** | Hub analytique centralisé, export PDF/CSV |
+| **Paramètres** | Profil entreprise, utilisateurs, RBAC, modules, journal d'audit |
 
 ---
 
@@ -51,64 +54,66 @@
 
 ```
 kompta/
-├── backend/                    # API FastAPI
+├── backend/                        # API FastAPI
 │   ├── app/
-│   │   ├── main.py             # Point d'entrée, CORS, routers
-│   │   ├── config.py           # Settings (pydantic-settings)
+│   │   ├── main.py                 # Point d'entrée, CORS, routers
+│   │   ├── config.py               # Settings (pydantic-settings)
 │   │   ├── models/
-│   │   │   └── domain.py       # Tous les modèles SQLAlchemy
+│   │   │   └── domain.py           # Tous les modèles SQLAlchemy
 │   │   ├── schemas/
-│   │   │   └── domain.py       # Schémas Pydantic (Read/Create/Update)
+│   │   │   └── domain.py           # Schémas Pydantic (Read/Create/Update)
 │   │   ├── db/
-│   │   │   ├── session.py      # Engine SQLite + SessionLocal
-│   │   │   └── init_db.py      # Seed + migrations SQLite
+│   │   │   ├── session.py          # Engine SQLite + SessionLocal
+│   │   │   └── init_db.py          # Seed + migrations SQLite automatiques
 │   │   ├── api/
-│   │   │   ├── routes_auth.py      # /auth/*
-│   │   │   ├── routes_company.py   # /company/*
-│   │   │   ├── routes_employees.py # /employees/*
-│   │   │   ├── routes_payroll.py   # /payroll/*
-│   │   │   ├── routes_invoices.py  # /invoices/*
-│   │   │   ├── routes_inventory.py # /inventory/*
-│   │   │   ├── routes_pos.py       # /pos/*
-│   │   │   ├── routes_documents.py # /documents/*
-│   │   │   ├── routes_extra.py     # meetings, tasks, declarations, teras, chat
-│   │   │   └── routes_features.py  # reset mdp, ai health, export PDF/CSV, audit
-│   │   └── core/
-│   │       ├── security.py     # JWT, hash, RBAC
-│   │       └── limule.py       # Streaming DeepSeek + fallback mock
+│   │   │   ├── routes.py           # Routes principales (auth, RH, paie, etc.)
+│   │   │   └── routes_extra.py     # Tâches, Limule, TERAS, chat, réunions
+│   │   └── services/
+│   │       ├── deepseek.py         # Streaming LLM (DeepSeek)
+│   │       ├── teras.py            # Moteur conformité TERAS
+│   │       └── documents.py        # Upload & analyse documents IA
+│   ├── storage/                    # Fichiers uploadés (gitignored)
+│   │   ├── task_proofs/            # Preuves de tâches (image/vidéo/PDF)
+│   │   └── products/               # Images produits
 │   ├── requirements.txt
 │   └── .env.example
 │
-└── frontend/                   # SPA React 18
+└── frontend/                       # SPA React 18
     ├── src/
     │   ├── app/
-    │   │   ├── Shell.tsx        # Layout principal + LimuleStatus
-    │   │   └── routes.tsx       # React Router v6
+    │   │   ├── Shell.tsx            # Layout principal + navigation + LimuleStatus
+    │   │   ├── AuthContext.tsx       # Contexte auth JWT
+    │   │   └── routes.tsx           # React Router v6
     │   ├── components/
-    │   │   ├── OnboardingWizard.tsx  # 8 étapes tutoriel novice
-    │   │   ├── Charts.tsx       # LineAreaChart, ScoreRing, BarChart
-    │   │   ├── Panel.tsx        # Carte avec titre/action
-    │   │   └── StatusBadge.tsx  # Badge coloré
+    │   │   ├── Copilot.tsx          # Limule — assistant IA flottant (12 fonctionnalités)
+    │   │   ├── LimuleAvatar.tsx     # Avatar animé Limule
+    │   │   ├── OnboardingWizard.tsx # 8 étapes tutoriel novice
+    │   │   ├── Charts.tsx           # LineAreaChart, ScoreRing, BarChart
+    │   │   ├── Panel.tsx            # Carte avec titre/action
+    │   │   ├── FormField.tsx        # Inputs, Select, TextArea
+    │   │   └── StatusBadge.tsx      # Badge coloré
     │   ├── pages/
-    │   │   ├── DashboardPage.tsx
+    │   │   ├── DashboardPage.tsx    # KPIs, graphiques, résumé IA
     │   │   ├── EmployeesPage.tsx
-    │   │   ├── EmployeeProfilePage.tsx  # Fiche détaillée
+    │   │   ├── EmployeeProfilePage.tsx
     │   │   ├── PayrollPage.tsx
     │   │   ├── InvoicesPage.tsx
     │   │   ├── InventoryPage.tsx
     │   │   ├── PosPage.tsx
     │   │   ├── DocumentsPage.tsx
     │   │   ├── CalendarPage.tsx
-    │   │   ├── TasksPage.tsx
+    │   │   ├── WorkPage.tsx         # Tâches Kanban + upload preuves
     │   │   ├── DeclarationsPage.tsx
-    │   │   ├── ReportsTerasPage.tsx
-    │   │   ├── SettingsPage.tsx  # + Journal d'audit
-    │   │   ├── LimulePage.tsx
-    │   │   └── LoginPage.tsx    # + Reset mot de passe
+    │   │   ├── AccountingFinancePage.tsx
+    │   │   ├── ReportsHubPage.tsx   # Hub d'analyses
+    │   │   ├── ReportsTerasPage.tsx # TERAS Connect
+    │   │   ├── AssistantsPage.tsx   # Rédaction IA
+    │   │   ├── SettingsPage.tsx     # Paramètres + modules + audit
+    │   │   └── LoginPage.tsx
     │   ├── services/
-    │   │   └── api.ts           # Client HTTP centralisé (fetch)
+    │   │   └── api.ts               # Client HTTP centralisé (fetch + FormData)
     │   └── utils/
-    │       └── format.ts        # money, shortDate, percent…
+    │       └── format.ts            # money, shortDate, percent…
     ├── package.json
     └── .env.example
 ```
@@ -124,7 +129,7 @@ kompta/
 | npm | 9+ |
 | Git | 2.x |
 
-> Aucune base de données externe requise — SQLite est embarqué.
+> Aucune base de données externe requise — SQLite est embarqué et migre automatiquement.
 
 ---
 
@@ -133,7 +138,7 @@ kompta/
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/<votre-org>/kompta.git
+git clone https://github.com/davyce/kompta.git
 cd kompta
 ```
 
@@ -163,7 +168,7 @@ cp .env.example .env
 
 ```dotenv
 # ── JWT ─────────────────────────────────────────────────────
-SECRET_KEY=changeme_32_chars_min          # clé HMAC-SHA256 (générer avec openssl rand -hex 32)
+SECRET_KEY=changeme_32_chars_min          # clé HMAC-SHA256 (openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=1440          # 24 h
 
 # ── IA / Limule ──────────────────────────────────────────────
@@ -171,13 +176,8 @@ DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx      # https://platform.deepseek.com
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 
-# ── TERAS (optionnel — mock si absent) ───────────────────────
+# ── TERAS (optionnel — moteur local si absent) ────────────────
 TERAS_API_KEY=
-
-# ── Autres intégrations (optionnels) ─────────────────────────
-OPENAI_API_KEY=
-ZOLA_API_KEY=
-SMS_PROVIDER_API_KEY=
 
 # ── App ──────────────────────────────────────────────────────
 APP_ENV=development                       # development | production
@@ -221,13 +221,6 @@ npm run dev
 | Swagger UI | http://127.0.0.1:8010/docs |
 | Health check | http://127.0.0.1:8010/api/health |
 
-### Tests backend
-
-```bash
-cd backend
-pytest
-```
-
 ### Build de production frontend
 
 ```bash
@@ -243,9 +236,10 @@ npm run preview        # serveur preview local
 ### Tableau de bord
 
 - KPIs consolidés : chiffre d'affaires, masse salariale, stock, trésorerie
-- Graphiques évolution (3/6/12 mois)
+- Graphiques évolution par période (Mois / Trimestre / Année)
+- Donut Canaux de vente et Structure des dépenses
 - **Rafraîchissement automatique toutes les 30 secondes**
-- Horodatage de la dernière mise à jour
+- Bouton **Résumé IA** (Limule) — analyse directionnelle en un clic
 
 ### RH & Employés
 
@@ -260,7 +254,6 @@ npm run preview        # serveur preview local
 - Calcul net/brut avec déductions configurables
 - Détection d'anomalies (heures, primes, absences)
 - **Téléchargement PDF bulletin de salaire** par employé
-- Historique complet
 
 ### Facturation
 
@@ -283,41 +276,52 @@ npm run preview        # serveur preview local
 ### Documents
 
 - Upload avec classification automatique par IA
-- **Animation feedback** pendant l'analyse IA (barre de progression)
+- Animation feedback pendant l'analyse IA
 - Rattachement à un employé ou à l'entreprise
 - Téléchargement et suppression
 
-### Agenda
-
-- Création de réunions avec **ordre du jour** (champ `agenda`)
-- Gestion des participants
-- Lien de visioconférence
-
-### Tâches
+### Tâches (WorkPage)
 
 - Kanban : À faire / En cours / Terminé
-- Priorités, affectation, dates limites
-- Conversion d'alerte TERAS en tâche en un clic
+- **Recherche texte** et **filtres** (priorité, responsable)
+- Colonne "Terminé" paginée (chargement par tranches pour des centaines de tâches)
+- **Détail tâche** avec consignes/description formatées
+- **Upload de preuve** : image, vidéo (MP4/MOV/WebM) ou PDF — max 50 Mo
+- Prévisualisation avant envoi + lecteur intégré dans le modal
+- Badge "Justificatif requis" sur les cartes concernées
+- Indicateur "En retard" si échéance dépassée
 
-### Déclarations
+### TERAS Connect
 
-- Modèles assistés CEMACE/SYSCEMAC
-- Rédaction IA avec exemples pré-remplis
-- Calcul automatique des montants
+- Analyse conformité réglementaire multi-domaines (RH, Paie, Déclarations, Documents)
+- Score global 0-100 avec historique sur 12 mois
+- Alertes classées `critique` / `attention` / `info`
+- Recommandations IA priorisées par impact
+- Conversion alerte → tâche en un clic
+- Export PDF rapport TERAS
+- **Module activable/désactivable** depuis Paramètres → Modules
 
-### Limule — IA
+### Limule — IA intégrée
 
-- Chat conversationnel avec **streaming SSE temps réel**
-- Prompts contextuels : rédaction, analyse, conseils RH/fiscal
-- Indicateur de statut IA en temps réel dans le header (`deepseek · XX ms`)
-- Fallback mock si l'API DeepSeek est indisponible
+- **Assistant flottant** disponible sur toutes les pages
+- Chat avec **streaming SSE temps réel**
+- Suggestions contextuelles selon la page courante
+- **Création de tâche inline** depuis une réponse (titre extrait intelligemment, description structurée, assignée, priorité détectée)
+- **Historique multi-tour** : recherche, suppression unitaire, sélection multiple, effacement global
+- Mode rapport plein écran + épinglage de messages
+- Quick replies contextuels par intention
+- Branchement de conversation (reprendre à un point précis)
+- Mémoire de la semaine (résumé automatique des échanges récents)
+- Fallback mock si DeepSeek est indisponible
 
 ### Paramètres
 
 - Profil entreprise (nom, RCCM, NIF, adresse)
 - Gestion utilisateurs + RBAC
-- **Journal d'audit** : toutes les actions traçées par utilisateur/IP/module
+- **Activation/désactivation des modules** (TERAS, etc.)
+- **Journal d'audit** : toutes les actions tracées par utilisateur/IP/module
 - Changement de mot de passe
+- Accès direct depuis les bannières de désactivation de module
 
 ---
 
@@ -341,6 +345,16 @@ npm run preview        # serveur preview local
 | GET | `/api/employees/{id}` | Détails employé |
 | PATCH | `/api/employees/{id}` | Modifier |
 | GET | `/api/employees/{id}/contract` | Télécharger contrat |
+
+### Tâches
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| GET | `/api/tasks` | Liste des tâches |
+| POST | `/api/tasks` | Créer une tâche |
+| PATCH | `/api/tasks/{id}` | Modifier (statut, priorité…) |
+| DELETE | `/api/tasks/{id}` | Supprimer |
+| POST | `/api/tasks/{id}/proof` | Uploader une preuve (image/vidéo/PDF) |
 
 ### Paie
 
@@ -375,16 +389,18 @@ npm run preview        # serveur preview local
 
 | Méthode | Endpoint | Description |
 |---|---|---|
-| POST | `/api/chat/stream` | Chat SSE streaming |
+| POST | `/api/limule/chat/stream` | Chat SSE streaming |
+| GET | `/api/limule/chat/history` | Historique conversations |
+| DELETE | `/api/limule/interactions/{id}` | Supprimer un échange |
+| DELETE | `/api/limule/chat/history` | Effacer tout l'historique |
 | GET | `/api/ai/health` | Statut + latence LLM |
 
-### Divers
+### Modules
 
 | Méthode | Endpoint | Description |
 |---|---|---|
-| GET | `/api/audit-logs` | Journal d'audit |
-| PATCH | `/api/meetings/{id}/agenda` | Mettre à jour ordre du jour |
-| GET | `/api/overview` | KPIs consolidés dashboard |
+| GET | `/api/modules` | Liste des modules |
+| POST | `/api/modules/{key}/toggle` | Activer/désactiver un module |
 
 ---
 
@@ -397,7 +413,7 @@ npm run preview        # serveur preview local
 | `comptable` | Facturation, paie, déclarations, rapports |
 | `rh` | RH, paie, documents RH |
 | `manager` | Lecture + tâches + réunions |
-| `employe` | Bulletin de salaire, profil, documents propres |
+| `employe` | Bulletin de salaire, profil, tâches assignées, preuve |
 | `caissier` | POS uniquement |
 
 > Les routes API vérifient le rôle via le token JWT à chaque requête.
@@ -410,11 +426,11 @@ TERAS est le moteur de conformité réglementaire intégré à KOMPTA.
 
 ### Comment ça marche
 
-1. **Analyse** : Cliquer "Lancer une analyse" — TERAS examine RH, paie, déclarations et documents
-2. **Score** : Un score global 0-100 est calculé par domaine (poids configurables)
-3. **Alertes** : Les non-conformités génèrent des alertes classées `critical` / `medium` / `info`
-4. **Recommandations** : L'IA produit des actions concrètes priorisées par impact
-5. **Suivi** : Chaque alerte peut être convertie en tâche assignable à un collaborateur
+1. **Analyse** — Cliquer "Lancer une analyse" : TERAS examine RH, paie, déclarations et documents
+2. **Score** — Un score global 0-100 est calculé par domaine (poids configurables)
+3. **Alertes** — Les non-conformités génèrent des alertes classées `critique` / `attention` / `info`
+4. **Recommandations** — L'IA produit des actions concrètes priorisées par impact
+5. **Suivi** — Chaque alerte peut être convertie en tâche assignable à un collaborateur
 
 ### Seuils de score
 
@@ -437,10 +453,12 @@ Limule est l'assistant IA de KOMPTA, propulsé par **DeepSeek** (`deepseek-chat`
 
 ### Capacités
 
-- **Rédaction** : Emails professionnels, courriers RH, clauses contractuelles
-- **Analyse** : Lecture de documents, extraction d'informations clés
-- **Conseil** : Aide aux déclarations CEMACE, règles sociales locales
-- **Contextualisation** : Accès aux données live (nom entreprise, score TERAS, effectif…)
+- **Prédictions économiques** — prévisions CA, trésorerie, tendances 30/60/90 jours
+- **Conseils d'investissement** — embauche, stock, expansion : impact chiffré et retour
+- **Analyse sectorielle** — benchmarks PME, conjoncture CEMAC, risques de marché
+- **Risques & conformité TERAS** — alertes, score, actions correctives
+- **RH & masse salariale** — coûts, conformité CNPS, prévisions de paie
+- **Rédaction professionnelle** — emails, notes, clauses, courriers
 
 ### Variables contextuelles disponibles dans les prompts
 
@@ -531,24 +549,40 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 
 ## Changelog
 
-### v1.1.0 — Améliorations majeures (2025)
+### v1.3.0 — Mai 2026
+
+- ✅ **Tâches — Upload de preuve** : image, vidéo (MP4/MOV/WebM), PDF — max 50 Mo
+- ✅ **Tâches — Détail enrichi** : consignes formatées, méta-infos, badge preuve, badge retard
+- ✅ **Tâches — Kanban amélioré** : recherche, filtres priorité/responsable, pagination "Terminé"
+- ✅ **Limule — Création de tâche inline** : titre intelligent, description bullet points, pré-remplie
+- ✅ **Limule — Historique** : suppression unitaire, sélection multiple, effacement global
+- ✅ **Limule — Description tâche** : vue lecture structurée + mode édition
+- ✅ **TERAS — Module toggle** : activation/désactivation depuis Paramètres avec deep-link
+- ✅ **Dashboard — Résumé IA** : icône Limule remplace les étoiles
+- ✅ **Alertes TERAS** : suppression de l'injection automatique dans Limule
+- ✅ **Canaux de vente** : palette de couleurs diversifiée sur le donut
+- ✅ **Navigation** : icône Limule dans le menu Rédaction IA
+
+### v1.2.0 — 2025
+
+- ✅ **Limule** : streaming SSE, multi-tour, branchement, épinglage, quick replies
+- ✅ **TERAS Connect** : scoring, alertes, recommandations IA, export PDF
+- ✅ **Hub d'analyses** : page centralisée des rapports
+- ✅ **Rédaction IA** : assistants thématiques
+- ✅ **Statut IA temps réel** dans le header (latence + indicateur couleur)
+
+### v1.1.0 — 2025
 
 - ✅ **Onboarding novice** 8 étapes avec démo typewriter Limule
 - ✅ **Reset mot de passe** flux token local (sans email)
-- ✅ **Statut IA temps réel** dans le header (latence + couleur)
 - ✅ **Rafraîchissement auto** dashboard toutes les 30 s
 - ✅ **Fiche employé** page détaillée avec actions rapides
-- ✅ **Export PDF bulletin** de salaire par employé
-- ✅ **Export PDF rapport** TERAS avec scores + alertes
-- ✅ **Export CSV ventes** POS avec filtres date/produit
-- ✅ **Journal d'audit** dans Paramètres (toutes actions tracées)
-- ✅ **Ordre du jour** réunions (champ `agenda`)
+- ✅ **Export PDF** bulletin de salaire, rapport TERAS
+- ✅ **Export CSV** ventes POS avec filtres
+- ✅ **Journal d'audit** dans Paramètres
 - ✅ **Alertes stock bas** inventaire avec seuil configurable
-- ✅ **Feedback upload** Documents (barre de progression IA)
-- ✅ **Analyse domaine** TERAS par catégorie (RH/Paie/Déclaration/Documents)
-- ✅ **Conversion alerte → tâche** TERAS en un clic
-- ✅ **Navigation profil** depuis la liste employés
-- ✅ **Migration SQLite** automatique (nouvelles colonnes sans perte)
+- ✅ **Conversion alerte TERAS → tâche** en un clic
+- ✅ **Migration SQLite** automatique sans perte de données
 - ✅ **Multi-tenant** isolation complète par `company_id`
 
 ### v1.0.0 — Version initiale
@@ -563,5 +597,6 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 
 ## Licence
 
-Logiciel propriétaire — usage interne uniquement.
-© 2025 KOMPTA. Tous droits réservés.
+Logiciel propriétaire — tous droits réservés.
+
+© 2026 davyce. All rights reserved.

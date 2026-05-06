@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BriefcaseBusiness, CheckCircle2, ClipboardList, Download, FileSearch, RefreshCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CheckCircle2, ClipboardList, Download, FileSearch, RefreshCcw, Settings, ShieldCheck, ShieldOff, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { LineAreaChart, ScoreRing } from "../components/Charts";
 import { Panel } from "../components/Panel";
@@ -17,7 +18,10 @@ const RECOMMENDATION_TONES = [
 
 export function ReportsTerasPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
+  const modules = useQuery({ queryKey: ["modules"], queryFn: api.modules });
+  const terasEnabled = modules.data?.find((m) => m.module_key === "teras")?.enabled ?? true;
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
   const alerts = useQuery({ queryKey: ["terasAlerts"], queryFn: api.terasAlerts });
   const scores = useQuery({ queryKey: ["terasScores"], queryFn: api.terasScores });
@@ -78,6 +82,26 @@ export function ReportsTerasPage() {
 
   return (
     <div className="space-y-5">
+
+      {/* ── Bannière TERAS désactivé ──────────────────────────────────── */}
+      {!terasEnabled && (
+        <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <ShieldOff size={22} className="shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="flex-1">
+            <p className="font-bold text-amber-800 dark:text-amber-300">TERAS Connect est désactivé</p>
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Les analyses de scoring et les alertes de conformité sont mises en pause. Toutes les données existantes sont conservées.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/settings?tab=modules")}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-50 dark:border-amber-500/40 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-500/10"
+          >
+            <Settings size={14} /> Activer dans Paramètres
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-emerald-600">TERAS Connect</p>

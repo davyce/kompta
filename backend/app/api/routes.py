@@ -215,6 +215,7 @@ def _serialize_task(db: Session, task: Task, current_user: User, subjects: set[s
         "assigned_to_me": assigned_to_me,
         "can_update": is_manager or assigned_to_me,
         "can_delete": is_manager,
+        "proof_url": task.proof_url,
     }
 
 
@@ -1408,6 +1409,46 @@ def delete_task(
     db.delete(task)
     db.commit()
     return {"status": "deleted", "task": task_snapshot}
+
+
+@router.post("/tasks/{task_id}/proof", response_model=TaskRead)
+async def upload_task_proof(
+    task_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    task = db.get(Task, task_id)
+    if not task or task.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    subjects, _ = _task_subjects_for_user(db, current_user)
+    is_manager = _can_manage_tasks(current_user)
+    assigned_to_me = _task_assigned_to_user(task, subjects)
+    if not is_manager and not assigned_to_me:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez déposer une preuve que pour vos propres tâches")
+    allowed_types = {
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "video/mp4", "video/quicktime", "video/webm", "video/mpeg",
+        "application/pdf",
+    }
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Type de fichier non supporté (image, vidéo ou PDF uniquement)")
+    max_size = 50 * 1024 * 1024  # 50 MB
+    content = await file.read()
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail="Fichier trop lourd (max 50 Mo)")
+    ext = Path(file.filename or "proof").suffix or ".bin"
+    upload_dir = Path("storage/task_proofs")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{current_user.company_id}-{task_id}-{uuid4().hex[:12]}{ext}"
+    dest = upload_dir / filename
+    dest.write_bytes(content)
+    task.proof_url = f"/storage/task_proofs/{filename}"
+    if task.status == "doing":
+        task.status = "done"
+    db.commit()
+    db.refresh(task)
+    return _serialize_task(db, task, current_user, subjects)
 
 
 @router.patch("/products/{product_id}", response_model=ProductRead)

@@ -87,7 +87,10 @@ function formatApiError(payload: unknown, fallback: string): string {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  // Ne pas forcer JSON si le body est un FormData (multipart géré par le navigateur)
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   const token = getToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -345,6 +348,11 @@ export const api = {
     request<{ status: string; task: Partial<Task> }>(`/tasks/${id}`, {
       method: "DELETE"
     }),
+  uploadTaskProof: (id: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<Task>(`/tasks/${id}/proof`, { method: "POST", body: form });
+  },
   updateProduct: (id: number, payload: Partial<Product>) =>
     request<Product>(`/products/${id}`, {
       method: "PATCH",
@@ -620,6 +628,10 @@ export const api = {
       `/limule/interactions/${interactionId}/feedback`,
       { method: "PATCH", body: JSON.stringify(payload) }
     ),
+  limuleDeleteInteraction: (interactionId: number) =>
+    request<void>(`/limule/interactions/${interactionId}`, { method: "DELETE" }),
+  limuleClearHistory: () =>
+    request<void>("/limule/chat/history", { method: "DELETE" }),
 
   /**
    * Génération Limule en streaming (SSE).

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
@@ -95,7 +96,9 @@ export function SettingsPage() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("general");
+  const location = useLocation();
+  const initialTab = (new URLSearchParams(location.search).get("tab") as Tab | null) ?? "general";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const isEmployeeSelfService = user?.role === "employe";
 
   const company = useQuery({ queryKey: ["company"], queryFn: api.company });

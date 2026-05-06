@@ -259,12 +259,12 @@ export function ReportsHubPage() {
               >
                 {aiState?.loading && aiState.title === report.title ? (
                   <>
-                    <LimuleAvatar state="thinking" size={18} />
+                    <LimuleAvatar state="thinking" size={20} />
                     Génération…
                   </>
                 ) : (
                   <>
-                    <LimuleIcon size={16} className="brightness-0 invert" />
+                    <LimuleAvatar state="idle" size={20} />
                     Générer
                   </>
                 )}

@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Moon,
   Plus,
-  Sparkles,
   Sun,
   ReceiptText,
   Search,
@@ -108,7 +107,7 @@ function roleLabel(role?: string) {
 type NavItem = {
   label: string;
   to: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<{ size?: number; className?: string }>;
   badge?: string;
 };
 
@@ -156,7 +155,7 @@ const navSections: NavSection[] = [
     items: [
       { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
       { label: "Déclarations", to: "/declarations", icon: ClipboardList },
-      { label: "Rédaction IA", to: "/assistants", icon: Sparkles },
+      { label: "Rédaction IA", to: "/assistants", icon: LimuleIcon },
       { label: "TERAS Connect", to: "/reports-teras", icon: ShieldCheck, badge: "!" },
     ],
   },

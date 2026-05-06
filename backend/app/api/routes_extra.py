@@ -688,6 +688,36 @@ def limule_feedback(
     return {"id": interaction.id, "rating": interaction.rating, "feedback": interaction.feedback}
 
 
+@router.delete("/limule/interactions/{interaction_id}", status_code=204)
+def limule_delete_interaction(
+    interaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Supprime un échange Limule (propriétaire uniquement)."""
+    interaction = db.get(LimuleInteraction, interaction_id)
+    if not interaction or interaction.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Interaction Limule introuvable")
+    db.delete(interaction)
+    db.commit()
+
+
+@router.delete("/limule/chat/history", status_code=204)
+def limule_clear_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Efface tout l'historique de chat Limule pour l'utilisateur courant."""
+    interactions = db.scalars(
+        select(LimuleInteraction)
+        .where(LimuleInteraction.company_id == current_user.company_id)
+        .where(LimuleInteraction.user_id == current_user.id)
+    ).all()
+    for interaction in interactions:
+        db.delete(interaction)
+    db.commit()
+
+
 def _require_super_admin(current_user: User) -> None:
     if current_user.role != "super_admin":
         raise HTTPException(status_code=403, detail="Super-admin access required")
@@ -1321,49 +1351,81 @@ def accounting_syscohada(
 
 @router.get("/reports/revenue-series", response_model=list[RevenueSeriesPoint])
 def revenue_series(
-    period: str = "month",
+    period: str = "annee",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[RevenueSeriesPoint]:
-    invoices = db.scalars(
+    """
+    Retourne la série revenus/marge par mois selon la période :
+    - mois      → 1 mois (4 semaines glissantes, regroupées par semaine)
+    - trimestre → 3 derniers mois
+    - annee     → 12 derniers mois  (défaut)
+    """
+    invoices_all = db.scalars(
         select(Invoice).where(Invoice.company_id == current_user.company_id)
     ).all()
-    sales = db.scalars(
+    sales_all = db.scalars(
         select(Sale).where(Sale.company_id == current_user.company_id)
     ).all()
-    payrolls = db.scalars(
+    payrolls_all = db.scalars(
         select(PayrollRun).where(PayrollRun.company_id == current_user.company_id)
     ).all()
 
     today = date.today()
     months_fr = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+
+    # Nombre de mois à afficher selon le paramètre
+    nb_months = {"mois": 1, "trimestre": 3, "annee": 12}.get(period, 12)
+
     points: list[RevenueSeriesPoint] = []
-    for i in range(5, -1, -1):
-        m = today.month - i
-        y = today.year
-        while m <= 0:
-            m += 12
-            y -= 1
-        label = months_fr[m - 1]
-        rev = sum(
-            inv.total_amount or 0
-            for inv in invoices
-            if inv.created_at.year == y and inv.created_at.month == m
-        )
-        rev += sum(
-            s.total_amount or 0
-            for s in sales
-            if s.created_at.year == y and s.created_at.month == m
-        )
-        cost = sum(
-            p.net_total or 0
-            for p in payrolls
-            if p.created_at.year == y and p.created_at.month == m
-        )
-        margin = max(rev - cost, 0)
-        points.append(
-            RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(margin))
-        )
+
+    if nb_months == 1:
+        # Mode "mois" : 4 semaines glissantes, label = "S1" … "S4"
+        for week in range(3, -1, -1):
+            week_end = today - timedelta(days=week * 7)
+            week_start = week_end - timedelta(days=6)
+            label = f"S{4 - week}"
+            rev = sum(
+                inv.total_amount or 0
+                for inv in invoices_all
+                if inv.created_at.date() >= week_start and inv.created_at.date() <= week_end
+            )
+            rev += sum(
+                s.total_amount or 0
+                for s in sales_all
+                if s.created_at.date() >= week_start and s.created_at.date() <= week_end
+            )
+            cost = sum(
+                p.net_total or 0
+                for p in payrolls_all
+                if p.created_at.date() >= week_start and p.created_at.date() <= week_end
+            )
+            points.append(RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(max(rev - cost, 0))))
+    else:
+        for i in range(nb_months - 1, -1, -1):
+            m = today.month - i
+            y = today.year
+            while m <= 0:
+                m += 12
+                y -= 1
+            label = months_fr[m - 1]
+            rev = sum(
+                inv.total_amount or 0
+                for inv in invoices_all
+                if inv.created_at.year == y and inv.created_at.month == m
+            )
+            rev += sum(
+                s.total_amount or 0
+                for s in sales_all
+                if s.created_at.year == y and s.created_at.month == m
+            )
+            cost = sum(
+                p.net_total or 0
+                for p in payrolls_all
+                if p.created_at.year == y and p.created_at.month == m
+            )
+            points.append(RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(max(rev - cost, 0))))
+
     return points
 
 

@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, ArrowUpRight, CheckCircle2, Download,
-  Filter, ShieldCheck, Sparkles, TrendingUp, WalletCards,
+  Filter, ShieldCheck, TrendingUp, WalletCards,
   ReceiptText, Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { useAuth } from "../app/AuthContext";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import { api } from "../services/api";
 import { compactMoney, money, shortDate } from "../utils/format";
 
@@ -22,6 +23,18 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: "annee",     label: "Année"     },
 ];
 const PERIOD_DIVISOR: Record<Period, number> = { annee: 1, trimestre: 4, mois: 12 };
+/* Map frontend period key → backend param */
+const PERIOD_API: Record<Period, string> = { annee: "annee", trimestre: "trimestre", mois: "mois" };
+
+/* ── Palette couleurs canaux de vente ────────────────────────────── */
+const CHANNEL_PALETTE = [
+  "#6366f1", // indigo    — POS / boutique
+  "#059669", // emerald   — facturation B2B
+  "#f59e0b", // amber     — e-commerce
+  "#3b82f6", // blue      — marketplace
+  "#ec4899", // pink      — abonnements
+  "#8b5cf6", // violet    — autre
+];
 
 /* ── avatar initials helper ──────────────────────────────────────── */
 function initials(name: string) {
@@ -80,7 +93,7 @@ export function DashboardPage() {
   const tasks         = useQuery({ queryKey: ["tasks"],            queryFn: api.tasks, refetchInterval: 60_000 });
   const onboarding    = useQuery({ queryKey: ["onboarding"],       queryFn: api.onboarding });
   const employees     = useQuery({ queryKey: ["employees"],        queryFn: api.employees, refetchInterval: 60_000 });
-  const revenueSeries = useQuery({ queryKey: ["revenueSeries", period], queryFn: () => api.revenueSeries(period) });
+  const revenueSeries = useQuery({ queryKey: ["revenueSeries", period], queryFn: () => api.revenueSeries(PERIOD_API[period]) });
   const sales         = useQuery({ queryKey: ["sales"],            queryFn: () => api.posSales(), refetchInterval: 30_000 });
   const invoices      = useQuery({ queryKey: ["invoices"],         queryFn: api.invoices, refetchInterval: 60_000 });
   const terasScores   = useQuery({ queryKey: ["terasScores"],      queryFn: api.terasScores, refetchInterval: 60_000 });
@@ -138,16 +151,22 @@ export function DashboardPage() {
     const posTotal = (sales.data ?? []).reduce((s, x) => s + (x.total_amount || 0), 0);
     const b2bTotal = (invoices.data ?? []).reduce((s, x) => s + (x.total_amount || 0), 0);
     const total = posTotal + b2bTotal;
-    if (total <= 0) {
+    const channels = [
+      { name: "POS Boutique",    raw: posTotal },
+      { name: "Facturation B2B", raw: b2bTotal },
+    ].filter((c) => c.raw > 0);
+    if (channels.length === 0) {
+      // Fallback avec distribution fictive pour visualisation
       return [
-        { name: "POS Boutique",    v: 50, c: "#059669" },
-        { name: "Facturation B2B", v: 50, c: "#10b981" },
+        { name: "POS Boutique",    v: 50, c: CHANNEL_PALETTE[0], raw: 0 },
+        { name: "Facturation B2B", v: 50, c: CHANNEL_PALETTE[1], raw: 0 },
       ];
     }
-    return [
-      { name: "POS Boutique",    v: Math.round((posTotal / total) * 100), c: "#059669" },
-      { name: "Facturation B2B", v: Math.round((b2bTotal / total) * 100), c: "#10b981" },
-    ];
+    return channels.map((c, i) => ({
+      ...c,
+      v: Math.round((c.raw / total) * 100),
+      c: CHANNEL_PALETTE[i % CHANNEL_PALETTE.length],
+    }));
   }, [sales.data, invoices.data]);
 
   // Real department breakdown from employees
@@ -295,7 +314,7 @@ export function DashboardPage() {
             disabled={aiLoading}
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-70"
           >
-            <Sparkles size={16} className={aiLoading ? "animate-pulse" : ""} />
+            <LimuleIcon size={16} className={aiLoading ? "animate-pulse opacity-80" : ""} />
             {aiLoading ? "Analyse…" : "Résumé IA"}
           </button>
         </div>
@@ -341,7 +360,7 @@ export function DashboardPage() {
       {(aiSummary !== null) && (
         <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-5 dark:border-violet-500/30 dark:from-violet-500/10 dark:to-fuchsia-500/10">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={18} className="text-violet-600 dark:text-violet-400" />
+            <LimuleIcon size={18} />
             <span className="text-sm font-black text-violet-700 dark:text-violet-300">Analyse IA — Grand Sage 1.0</span>
             {aiLoading && <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />}
           </div>
@@ -359,14 +378,14 @@ export function DashboardPage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
               <h3 className="font-bold text-[#17211f] dark:text-white">Performance commerciale</h3>
-              <p className="text-xs text-[#717182]">Revenus &amp; marge — 12 derniers mois (M XAF)</p>
+              <p className="text-xs text-[#717182]">Revenus &amp; marge — données réelles (M XAF)</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-600" />Revenus
+                <span className="h-2 w-2 rounded-full" style={{ background: "#6366f1" }} />Revenus
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />Marge
+                <span className="h-2 w-2 rounded-full" style={{ background: "#059669" }} />Marge
               </span>
             </div>
           </div>
@@ -375,12 +394,12 @@ export function DashboardPage() {
               <AreaChart data={revenueChartData} margin={{ left: 4, right: 16, top: 12, bottom: 4 }}>
                 <defs>
                   <linearGradient id="gPrimary" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%"   stopColor="#059669" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#059669" stopOpacity={0}    />
+                    <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#6366f1" stopOpacity={0}   />
                   </linearGradient>
                   <linearGradient id="gEmerald" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%"   stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0}   />
+                    <stop offset="0%"   stopColor="#059669" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#059669" stopOpacity={0}    />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
@@ -390,8 +409,8 @@ export function DashboardPage() {
                   contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
                   formatter={(value) => [`${value} M XAF`]}
                 />
-                <Area type="monotone" dataKey="v" stroke="#059669" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name="Revenus" />
-                <Area type="monotone" dataKey="e" stroke="#10b981" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
+                <Area type="monotone" dataKey="v" stroke="#6366f1" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name="Revenus" />
+                <Area type="monotone" dataKey="e" stroke="#059669" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -417,20 +436,26 @@ export function DashboardPage() {
                   {channelData.map((c, i) => <Cell key={i} fill={c.c} />)}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
-                  formatter={(v) => [`${v}%`]}
+                  contentStyle={{ borderRadius: 8, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
+                  formatter={(v, name) => [`${v}%`, name]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2 px-5 pb-5 pt-1">
+          <div className="space-y-2.5 px-5 pb-5 pt-1">
             {channelData.map((c) => (
-              <div key={c.name} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: c.c }} />
-                  <span className="text-[#17211f] dark:text-white">{c.name}</span>
+              <div key={c.name} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: c.c }} />
+                <span className="flex-1 text-sm text-[#17211f] dark:text-white">{c.name}</span>
+                {c.raw > 0 && (
+                  <span className="text-xs text-[#717182]">{compactMoney(c.raw)}</span>
+                )}
+                <span
+                  className="ml-1 min-w-[36px] rounded-full px-2 py-0.5 text-center text-[11px] font-bold"
+                  style={{ background: c.c + "20", color: c.c }}
+                >
+                  {c.v}%
                 </span>
-                <span className="font-semibold text-[#717182]">{c.v}%</span>
               </div>
             ))}
           </div>
