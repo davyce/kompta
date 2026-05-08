@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpenText, CheckCircle2, Clock, Download, FileText, Pin, PinOff,
+  BookOpenText, Calendar, CheckCircle2, Clock, Download, FileText, Pin, PinOff,
   Plus, Save, Sparkles, Target, Trash2, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { api, type DailyNoteDto } from "../services/api";
+import { api, type DailyNoteDto, type MeetingDto } from "../services/api";
 import type { Task } from "../types/domain";
 
 function dayKey(date: Date) {
@@ -78,24 +78,26 @@ function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
   );
 }
 
-/* ── Auto-generated journal entry from tasks (read-only client-side) ── */
-function buildAutoEntry(date: Date, tasks: Task[]) {
+/* ── Auto-generated journal entry from tasks + meetings ── */
+function buildAutoEntry(date: Date, tasks: Task[], meetings: MeetingDto[]) {
   const key = dayKey(date);
   const due = tasks.filter((t) => (t.due_date?.slice(0, 10) ?? "") === key);
   const completed = due.filter((t) => t.status === "done");
   const planned = due.filter((t) => t.status !== "done");
   const urgent = planned.filter((t) => t.priority === "high");
   const focus = planned[0] ?? urgent[0];
+  const dayMeetings = meetings.filter((m) => (m.start_at ?? "").slice(0, 10) === key);
   return {
     key,
     date,
     completed,
     planned,
     urgent,
+    meetings: dayMeetings,
     summary:
-      due.length > 0
-        ? `Limule note ${completed.length} tâche(s) terminée(s), ${planned.length} action(s) à suivre et ${urgent.length} priorité(s) haute(s).`
-        : "Limule n'a pas trouvé d'échéance directe pour cette date.",
+      due.length > 0 || dayMeetings.length > 0
+        ? `Limule note ${completed.length} tâche(s) terminée(s), ${planned.length} action(s) à suivre, ${urgent.length} priorité(s) haute(s) et ${dayMeetings.length} réunion(s) ce jour.`
+        : "Limule n'a pas trouvé d'activité planifiée pour cette date.",
     next: focus?.title ?? "Vérifier les alertes TERAS et programmer les prochaines actions.",
   };
 }
@@ -173,6 +175,7 @@ export function NotesPage() {
   const queryClient = useQueryClient();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const notesQuery = useQuery({ queryKey: ["notes"], queryFn: api.notes });
+  const meetingsQuery = useQuery({ queryKey: ["meetings"], queryFn: api.meetings });
   const [selectedKey, setSelectedKey] = useState(() => dayKey(new Date()));
   const [editor, setEditor] = useState<{ open: boolean; note: DailyNoteDto | null }>({ open: false, note: null });
 
@@ -189,16 +192,16 @@ export function NotesPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
   });
 
-  // Auto-generated 7-day journal from tasks (always shown on the right)
+  // Auto-generated 7-day journal from tasks + meetings
   const autoEntries = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      return buildAutoEntry(d, tasks.data ?? []);
+      return buildAutoEntry(d, tasks.data ?? [], meetingsQuery.data ?? []);
     });
-  }, [tasks.data]);
+  }, [tasks.data, meetingsQuery.data]);
 
   const selectedAuto = autoEntries.find((e) => e.key === selectedKey) ?? autoEntries[0];
   const allNotes = notesQuery.data ?? [];
@@ -320,6 +323,25 @@ export function NotesPage() {
                 </div>
                 <p className="mt-3 text-sm leading-7 text-[#17211f] dark:text-white">{selectedAuto.summary}</p>
               </div>
+
+              {selectedAuto.meetings.length > 0 && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-500/10">
+                  <div className="flex items-center gap-2 text-sky-600 dark:text-sky-300">
+                    <Calendar size={17} /><h3 className="font-bold">Réunions</h3>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {selectedAuto.meetings.map((m) => (
+                      <div key={m.id} className="rounded-lg bg-white px-3 py-2 text-sm dark:bg-sky-500/10">
+                        <p className="font-semibold text-[#17211f] dark:text-white">
+                          {m.start_at ? new Date(m.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""} — {m.title}
+                        </p>
+                        {m.tag && <p className="text-xs text-[#717182]">{m.tag}</p>}
+                        {m.ai_summary && <p className="mt-1 text-xs text-[#717182] line-clamp-2">{m.ai_summary}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-black/[0.06] p-4 dark:border-white/10">

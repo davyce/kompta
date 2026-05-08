@@ -2,13 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, Filter,
-  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Sparkles, X,
+  AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, FileDown, Filter,
+  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import type { Product } from "../types/domain";
-import { shortDate, money, compactMoney } from "../utils/format";
+import { shortDate, money, compactMoney, currencyLabel } from "../utils/format";
 import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
 import { useCurrency } from "../contexts/CurrencyContext";
 
@@ -30,14 +30,14 @@ function statusBadge(qty: number, threshold: number) {
 type Tab = "list" | "movements" | "labels" | "alerts";
 
 function AlertsTab({ lowStock, onRestock, restocking }: {
-  lowStock: import("../types/domain").Product[];
-  onRestock: (p: import("../types/domain").Product) => void;
+  lowStock: Product[];
+  onRestock: (p: Product) => void;
   restocking: boolean;
 }) {
   const [restockingId, setRestockingId] = useState<number | null>(null);
   const [done, setDone] = useState<number[]>([]);
 
-  function handleRestock(p: import("../types/domain").Product) {
+  function handleRestock(p: Product) {
     setRestockingId(p.id);
     onRestock(p);
     setTimeout(() => {
@@ -81,7 +81,7 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
                 Seuil : {p.reorder_level} · SKU : {p.sku} · Prix : {money(p.price)}
               </p>
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Recommandation IA : commander {qtyToOrder} unités → stock cible {p.reorder_level * 2}
+                Recommandation : commander {qtyToOrder} unités → stock cible {p.reorder_level * 2}
               </p>
             </div>
             <button
@@ -106,9 +106,10 @@ const EMPTY_FORM = { name: "", sku: "", category: "Général", price: 0, stock_q
 type EditableProductForm = Omit<typeof EMPTY_FORM, "sku"> & { brand: string; variant: string };
 type ImagePreview = { file: File; url: string };
 
+const EMPTY_MOVEMENT = { product_id: 0, movement_type: "in" as "in" | "out", quantity: 1, reason: "", reference: "" };
+
 export function InventoryPage() {
   const queryClient = useQueryClient();
-  // Subscribe to currency changes so money() calls re-render with new currency
   useCurrency();
   const products = useQuery({ queryKey: ["products"], queryFn: api.products });
   const movements = useQuery({ queryKey: ["inventoryMovements"], queryFn: api.inventoryMovements });
@@ -130,6 +131,7 @@ export function InventoryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [createError, setCreateError] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState("");
   const [scanResult, setScanResult] = useState<Product | null>(null);
@@ -137,26 +139,54 @@ export function InventoryPage() {
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState<EditableProductForm>({
-    name: "",
-    category: "Général",
-    brand: "KOMPTA",
-    variant: "Standard",
-    price: 0,
-    stock_quantity: 0,
-    reorder_level: 5,
+    name: "", category: "Général", brand: "KOMPTA", variant: "Standard",
+    price: 0, stock_quantity: 0, reorder_level: 5,
   });
   const [editImagePreviews, setEditImagePreviews] = useState<ImagePreview[]>([]);
+
+  // Movement modal state
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [movementForm, setMovementForm] = useState(EMPTY_MOVEMENT);
+  const [movementSuccess, setMovementSuccess] = useState("");
+  const [movementError, setMovementError] = useState("");
 
   const createProduct = useMutation({
     mutationFn: api.createProduct,
     onSuccess: () => {
       setForm(EMPTY_FORM);
+      setCreateError("");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
+    onError: (err: Error) => setCreateError(err.message),
   });
   const updateProduct = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Product> }) => api.updateProduct(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+  const deleteProduct = useMutation({
+    mutationFn: api.deleteProduct,
+    onSuccess: () => {
+      closeEdit();
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+  const importCsv = useMutation({
+    mutationFn: api.importProductsCsv,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      alert(`✅ ${result.imported} produits importés${result.errors.length ? `\n⚠️ ${result.errors.length} erreurs` : ""}`);
+    },
+  });
+  const createMovement = useMutation({
+    mutationFn: api.createMovement,
+    onSuccess: (data) => {
+      setMovementSuccess(`Stock mis à jour : ${data.new_stock} unité${data.new_stock !== 1 ? "s" : ""} en stock`);
+      setMovementForm(EMPTY_MOVEMENT);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
+      setTimeout(() => setMovementOpen(false), 1500);
+    },
+    onError: (err: Error) => setMovementError(err.message),
   });
   const uploadImages = useMutation({
     mutationFn: ({ id, files }: { id: number; files: File[] }) => api.uploadProductImages(id, files),
@@ -168,14 +198,8 @@ export function InventoryPage() {
   });
   const scanQr = useMutation({
     mutationFn: api.scanProductQr,
-    onSuccess: (product) => {
-      setScanResult(product);
-      setScanError("");
-    },
-    onError: (error) => {
-      setScanResult(null);
-      setScanError(error instanceof Error ? error.message : "QR introuvable");
-    },
+    onSuccess: (product) => { setScanResult(product); setScanError(""); },
+    onError: (error) => { setScanResult(null); setScanError(error instanceof Error ? error.message : "QR introuvable"); },
   });
 
   const categories = useMemo(
@@ -211,40 +235,32 @@ export function InventoryPage() {
   function toggleSelect(id: number) {
     setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   }
-
   function toggleAll(checked: boolean) {
     setSelected(checked ? filtered.map((p) => p.id) : []);
   }
-
   function submit(e: FormEvent) {
     e.preventDefault();
+    setCreateError("");
     createProduct.mutate(form);
   }
-
   function openEdit(product: Product) {
     clearEditImages();
     setEditingProduct(product);
     setEditForm({
-      name: product.name,
-      category: product.category,
-      brand: product.brand,
-      variant: product.variant,
-      price: product.price,
-      stock_quantity: product.stock_quantity,
+      name: product.name, category: product.category,
+      brand: product.brand, variant: product.variant,
+      price: product.price, stock_quantity: product.stock_quantity,
       reorder_level: product.reorder_level,
     });
   }
-
   function clearEditImages() {
     editImagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
     setEditImagePreviews([]);
   }
-
   function closeEdit() {
     clearEditImages();
     setEditingProduct(null);
   }
-
   function handleEditImages(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
@@ -254,25 +270,22 @@ export function InventoryPage() {
     ]);
     event.target.value = "";
   }
-
   function removeEditImage(index: number) {
     setEditImagePreviews((current) => {
       const target = current[index];
       if (target) URL.revokeObjectURL(target.url);
-      return current.filter((_, itemIndex) => itemIndex !== index);
+      return current.filter((_, i) => i !== index);
     });
   }
-
   async function submitEdit(event: FormEvent) {
     event.preventDefault();
     if (!editingProduct) return;
     await updateProduct.mutateAsync({ id: editingProduct.id, payload: editForm });
     if (editImagePreviews.length) {
-      await uploadImages.mutateAsync({ id: editingProduct.id, files: editImagePreviews.map((preview) => preview.file) });
+      await uploadImages.mutateAsync({ id: editingProduct.id, files: editImagePreviews.map((p) => p.file) });
     }
     closeEdit();
   }
-
   async function openQr(product: Product) {
     if (!product.qr_generated || !product.qr_code) {
       const generated = await generateQr.mutateAsync(product.id);
@@ -281,18 +294,30 @@ export function InventoryPage() {
     }
     setQrProduct(product);
   }
-
   function submitScan(event: FormEvent) {
     event.preventDefault();
     if (!scanInput.trim()) return;
     scanQr.mutate(scanInput.trim());
   }
+  function openMovementModal(productId?: number) {
+    setMovementForm({ ...EMPTY_MOVEMENT, product_id: productId ?? 0 });
+    setMovementSuccess("");
+    setMovementError("");
+    setMovementOpen(true);
+  }
+  function submitMovement(e: FormEvent) {
+    e.preventDefault();
+    setMovementError("");
+    setMovementSuccess("");
+    if (!movementForm.product_id) { setMovementError("Choisissez un produit"); return; }
+    createMovement.mutate(movementForm);
+  }
 
   const tabs: { key: Tab; label: string; icon: typeof Boxes }[] = [
-    { key: "list", label: "Catalogue produits", icon: Boxes },
+    { key: "list", label: "Catalogue", icon: Boxes },
     { key: "movements", label: "Mouvements", icon: RefreshCcw },
     { key: "labels", label: "Étiquettes QR", icon: QrCode },
-    { key: "alerts", label: `Alertes IA${lowStock.length ? ` (${lowStock.length})` : ""}`, icon: AlertCircle },
+    { key: "alerts", label: `Alertes${lowStock.length ? ` (${lowStock.length})` : ""}`, icon: AlertCircle },
   ];
 
   return (
@@ -309,19 +334,45 @@ export function InventoryPage() {
           <button onClick={() => setScanOpen(true)} className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
             <Camera size={15} /> Scanner
           </button>
+          <button
+            onClick={() => openMovementModal()}
+            className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
+          >
+            <RefreshCcw size={15} /> Mouvement
+          </button>
           {selected.length > 0 && (
-            <button
-              onClick={() => setTab("labels")}
-              className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
-            >
-              <QrCode size={15} /> QR codes ({selected.length})
+            <button onClick={() => setTab("labels")} className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
+              <QrCode size={15} /> QR ({selected.length})
             </button>
           )}
+          <button
+            onClick={() => {
+              const csv = "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité";
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = "modele_produits.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
+          >
+            <FileDown size={15} />
+            Modèle CSV
+          </button>
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
+            <Upload size={15} />
+            Importer CSV
+            <input type="file" accept=".csv" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importCsv.mutate(file);
+              e.target.value = "";
+            }} />
+          </label>
           <button
             onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            <Plus size={15} /> Produit
+            <Plus size={15} /> Nouveau produit
           </button>
         </div>
       </div>
@@ -336,7 +387,6 @@ export function InventoryPage() {
         ].map((k) => {
           const colors: Record<string, string> = {
             indigo: "from-emerald-500/15 to-emerald-500/0 text-emerald-600",
-            emerald: "from-emerald-500/15 to-emerald-500/0 text-emerald-600",
             amber: "from-amber-500/15 to-amber-500/0 text-amber-600",
             rose: "from-rose-500/15 to-rose-500/0 text-rose-600",
             sky: "from-sky-500/15 to-sky-500/0 text-sky-600",
@@ -367,7 +417,6 @@ export function InventoryPage() {
 
       {/* Main tabs card */}
       <div className="rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
-        {/* Tab bar */}
         <div className="flex items-center gap-0 overflow-x-auto border-b border-black/[0.06] px-2 dark:border-white/[0.06]">
           {tabs.map((t) => {
             const Icon = t.icon;
@@ -409,146 +458,152 @@ export function InventoryPage() {
                       : "border-black/[0.08] bg-white hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
                   }`}
                 >
-                  <Filter size={14} /> Filtres{stockFilter !== "all" ? " ·" : ""}
-                  {stockFilter === "low" && " Stock bas"}
-                  {stockFilter === "out" && " Ruptures"}
+                  <Filter size={14} /> Filtres{stockFilter === "low" ? " · Stock bas" : stockFilter === "out" ? " · Ruptures" : ""}
                 </button>
                 {showFilters && (
                   <div className="flex gap-1.5 rounded-lg border border-black/[0.06] bg-white p-1.5 dark:border-white/[0.06] dark:bg-[#1e2229]">
                     {(["all", "low", "out"] as const).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => { setStockFilter(key); }}
-                        className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
-                          stockFilter === key
-                            ? "bg-emerald-600 text-white"
-                            : "text-[#717182] hover:bg-stone-100 dark:hover:bg-white/10"
-                        }`}
-                      >
+                      <button key={key} onClick={() => setStockFilter(key)}
+                        className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${stockFilter === key ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-stone-100 dark:hover:bg-white/10"}`}>
                         {key === "all" ? "Tous" : key === "low" ? "Stock bas" : "Ruptures"}
                       </button>
                     ))}
                   </div>
                 )}
                 {selected.length > 0 && (
-                  <button
-                    onClick={() => setTab("labels")}
-                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
-                  >
-                    <Printer size={14} /> Imprimer étiquettes ({selected.length})
+                  <button onClick={() => setTab("labels")} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
+                    <Printer size={14} /> Étiquettes ({selected.length})
                   </button>
                 )}
               </div>
 
-              {/* Category pills */}
               <div className="mb-4 flex gap-2 overflow-x-auto">
                 {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
+                  <button key={cat} onClick={() => setCategory(cat)}
                     className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                      category === cat
-                        ? "bg-emerald-600 text-white"
-                        : "bg-[#ececf0] text-[#717182] hover:bg-[#e0e0ea] dark:bg-white/10 dark:text-white/60"
-                    }`}
-                  >
+                      category === cat ? "bg-emerald-600 text-white" : "bg-[#ececf0] text-[#717182] hover:bg-[#e0e0ea] dark:bg-white/10 dark:text-white/60"
+                    }`}>
                     {cat}
                   </button>
                 ))}
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-black/[0.06] text-left text-xs font-semibold uppercase tracking-wide text-[#717182] dark:border-white/[0.06]">
-                      <th className="w-10 py-2 pr-3">
-                        <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
-                      </th>
-                      <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleInvSort("name")}>
-                        <span className="flex items-center">Produit<InvSortIcon field="name" /></span>
-                      </th>
-                      <th className="py-2 pr-4 hidden sm:table-cell">SKU</th>
-                      <th className="py-2 pr-4 hidden md:table-cell cursor-pointer" onClick={() => toggleInvSort("category")}>
-                        <span className="flex items-center">Catégorie<InvSortIcon field="category" /></span>
-                      </th>
-                      <th className="py-2 pr-4 hidden lg:table-cell">Site</th>
-                      <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("price")}>
-                        <span className="flex items-center justify-end">Prix<InvSortIcon field="price" /></span>
-                      </th>
-                      <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("stock")}>
-                        <span className="flex items-center justify-end">Stock<InvSortIcon field="stock" /></span>
-                      </th>
-                      <th className="py-2 pr-4">Statut</th>
-                      <th className="py-2" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
-                    {filtered.map((p) => {
-                      const badge = statusBadge(p.stock_quantity, p.reorder_level);
-                      return (
-                        <tr key={p.id} className={`hover:bg-[#f8f8fc] dark:hover:bg-white/[0.03] ${selected.includes(p.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}`}>
-                          <td className="py-3 pr-3">
-                            <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
-                          </td>
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${inferProductIcon(p).bg} dark:bg-white/[0.06]`}>
-                                <ProductIconDisplay product={p} size={18} />
+              {products.isLoading ? (
+                <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-[#f0f0f5] dark:bg-white/10" />)}</div>
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <Boxes size={40} className="text-[#d1d5db]" />
+                  <p className="font-semibold text-[#717182]">Aucun produit trouvé</p>
+                  <p className="text-sm text-[#9ca3af]">Utilisez le formulaire ci-dessous pour créer votre premier produit</p>
+                  <button onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
+                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                    <Plus size={15} /> Créer un produit
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-black/[0.06] text-left text-xs font-semibold uppercase tracking-wide text-[#717182] dark:border-white/[0.06]">
+                        <th className="w-10 py-2 pr-3">
+                          <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
+                        </th>
+                        <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleInvSort("name")}>
+                          <span className="flex items-center">Produit<InvSortIcon field="name" /></span>
+                        </th>
+                        <th className="py-2 pr-4 hidden sm:table-cell">SKU</th>
+                        <th className="py-2 pr-4 hidden md:table-cell cursor-pointer" onClick={() => toggleInvSort("category")}>
+                          <span className="flex items-center">Catégorie<InvSortIcon field="category" /></span>
+                        </th>
+                        <th className="py-2 pr-4 hidden lg:table-cell">Site</th>
+                        <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("price")}>
+                          <span className="flex items-center justify-end">Prix<InvSortIcon field="price" /></span>
+                        </th>
+                        <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("stock")}>
+                          <span className="flex items-center justify-end">Stock<InvSortIcon field="stock" /></span>
+                        </th>
+                        <th className="py-2 pr-4">Statut</th>
+                        <th className="py-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+                      {filtered.map((p) => {
+                        const badge = statusBadge(p.stock_quantity, p.reorder_level);
+                        return (
+                          <tr key={p.id} className={`hover:bg-[#f8f8fc] dark:hover:bg-white/[0.03] ${selected.includes(p.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}`}>
+                            <td className="py-3 pr-3">
+                              <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
+                            </td>
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${inferProductIcon(p).bg} dark:bg-white/[0.06]`}>
+                                  <ProductIconDisplay product={p} size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="block truncate font-medium text-[#17211f] dark:text-white">{p.name}</span>
+                                  {(p.images?.length ?? 0) > 0 && (
+                                    <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-300">
+                                      {p.images.length} image{p.images.length > 1 ? "s" : ""}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <span className="block truncate font-medium text-[#17211f] dark:text-white">{p.name}</span>
-                                {(p.images?.length ?? 0) > 0 && (
-                                  <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-300">
-                                    {p.images.length} image{p.images.length > 1 ? "s" : ""}
-                                  </span>
-                                )}
+                            </td>
+                            <td className="py-3 pr-4 hidden sm:table-cell font-mono text-xs text-[#717182]">{p.sku}</td>
+                            <td className="py-3 pr-4 hidden md:table-cell text-[#717182]">{p.category}</td>
+                            <td className="py-3 pr-4 hidden lg:table-cell">
+                              <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />Dépôt</span>
+                            </td>
+                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString("fr-FR")}</td>
+                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.stock_quantity}</td>
+                            <td className="py-3 pr-4">
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{badge.label}</span>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex flex-wrap gap-1.5">
+                                <button onClick={() => openEdit(p)} className="rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
+                                  Modifier
+                                </button>
+                                <button onClick={() => { openMovementModal(p.id); }} className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
+                                  <RefreshCcw size={11} /> Mvt
+                                </button>
+                                <button onClick={() => openQr(p)} className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
+                                  <QrCode size={12} /> QR
+                                </button>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4 hidden sm:table-cell font-mono text-xs text-[#717182]">{p.sku}</td>
-                          <td className="py-3 pr-4 hidden md:table-cell text-[#717182]">{p.category}</td>
-                          <td className="py-3 pr-4 hidden lg:table-cell">
-                            <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />Plateau</span>
-                          </td>
-                          <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString("fr-FR")}</td>
-                          <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.stock_quantity}</td>
-                          <td className="py-3 pr-4">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{badge.label}</span>
-                          </td>
-                          <td className="py-3">
-                            <div className="flex flex-wrap gap-1.5">
-                              <button
-                                onClick={() => openEdit(p)}
-                                className="rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10"
-                              >
-                                Modifier
-                              </button>
-                              <button
-                                onClick={() => openQr(p)}
-                                className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10"
-                              >
-                                <QrCode size={12} /> Voir QR
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {!filtered.length && (
-                  <p className="py-10 text-center text-sm text-[#717182]">Aucun produit trouvé.</p>
-                )}
-              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
 
           {/* ── Mouvements ── */}
           {tab === "movements" && (
-            <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[#717182]">{(movements.data ?? []).length} mouvement{(movements.data ?? []).length !== 1 ? "s" : ""} enregistré{(movements.data ?? []).length !== 1 ? "s" : ""}</p>
+                <button
+                  onClick={() => openMovementModal()}
+                  className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  <Plus size={15} /> Nouveau mouvement
+                </button>
+              </div>
               {movements.isLoading && <div className="h-32 animate-pulse rounded-lg bg-[#ececf0] dark:bg-white/10" />}
               {(movements.data ?? []).length === 0 && !movements.isLoading && (
-                <p className="py-10 text-center text-sm text-[#717182]">Aucun mouvement enregistré.</p>
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <RefreshCcw size={36} className="text-[#d1d5db]" />
+                  <p className="font-semibold text-[#717182]">Aucun mouvement enregistré</p>
+                  <p className="text-xs text-[#9ca3af]">Enregistrez les entrées et sorties de stock manuellement</p>
+                  <button onClick={() => openMovementModal()} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                    <Plus size={15} /> Premier mouvement
+                  </button>
+                </div>
               )}
               {(movements.data ?? []).map((m) => {
                 const isIn = m.movement_type === "in";
@@ -577,45 +632,62 @@ export function InventoryPage() {
 
           {/* ── Étiquettes QR ── */}
           {tab === "labels" && (
-            <div className="text-center py-10">
-              <QrCode size={48} className="mx-auto text-emerald-600 mb-3" />
-              <h3 className="font-semibold text-[#17211f] dark:text-white">Génération d'étiquettes QR</h3>
+            <div className="text-center py-6">
+              <QrCode size={40} className="mx-auto text-emerald-600 mb-3" />
+              <h3 className="font-semibold text-[#17211f] dark:text-white">Étiquettes QR</h3>
               <p className="mt-1 text-sm text-[#717182] max-w-md mx-auto">
-                Sélectionnez des produits dans le catalogue puis générez une planche A4 prête à imprimer.
+                Sélectionnez des produits dans le catalogue puis imprimez une planche A4.
               </p>
               {selected.length > 0 ? (
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-4xl mx-auto">
-                  {(products.data ?? []).filter((p) => selected.includes(p.id)).map((p) => (
-                    <div key={p.id} className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[#c0c0d0] bg-white p-3 text-center text-xs dark:bg-white/5">
-                      <QRCodeSVG value={p.qr_code || p.sku} size={104} level="M" includeMargin />
-                      <p className="font-mono text-[10px] text-[#717182] truncate w-full">{p.sku}</p>
-                      <p className="font-medium text-[#17211f] dark:text-white truncate w-full">{p.name}</p>
-                      <p className="text-emerald-600">{money(p.price)}</p>
-                      <button onClick={() => openQr(p)} className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
-                        Agrandir
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <div className="mt-6 flex gap-3 justify-center">
-                <button onClick={() => setTab("list")} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                  {selected.length > 0 ? `Imprimer ${selected.length} étiquette(s)` : "Choisir des produits"}
-                </button>
-                {(products.data?.length ?? 0) > 0 && (
-                  <button onClick={() => setSelected((products.data ?? []).map((p) => p.id))} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10">
-                    Tous les produits
+                <>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-4xl mx-auto">
+                    {(products.data ?? []).filter((p) => selected.includes(p.id)).map((p) => (
+                      <div key={p.id} className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[#c0c0d0] bg-white p-3 text-center text-xs dark:bg-white/5">
+                        <QRCodeSVG value={p.qr_code || p.sku} size={104} level="M" includeMargin />
+                        <p className="font-mono text-[10px] text-[#717182] truncate w-full">{p.sku}</p>
+                        <p className="font-medium text-[#17211f] dark:text-white truncate w-full">{p.name}</p>
+                        <p className="text-emerald-600">{money(p.price)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 flex gap-3 justify-center">
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    >
+                      <Printer size={15} /> Imprimer {selected.length} étiquette{selected.length > 1 ? "s" : ""}
+                    </button>
+                    <button onClick={() => setSelected([])} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10">
+                      Désélectionner
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-6 flex gap-3 justify-center">
+                  <button onClick={() => setTab("list")} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10">
+                    Choisir dans le catalogue
                   </button>
-                )}
-              </div>
+                  {(products.data?.length ?? 0) > 0 && (
+                    <button onClick={() => setSelected((products.data ?? []).map((p) => p.id))} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                      Tous les produits ({products.data?.length})
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ── Alertes IA ── */}
+          {/* ── Alertes ── */}
           {tab === "alerts" && (
             <AlertsTab lowStock={lowStock} onRestock={(p) => {
-              updateProduct.mutate({ id: p.id, payload: { stock_quantity: p.stock_quantity + Math.max(p.reorder_level * 2 - p.stock_quantity, 10) } });
-            }} restocking={updateProduct.isPending} />
+              const qty = Math.max(p.reorder_level * 2 - p.stock_quantity, 10);
+              createMovement.mutate({
+                product_id: p.id,
+                movement_type: "in",
+                quantity: qty,
+                reason: "Réapprovisionnement automatique",
+              });
+            }} restocking={createMovement.isPending} />
           )}
         </div>
       </div>
@@ -632,20 +704,23 @@ export function InventoryPage() {
             <span className="text-xs font-bold uppercase tracking-wide text-[#17211f] dark:text-white">icône suggérée</span>
           </div>
         </div>
+        {createError && (
+          <div className="mb-3 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{createError}</div>
+        )}
+        {createProduct.isSuccess && (
+          <div className="mb-3 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+            ✓ Produit créé avec succès !
+          </div>
+        )}
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="sm:col-span-2 lg:col-span-3">
             <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône rapide</span>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {productIconSuggestions(`${form.name} ${form.category}`, 20).map((entry) => (
-                <button
-                  key={entry.key}
-                  type="button"
-                  onClick={() => setForm((value) => ({ ...value, category: entry.label }))}
+                <button key={entry.key} type="button" onClick={() => setForm((v) => ({ ...v, category: entry.label }))}
                   title={entry.label}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
-                    ${form.category === entry.label
-                      ? `${entry.bg} ${entry.color} border-transparent`
-                      : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
+                    ${form.category === entry.label ? `${entry.bg} ${entry.color} border-transparent` : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                 >
                   <span className={form.category === entry.label ? entry.color : "text-[#717182]"}>
                     <entry.Icon size={13} />
@@ -656,31 +731,31 @@ export function InventoryPage() {
             </div>
           </div>
           {[
-            { label: "Nom du produit", key: "name", placeholder: "Ex : Jus Tropical 33cl" },
-            { label: "SKU", key: "sku", placeholder: "Ex : JUS-TROP-33" },
+            { label: "Nom du produit *", key: "name", placeholder: "Ex : Jus Tropical 33cl" },
+            { label: "SKU *", key: "sku", placeholder: "Ex : JUS-TROP-33" },
             { label: "Catégorie", key: "category", placeholder: "Général" },
           ].map((f) => (
             <label key={f.key} className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{f.label}</span>
               <input
-                value={(form as any)[f.key]}
+                value={(form as Record<string, unknown>)[f.key] as string}
                 onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))}
                 placeholder={f.placeholder}
+                required={f.key === "name" || f.key === "sku"}
                 className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </label>
           ))}
           {[
-            { label: "Prix unitaire (XAF)", key: "price" },
+            { label: `Prix unitaire (${currencyLabel()})`, key: "price" },
             { label: "Quantité en stock", key: "stock_quantity" },
             { label: "Seuil de réapprovisionnement", key: "reorder_level" },
           ].map((f) => (
             <label key={f.key} className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{f.label}</span>
               <input
-                type="number"
-                min={0}
-                value={(form as any)[f.key]}
+                type="number" min={0}
+                value={(form as Record<string, unknown>)[f.key] as number}
                 onChange={(e) => setForm((v) => ({ ...v, [f.key]: Number(e.target.value) }))}
                 className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
@@ -693,13 +768,106 @@ export function InventoryPage() {
               className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               <QrCode size={15} />
-              {createProduct.isPending ? "Création…" : "Créer + générer QR"}
+              {createProduct.isPending ? "Création…" : "Créer le produit"}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Scanner modal */}
+      {/* ── Movement modal ── */}
+      {movementOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setMovementOpen(false)}>
+          <form
+            onSubmit={submitMovement}
+            className="w-full max-w-md rounded-2xl border bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
+              <RefreshCcw size={18} className="text-emerald-600" />
+              <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">Mouvement de stock</h3>
+              <button type="button" onClick={() => setMovementOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="space-y-4 p-5">
+              {/* Product */}
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Produit *</span>
+                <select
+                  value={movementForm.product_id || ""}
+                  onChange={(e) => setMovementForm({ ...movementForm, product_id: Number(e.target.value) })}
+                  required
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                >
+                  <option value="">-- Choisir un produit --</option>
+                  {(products.data ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.stock_quantity} en stock)</option>
+                  ))}
+                </select>
+              </label>
+              {/* Type */}
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Type de mouvement *</span>
+                <div className="mt-2 flex gap-2">
+                  {([["in", "Entrée (réception)"], ["out", "Sortie (consommation)"]] as const).map(([val, label]) => (
+                    <button
+                      key={val} type="button"
+                      onClick={() => setMovementForm({ ...movementForm, movement_type: val })}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                        movementForm.movement_type === val
+                          ? val === "in" ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                        : "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+                          : "border-black/[0.08] dark:border-white/10 hover:bg-[#f5f5fa] dark:hover:bg-white/5"
+                      }`}
+                    >
+                      {val === "in" ? "↓ " : "↑ "}{label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Quantity */}
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Quantité *</span>
+                <input
+                  type="number" min={1} required
+                  value={movementForm.quantity}
+                  onChange={(e) => setMovementForm({ ...movementForm, quantity: Math.max(1, Number(e.target.value)) })}
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                />
+              </label>
+              {/* Reason */}
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Motif</span>
+                <input
+                  type="text"
+                  value={movementForm.reason}
+                  onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })}
+                  placeholder="Ex : Réception fournisseur, Casse, Vente directe…"
+                  className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                />
+              </label>
+              {movementError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{movementError}</p>}
+              {movementSuccess && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">✓ {movementSuccess}</p>}
+            </div>
+            <div className="flex gap-2 border-t border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
+              <button type="button" onClick={() => setMovementOpen(false)} className="flex-1 rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={createMovement.isPending || !movementForm.product_id}
+                className={`flex-1 rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                  movementForm.movement_type === "in" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
+                }`}
+              >
+                {createMovement.isPending ? "Enregistrement…" : `Enregistrer ${movementForm.movement_type === "in" ? "l'entrée" : "la sortie"}`}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Scanner modal ── */}
       {scanOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setScanOpen(false)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]" onClick={(e) => e.stopPropagation()}>
@@ -729,15 +897,12 @@ export function InventoryPage() {
                   <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">QR code ou SKU</span>
                   <input
                     value={scanInput}
-                    onChange={(event) => setScanInput(event.target.value)}
+                    onChange={(e) => setScanInput(e.target.value)}
                     placeholder="Ex : KOMPTA:1:SKU:12 ou SKU"
                     className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                   />
                 </label>
-                <button
-                  disabled={scanQr.isPending || !scanInput.trim()}
-                  className="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
+                <button disabled={scanQr.isPending || !scanInput.trim()} className="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {scanQr.isPending ? "Scan…" : "Scanner ce code"}
                 </button>
               </form>
@@ -754,11 +919,22 @@ export function InventoryPage() {
               )}
               {scanError && <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{scanError}</p>}
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <button className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10" onClick={() => setScanOpen(false)}>
-                  Continuer le scan
+                <button
+                  type="button"
+                  className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10 hover:bg-[#f5f5fa]"
+                  onClick={() => { setScanInput(""); setScanResult(null); setScanError(""); }}
+                >
+                  Nouveau scan
                 </button>
-                <button className="rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white" onClick={() => setScanOpen(false)}>
-                  Confirmer
+                <button
+                  type="button"
+                  disabled={!scanResult}
+                  className="rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                  onClick={() => {
+                    if (scanResult) { openEdit(scanResult); setScanOpen(false); }
+                  }}
+                >
+                  Modifier le produit
                 </button>
               </div>
             </div>
@@ -766,9 +942,10 @@ export function InventoryPage() {
         </div>
       )}
 
+      {/* ── QR Product modal ── */}
       {qrProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setQrProduct(null)}>
-          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 text-center shadow-2xl dark:border-white/10 dark:bg-[#1e2229]" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 text-center shadow-2xl dark:border-white/10 dark:bg-[#1e2229]" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
               <QrCode size={22} />
             </div>
@@ -792,12 +969,13 @@ export function InventoryPage() {
         </div>
       )}
 
+      {/* ── Edit Product modal ── */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={closeEdit}>
           <form
             onSubmit={submitEdit}
             className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <div className="flex items-center gap-3">
@@ -806,7 +984,7 @@ export function InventoryPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#17211f] dark:text-white">Modifier le produit</h3>
-                  <p className="text-xs text-[#717182]">{editingProduct.sku} · galerie multi-images</p>
+                  <p className="text-xs text-[#717182]">{editingProduct.sku}</p>
                 </div>
               </div>
               <button type="button" onClick={closeEdit} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
@@ -825,8 +1003,8 @@ export function InventoryPage() {
                   <label key={field.key} className="block">
                     <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{field.label}</span>
                     <input
-                      value={(editForm as any)[field.key]}
-                      onChange={(event) => setEditForm((value) => ({ ...value, [field.key]: event.target.value }))}
+                      value={(editForm as Record<string, unknown>)[field.key] as string}
+                      onChange={(e) => setEditForm((v) => ({ ...v, [field.key]: e.target.value }))}
                       className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                     />
                   </label>
@@ -834,15 +1012,14 @@ export function InventoryPage() {
                 {[
                   { label: "Prix unitaire", key: "price" },
                   { label: "Stock", key: "stock_quantity" },
-                  { label: "Seuil", key: "reorder_level" },
+                  { label: "Seuil d'alerte", key: "reorder_level" },
                 ].map((field) => (
                   <label key={field.key} className="block">
                     <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{field.label}</span>
                     <input
-                      type="number"
-                      min={0}
-                      value={(editForm as any)[field.key]}
-                      onChange={(event) => setEditForm((value) => ({ ...value, [field.key]: Number(event.target.value) }))}
+                      type="number" min={0}
+                      value={(editForm as Record<string, unknown>)[field.key] as number}
+                      onChange={(e) => setEditForm((v) => ({ ...v, [field.key]: Number(e.target.value) }))}
                       className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                     />
                   </label>
@@ -851,15 +1028,10 @@ export function InventoryPage() {
                   <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône de catégorie</span>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {productIconSuggestions(`${editForm.name} ${editForm.category}`, 16).map((entry) => (
-                      <button
-                        key={`edit-${entry.key}`}
-                        type="button"
-                        onClick={() => setEditForm((value) => ({ ...value, category: entry.label }))}
-                        title={entry.label}
+                      <button key={`edit-${entry.key}`} type="button"
+                        onClick={() => setEditForm((v) => ({ ...v, category: entry.label }))} title={entry.label}
                         className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
-                          ${editForm.category === entry.label
-                            ? `${entry.bg} ${entry.color} border-transparent`
-                            : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
+                          ${editForm.category === entry.label ? `${entry.bg} ${entry.color} border-transparent` : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                       >
                         <span className={editForm.category === entry.label ? entry.color : "text-[#717182]"}>
                           <entry.Icon size={13} />
@@ -883,7 +1055,6 @@ export function InventoryPage() {
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleEditImages} />
                     </label>
                   </div>
-
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {(editingProduct.images ?? []).map((image) => (
                       <div key={image.id} className="rounded-lg border border-black/[0.06] bg-white p-2 text-xs dark:border-white/10 dark:bg-[#252931]">
@@ -895,11 +1066,7 @@ export function InventoryPage() {
                     {editImagePreviews.map((preview, index) => (
                       <div key={preview.url} className="relative overflow-hidden rounded-lg border border-violet-200 bg-white p-1 dark:border-violet-500/30 dark:bg-[#252931]">
                         <img src={preview.url} alt={preview.file.name} className="aspect-square w-full rounded-md object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeEditImage(index)}
-                          className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-950/70 text-white"
-                        >
+                        <button type="button" onClick={() => removeEditImage(index)} className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-950/70 text-white">
                           <X size={12} />
                         </button>
                       </div>
@@ -914,17 +1081,33 @@ export function InventoryPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
-              <button type="button" onClick={closeEdit} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm dark:border-white/10">
-                Annuler
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
+              {/* Delete button */}
               <button
-                type="submit"
-                disabled={updateProduct.isPending || uploadImages.isPending || !editForm.name}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                type="button"
+                disabled={deleteProduct.isPending}
+                onClick={() => {
+                  if (window.confirm(`Supprimer "${editingProduct.name}" définitivement ?`)) {
+                    deleteProduct.mutate(editingProduct.id);
+                  }
+                }}
+                className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400"
               >
-                {updateProduct.isPending || uploadImages.isPending ? "Enregistrement…" : "Enregistrer le produit"}
+                <Trash2 size={14} />
+                {deleteProduct.isPending ? "Suppression…" : "Supprimer"}
               </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={closeEdit} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm dark:border-white/10">
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateProduct.isPending || uploadImages.isPending || !editForm.name}
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {updateProduct.isPending || uploadImages.isPending ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
             </div>
           </form>
         </div>

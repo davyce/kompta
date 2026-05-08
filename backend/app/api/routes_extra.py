@@ -13,19 +13,25 @@ Tous les endpoints sont scopés par company_id (multi-tenant) et exigent un user
 
 from __future__ import annotations
 
+import asyncio
+import io
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from fastapi import Query
 from app.api.deps import get_current_user
+from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models import (
     AIGeneration,
+    BankTransaction,
     Company,
     CompanyDocument,
     CompanyModule,
@@ -497,8 +503,12 @@ async def limule_chat(
     module_key = context["module"]
 
     # Intents analytiques complexes → plus de tokens pour des réponses détaillées
-    _HEAVY_INTENTS = {"prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie", "risk_analysis"}
-    _max_tokens = 2800 if intent in _HEAVY_INTENTS else 1600
+    _HEAVY_INTENTS = {
+        "prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie",
+        "risk_analysis", "analyse", "rh_analyse", "payroll_analyse", "bilan", "rapport",
+        "diagnostic", "evaluation", "synthese", "question",
+    }
+    _max_tokens = 3500 if intent in _HEAVY_INTENTS else 2200
 
     content, _ = await limule_generate(
         kind=intent,
@@ -597,8 +607,12 @@ async def limule_chat_stream(
     intent = detect_intent(prompt)
     module_key = context["module"]
 
-    _HEAVY_INTENTS = {"prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie", "risk_analysis"}
-    _max_tokens = 2800 if intent in _HEAVY_INTENTS else 1600
+    _HEAVY_INTENTS = {
+        "prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie",
+        "risk_analysis", "analyse", "rh_analyse", "payroll_analyse", "bilan", "rapport",
+        "diagnostic", "evaluation", "synthese", "question",
+    }
+    _max_tokens = 3500 if intent in _HEAVY_INTENTS else 2200
 
     settings = get_settings()
 
@@ -811,7 +825,7 @@ async def admin_limule_chat(
     context_lines = [
         "Cockpit superadmin KOMPTA Grand Sage",
         f"Entreprises: {len(companies)} | Utilisateurs: {users_count} | Employés: {employees_count}",
-        f"Factures: {invoices_count} | CA plateforme: {float(sales_total):,.0f} XAF".replace(",", " "),
+        f"Factures: {invoices_count} | CA plateforme: {float(sales_total):,.0f} (multi-devises)".replace(",", " "),
         f"Tickets récents ouverts: {tickets_open} | critiques: {tickets_critical}",
         f"Alertes TERAS ouvertes: {len(alerts)} | Score TERAS moyen: {avg_teras}/100",
         f"Interactions Limule enregistrées: {limule_total}",
@@ -961,19 +975,70 @@ def ai_download(
     gen_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Response:
+) -> StreamingResponse:
+    from app.services.pdf_export import build_limule_pdf
+    from app.models import Company
+
     gen = db.get(AIGeneration, gen_id)
     if not gen or gen.company_id != current_user.company_id:
         raise HTTPException(404, "Génération introuvable")
-    body = (
-        f"# {gen.title}\n\n"
-        f"_Généré par Limule — {gen.created_at.strftime('%d/%m/%Y %H:%M')}_\n\n"
-        f"## Demande\n\n{gen.prompt}\n\n## Contenu\n\n{gen.content}\n"
+
+    company = db.get(Company, current_user.company_id)
+    company_name = company.name if company else "KOMPTA"
+
+    pdf_bytes = build_limule_pdf(
+        title=gen.title or "Document Limule",
+        content=gen.content or "",
+        prompt=gen.prompt or "",
+        generated_at=gen.created_at.strftime("%d/%m/%Y %H:%M"),
+        company_name=company_name,
+        kind=gen.kind or "text",
     )
-    return Response(
-        content=body.encode("utf-8"),
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="limule-{gen.id}.md"'},
+
+    safe_title = re.sub(r"[^\w\-]", "_", gen.title or "limule")[:40]
+    date_str = gen.created_at.strftime("%Y%m%d")
+    filename = f"limule-{safe_title}-{date_str}.pdf"
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/ai/content/pdf")
+def ai_content_pdf(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """Génère un PDF à partir d'un contenu Limule arbitraire (fallback chat)."""
+    from app.services.pdf_export import build_limule_pdf
+    from app.models import Company
+
+    company = db.get(Company, current_user.company_id)
+    company_name = company.name if company else "KOMPTA"
+
+    title   = str(payload.get("title") or "Réponse Limule")
+    content = str(payload.get("content") or "")
+    prompt  = str(payload.get("prompt") or "")
+    kind    = str(payload.get("kind") or "text")
+
+    pdf_bytes = build_limule_pdf(
+        title=title,
+        content=content,
+        prompt=prompt,
+        generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        company_name=company_name,
+        kind=kind,
+    )
+
+    safe = re.sub(r"[^\w\-]", "_", title)[:40]
+    filename = f"limule-{safe}-{datetime.now().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -1084,8 +1149,9 @@ def generate_daily_note(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DailyNote:
-    """Génère un journal quotidien Limule basé sur les tâches du jour de l'utilisateur."""
+    """Génère un journal quotidien Limule basé sur les tâches, réunions et activité du jour."""
     today = date.today()
+    now = datetime.now(timezone.utc)
     tasks = db.scalars(
         select(Task)
         .where(Task.company_id == current_user.company_id)
@@ -1097,17 +1163,47 @@ def generate_daily_note(
     urgent = [t for t in tasks if t.priority == "high" and t.status != "done"]
     open_tasks = [t for t in tasks if t.status != "done"]
     next_task = today_tasks[0] if today_tasks else (urgent[0] if urgent else (open_tasks[0] if open_tasks else None))
+
+    # Réunions du jour
+    today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+    today_end = today_start + timedelta(days=1)
+    today_meetings = db.scalars(
+        select(Meeting)
+        .where(
+            Meeting.company_id == current_user.company_id,
+            Meeting.start_at >= today_start,
+            Meeting.start_at < today_end,
+        )
+        .order_by(Meeting.start_at.asc())
+    ).all()
+    upcoming_meetings = db.scalars(
+        select(Meeting)
+        .where(
+            Meeting.company_id == current_user.company_id,
+            Meeting.start_at >= now,
+        )
+        .order_by(Meeting.start_at.asc())
+        .limit(5)
+    ).all()
+
     body_lines = [
         f"# Journal du {today.strftime('%d/%m/%Y')}",
         "",
         "## Synthèse Limule",
         (
             f"Limule détecte {len(today_tasks)} tâche(s) prévues aujourd'hui, "
-            f"{len(urgent)} priorité(s) haute(s), {len(done[:5])} action(s) récemment terminée(s)."
+            f"{len(urgent)} priorité(s) haute(s), {len(done[:5])} action(s) récemment terminée(s), "
+            f"{len(today_meetings)} réunion(s) prévues ce jour."
         ),
         "",
-        "## À faire aujourd'hui",
+        "## Réunions du jour",
     ]
+    body_lines += [
+        f"- {m.start_at.strftime('%H:%M')} — **{m.title}**" + (f" ({m.tag})" if m.tag else "")
+        + (f" : {m.ai_summary[:120]}…" if m.ai_summary else "")
+        for m in today_meetings
+    ] or ["- _Aucune réunion planifiée aujourd'hui._"]
+    body_lines += ["", "## À faire aujourd'hui"]
     body_lines += [
         f"- [ ] {t.title}" + (f" — {t.assignee_name}" if t.assignee_name else "")
         for t in today_tasks
@@ -1122,6 +1218,12 @@ def generate_daily_note(
         f"- {t.title}" + (f" — {t.assignee_name}" if t.assignee_name else "")
         for t in done[:5]
     ] or ["- _Rien à signaler._"]
+    if upcoming_meetings:
+        body_lines += ["", "## Prochaines réunions"]
+        body_lines += [
+            f"- {m.start_at.strftime('%d/%m %H:%M')} — {m.title}"
+            for m in upcoming_meetings[:4]
+        ]
     body_lines += ["", "## Prochaine meilleure action"]
     body_lines += [f"- {next_task.title}" if next_task else "- Vérifier les alertes TERAS et planifier les prochaines actions."]
     body_lines += ["", "_Généré par Limule — à valider et compléter par l'équipe._"]
@@ -1245,7 +1347,11 @@ def accounting_cashflow(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[CashFlowPoint]:
-    """Cashflow agrégé sur les 6 dernières périodes (mois|trimestre|année)."""
+    """Cashflow agrégé sur les 6 dernières périodes.
+    Sources: Factures payées + Ventes POS + Crédits/Débits bancaires (BankTransaction).
+    Les BankTransactions sont la source principale (relevés bancaires réels).
+    Invoices/Sales complètent si pas encore enregistrés en banque.
+    """
     invoices = db.scalars(
         select(Invoice).where(Invoice.company_id == current_user.company_id)
     ).all()
@@ -1254,6 +1360,9 @@ def accounting_cashflow(
     ).all()
     payrolls = db.scalars(
         select(PayrollRun).where(PayrollRun.company_id == current_user.company_id)
+    ).all()
+    tx_rows = db.scalars(
+        select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
     ).all()
 
     today = date.today()
@@ -1266,21 +1375,39 @@ def accounting_cashflow(
             m += 12
             y -= 1
         label = months_fr[m - 1]
-        inflow = sum(
+        month_str = f"{y:04d}-{m:02d}"
+
+        # ── Transactions bancaires réelles (source principale) ──────────────
+        tx_month = [r for r in tx_rows if r.date.startswith(month_str)]
+        tx_in  = sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_month)
+        tx_out = sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_month)
+
+        # ── Facturations / ventes (si pas de transactions bancaires ce mois) ─
+        inv_in = sum(
             inv.total_amount or 0
             for inv in invoices
             if inv.created_at.year == y and inv.created_at.month == m and inv.status in {"paid", "sent"}
         )
-        inflow += sum(
+        sales_in = sum(
             s.total_amount or 0
             for s in sales
             if s.created_at.year == y and s.created_at.month == m
         )
-        outflow = sum(
+        payroll_out = sum(
             p.net_total or 0
             for p in payrolls
             if p.created_at.year == y and p.created_at.month == m
         )
+
+        # Si des transactions bancaires existent ce mois : priorité données réelles
+        # Sinon : utiliser les données comptables (invoices/sales/payroll)
+        if tx_in > 0 or tx_out > 0:
+            inflow  = tx_in
+            outflow = tx_out + payroll_out  # payroll toujours inclus (paie sortante)
+        else:
+            inflow  = inv_in + sales_in
+            outflow = payroll_out
+
         points.append(CashFlowPoint(label=label, inflow=float(inflow), outflow=float(outflow)))
     return points
 
@@ -1290,19 +1417,76 @@ def accounting_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ExpenseCategory]:
+    """Répartition des dépenses : transactions bancaires (débits) + paie."""
     payrolls = db.scalars(
         select(PayrollRun).where(PayrollRun.company_id == current_user.company_id)
     ).all()
     salaries = sum(p.gross_total or 0 for p in payrolls)
-    # Charges sociales = écart paie brute → nette
-    social = sum((p.gross_total or 0) - (p.net_total or 0) for p in payrolls)
-    return [
-        ExpenseCategory(name="Salaires", amount=float(salaries), color="#059669"),
-        ExpenseCategory(name="Charges sociales", amount=float(social), color="#10b981"),
-        ExpenseCategory(name="Fournitures", amount=float(salaries) * 0.08, color="#f59e0b"),
-        ExpenseCategory(name="Loyers & utilités", amount=float(salaries) * 0.15, color="#3b82f6"),
-        ExpenseCategory(name="Autres", amount=float(salaries) * 0.05, color="#94a3b8"),
+    social   = sum((p.gross_total or 0) - (p.net_total or 0) for p in payrolls)
+
+    # Transactions bancaires — débits groupés par catégorie
+    tx_debits = db.scalars(
+        select(BankTransaction).where(
+            BankTransaction.company_id == current_user.company_id,
+        )
+    ).all()
+    # Only debit transactions (outflows)
+    debit_rows = [
+        r for r in tx_debits
+        if (r.debit is not None and r.debit > 0) or r.amount < 0
     ]
+
+    CATEGORY_COLORS = {
+        "salaires": "#059669",
+        "charges sociales": "#10b981",
+        "loyer": "#3b82f6",
+        "loyers": "#3b82f6",
+        "loyers & utilités": "#3b82f6",
+        "utilities": "#3b82f6",
+        "fournitures": "#f59e0b",
+        "fournitures & matériel": "#f59e0b",
+        "transport": "#8b5cf6",
+        "marketing": "#ec4899",
+        "sous-traitance": "#f97316",
+        "taxes": "#ef4444",
+        "impôts": "#ef4444",
+        "divers": "#94a3b8",
+        "autres": "#94a3b8",
+    }
+    DEFAULT_COLOR = "#94a3b8"
+
+    by_cat: dict[str, float] = {}
+    for r in debit_rows:
+        cat = (r.category or "Autres").strip()
+        amt = r.debit if r.debit is not None else abs(r.amount)
+        by_cat[cat] = by_cat.get(cat, 0) + amt
+
+    # Merge payroll into category breakdown
+    if salaries > 0:
+        by_cat["Salaires"] = by_cat.get("Salaires", 0) + float(salaries)
+    if social > 0:
+        by_cat["Charges sociales"] = by_cat.get("Charges sociales", 0) + float(social)
+
+    # If no real data at all, return estimates based on payroll
+    if not by_cat:
+        return [
+            ExpenseCategory(name="Salaires",           amount=float(salaries), color="#059669"),
+            ExpenseCategory(name="Charges sociales",   amount=float(social),   color="#10b981"),
+            ExpenseCategory(name="Fournitures",        amount=float(salaries) * 0.08, color="#f59e0b"),
+            ExpenseCategory(name="Loyers & utilités",  amount=float(salaries) * 0.15, color="#3b82f6"),
+            ExpenseCategory(name="Autres",             amount=float(salaries) * 0.05, color="#94a3b8"),
+        ]
+
+    result = [
+        ExpenseCategory(
+            name=cat,
+            amount=round(amt, 2),
+            color=CATEGORY_COLORS.get(cat.lower(), DEFAULT_COLOR),
+        )
+        for cat, amt in sorted(by_cat.items(), key=lambda x: -x[1])
+        if amt > 0
+    ]
+    return result
 
 
 def _accounting_syscemac_status(db: Session, current_user: User) -> list[dict]:
@@ -1374,6 +1558,9 @@ def revenue_series(
     payrolls_all = db.scalars(
         select(PayrollRun).where(PayrollRun.company_id == current_user.company_id)
     ).all()
+    tx_all = db.scalars(
+        select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
+    ).all()
 
     today = date.today()
     months_fr = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"]
@@ -1388,6 +1575,8 @@ def revenue_series(
         for week in range(3, -1, -1):
             week_end = today - timedelta(days=week * 7)
             week_start = week_end - timedelta(days=6)
+            ws = week_start.isoformat()
+            we = week_end.isoformat()
             label = f"S{4 - week}"
             rev = sum(
                 inv.total_amount or 0
@@ -1399,12 +1588,24 @@ def revenue_series(
                 for s in sales_all
                 if s.created_at.date() >= week_start and s.created_at.date() <= week_end
             )
+            # Add bank transaction credits (real receipts)
+            tx_week_in = sum(
+                (r.credit if r.credit is not None else max(r.amount, 0))
+                for r in tx_all
+                if ws <= r.date <= we
+            )
+            tx_week_out = sum(
+                (r.debit if r.debit is not None else max(-r.amount, 0))
+                for r in tx_all
+                if ws <= r.date <= we
+            )
+            total_rev = rev + tx_week_in
             cost = sum(
                 p.net_total or 0
                 for p in payrolls_all
                 if p.created_at.date() >= week_start and p.created_at.date() <= week_end
-            )
-            points.append(RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(max(rev - cost, 0))))
+            ) + tx_week_out
+            points.append(RevenueSeriesPoint(label=label, revenue=float(total_rev), margin=float(max(total_rev - cost, 0))))
     else:
         for i in range(nb_months - 1, -1, -1):
             m = today.month - i
@@ -1413,6 +1614,7 @@ def revenue_series(
                 m += 12
                 y -= 1
             label = months_fr[m - 1]
+            month_str = f"{y:04d}-{m:02d}"
             rev = sum(
                 inv.total_amount or 0
                 for inv in invoices_all
@@ -1423,12 +1625,17 @@ def revenue_series(
                 for s in sales_all
                 if s.created_at.year == y and s.created_at.month == m
             )
+            # Add bank transaction credits (real receipts)
+            tx_month = [r for r in tx_all if r.date.startswith(month_str)]
+            tx_in  = sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_month)
+            tx_out = sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_month)
+            total_rev = rev + tx_in
             cost = sum(
                 p.net_total or 0
                 for p in payrolls_all
                 if p.created_at.year == y and p.created_at.month == m
-            )
-            points.append(RevenueSeriesPoint(label=label, revenue=float(rev), margin=float(max(rev - cost, 0))))
+            ) + tx_out
+            points.append(RevenueSeriesPoint(label=label, revenue=float(total_rev), margin=float(max(total_rev - cost, 0))))
 
     return points
 
@@ -1715,3 +1922,61 @@ async def limule_document_chat_stream(
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SSE NOTIFICATIONS STREAM
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/notifications/stream")
+async def notifications_stream(request: Request, token: str | None = Query(default=None), db: Session = Depends(get_db)):
+    """SSE endpoint — pushes pending alerts and low-stock events.
+    Accepts token via query param because EventSource cannot send custom headers.
+    """
+    # Resolve user from query-param token (EventSource) or Authorization header
+    from fastapi import Header as _Header
+    auth_header = request.headers.get("authorization", "")
+    raw_token: str | None = token
+    if not raw_token and auth_header.lower().startswith("bearer "):
+        raw_token = auth_header.split(" ", 1)[1]
+    if not raw_token:
+        from fastapi.responses import Response as _R
+        return _R(status_code=401, content="Unauthorized")
+    payload = decode_access_token(raw_token)
+    if not payload:
+        from fastapi.responses import Response as _R
+        return _R(status_code=401, content="Invalid token")
+    current_user = db.get(User, int(payload["sub"]))
+    if not current_user or not current_user.is_active:
+        from fastapi.responses import Response as _R
+        return _R(status_code=401, content="Inactive user")
+    async def event_generator():
+        # Send initial ping
+        yield f"data: {json.dumps({'type': 'connected', 'user_id': current_user.id})}\n\n"
+
+        sent_ids: set[int] = set()
+        while True:
+            if await request.is_disconnected():
+                break
+            # Fetch open TERAS alerts for this company
+            try:
+                alerts = db.query(TerasAlert).filter(
+                    TerasAlert.company_id == current_user.company_id,
+                    TerasAlert.status == "open"
+                ).order_by(TerasAlert.id.desc()).limit(5).all()
+
+                for alert in alerts:
+                    if alert.id not in sent_ids:
+                        sent_ids.add(alert.id)
+                        yield f"data: {json.dumps({'type': 'alert', 'id': alert.id, 'title': alert.title, 'severity': alert.severity, 'module': alert.module})}\n\n"
+            except Exception:
+                pass
+
+            await asyncio.sleep(30)  # Poll every 30s
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

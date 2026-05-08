@@ -71,17 +71,24 @@ export function AccountingFinancePage() {
   const navigate = useNavigate();
   // Subscribe to currency changes for reactive re-render
   useCurrency();
-  const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
+  const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview(), refetchInterval: 30_000 });
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
-  const cashflow = useQuery({ queryKey: ["cashflow"], queryFn: () => api.cashflow() });
-  const expenses = useQuery({ queryKey: ["expenses"], queryFn: api.expenses });
+  const cashflow = useQuery({ queryKey: ["cashflow"], queryFn: () => api.cashflow(), refetchInterval: 30_000 });
+  const expenses = useQuery({ queryKey: ["expenses"], queryFn: api.expenses, refetchInterval: 30_000 });
   const syscemac = useQuery({ queryKey: ["syscemac"], queryFn: api.syscemac });
+  const txStats  = useQuery({ queryKey: ["transactionStats"], queryFn: api.transactionStats, refetchInterval: 30_000 });
+  const txList   = useQuery({ queryKey: ["transactions"],     queryFn: () => api.transactions(), refetchInterval: 30_000 });
   const [tab, setTab]           = useState(0);
   const [planOpen, setPlanOpen] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   const invoicesTotal = overview.data?.kpis.invoices_total ?? 0;
   const salesTotal    = overview.data?.kpis.sales_total    ?? 0;
+  // Données bancaires réelles
+  const txCredits  = txStats.data?.total_credits ?? 0;
+  const txDebits   = txStats.data?.total_debits  ?? 0;
+  const txBalance  = txStats.data?.balance       ?? 0;
+  const txCount    = txStats.data?.count         ?? 0;
 
   // Cashflow chart in M XAF
   const cashflowChart = useMemo(
@@ -105,24 +112,39 @@ export function AccountingFinancePage() {
     }));
   }, [expenses.data]);
 
-  // Real activity from invoices (most recent first)
+  // Activité récente : transactions bancaires EN PRIORITÉ, puis factures
   const activity = useMemo(() => {
-    const inv = invoices.data ?? [];
-    return [...inv]
+    const txItems = (txList.data ?? [])
+      .slice(0, 8)
+      .map((t) => ({
+        id: t.id,
+        date: t.date,
+        label: t.label || "Transaction",
+        actor: t.category || t.source_type || "bancaire",
+        amount: t.credit ? t.credit : t.debit ? -t.debit : t.amount,
+        tone: (t.credit ?? 0) > 0 || t.amount > 0 ? "green" as const : "red" as const,
+      }));
+
+    const invItems = (invoices.data ?? [])
       .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
       .slice(0, 5)
       .map((i) => ({
         id: i.id,
+        date: i.created_at?.slice(0, 10) ?? "",
         label: `Facture ${i.number} — ${i.customer_name}`,
         actor: i.status === "paid" ? "Encaissé" : i.status === "sent" ? "En attente" : "Brouillon",
-        amount: i.status === "paid" ? +i.total_amount : -0,
-        tone: i.status === "paid" ? "green" : i.status === "sent" ? "amber" : "red",
+        amount: i.status === "paid" ? +i.total_amount : 0,
+        tone: i.status === "paid" ? "green" as const : i.status === "sent" ? "amber" as const : "red" as const,
       }));
-  }, [invoices.data]);
 
-  const cashflowTotalIn = (cashflow.data ?? []).reduce((s, p) => s + p.inflow, 0);
-  const cashflowTotalOut = (cashflow.data ?? []).reduce((s, p) => s + p.outflow, 0);
-  const netResult = cashflowTotalIn - cashflowTotalOut;
+    // Merge: priorité aux transactions bancaires, compléter avec les factures
+    const merged = txItems.length > 0 ? txItems : invItems;
+    return merged.slice(0, 8);
+  }, [txList.data, invoices.data]);
+
+  const cashflowTotalIn  = txCount > 0 ? txCredits  : (cashflow.data ?? []).reduce((s, p) => s + p.inflow, 0);
+  const cashflowTotalOut = txCount > 0 ? txDebits   : (cashflow.data ?? []).reduce((s, p) => s + p.outflow, 0);
+  const netResult = txCount > 0 ? txBalance : cashflowTotalIn - cashflowTotalOut;
 
   function exportLedger() {
     const lines = ["Numéro,Client,Statut,Montant,Date"];
@@ -150,7 +172,7 @@ export function AccountingFinancePage() {
           </div>
           <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Finance et Comptabilité</h1>
           <p className="mt-1 text-sm text-[#717182]">
-            {invoices.data?.length ?? 0} factures · Référentiel SYSCEMAC · Zone CEMACE/XAF
+            {invoices.data?.length ?? 0} factures · Référentiel SYSCEMAC · Devise {currencyLabel()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -183,7 +205,7 @@ export function AccountingFinancePage() {
       {planOpen && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCEMAC actif — CEMACE/XAF</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCEMAC actif — Devise {currencyLabel()}</h3>
             <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">9 classes</span>
           </div>
           <p className="mb-4 text-sm text-[#717182]">
@@ -243,9 +265,16 @@ export function AccountingFinancePage() {
 
       {/* ── KPIs ── */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card label="Trésorerie"  value={compactMoney(cashflowTotalIn - cashflowTotalOut + salesTotal)} detail={`${cashflow.data?.length ?? 0} mois agrégés`}   icon={WalletCards}  accent="emerald" delta={cashflow.data?.length ? "Calculé" : "—"}  />
-        <Card label="Créances"    value={compactMoney(invoicesTotal)}    detail={`${invoices.data?.length ?? 0} factures émises`}   icon={Landmark}     accent="emerald" delta={invoicesTotal > 0 ? "OK" : "—"}  />
-        <Card label="Sorties"     value={compactMoney(cashflowTotalOut)} detail="charges + paie cumulées"                            icon={HandCoins}    accent="amber"   delta="—" deltaPos={false} />
+        <Card
+          label="Trésorerie"
+          value={compactMoney(txCount > 0 ? txBalance : cashflowTotalIn - cashflowTotalOut + salesTotal)}
+          detail={txCount > 0 ? `${txCount} transactions bancaires` : `${cashflow.data?.length ?? 0} mois agrégés`}
+          icon={WalletCards}
+          accent="emerald"
+          delta={txCount > 0 ? "Solde réel" : "Estimé"}
+        />
+        <Card label="Entrées"     value={compactMoney(txCount > 0 ? txCredits  : cashflowTotalIn)}  detail={txCount > 0 ? "Total crédits bancaires" : "Factures + ventes"} icon={Landmark}     accent="emerald" delta={cashflowTotalIn > 0 ? "OK" : "—"}  />
+        <Card label="Sorties"     value={compactMoney(txCount > 0 ? txDebits   : cashflowTotalOut)} detail={txCount > 0 ? "Total débits bancaires"  : "charges + paie"}   icon={HandCoins}    accent="amber"   delta="—" deltaPos={false} />
         <Card label="Résultat"    value={compactMoney(netResult)}        detail={netResult >= 0 ? "marge positive" : "résultat négatif"} icon={RefreshCcw} accent="emerald" delta={netResult >= 0 ? "+" : "-"} deltaPos={netResult >= 0} />
       </div>
 
@@ -375,6 +404,19 @@ export function AccountingFinancePage() {
           <p className="text-xs text-[#717182]">Calculé en temps réel à partir de tes données</p>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-4">
+          {/* Journal dynamique des transactions bancaires */}
+          {txCount > 0 && (
+            <div className="rounded-xl border border-sky-200 dark:border-sky-500/20 bg-sky-50 dark:bg-sky-500/10 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">JB</span>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                  À jour
+                </span>
+              </div>
+              <p className="mt-2 font-semibold text-[#17211f] dark:text-white">Journal de banque</p>
+              <p className="mt-0.5 text-xs text-[#717182]">{txCount} mouvement{txCount > 1 ? "s" : ""} · Solde {compactMoney(txBalance)}</p>
+            </div>
+          )}
           {(syscemac.data ?? []).map((j) => (
             <div key={j.code} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-4">
               <div className="flex items-center justify-between">

@@ -4,7 +4,7 @@ export type CurrencyCode = "XAF" | "EUR" | "USD";
 const FR  = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 const FR1 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
-// Pre-built formatters per currency (EUR/USD always show 2 decimal places)
+// Pre-built formatters per currency
 const _fmt: Record<CurrencyCode, Intl.NumberFormat> = {
   XAF: FR,
   EUR: new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -12,11 +12,13 @@ const _fmt: Record<CurrencyCode, Intl.NumberFormat> = {
 };
 
 /* ── Module-level active currency (updated by CurrencyContext) ── */
-let _activeCurrency: CurrencyCode =
-  (localStorage.getItem("kompta_currency") as CurrencyCode) ?? "XAF";
-
-/** FX multiplier: value (stored as XAF) × _fxRate = value in _activeCurrency */
-let _fxRate = 1.0;
+let _activeCurrency: CurrencyCode = (() => {
+  try {
+    return (localStorage.getItem("kompta_currency") as CurrencyCode) ?? "XAF";
+  } catch {
+    return "XAF";
+  }
+})();
 
 export function setActiveCurrency(code: CurrencyCode): void {
   _activeCurrency = code;
@@ -26,20 +28,16 @@ export function getActiveCurrency(): CurrencyCode {
   return _activeCurrency;
 }
 
-export function setFxRate(rate: number): void {
-  _fxRate = rate > 0 ? rate : 1;
-}
+/* ── Money helpers — NO FX CONVERSION, just format with currency symbol ── */
 
-export function getFxRate(): number {
-  return _fxRate;
-}
-
-/* ── Money helpers ─────────────────────────────────────────────── */
+/**
+ * Format a monetary value in the active currency.
+ * Values are stored and displayed as-is — no XAF↔EUR/USD conversion.
+ */
 export function money(value: number): string {
   const c = _activeCurrency;
   if (c === "XAF") return `${FR.format(value)} XAF`;
-  const converted = value * _fxRate;
-  return _fmt[c].format(converted);
+  return _fmt[c].format(value);
 }
 
 export function compactMoney(value: number): string {
@@ -52,19 +50,16 @@ export function compactMoney(value: number): string {
     return `${FR.format(value)} XAF`;
   }
 
-  const converted = value * _fxRate;
-  const absC = Math.abs(converted);
-
   if (c === "EUR") {
-    if (absC >= 1_000_000) return `${FR1.format(converted / 1_000_000)} M €`;
-    if (absC >= 1_000)     return `${FR1.format(converted / 1_000)} k €`;
-    return _fmt.EUR.format(converted);
+    if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M €`;
+    if (abs >= 1_000)     return `${FR1.format(value / 1_000)} k €`;
+    return _fmt.EUR.format(value);
   }
 
   // USD
-  if (absC >= 1_000_000) return `$${FR1.format(converted / 1_000_000)}M`;
-  if (absC >= 1_000)     return `$${FR1.format(converted / 1_000)}k`;
-  return _fmt.USD.format(converted);
+  if (abs >= 1_000_000) return `$${FR1.format(value / 1_000_000)}M`;
+  if (abs >= 1_000)     return `$${FR1.format(value / 1_000)}k`;
+  return _fmt.USD.format(value);
 }
 
 /** Short currency label for display (e.g. "XAF", "€", "$") */

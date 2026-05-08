@@ -1,11 +1,31 @@
+/// <reference types="vitest" />
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
   server: {
     host: "127.0.0.1",
     port: 3001,
-    strictPort: true
-  }
+    strictPort: true,
+  },
+  resolve: {
+    // Single React instance across every dependency
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "react-router-dom",
+      "@tanstack/react-query",
+      "@tanstack/query-core",
+    ],
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+  },
 });

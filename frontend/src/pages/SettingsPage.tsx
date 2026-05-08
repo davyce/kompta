@@ -149,6 +149,19 @@ export function SettingsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["modules"] }),
   });
 
+  const [bulkEnabling, setBulkEnabling] = useState(false);
+  async function enableAllModules() {
+    const disabled = (modulesQ.data ?? []).filter((mod) => !mod.enabled);
+    if (!disabled.length) return;
+    setBulkEnabling(true);
+    try {
+      await Promise.allSettled(disabled.map((mod) => api.toggleModule(mod.module_key, true)));
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      setBulkEnabling(false);
+    }
+  }
+
   useEffect(() => {
     if (!company.data) return;
     setCompanyForm({
@@ -477,11 +490,11 @@ export function SettingsPage() {
                   </span>
                   <button
                     type="button"
-                    disabled={toggleModule.isPending || isEmployeeSelfService}
-                    onClick={() => modulesData.filter((mod) => !mod.enabled).forEach((mod) => toggleModule.mutate({ key: mod.module_key, enabled: true }))}
+                    disabled={toggleModule.isPending || bulkEnabling || isEmployeeSelfService}
+                    onClick={enableAllModules}
                     className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
                   >
-                    Tout activer
+                    {bulkEnabling ? "Activation…" : "Tout activer"}
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,6 +15,12 @@ export function ActivationPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (user && !user.must_change_password) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate, user]);
 
   const activate = useMutation({
     mutationFn: api.firstLoginChangePassword,

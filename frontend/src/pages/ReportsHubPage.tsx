@@ -171,6 +171,33 @@ const REPORT_CARDS: ReportCard[] = [
   },
 ];
 
+function exportPLCsv(invoicesTotal: number, salesTotal: number) {
+  const rows: (string | number)[][] = [
+    ["Compte de résultat simplifié", ""],
+    ["Période", new Date().toLocaleDateString("fr-FR")],
+    ["", ""],
+    ["PRODUITS", "Montant"],
+    ["Ventes POS", salesTotal],
+    ["Facturation clients", invoicesTotal],
+    ["Total produits", salesTotal + invoicesTotal],
+    ["", ""],
+    ["CHARGES (estimées)", ""],
+    ["Masse salariale (estimée)", Math.round((salesTotal + invoicesTotal) * 0.35)],
+    ["Frais généraux (estimés)", Math.round((salesTotal + invoicesTotal) * 0.15)],
+    ["Total charges", Math.round((salesTotal + invoicesTotal) * 0.5)],
+    ["", ""],
+    ["RÉSULTAT NET", Math.round((salesTotal + invoicesTotal) * 0.5)],
+  ];
+  const csv = rows.map((r) => r.join(";")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `PL_KOMPTA_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 type AiState = {
   title: string;
   content: string;
@@ -236,10 +263,20 @@ export function ReportsHubPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold text-emerald-600">Rapports &amp; analyses</p>
-        <h1 className="text-3xl font-black text-ink dark:text-white">Hub d'analyses</h1>
-        <p className="mt-1 text-sm font-medium text-[#717182]">Rapports financiers, RH, projets, conformité et RSE.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-emerald-600">Rapports &amp; analyses</p>
+          <h1 className="text-3xl font-black text-ink dark:text-white">Hub d'analyses</h1>
+          <p className="mt-1 text-sm font-medium text-[#717182]">Rapports financiers, RH, projets, conformité et RSE.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0)}
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+          >
+            <Download size={13} /> Exporter P&amp;L CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

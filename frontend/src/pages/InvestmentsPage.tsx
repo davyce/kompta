@@ -153,6 +153,18 @@ export function InvestmentsPage() {
     enabled: !!selected && view === "detail",
   });
 
+  const newsQFr = useQuery({
+    queryKey: ["stock-news-fr", selected?.ticker],
+    queryFn: () => api.stockNewsFr(selected!.ticker),
+    enabled: !!selected && view === "detail",
+  });
+
+  /* ── French description (Limule translation) ── */
+  const [descFr, setDescFr] = useState<string | null>(null);
+  const [descFrLoading, setDescFrLoading] = useState(false);
+
+  useEffect(() => { setDescFr(null); setDescFrLoading(false); }, [selectedId]);
+
   /* ── All quotes for portfolio overview ── */
   const tickers = useMemo(
     () => [...new Set((investmentsQ.data ?? []).map((i) => i.ticker))],
@@ -270,14 +282,19 @@ export function InvestmentsPage() {
   async function handleAdd() {
     if (!selectedResult) return;
     let price = 0;
-    try { const q = await api.stockQuote(selectedResult.ticker); price = q.price ?? 0; } catch { /* 0 */ }
+    let currency = "USD";
+    try {
+      const q = await api.stockQuote(selectedResult.ticker);
+      price = q.price ?? 0;
+      currency = q.currency || selectedResult.currency || "USD";
+    } catch { /* use defaults */ }
     const invested = parseFloat(addForm.invested_amount) || 0;
     const shares = price > 0 ? invested / price : 0;
     createMut.mutate({
       ticker: selectedResult.ticker,
       display_name: selectedResult.name,
       exchange: selectedResult.exchange,
-      currency_stock: "USD",
+      currency_stock: currency,
       shares: Math.round(shares * 10000) / 10000,
       invested_amount: invested,
       purchase_price_ref: price,
@@ -342,6 +359,28 @@ export function InvestmentsPage() {
         setPortfolioAnalysis("Évaluation indisponible. Vérifiez votre connexion et que le backend est démarré.");
       }
     } finally { setPortfolioAnalysisLoading(false); }
+  }
+
+  /* ── Translate description to French via Limule ── */
+  async function handleDescFr() {
+    if (!quote?.description || descFrLoading) return;
+    setDescFrLoading(true);
+    setDescFr("");
+    try {
+      await api.aiGenerateStream(
+        {
+          kind: "translate",
+          title: `Présentation FR — ${quote.name || selected?.ticker}`,
+          prompt: `Traduis et résume en français en 3-4 phrases claires et professionnelles le texte suivant qui décrit l'entreprise ${quote.name || selected?.ticker} :\n\n"${quote.description}"`,
+          context: "investment_desc_fr",
+        },
+        (partial) => setDescFr(partial),
+        (final, _id) => { setDescFr(final); setDescFrLoading(false); },
+        () => { setDescFr("Limule indisponible pour la traduction."); setDescFrLoading(false); },
+      );
+    } catch {
+      setDescFr("Traduction indisponible."); setDescFrLoading(false);
+    }
   }
 
   /* ── Download analysis PDF ── */
@@ -930,10 +969,31 @@ export function InvestmentsPage() {
                 {/* Description */}
                 {quote?.description && (
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3 flex items-center gap-2">
-                      <Info size={12} /> À propos
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] flex items-center gap-2">
+                        <Info size={12} /> À propos
+                      </h3>
+                      <button
+                        onClick={handleDescFr}
+                        disabled={descFrLoading}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-600/30 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition disabled:opacity-50"
+                      >
+                        {descFrLoading ? <Loader2 size={10} className="animate-spin" /> : <Globe size={10} />}
+                        {descFrLoading ? "Traduction…" : descFr ? "Rafraîchir FR" : "Décrire en français"}
+                      </button>
+                    </div>
                     <p className="text-sm text-[#717182] leading-relaxed line-clamp-4">{quote.description}</p>
+                    {/* French description from Limule */}
+                    {(descFr !== null) && (
+                      <div className="mt-3 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3">
+                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 flex items-center gap-1">
+                          <Globe size={10} /> Résumé en français — Limule
+                        </p>
+                        <p className="text-sm text-[#17211f] dark:text-white leading-relaxed">
+                          {descFr || <span className="text-[#717182] animate-pulse">Limule traduit…</span>}
+                        </p>
+                      </div>
+                    )}
                     {quote.website && (
                       <a href={quote.website} target="_blank" rel="noopener noreferrer"
                         className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline">
@@ -943,10 +1003,28 @@ export function InvestmentsPage() {
                   </div>
                 )}
 
-                {/* News */}
+                {/* News françaises */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3 flex items-center gap-2">
-                    <BookOpen size={12} /> Actualités
+                    <BookOpen size={12} /> Actualités en français 🇫🇷
+                  </h3>
+                  {newsQFr.isLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-[#717182]">
+                      <Loader2 size={14} className="animate-spin" /> Chargement des actualités françaises…
+                    </div>
+                  ) : (newsQFr.data ?? []).length === 0 ? (
+                    <p className="text-sm text-[#717182]">Aucune actualité française disponible.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(newsQFr.data ?? []).map((n, i) => <NewsCard key={i} item={n} />)}
+                    </div>
+                  )}
+                </div>
+
+                {/* News internationales */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3 flex items-center gap-2">
+                    <BookOpen size={12} /> Actualités internationales 🌐
                   </h3>
                   {newsQ.isLoading ? (
                     <div className="flex items-center gap-2 text-xs text-[#717182]">
@@ -979,25 +1057,60 @@ export function InvestmentsPage() {
             <div className="px-6 py-5 space-y-4">
               {!selectedResult ? (
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Rechercher une entreprise cotée</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Rechercher une entreprise cotée — toutes bourses mondiales</label>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717182]" />
                     <input autoFocus type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value)}
-                      placeholder="Apple, AAPL, TSLA, Total, BNP…"
+                      placeholder="TotalEnergies, BNP.PA, Airbus, AAPL, BP.L, SAP.DE…"
                       className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] pl-9 pr-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                   </div>
                   {searchResults.length > 0 && (
-                    <div className="mt-1.5 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden shadow-lg">
+                    <div className="mt-1.5 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden shadow-lg max-h-64 overflow-y-auto">
                       {searchResults.map((r) => (
                         <button key={r.ticker} onClick={() => { setSelectedResult(r); setSearchResults([]); }}
-                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition">
-                          <div>
-                            <p className="text-sm font-bold text-[#17211f] dark:text-white">{r.ticker}</p>
-                            <p className="text-xs text-[#717182] truncate">{r.name}</p>
+                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition border-b border-black/[0.03] dark:border-white/[0.03] last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-[#17211f] dark:text-white">{r.ticker}</p>
+                              {r.currency && <span className="text-[10px] font-semibold rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5">{r.currency}</span>}
+                              <span className="text-[10px] rounded bg-black/[0.04] dark:bg-white/[0.06] text-[#717182] px-1.5 py-0.5">{r.type}</span>
+                            </div>
+                            <p className="text-xs text-[#717182] truncate mt-0.5">{r.name}</p>
                           </div>
-                          <span className="text-[10px] text-[#aaaabc]">{r.exchange}</span>
+                          <span className="text-[10px] text-[#aaaabc] shrink-0 ml-2 text-right max-w-[100px] leading-tight">{r.exchange}</span>
                         </button>
                       ))}
+                    </div>
+                  )}
+                  {/* Exchange reference guide */}
+                  {!tickerSearch && (
+                    <div className="mt-3 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.03] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#717182] mb-2 flex items-center gap-1.5">
+                        <Globe size={10} /> Suffixes par bourse — recherche directe par ticker
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-[#717182]">
+                        {[
+                          ["🇫🇷 Euronext Paris",     ".PA  (TTE.PA, BNP.PA, MC.PA)"],
+                          ["🇬🇧 London Stock Exch.", ".L   (BP.L, SHEL.L, AZN.L)"],
+                          ["🇩🇪 Frankfurt XETRA",   ".DE  (SAP.DE, VOW.DE, BMW.DE)"],
+                          ["🇳🇱 Euronext Amsterdam",".AS  (ASML.AS, MT.AS)"],
+                          ["🇨🇭 SIX Zurich",         ".SW  (NESN.SW, NOVN.SW)"],
+                          ["🇪🇸 Madrid (BME)",       ".MC  (SAN.MC, BBVA.MC)"],
+                          ["🇮🇹 Borsa Italiana",     ".MI  (ENI.MI, ISP.MI)"],
+                          ["🇿🇦 Johannesburg (JSE)", ".JO  (NPN.JO, AGL.JO)"],
+                          ["🇯🇵 Tokyo (TSE)",        ".T   (7203.T Toyota)"],
+                          ["🇭🇰 Hong Kong (HKEX)",   ".HK  (0700.HK Tencent)"],
+                          ["🇨🇦 Toronto (TSX)",      ".TO  (TD.TO, SHOP.TO)"],
+                          ["🇧🇷 B3 Brésil",          ".SA  (PETR4.SA, VALE3.SA)"],
+                          ["🌍 BRVM Afrique Ouest",  "Rechercher: SGBC, ONATEL…"],
+                          ["🇺🇸 NYSE / NASDAQ",      "Pas de suffixe (AAPL, TSLA)"],
+                        ].map(([label, hint]) => (
+                          <div key={label} className="flex flex-col">
+                            <span className="font-semibold text-[#17211f] dark:text-white/70">{label}</span>
+                            <span className="opacity-70 font-mono text-[9px]">{hint}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

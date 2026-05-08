@@ -226,12 +226,27 @@ export function PosPage() {
     finally { setExportLoading(false); }
   }
 
+  const cartTotal = total;
+
   /* ════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="grid h-[calc(100vh-56px)] grid-cols-1 gap-4 lg:grid-cols-[1fr_400px]">
+    <div className="flex flex-col gap-4 xl:flex-row xl:h-[calc(100vh-56px)]">
+
+      {/* Mobile floating cart button */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 xl:hidden">
+          <button
+            onClick={() => document.getElementById("pos-cart")?.scrollIntoView({ behavior: "smooth" })}
+            className="flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-emerald-700"
+          >
+            <ShoppingCart size={16} />
+            Panier · {cart.length} article{cart.length > 1 ? "s" : ""} · {money(cartTotal)}
+          </button>
+        </div>
+      )}
 
       {/* ── GAUCHE — Catalogue ─────────────────────────────────────────── */}
-      <div className="flex flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
+      <div className="flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
 
         {/* Barre export CSV */}
         <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-[#f8f8fc] px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.02]">
@@ -403,7 +418,7 @@ export function PosPage() {
       </div>
 
       {/* ── DROITE — Caisse ────────────────────────────────────────────── */}
-      <div className="flex flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
+      <div id="pos-cart" className="flex xl:w-[400px] xl:shrink-0 flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
 
         {/* En-tête panier */}
         <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-3.5 dark:border-white/[0.06]">

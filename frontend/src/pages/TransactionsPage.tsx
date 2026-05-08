@@ -8,7 +8,7 @@ import {
 
 import { api } from "../services/api";
 import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdateDto } from "../services/api";
-import { compactMoney, money, shortDate } from "../utils/format";
+import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
 
@@ -255,7 +255,7 @@ function NewTransactionModal({ onClose, onSave, saving }: {
   saving: boolean;
 }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: today, label: "", debit: "", credit: "", balance: "", currency: "XAF", category: "", counterpart: "", reference: "", notes: "" });
+  const [form, setForm] = useState({ date: today, label: "", debit: "", credit: "", balance: "", currency: getActiveCurrency(), category: "", counterpart: "", reference: "", notes: "" });
   function field<K extends keyof typeof form>(k: K, v: string) { setForm((f) => ({ ...f, [k]: v })); }
   function submit() {
     if (!form.label || !form.date) return;
@@ -316,6 +316,22 @@ function NewTransactionModal({ onClose, onSave, saving }: {
       </div>
     </div>
   );
+}
+
+// ── Multi-currency amount formatter ───────────────────────────────────────────
+function formatTxAmount(amount: number, txCurrency: string): string {
+  const activeCurr = getActiveCurrency();
+  if (txCurrency === activeCurr || !txCurrency || txCurrency === "XAF") {
+    return compactMoney(amount);
+  }
+  // Transaction is in a different currency — show native value
+  const fmt = txCurrency === "EUR"
+    ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })
+    : txCurrency === "USD"
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 })
+    : null;
+  const native = fmt ? fmt.format(amount) : `${amount} ${txCurrency}`;
+  return `${native}`;
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -582,14 +598,19 @@ export function TransactionsPage() {
                     <tr key={t.id} className="group hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
                       <td className="px-4 py-3 text-xs text-[#717182] whitespace-nowrap">{shortDate(t.date)}</td>
                       <td className="px-4 py-3 max-w-[280px]">
-                        <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{t.label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{t.label}</p>
+                          {t.currency && t.currency !== getActiveCurrency() && (
+                            <span className="shrink-0 rounded px-1 py-0.5 text-[9px] font-bold bg-stone-100 text-stone-500 dark:bg-white/10 dark:text-white/50">{t.currency}</span>
+                          )}
+                        </div>
                         {t.reference && <p className="text-[10px] text-[#aaa]">{t.reference}</p>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {d > 0 ? <span className="font-semibold text-red-500">−{compactMoney(d)}</span> : <span className="text-[#aaa]">—</span>}
+                        {d > 0 ? <span className="font-semibold text-red-500">−{formatTxAmount(d, t.currency)}</span> : <span className="text-[#aaa]">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {c > 0 ? <span className="font-semibold text-emerald-600">+{compactMoney(c)}</span> : <span className="text-[#aaa]">—</span>}
+                        {c > 0 ? <span className="font-semibold text-emerald-600">+{formatTxAmount(c, t.currency)}</span> : <span className="text-[#aaa]">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right hidden lg:table-cell text-xs text-[#717182]">
                         {t.balance != null ? money(t.balance) : "—"}

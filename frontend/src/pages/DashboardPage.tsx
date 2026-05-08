@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, ArrowUpRight, ArrowDownRight, CheckCircle2, Download,
   Filter, ShieldCheck, TrendingUp, TrendingDown, WalletCards,
-  ReceiptText, Users, Landmark,
+  ReceiptText, Users, Landmark, Boxes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 import { useAuth } from "../app/AuthContext";
-import { LimuleIcon } from "../components/LimuleAvatar";
+import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { api } from "../services/api";
 import { compactMoney, money, shortDate, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
@@ -48,6 +48,14 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
+/* ── Getting Started steps ───────────────────────────────────────── */
+const GETTING_STARTED_STEPS = [
+  { label: "Ajouter des employés",  hint: "RH et paie",          path: "/employees",   Icon: Users,       color: "bg-violet-100 text-violet-600 dark:bg-violet-500/20" },
+  { label: "Créer une facture",      hint: "Facturation client",  path: "/billing",     Icon: ReceiptText, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20" },
+  { label: "Gérer l'inventaire",    hint: "Produits & stock",    path: "/inventory",   Icon: Boxes,       color: "bg-amber-100 text-amber-600 dark:bg-amber-500/20" },
+  { label: "Importer transactions", hint: "Trésorerie & compta", path: "/transactions", Icon: Landmark,    color: "bg-sky-100 text-sky-600 dark:bg-sky-500/20" },
+];
+
 /* ── KPI card ────────────────────────────────────────────────────── */
 function KpiCard({
   label, value, delta, hint, icon: Icon, accent = "indigo",
@@ -77,6 +85,57 @@ function KpiCard({
         <span className={`text-sm font-bold ${positive ? "text-emerald-600" : "text-rose-500"}`}>{delta}</span>
         <span className="text-xs text-[#717182]">{hint}</span>
       </div>
+    </div>
+  );
+}
+
+/* ── Treasury Prediction widget ─────────────────────────────────────── */
+function TreasuryPrediction({
+  txMonthlyIn, txMonthlyOut, salesTotal, invoicesTotal,
+}: {
+  txMonthlyIn: number; txMonthlyOut: number;
+  salesTotal: number; invoicesTotal: number;
+}) {
+  const today = new Date();
+  // Priorité aux données bancaires réelles; sinon estimation comptable
+  const monthlyIn  = txMonthlyIn  > 0 ? txMonthlyIn  : salesTotal;
+  const monthlyOut = txMonthlyOut > 0 ? txMonthlyOut : Math.round(invoicesTotal * 0.3);
+  const dailyNet   = (monthlyIn - monthlyOut) / 30;
+
+  const points = Array.from({ length: 7 }, (_, i) => ({
+    day: new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(new Date(today.getTime() + i * 86400000)),
+    balance: Math.round((i + 1) * dailyNet),
+  }));
+
+  const isPositive = dailyNet >= 0;
+
+  return (
+    <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:bg-[#1e2229] dark:border-white/[0.06]">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Projection trésorerie</p>
+          <p className="mt-0.5 text-lg font-black text-[#17211f] dark:text-white">7 prochains jours</p>
+        </div>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${isPositive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}>
+          {isPositive ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={100}>
+        <AreaChart data={points} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="treasury-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor={isPositive ? "#059669" : "#ef4444"} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={isPositive ? "#059669" : "#ef4444"} stopOpacity={0.01} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+          <Tooltip formatter={(v) => [compactMoney(typeof v === "number" ? v : 0), "Solde net"]} contentStyle={{ borderRadius: 8, fontSize: 11 }} />
+          <Area type="monotone" dataKey="balance" stroke={isPositive ? "#059669" : "#ef4444"} strokeWidth={2} fill="url(#treasury-grad)" />
+        </AreaChart>
+      </ResponsiveContainer>
+      <p className="mt-2 text-xs text-[#717182]">
+        Projection basée sur votre activité récente · {isPositive ? "+" : ""}{compactMoney(dailyNet)}/jour estimé
+      </p>
     </div>
   );
 }
@@ -118,14 +177,17 @@ export function DashboardPage() {
     setCashFlowLoading(true);
     setCashFlow("");
     const invoiceTotal  = data?.kpis.invoices_total ?? 0;
+    const invoicePaidAmt = data?.kpis.invoices_paid ?? 0;
+    const invoicePending = data?.kpis.invoices_pending ?? 0;
     const salesTotal    = data?.kpis.sales_total    ?? 0;
     const employeeCount = data?.kpis.employees      ?? 0;
-    const estimatedPayroll = Math.max(employeeCount * 775_000, 3_600_000);
+    const estimatedPayroll = employeeCount * 775_000;
+    const txBal = data?.kpis.tx_balance ?? 0;
     await api.aiGenerateStream(
       {
         kind:   "cashflow_prediction",
         title:  "Prévision trésorerie",
-        prompt: `En tant que directeur financier expert PME Afrique centrale, fournis une prévision de trésorerie sur 30, 60 et 90 jours en français, concise et chiffrée. Données actuelles : CA facturé ${compactMoney(invoiceTotal)}, ventes POS ${compactMoney(salesTotal)}, effectif ${employeeCount} (masse salariale estimée ${compactMoney(estimatedPayroll)}). Inclus : (1) Prévision entrées/sorties 30j, (2) Point de vigilance à 60j, (3) Recommandation stratégique à 90j. Format lisible, 5-7 lignes max.`,
+        prompt: `En tant que directeur financier expert PME Afrique centrale, fournis une prévision de trésorerie sur 30, 60 et 90 jours en français, structurée et chiffrée. Données actuelles : Total facturé ${compactMoney(invoiceTotal)} dont ${compactMoney(invoicePaidAmt)} encaissé et ${compactMoney(invoicePending)} en attente d'encaissement, ventes POS ${compactMoney(salesTotal)}, solde trésorerie réel ${compactMoney(txBal)}, effectif ${employeeCount} (masse salariale estimée ${compactMoney(estimatedPayroll)}). Inclus : (1) État de trésorerie actuel commenté, (2) Prévision entrées/sorties détaillées à 30j, (3) Scénario pessimiste/optimiste à 60j, (4) Recommandation stratégique à 90j avec action concrète.`,
         context: "dashboard_cashflow",
       },
       (partial) => setCashFlow(partial),
@@ -184,11 +246,7 @@ export function DashboardPage() {
       { name: "Facturation B2B", raw: b2bTotal },
     ].filter((c) => c.raw > 0);
     if (channels.length === 0) {
-      // Fallback avec distribution fictive pour visualisation
-      return [
-        { name: "POS Boutique",    v: 50, c: CHANNEL_PALETTE[0], raw: 0 },
-        { name: "Facturation B2B", v: 50, c: CHANNEL_PALETTE[1], raw: 0 },
-      ];
+      return [];
     }
     return channels.map((c, i) => ({
       ...c,
@@ -226,11 +284,11 @@ export function DashboardPage() {
     const teras = terasScores.data ?? [];
     const tScore = (domain: string) => teras.find((t) => t.domain === domain)?.score;
     return [
-      { k: "Profil entreprise", v: steps.find((s) => s.key === "profile")?.done ? 100 : 60, c: "bg-emerald-500" },
-      { k: "Plan comptable",    v: steps.find((s) => s.key === "accounting")?.done ? 100 : 55, c: "bg-emerald-500" },
-      { k: "Politique RH",      v: tScore("rh") ?? (steps.find((s) => s.key === "hr")?.done ? 95 : 70), c: "bg-amber-500" },
-      { k: "Conformité TERAS",  v: tScore("company") ?? (overview.data?.kpis.teras_score ?? 80), c: "bg-emerald-500" },
-      { k: "Documents",         v: tScore("documents") ?? 65, c: "bg-amber-500" },
+      { k: "Profil entreprise", v: steps.find((s) => s.key === "profile")?.done ? 100 : 0, c: "bg-emerald-500" },
+      { k: "Plan comptable",    v: steps.find((s) => s.key === "accounting")?.done ? 100 : 0, c: "bg-emerald-500" },
+      { k: "Politique RH",      v: tScore("rh") ?? (steps.find((s) => s.key === "hr")?.done ? 100 : 0), c: "bg-amber-500" },
+      { k: "Conformité TERAS",  v: tScore("company") ?? (overview.data?.kpis.teras_score ?? 0), c: "bg-emerald-500" },
+      { k: "Documents",         v: tScore("documents") ?? 0, c: "bg-amber-500" },
     ].map((r) => ({ ...r, c: r.v >= 85 ? "bg-emerald-500" : r.v >= 65 ? "bg-amber-500" : "bg-rose-500" }));
   }, [onboarding.data, terasScores.data, overview.data]);
 
@@ -248,18 +306,23 @@ export function DashboardPage() {
   const firstName  = user?.full_name?.split(" ")[0] ?? "vous";
   const divisor    = PERIOD_DIVISOR[period];
 
-  const payrollBase  = Math.max((data?.kpis.employees ?? 0) * 775_000, 3_600_000);
-  const treasuryBase = 48_200_000 + (data?.kpis.sales_total ?? 0);
-  const revenueBase  = 287_000_000 + (data?.kpis.invoices_total ?? 0);
+  // Trésorerie : solde bancaire réel si transactions existent, sinon ventes POS
+  const txBalance       = data?.kpis.tx_balance    ?? 0;
+  const txCount         = data?.kpis.tx_count      ?? 0;
+  const txMonthlyIn     = data?.kpis.tx_monthly_in  ?? 0;
+  const txMonthlyOut    = data?.kpis.tx_monthly_out ?? 0;
+  const invoicesPaid    = data?.kpis.invoices_paid    ?? 0;
+  const invoicesPending = data?.kpis.invoices_pending ?? 0;
+  const invoicesPaidCount = data?.kpis.invoices_paid_count ?? 0;
+  const invoicesTotal   = data?.kpis.invoices_total   ?? 0;
+  const treasury   = Math.round((txCount > 0 ? txBalance : (data?.kpis.sales_total ?? 0)) / divisor);
+  const revenue    = Math.round(invoicesPaid / divisor);
+  const payroll    = Math.round(((data?.kpis.employees ?? 0) * 775_000) / divisor);
+  const terasScore = data?.kpis.teras_score ?? 0;
+  const terasDelta = terasScore > 0 ? terasScore - 83 : 0;
 
-  const treasury = Math.round(treasuryBase / divisor);
-  const revenue  = Math.round(revenueBase  / divisor);
-  const payroll  = Math.round(payrollBase  / divisor);
-  const terasScore = data?.kpis.teras_score ?? 87;
-  const terasDelta = terasScore - 83;
-
-  const salesPct = treasuryBase > 0 ? ((data?.kpis.sales_total ?? 0) / treasuryBase) * 100 : 8.4;
-  const revPct   = revenueBase  > 0 ? ((data?.kpis.invoices_total ?? 0) / revenueBase) * 100 : 12.1;
+  const salesPct = 0;
+  const revPct   = 0;
 
   const fmt = (v: number, positive = true) =>
     `${positive && v >= 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")}%`;
@@ -348,36 +411,68 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Getting Started banner (only for brand-new accounts) ── */}
+      {data?.kpis.employees === 0 && data?.kpis.invoices_total === 0 && (
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 dark:from-emerald-500/10 dark:to-[#1e2229] dark:border-emerald-500/30">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0">
+              <LimuleAvatar state="idle" size={48} />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-black text-[#17211f] dark:text-white">Bienvenue sur KOMPTA 🎉</h2>
+              <p className="mt-1 text-sm text-[#717182]">Votre espace est prêt. Suivez ces étapes pour démarrer :</p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {GETTING_STARTED_STEPS.map((step) => (
+                  <button
+                    key={step.path}
+                    onClick={() => navigate(step.path)}
+                    className="flex flex-col gap-2 rounded-xl border border-black/[0.06] bg-white p-4 text-left hover:border-emerald-300 hover:bg-emerald-50 transition dark:bg-[#252931] dark:border-white/[0.06] dark:hover:border-emerald-500/50"
+                  >
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${step.color}`}>
+                      <step.Icon size={16} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-[#17211f] dark:text-white">{step.label}</p>
+                      <p className="text-xs text-[#717182]">{step.hint}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── KPI row ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Trésorerie"
-          value={compactMoney(treasury)}
-          delta={fmt(salesPct)}
-          hint="vs mois précédent"
+          value={treasury !== 0 ? compactMoney(treasury) : "—"}
+          delta={txCount > 0 ? `${txCount} mvts bancaires` : "Ventes POS"}
+          hint={txCount > 0 ? "Solde réel (transactions bancaires)" : "Estimation basée sur les ventes POS"}
           icon={WalletCards}
           accent="emerald"
         />
         <KpiCard
-          label="CA cumulé"
-          value={compactMoney(revenue)}
-          delta={fmt(revPct)}
-          hint="objectif annuel : 78%"
+          label="Encaissé"
+          value={revenue > 0 ? compactMoney(revenue) : invoicesTotal > 0 ? "0" : "—"}
+          delta={invoicesPaidCount > 0 ? `${invoicesPaidCount} facture${invoicesPaidCount > 1 ? "s" : ""} payée${invoicesPaidCount > 1 ? "s" : ""}` : invoicesPending > 0 ? `${compactMoney(invoicesPending)} en attente` : "aucune facture"}
+          hint={invoicesTotal > 0 ? `sur ${compactMoney(invoicesTotal)} facturé` : "factures encaissées"}
           icon={ReceiptText}
           accent="teal"
         />
         <KpiCard
-          label="Paie à venir"
-          value={compactMoney(payroll)}
-          delta="+1,2%"
+          label="Masse salariale"
+          value={payroll > 0 ? compactMoney(payroll) : "—"}
+          delta={payroll > 0 ? `${data?.kpis.employees ?? 0} employés` : "aucun employé"}
           hint={periodLabel[period]}
           icon={Users}
           accent="amber"
         />
         <KpiCard
           label="Score TERAS"
-          value={`${terasScore} / 100`}
-          delta={`${terasDelta >= 0 ? "+" : ""}${terasDelta} pts`}
+          value={terasScore > 0 ? `${terasScore} / 100` : "— / 100"}
+          delta={terasDelta !== 0 ? `${terasDelta >= 0 ? "+" : ""}${terasDelta} pts` : "non évalué"}
           hint="conformité fiscale & RH"
           icon={ShieldCheck}
           accent="sky"
@@ -450,45 +545,51 @@ export function DashboardPage() {
             <h3 className="font-bold text-[#17211f] dark:text-white">Canaux de vente</h3>
             <p className="text-xs text-[#717182]">Répartition du CA</p>
           </div>
-          <div className="h-52 flex-shrink-0 px-2 pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={channelData}
-                  dataKey="v"
-                  innerRadius={52}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  strokeWidth={0}
-                >
-                  {channelData.map((c, i) => <Cell key={i} fill={c.c} />)}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
-                  formatter={(v, name) => [`${v}%`, name]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2.5 px-5 pb-5 pt-1">
-            {channelData.map((c) => (
-              <div key={c.name} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: c.c }} />
-                <span className="flex-1 text-sm text-[#17211f] dark:text-white">{c.name}</span>
-                {c.raw > 0 && (
-                  <span className="text-xs text-[#717182]">{compactMoney(c.raw)}</span>
-                )}
-                <span
-                  className="ml-1 min-w-[36px] rounded-full px-2 py-0.5 text-center text-[11px] font-bold"
-                  style={{ background: c.c + "20", color: c.c }}
-                >
-                  {c.v}%
-                </span>
+          {channelData.length === 0 ? (
+            <div className="flex h-52 flex-col items-center justify-center gap-2 text-center px-5">
+              <ReceiptText size={32} className="text-[#d1d5db]" />
+              <p className="text-sm font-semibold text-[#717182]">Aucune vente enregistrée</p>
+              <p className="text-xs text-[#9ca3af]">Les canaux apparaîtront ici dès la première vente</p>
+            </div>
+          ) : (
+            <>
+              <div className="h-52 flex-shrink-0 px-2 pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={channelData} dataKey="v" innerRadius={52} outerRadius={80} paddingAngle={3} strokeWidth={0}>
+                      {channelData.map((c, i) => <Cell key={i} fill={c.c} />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
+                      formatter={(v, name) => [`${v}%`, name]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+              <div className="space-y-2.5 px-5 pb-5 pt-1">
+                {channelData.map((c) => (
+                  <div key={c.name} className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: c.c }} />
+                    <span className="flex-1 text-sm text-[#17211f] dark:text-white">{c.name}</span>
+                    {c.raw > 0 && <span className="text-xs text-[#717182]">{compactMoney(c.raw)}</span>}
+                    <span className="ml-1 min-w-[36px] rounded-full px-2 py-0.5 text-center text-[11px] font-bold" style={{ background: c.c + "20", color: c.c }}>
+                      {c.v}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* ── Treasury Prediction ── */}
+      <TreasuryPrediction
+        txMonthlyIn={txMonthlyIn}
+        txMonthlyOut={txMonthlyOut}
+        salesTotal={data?.kpis.sales_total ?? 0}
+        invoicesTotal={data?.kpis.invoices_total ?? 0}
+      />
 
       {/* ── Alerts + Tasks row ── */}
       <div className="grid gap-5 lg:grid-cols-3">
@@ -748,7 +849,7 @@ export function DashboardPage() {
           </table>
         </div>
         <div className="border-t border-black/[0.04] dark:border-white/[0.04] px-5 py-3 text-xs text-[#717182]">
-          Total facturé : {money(data?.kpis.invoices_total ?? 0)} · Données en temps réel
+          Encaissé : {money(invoicesPaid)} · Total facturé : {money(invoicesTotal)} · En attente : {money(invoicesPending)} · Données en temps réel
         </div>
       </div>
 

@@ -248,17 +248,21 @@ _SYSTEM_PROMPTS: dict[str, str] = {
 
 _DEFAULT_SYSTEM = (
     "Tu es Limule, conseiller stratégique IA intégré à KOMPTA — ERP local-first pour PME africaines.\n"
-    "Tu connais profondément: la zone CEMAC/Afrique centrale, la devise XAF, le plan SYSCEMAC, la CNPS/CNSS,\n"
-    "les pratiques RH et fiscales locales, l'économie des marchés émergents africains.\n\n"
-    "Tu es autorisé à:\n"
-    "- Produire des prévisions économiques chiffrées à partir des données de l'entreprise\n"
-    "- Donner des conseils d'investissement et d'allocation de ressources\n"
-    "- Analyser le positionnement sectoriel et la conjoncture économique régionale\n"
+    "Tu maîtrises profondément: la zone CEMAC/Afrique centrale, le plan SYSCEMAC révisé, la CNPS/CNSS,\n"
+    "les pratiques RH et fiscales locales, les marchés financiers africains, l'économie des PME émergentes.\n\n"
+    "Tu es autorisé et attendu à:\n"
+    "- Produire des analyses économiques DÉTAILLÉES et CHIFFRÉES à partir des données réelles de l'entreprise\n"
+    "- Donner des conseils d'investissement et d'allocation de ressources avec ROI et délais estimés\n"
+    "- Analyser le positionnement sectoriel avec benchmark vs PME zone CEMAC\n"
     "- Simuler l'impact de décisions stratégiques sur les indicateurs clés\n"
-    "- Benchmarker la performance vs des référentiels PME de la sous-région\n\n"
-    "Réponds en français professionnel, structuré, directement exploitable par un dirigeant.\n"
-    "Pour les prévisions: base-toi sur les données fournies et indique clairement tes hypothèses.\n"
-    "Ne mentionne jamais que tu es un modèle IA externe. Tu es Limule dans KOMPTA."
+    "- Anticiper les risques et signaux faibles avant qu'ils deviennent des crises\n\n"
+    "STANDARD DE QUALITÉ OBLIGATOIRE:\n"
+    "- Chaque analyse doit être complète, narrative et développée — pas une liste de puces sèches.\n"
+    "- Structure: état des lieux détaillé → causes analysées → impacts quantifiés → recommandations concrètes → actions immédiates.\n"
+    "- Cite toujours les données chiffrées du contexte pour appuyer chaque affirmation.\n"
+    "- Pour les prévisions: base-toi sur les données fournies, indique les hypothèses, donne une fourchette.\n"
+    "- Ne mentionne jamais que tu es un modèle IA externe. Tu es Limule dans KOMPTA.\n"
+    "- Réponds en français professionnel, fluide, directement exploitable par un DG."
 )
 
 
@@ -498,10 +502,12 @@ async def limule_generate(
     max_tokens: int = 1200,
     temperature: float = 0.35,
     conversation_history: list[dict] | None = None,
+    company_currency: str | None = None,
 ) -> tuple[str, dict[str, str]]:
     """
     Génère du contenu via le vrai LLM avec résolution des variables dynamiques.
     conversation_history : échanges précédents [{role, content}] pour le multi-tour.
+    company_currency : devise de l'entreprise (EUR, USD, XAF…) — injectée dans le system prompt.
 
     Returns:
         (content, resolved_vars)
@@ -509,6 +515,25 @@ async def limule_generate(
     resolved_vars: dict[str, str] = {}
     resolved_prompt = prompt
     resolved_context = context
+
+    # Auto-résolution de la devise depuis user_preferences ou company
+    resolved_currency = company_currency
+    if not resolved_currency and db is not None:
+        try:
+            from app.models.domain import UserPreference as UserPrefModel
+            from sqlalchemy import select as sa_select
+            user_id = getattr(user, "id", None) if user else None
+            if user_id:
+                pref = db.scalar(sa_select(UserPrefModel).where(UserPrefModel.user_id == user_id))
+                if pref and getattr(pref, "currency", None):
+                    resolved_currency = pref.currency
+            # Fallback: chercher dans les préférences de la compagnie
+            if not resolved_currency and company_id:
+                pref = db.scalar(sa_select(UserPrefModel).where(UserPrefModel.company_id == company_id))
+                if pref and getattr(pref, "currency", None):
+                    resolved_currency = pref.currency
+        except Exception:
+            pass
 
     if db is not None and company_id and user is not None:
         resolved_prompt, vars_p = resolve_variables(prompt, db, company_id, user)
@@ -524,6 +549,15 @@ async def limule_generate(
         context=structured_context,
         base_system=_SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM),
     )
+
+    # Injecter la devise réelle de l'entreprise pour éviter les hypothèses erronées
+    if resolved_currency:
+        system += (
+            f"\n\n═══ DEVISE DE L'ENTREPRISE ═══\n"
+            f"La devise locale de cette entreprise est : {resolved_currency}.\n"
+            f"Utilise UNIQUEMENT {resolved_currency} pour tous les montants en devise locale dans tes réponses.\n"
+            f"Ne suppose pas que c'est du FCFA, XAF ou CFA si ce n'est pas {resolved_currency}."
+        )
 
     if resolved_vars:
         ctx_lines = [
@@ -573,16 +607,36 @@ async def limule_stream(
     max_tokens: int = 1200,
     temperature: float = 0.35,
     conversation_history: list[dict] | None = None,
+    company_currency: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Version streaming de limule_generate.
     conversation_history : échanges précédents pour le multi-tour.
+    company_currency : devise de l'entreprise — injectée dans le system prompt.
     Yield les chunks de texte au fur et à mesure qu'ils arrivent du LLM.
     Si le LLM est indisponible, yield le fallback en un seul bloc.
     """
     resolved_vars: dict[str, str] = {}
     resolved_prompt = prompt
     resolved_context = context
+
+    # Auto-résolution de la devise depuis user_preferences ou company
+    resolved_currency = company_currency
+    if not resolved_currency and db is not None:
+        try:
+            from app.models.domain import UserPreference as UserPrefModel
+            from sqlalchemy import select as sa_select
+            user_id = getattr(user, "id", None) if user else None
+            if user_id:
+                pref = db.scalar(sa_select(UserPrefModel).where(UserPrefModel.user_id == user_id))
+                if pref and getattr(pref, "currency", None):
+                    resolved_currency = pref.currency
+            if not resolved_currency and company_id:
+                pref = db.scalar(sa_select(UserPrefModel).where(UserPrefModel.company_id == company_id))
+                if pref and getattr(pref, "currency", None):
+                    resolved_currency = pref.currency
+        except Exception:
+            pass
 
     if db is not None and company_id and user is not None:
         resolved_prompt, vars_p = resolve_variables(prompt, db, company_id, user)
@@ -598,6 +652,16 @@ async def limule_stream(
         context=structured_context,
         base_system=_SYSTEM_PROMPTS.get(kind, _DEFAULT_SYSTEM),
     )
+
+    # Injecter la devise réelle de l'entreprise
+    if resolved_currency:
+        system += (
+            f"\n\n═══ DEVISE DE L'ENTREPRISE ═══\n"
+            f"La devise locale de cette entreprise est : {resolved_currency}.\n"
+            f"Utilise UNIQUEMENT {resolved_currency} pour tous les montants en devise locale dans tes réponses.\n"
+            f"Ne suppose pas que c'est du FCFA, XAF ou CFA si ce n'est pas {resolved_currency}."
+        )
+
     if resolved_vars:
         ctx_lines = [
             f"  • {k} : {v}"

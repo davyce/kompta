@@ -87,6 +87,9 @@ def ensure_sqlite_migrations() -> None:
             "payout_method": "VARCHAR(40) DEFAULT ''",
             "payout_destination": "VARCHAR(180) DEFAULT ''",
             "payout_status": "VARCHAR(40) DEFAULT 'pending'",
+            "bonus": "FLOAT DEFAULT 0",
+            "overtime_pay": "FLOAT DEFAULT 0",
+            "absence_deduction": "FLOAT DEFAULT 0",
         },
         "meetings": {
             "agenda": "TEXT DEFAULT ''",
@@ -463,17 +466,31 @@ def seed_demo_data(db: Session) -> None:
     )
 
     # ── Super Admin (cross-tenant) ──
-    super_admin = User(
-        email="superadmin@kompta.io",
-        phone="+242060000099",
-        full_name="Super Admin KOMPTA",
-        role="super_admin",
-        department="KOMPTA Platform",
-        branch="HQ",
-        password_hash=hash_password("super2026"),
-        company_id=company.id,  # rattaché à la 1ère société par convention
-    )
-    db.add(super_admin)
+    # The local DB can be partially seeded during development. Reuse the platform
+    # account if it already exists instead of crashing on the unique email index.
+    super_admin = db.scalar(select(User).where(User.email == "superadmin@kompta.io"))
+    if super_admin:
+        super_admin.phone = super_admin.phone or "+242060000099"
+        super_admin.full_name = super_admin.full_name or "Super Admin KOMPTA"
+        super_admin.role = "super_admin"
+        super_admin.department = super_admin.department or "KOMPTA Platform"
+        super_admin.branch = super_admin.branch or "HQ"
+        super_admin.password_hash = hash_password("super2026")
+        super_admin.account_status = "active"
+        super_admin.is_active = True
+        super_admin.company_id = super_admin.company_id or company.id
+    else:
+        super_admin = User(
+            email="superadmin@kompta.io",
+            phone="+242060000099",
+            full_name="Super Admin KOMPTA",
+            role="super_admin",
+            department="KOMPTA Platform",
+            branch="HQ",
+            password_hash=hash_password("super2026"),
+            company_id=company.id,  # rattaché à la 1ère société par convention
+        )
+        db.add(super_admin)
     db.flush()
 
     # ── Tickets de support de démo ──

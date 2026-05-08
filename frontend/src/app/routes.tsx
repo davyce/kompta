@@ -1,46 +1,88 @@
-import { Navigate, createBrowserRouter } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Navigate, createBrowserRouter, useRouteError } from "react-router-dom";
+import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 import { AdminShell } from "../admin/AdminShell";
-import { AdminCompaniesPage } from "../admin/pages/AdminCompaniesPage";
-import { AdminCompanyDetailPage } from "../admin/pages/AdminCompanyDetailPage";
-import { AdminDashboardPage } from "../admin/pages/AdminDashboardPage";
-import { AdminLogsPage } from "../admin/pages/AdminLogsPage";
-import { AdminLimulePage } from "../admin/pages/AdminLimulePage";
-import { AdminTicketDetailPage } from "../admin/pages/AdminTicketDetailPage";
-import { AdminTicketsPage } from "../admin/pages/AdminTicketsPage";
-import { AdminUsersPage } from "../admin/pages/AdminUsersPage";
 import { Shell } from "./Shell";
 import { useAuth } from "./AuthContext";
-import { AssistantsPage } from "../pages/AssistantsPage";
-import { ChatPage } from "../pages/ChatPage";
-import { DeclarationsPage } from "../pages/DeclarationsPage";
-import { ActivationPage } from "../pages/ActivationPage";
-import { AccountingFinancePage } from "../pages/AccountingFinancePage";
-import { BillingPage } from "../pages/BillingPage";
-import { CalendarPage } from "../pages/CalendarPage";
-import { CompanyPage } from "../pages/CompanyPage";
-import { DashboardPage } from "../pages/DashboardPage";
-import { DocumentsPage } from "../pages/DocumentsPage";
-import { EmployeesPage } from "../pages/EmployeesPage";
-import { InventoryPage } from "../pages/InventoryPage";
-import { PosPage } from "../pages/PosPage";
 import { LoginPage } from "../pages/LoginPage";
-import { NotFoundPage } from "../pages/NotFoundPage";
-import { PayrollPage } from "../pages/PayrollPage";
-import { ReportsHubPage } from "../pages/ReportsHubPage";
-import { ReportsTerasPage } from "../pages/ReportsTerasPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { WorkPage } from "../pages/WorkPage";
-import { NotesPage } from "../pages/NotesPage";
-import { ProjectsPage } from "../pages/ProjectsPage";
-import { EmployeeProfilePage } from "../pages/EmployeeProfilePage";
-import { MeetingsPage } from "../pages/MeetingsPage";
-import { HelpCenterPage } from "../pages/HelpCenterPage";
-import { SafeModePage } from "../pages/SafeModePage";
-import { ClientsPage } from "../pages/ClientsPage";
-import { InvestmentsPage } from "../pages/InvestmentsPage";
-import { BudgetPage } from "../pages/BudgetPage";
-import { TransactionsPage } from "../pages/TransactionsPage";
+
+// ── Lazy page imports ──────────────────────────────────────────────────────
+const DashboardPage       = lazy(() => import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const EmployeesPage       = lazy(() => import("../pages/EmployeesPage").then(m => ({ default: m.EmployeesPage })));
+const PayrollPage         = lazy(() => import("../pages/PayrollPage").then(m => ({ default: m.PayrollPage })));
+const BillingPage         = lazy(() => import("../pages/BillingPage").then(m => ({ default: m.BillingPage })));
+const InventoryPage       = lazy(() => import("../pages/InventoryPage").then(m => ({ default: m.InventoryPage })));
+const PosPage             = lazy(() => import("../pages/PosPage").then(m => ({ default: m.PosPage })));
+const TransactionsPage    = lazy(() => import("../pages/TransactionsPage").then(m => ({ default: m.TransactionsPage })));
+const SettingsPage        = lazy(() => import("../pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const AccountingFinancePage = lazy(() => import("../pages/AccountingFinancePage").then(m => ({ default: m.AccountingFinancePage })));
+const DocumentsPage       = lazy(() => import("../pages/DocumentsPage").then(m => ({ default: m.DocumentsPage })));
+const CompanyPage         = lazy(() => import("../pages/CompanyPage").then(m => ({ default: m.CompanyPage })));
+const ReportsHubPage      = lazy(() => import("../pages/ReportsHubPage").then(m => ({ default: m.ReportsHubPage })));
+const ReportsTerasPage    = lazy(() => import("../pages/ReportsTerasPage").then(m => ({ default: m.ReportsTerasPage })));
+const ChatPage            = lazy(() => import("../pages/ChatPage").then(m => ({ default: m.ChatPage })));
+const WorkPage            = lazy(() => import("../pages/WorkPage").then(m => ({ default: m.WorkPage })));
+const CalendarPage        = lazy(() => import("../pages/CalendarPage").then(m => ({ default: m.CalendarPage })));
+const NotesPage           = lazy(() => import("../pages/NotesPage").then(m => ({ default: m.NotesPage })));
+const ProjectsPage        = lazy(() => import("../pages/ProjectsPage").then(m => ({ default: m.ProjectsPage })));
+const MeetingsPage        = lazy(() => import("../pages/MeetingsPage").then(m => ({ default: m.MeetingsPage })));
+const HelpCenterPage      = lazy(() => import("../pages/HelpCenterPage").then(m => ({ default: m.HelpCenterPage })));
+const SafeModePage        = lazy(() => import("../pages/SafeModePage").then(m => ({ default: m.SafeModePage })));
+const ClientsPage         = lazy(() => import("../pages/ClientsPage").then(m => ({ default: m.ClientsPage })));
+const InvestmentsPage     = lazy(() => import("../pages/InvestmentsPage").then(m => ({ default: m.InvestmentsPage })));
+const BudgetPage          = lazy(() => import("../pages/BudgetPage").then(m => ({ default: m.BudgetPage })));
+const AssistantsPage      = lazy(() => import("../pages/AssistantsPage").then(m => ({ default: m.AssistantsPage })));
+const DeclarationsPage    = lazy(() => import("../pages/DeclarationsPage").then(m => ({ default: m.DeclarationsPage })));
+const EmployeeProfilePage = lazy(() => import("../pages/EmployeeProfilePage").then(m => ({ default: m.EmployeeProfilePage })));
+const ActivationPage      = lazy(() => import("../pages/ActivationPage").then(m => ({ default: m.ActivationPage })));
+const NotFoundPage        = lazy(() => import("../pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+
+// ── Lazy admin page imports ────────────────────────────────────────────────
+const AdminCompaniesPage    = lazy(() => import("../admin/pages/AdminCompaniesPage").then(m => ({ default: m.AdminCompaniesPage })));
+const AdminCompanyDetailPage = lazy(() => import("../admin/pages/AdminCompanyDetailPage").then(m => ({ default: m.AdminCompanyDetailPage })));
+const AdminDashboardPage    = lazy(() => import("../admin/pages/AdminDashboardPage").then(m => ({ default: m.AdminDashboardPage })));
+const AdminLogsPage         = lazy(() => import("../admin/pages/AdminLogsPage").then(m => ({ default: m.AdminLogsPage })));
+const AdminLimulePage       = lazy(() => import("../admin/pages/AdminLimulePage").then(m => ({ default: m.AdminLimulePage })));
+const AdminTicketDetailPage = lazy(() => import("../admin/pages/AdminTicketDetailPage").then(m => ({ default: m.AdminTicketDetailPage })));
+const AdminTicketsPage      = lazy(() => import("../admin/pages/AdminTicketsPage").then(m => ({ default: m.AdminTicketsPage })));
+const AdminUsersPage        = lazy(() => import("../admin/pages/AdminUsersPage").then(m => ({ default: m.AdminUsersPage })));
+
+// ── Route error boundary (replaces React Router's ugly default) ───────────
+function RouteErrorElement() {
+  const error = useRouteError() as Error | null;
+  const msg = error instanceof Error ? error.message : String(error ?? "Erreur inattendue");
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+        <AlertTriangle size={28} className="text-red-500" />
+      </div>
+      <div>
+        <p className="text-base font-bold text-red-700 dark:text-red-400">Une erreur s'est produite</p>
+        <p className="mt-1 max-w-sm text-sm text-red-600/80 dark:text-red-300/70">{msg}</p>
+      </div>
+      <button
+        onClick={() => window.location.reload()}
+        className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+      >
+        <RefreshCcw size={14} /> Recharger la page
+      </button>
+    </div>
+  );
+}
+
+// ── Suspense fallback spinner ──────────────────────────────────────────────
+function LazyRoute({ page: Page }: { page: React.ComponentType }) {
+  return (
+    <Suspense fallback={
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      </div>
+    }>
+      <Page />
+    </Suspense>
+  );
+}
 
 function ProtectedRoute() {
   const { token } = useAuth();
@@ -59,55 +101,57 @@ function AdminProtectedRoute() {
 }
 
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
+  { path: "/login", element: <LoginPage />, errorElement: <RouteErrorElement /> },
   {
     path: "/admin",
     element: <AdminProtectedRoute />,
+    errorElement: <RouteErrorElement />,
     children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: "companies", element: <AdminCompaniesPage /> },
-      { path: "companies/:companyId", element: <AdminCompanyDetailPage /> },
-      { path: "users", element: <AdminUsersPage /> },
-      { path: "tickets", element: <AdminTicketsPage /> },
-      { path: "tickets/:ticketId", element: <AdminTicketDetailPage /> },
-      { path: "limule", element: <AdminLimulePage /> },
-      { path: "logs", element: <AdminLogsPage /> },
+      { index: true,                   element: <LazyRoute page={AdminDashboardPage} /> },
+      { path: "companies",             element: <LazyRoute page={AdminCompaniesPage} /> },
+      { path: "companies/:companyId",  element: <LazyRoute page={AdminCompanyDetailPage} /> },
+      { path: "users",                 element: <LazyRoute page={AdminUsersPage} /> },
+      { path: "tickets",               element: <LazyRoute page={AdminTicketsPage} /> },
+      { path: "tickets/:ticketId",     element: <LazyRoute page={AdminTicketDetailPage} /> },
+      { path: "limule",                element: <LazyRoute page={AdminLimulePage} /> },
+      { path: "logs",                  element: <LazyRoute page={AdminLogsPage} /> },
     ],
   },
   {
     path: "/",
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorElement />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "activation", element: <ActivationPage /> },
-      { path: "company", element: <CompanyPage /> },
-      { path: "employees", element: <EmployeesPage /> },
-      { path: "employees/:id", element: <EmployeeProfilePage /> },
-      { path: "documents", element: <DocumentsPage /> },
-      { path: "payroll", element: <PayrollPage /> },
-      { path: "billing", element: <BillingPage /> },
-      { path: "pos", element: <PosPage /> },
-      { path: "inventory", element: <InventoryPage /> },
-      { path: "inventory-pos", element: <Navigate to="/pos" replace /> },
-      { path: "chat", element: <ChatPage /> },
-      { path: "work", element: <WorkPage /> },
-      { path: "calendar", element: <CalendarPage /> },
-      { path: "notes", element: <NotesPage /> },
-      { path: "reports", element: <ReportsHubPage /> },
-      { path: "reports-teras", element: <ReportsTerasPage /> },
-      { path: "assistants", element: <AssistantsPage /> },
-      { path: "declarations", element: <DeclarationsPage /> },
-      { path: "settings", element: <SettingsPage /> },
-      { path: "accounting", element: <AccountingFinancePage /> },
-      { path: "projects", element: <ProjectsPage /> },
-      { path: "meetings", element: <MeetingsPage /> },
-      { path: "help", element: <HelpCenterPage /> },
-      { path: "safe-mode", element: <SafeModePage /> },
-      { path: "clients", element: <ClientsPage /> },
-      { path: "investments", element: <InvestmentsPage /> },
-      { path: "budget", element: <BudgetPage /> },
-      { path: "transactions", element: <TransactionsPage /> },
-      { path: "*", element: <NotFoundPage /> }
+      { index: true,                   element: <LazyRoute page={DashboardPage} /> },
+      { path: "activation",            element: <LazyRoute page={ActivationPage} /> },
+      { path: "company",               element: <LazyRoute page={CompanyPage} /> },
+      { path: "employees",             element: <LazyRoute page={EmployeesPage} /> },
+      { path: "employees/:id",         element: <LazyRoute page={EmployeeProfilePage} /> },
+      { path: "documents",             element: <LazyRoute page={DocumentsPage} /> },
+      { path: "payroll",               element: <LazyRoute page={PayrollPage} /> },
+      { path: "billing",               element: <LazyRoute page={BillingPage} /> },
+      { path: "pos",                   element: <LazyRoute page={PosPage} /> },
+      { path: "inventory",             element: <LazyRoute page={InventoryPage} /> },
+      { path: "inventory-pos",         element: <Navigate to="/pos" replace /> },
+      { path: "chat",                  element: <LazyRoute page={ChatPage} /> },
+      { path: "work",                  element: <LazyRoute page={WorkPage} /> },
+      { path: "calendar",              element: <LazyRoute page={CalendarPage} /> },
+      { path: "notes",                 element: <LazyRoute page={NotesPage} /> },
+      { path: "reports",               element: <LazyRoute page={ReportsHubPage} /> },
+      { path: "reports-teras",         element: <LazyRoute page={ReportsTerasPage} /> },
+      { path: "assistants",            element: <LazyRoute page={AssistantsPage} /> },
+      { path: "declarations",          element: <LazyRoute page={DeclarationsPage} /> },
+      { path: "settings",              element: <LazyRoute page={SettingsPage} /> },
+      { path: "accounting",            element: <LazyRoute page={AccountingFinancePage} /> },
+      { path: "projects",              element: <LazyRoute page={ProjectsPage} /> },
+      { path: "meetings",              element: <LazyRoute page={MeetingsPage} /> },
+      { path: "help",                  element: <LazyRoute page={HelpCenterPage} /> },
+      { path: "safe-mode",             element: <LazyRoute page={SafeModePage} /> },
+      { path: "clients",               element: <LazyRoute page={ClientsPage} /> },
+      { path: "investments",           element: <LazyRoute page={InvestmentsPage} /> },
+      { path: "budget",                element: <LazyRoute page={BudgetPage} /> },
+      { path: "transactions",          element: <LazyRoute page={TransactionsPage} /> },
+      { path: "*",                     element: <LazyRoute page={NotFoundPage} /> },
     ]
   }
 ]);

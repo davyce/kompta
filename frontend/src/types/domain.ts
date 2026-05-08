@@ -216,6 +216,17 @@ export type Payslip = {
   payout_method: string;
   payout_destination: string;
   payout_status: string;
+  bonus: number;
+  overtime_pay: number;
+  absence_deduction: number;
+};
+
+export type EmployeePayrollOverride = {
+  employee_id: number;
+  overtime_hours: number;
+  bonus: number;
+  absence_days: number;
+  notes?: string;
 };
 
 export type PayrollRun = {

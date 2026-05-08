@@ -232,11 +232,25 @@ function MsgContent({ text, streaming }: { text: string; streaming?: boolean }) 
 
 /* ─── Report modal (#10) ─────────────────────────────────────────────────── */
 function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
-  function download() {
-    const blob = new Blob([msg.text], { type: "text/plain" });
+  async function download() {
+    // Si l'interaction a un ID backend → télécharger le PDF généré par le serveur
+    if (msg.interactionId) {
+      try {
+        const blob = await api.aiDownload(msg.interactionId);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `limule-rapport-${msg.interactionId}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        return;
+      } catch { /* fallback */ }
+    }
+    // Fallback : PDF client-side via service
+    const blob = await _buildClientPdf(msg.text, msg.intent ?? "rapport");
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `limule_rapport_${Date.now()}.txt`; a.click();
+    a.href = url; a.download = `limule_rapport_${Date.now()}.pdf`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
   return (
@@ -336,6 +350,19 @@ const INTENT_COLORS: Record<string, string> = {
 };
 
 const SEV: Record<string, string> = { critical: "text-red-500", high: "text-orange-500", medium: "text-amber-500", low: "text-sky-400" };
+
+/* ─── Helper PDF fallback (via endpoint backend) ─────────────────────────── */
+async function _buildClientPdf(text: string, kind = "text"): Promise<Blob> {
+  // Extraire un titre depuis la première ligne non vide
+  const firstLine = text.split("\n").find((l) => l.trim()) ?? "Réponse Limule";
+  const title = firstLine.replace(/^#+\s*/, "").replace(/\*\*/g, "").slice(0, 80);
+  try {
+    return await api.aiContentPdf({ title, content: text, kind });
+  } catch {
+    // Ultime fallback : blob texte brut
+    return new Blob([text], { type: "text/plain" });
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export function Copilot() {
@@ -574,24 +601,67 @@ export function Copilot() {
   }
 
   /* ── Quick actions (#6) ─────────────────────────────────────────────────── */
-  function actionTask(msg: Message) {
+  async function actionTask(msg: Message) {
     const title = extractTaskTitle(msg.text);
     const pri = detectPriority(msg.text);
     const description = extractTaskDescription(msg.text);
-    setTaskDraft({
-      msgId: msg.id,
-      title,
-      description,
-      assignee_name: "",
-      priority: pri,
-      due_date: "",
-      due_time: "",
-      proof_required: false,
-      autoDetectedPriority: pri,
-    });
-    setTaskCreated(null);
-    setTaskDescOpen(true);
-    setTaskDescEditing(false);
+
+    // Si le titre extrait est suffisamment précis (≥ 15 chars, non vague), on crée directement
+    const isConfident = title.length >= 15 && !/^(voici|voilà|bien sûr|je vous|je peux|votre)/i.test(title);
+    if (isConfident) {
+      setTaskDraft({
+        msgId: msg.id,
+        title,
+        description,
+        assignee_name: "",
+        priority: pri,
+        due_date: "",
+        due_time: "",
+        proof_required: false,
+        autoDetectedPriority: pri,
+      });
+      setTaskSaving(true);
+      setTaskCreated(null);
+      try {
+        const task = await api.createTask({
+          title,
+          description: description || undefined,
+          assignee_name: undefined,
+          priority: pri,
+          due_date: null,
+          due_time: null,
+          source: "limule",
+          proof_required: false,
+          status: "todo",
+        });
+        setTaskCreated({ id: task.id, title: task.title });
+        // Ouvrir le panel pour montrer la confirmation (mais pas le formulaire)
+        setTaskDescOpen(true);
+        setTaskDescEditing(false);
+      } catch {
+        // En cas d'erreur, ouvrir le modal pour correction manuelle
+        setTaskDescOpen(true);
+        setTaskDescEditing(true);
+      } finally {
+        setTaskSaving(false);
+      }
+    } else {
+      // Titre trop court ou vague → ouvrir le modal
+      setTaskDraft({
+        msgId: msg.id,
+        title,
+        description,
+        assignee_name: "",
+        priority: pri,
+        due_date: "",
+        due_time: "",
+        proof_required: false,
+        autoDetectedPriority: pri,
+      });
+      setTaskCreated(null);
+      setTaskDescOpen(true);
+      setTaskDescEditing(false);
+    }
   }
   function actionAssistant(msg: Message) {
     navigate("/assistants", { state: { prefill: msg.text.slice(0, 600) } });
@@ -618,11 +688,25 @@ export function Copilot() {
     finally { setTaskSaving(false); }
   }
 
-  function actionExport(msg: Message) {
-    const blob = new Blob([msg.text], { type: "text/plain" });
+  async function actionExport(msg: Message) {
+    // Si l'interaction a un ID backend → télécharger le PDF du serveur
+    if (msg.interactionId) {
+      try {
+        const blob = await api.aiDownload(msg.interactionId);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `limule-${msg.interactionId}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        return;
+      } catch { /* fallback */ }
+    }
+    // Fallback : PDF client-side
+    const blob = await _buildClientPdf(msg.text, msg.intent ?? "analyse");
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `limule_${Date.now()}.txt`; a.click();
+    a.href = url; a.download = `limule_${Date.now()}.pdf`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 

@@ -68,6 +68,7 @@ class Employee(TimestampMixin, Base):
     branch: Mapped[str] = mapped_column(String(120), default="Siege")
     manager_name: Mapped[str] = mapped_column(String(160), default="")
     salary: Mapped[float] = mapped_column(Float, default=0)
+    salary_currency: Mapped[str] = mapped_column(String(10), default="XAF")
     status: Mapped[str] = mapped_column(String(40), default="active")
     account_status: Mapped[str] = mapped_column(String(40), default="draft")
     access_role: Mapped[str] = mapped_column(String(80), default="employe")
@@ -234,6 +235,7 @@ class Product(TimestampMixin, Base):
     brand: Mapped[str] = mapped_column(String(100), default="KOMPTA")
     variant: Mapped[str] = mapped_column(String(100), default="Standard")
     price: Mapped[float] = mapped_column(Float, default=0)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0)
     reorder_level: Mapped[int] = mapped_column(Integer, default=5)
     qr_code: Mapped[str] = mapped_column(String(255), default="")
@@ -282,6 +284,7 @@ class Invoice(TimestampMixin, Base):
     customer_name: Mapped[str] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(40), default="draft")
     total_amount: Mapped[float] = mapped_column(Float, default=0)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     payment_method: Mapped[str] = mapped_column(String(80), default="")
     payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
@@ -410,6 +413,9 @@ class Payslip(TimestampMixin, Base):
     payout_method: Mapped[str] = mapped_column(String(40), default="")
     payout_destination: Mapped[str] = mapped_column(String(180), default="")
     payout_status: Mapped[str] = mapped_column(String(40), default="pending")
+    bonus: Mapped[float] = mapped_column(Float, default=0)
+    overtime_pay: Mapped[float] = mapped_column(Float, default=0)
+    absence_deduction: Mapped[float] = mapped_column(Float, default=0)
 
     payroll_run: Mapped[PayrollRun] = relationship(back_populates="payslips")
 

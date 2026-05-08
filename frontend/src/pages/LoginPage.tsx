@@ -99,8 +99,9 @@ export function LoginPage() {
   return (
     <main className="min-h-screen bg-canvas">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="flex flex-col justify-between bg-ink p-6 text-white md:p-10">
-          {/* Header — logo K + KOMPTA + Limule discret */}
+        {/* ── Colonne gauche : panel marketing ────────────────────────── */}
+        <section className="hidden lg:flex flex-col justify-between bg-ink p-10 text-white">
+          {/* Header */}
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-emerald-600 font-black text-white text-lg">
               K
@@ -111,20 +112,20 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* Hero — titre original + Limule en dessous */}
+          {/* Hero */}
           <div className="my-10 max-w-xl space-y-8">
-            {/* Titre de présentation original */}
             <div>
               <p className="text-sm font-semibold uppercase text-emerald-200">Gestion entreprise, terrain et conformité</p>
-              <h1 className="mt-4 text-4xl font-black leading-tight md:text-6xl">Un cockpit unique pour piloter l'activité.</h1>
+              <h1 className="mt-4 text-4xl font-black leading-tight xl:text-5xl">
+                Un cockpit unique pour piloter l'activité.
+              </h1>
             </div>
 
-            {/* Grille modules */}
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 ["RH + Paie", "Dossiers, bulletins, validations"],
                 ["POS + Stock", "Scan, panier, étiquettes QR"],
-                ["TERAS", "Alertes, score, actions"]
+                ["TERAS", "Alertes, score, actions"],
               ].map(([title, text]) => (
                 <div key={title} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <p className="font-bold">{title}</p>
@@ -133,7 +134,6 @@ export function LoginPage() {
               ))}
             </div>
 
-            {/* Limule — en dessous du titre */}
             <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 px-5 py-4">
               <LimuleAvatar state="idle" size={64} />
               <div>
@@ -149,6 +149,8 @@ export function LoginPage() {
             Version locale de développement
           </div>
         </section>
+
+        {/* ── Colonne droite : formulaire ─────────────────────────────── */}
         <section className="flex items-center justify-center p-6">
           <form
             onSubmit={mode === "login" ? onSubmit : mode === "reset" ? onRequestReset : mode === "reset_confirm" ? onConfirmReset : onRegister}
@@ -312,6 +314,7 @@ export function LoginPage() {
             </div>
           </form>
         </section>
+
       </div>
     </main>
   );

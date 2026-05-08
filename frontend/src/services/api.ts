@@ -6,12 +6,14 @@ import type {
   ChatChannelDetail,
   DeclarationRecord,
   Employee,
+  EmployeePayrollOverride,
   EmployeeProvisioningResult,
   EmployabilityCheck,
   InventoryMovement,
   Invoice,
   Message,
   PaymentAccount,
+  Payslip,
   PayrollRun,
   Product,
   SaleRecord,
@@ -66,6 +68,14 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// 401 auto-logout callback — set by AuthContext so api.ts can trigger logout outside React
+let _onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedCallback(cb: () => void) { _onUnauthorized = cb; }
+
+type ApiRequestOptions = RequestInit & {
+  skipUnauthorizedLogout?: boolean;
+};
+
 function formatApiError(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") return fallback;
   const detail = (payload as { detail?: unknown }).detail;
@@ -103,9 +113,10 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
-  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { skipUnauthorizedLogout = false, ...fetchOptions } = options;
+  const headers = new Headers(fetchOptions.headers);
+  const isFormData = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
   // Ne pas forcer JSON si le body est un FormData (multipart géré par le navigateur).
   if (!isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -116,7 +127,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
   } catch {
     throw new ApiError(
       0,
@@ -125,6 +136,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (!response.ok) {
     const message = await readApiError(response);
+    const isSessionProbe = path === "/auth/me" || path === "/auth/refresh";
+    if (response.status === 401 && !skipUnauthorizedLogout && isSessionProbe) {
+      _onUnauthorized?.();
+    }
     throw new ApiError(response.status, message);
   }
   return readJsonResponse<T>(response);
@@ -363,6 +378,29 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  deleteProduct: (id: number) =>
+    request<void>(`/products/${id}`, { method: "DELETE" }),
+  importProductsCsv: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return request<{ imported: number; errors: string[] }>("/products/import-csv", { method: "POST", headers, body: form });
+  },
+  importEmployeesCsv: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return request<{ imported: number; errors: string[] }>("/employees/import-csv", { method: "POST", headers, body: form });
+  },
+  refreshToken: () => request<{ access_token: string; token_type: string; user: User; must_change_password: boolean }>("/auth/refresh", { method: "POST" }),
+  createMovement: (payload: { product_id: number; movement_type: "in" | "out"; quantity: number; reason?: string; reference?: string }) =>
+    request<{ id: number; product_id: number; movement_type: string; quantity: number; reason: string; reference: string; created_at: string; new_stock: number }>(
+      "/inventory/movements", { method: "POST", body: JSON.stringify(payload) }
+    ),
   scanProductQr: (qr: string) => request<Product>(`/products/scan/${encodeURIComponent(qr)}`),
   uploadProductImages: (productId: number, files: File[]) => {
     const form = new FormData();
@@ -388,10 +426,24 @@ export const api = {
       body: JSON.stringify({ body })
     }),
   payrollRuns: () => request<PayrollRun[]>("/payroll/runs"),
-  createPayrollRun: (payload: string | { period: string; payment_account_id?: number | null }) =>
+  createPayrollRun: (payload: { period: string; payment_account_id?: number | null; overrides?: EmployeePayrollOverride[] }) =>
     request<PayrollRun>("/payroll/runs", {
       method: "POST",
-      body: JSON.stringify(typeof payload === "string" ? { period: payload } : payload)
+      body: JSON.stringify(payload),
+    }),
+  updatePayrollRunStatus: (id: number, status: string) =>
+    request<PayrollRun>(`/payroll/runs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  updatePayslip: (id: number, payload: Partial<{
+    gross_pay: number; deductions: number; net_pay: number;
+    payout_status: string; payout_destination: string; payout_method: string;
+    bonus: number; overtime_pay: number; absence_deduction: number;
+  }>) =>
+    request<Payslip>(`/payroll/payslips/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     }),
   exportInvoice: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/invoices/${id}/export?format=${format}`),
   exportPayrollRun: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/payroll/runs/${id}/export?format=${format}`),
@@ -521,6 +573,8 @@ export const api = {
   aiGenerate: (payload: { kind: string; title?: string; prompt: string; context?: string }) =>
     request<AIGenerationDto>("/ai/generate", { method: "POST", body: JSON.stringify(payload) }),
   aiDownload: (id: number) => requestBlob(`/ai/history/${id}/download`),
+  aiContentPdf: (payload: { title: string; content: string; prompt?: string; kind?: string }) =>
+    requestBlob("/ai/content/pdf", { method: "POST", body: JSON.stringify(payload) }),
   aiDelete: (id: number) =>
     request<void>(`/ai/history/${id}`, { method: "DELETE" }),
 
@@ -713,10 +767,10 @@ export const api = {
     }),
 
   /* ── User Preferences ─────────────────────────────────────── */
-  preferences: () => request<UserPreferenceDto>("/me/preferences"),
+  preferences: () => request<UserPreferenceDto>("/me/preferences", { skipUnauthorizedLogout: true }),
   updatePreferences: (payload: Partial<UserPreferenceDto>) =>
     request<UserPreferenceDto>("/me/preferences", {
-      method: "PATCH", body: JSON.stringify(payload),
+      method: "PATCH", body: JSON.stringify(payload), skipUnauthorizedLogout: true,
     }),
 
   /* ── Accounting aggregates ────────────────────────────────── */
@@ -749,9 +803,7 @@ export const api = {
 
   /* ── Payslip PDF download ─────────────────────────────────── */
   downloadPayslip: (payslipId: number) =>
-    fetch(`${API_URL}/payroll/payslips/${payslipId}/download`, {
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    }),
+    requestBlob(`/payroll/payslips/${payslipId}/download`),
 
   /* ── TERAS PDF export ─────────────────────────────────────── */
   terasExportReport: () =>
@@ -832,6 +884,8 @@ export const api = {
     request<StockHistoryPoint[]>(`/investments/history/${ticker}?period=${period}`),
   stockNews: (ticker: string) =>
     request<StockNewsItem[]>(`/investments/news/${ticker}`),
+  stockNewsFr: (ticker: string) =>
+    request<StockNewsItem[]>(`/investments/news-fr/${ticker}`),
   analyzeInvestment: (ticker: string, invId?: number) =>
     request<InvestmentAnalysisDto>(
       `/investments/analyze/${ticker}${invId ? `?inv_id=${invId}` : ""}`,
@@ -1228,7 +1282,9 @@ export type TickerSearchResult = {
   ticker: string;
   name: string;
   exchange: string;
+  exchange_code?: string;
   type: string;
+  currency?: string;
 };
 
 export type StockQuoteDto = {

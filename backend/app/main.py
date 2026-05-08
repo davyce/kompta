@@ -11,6 +11,8 @@ from app.api.routes_features import router as features_router
 from app.api.routes_safe_mode import router as safe_mode_router
 from app.api.routes_investments import router as investments_router
 from app.api.routes_transactions import router as transactions_router
+import os
+
 from app.core.config import get_settings
 from app.db.init_db import create_tables, seed_demo_data
 from app.db.session import SessionLocal
@@ -18,11 +20,29 @@ from app.db.session import SessionLocal
 settings = get_settings()
 
 
+def _env_flag(name: str) -> bool | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _should_seed_demo() -> bool:
+    explicit = _env_flag("SEED_DEMO")
+    if explicit is not None:
+        return explicit
+    return settings.environment.strip().lower() not in {"prod", "production"}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
-    with SessionLocal() as db:
-        seed_demo_data(db)
+    if settings.environment.strip().lower() in {"prod", "production"} and settings.secret_key == "dev-kompta-secret":
+        raise RuntimeError("SECRET_KEY must be configured before running KOMPTA in production.")
+    # Local/dev/staging keep the demo tenant available. Production must opt in explicitly.
+    if _should_seed_demo():
+        with SessionLocal() as db:
+            seed_demo_data(db)
     yield
 
 

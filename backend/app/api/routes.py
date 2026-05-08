@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -14,6 +16,7 @@ from app.db.session import get_db
 from app.models import (
     AccessAuditLog,
     AIGeneration,
+    BankTransaction,
     ChatChannel,
     Company,
     CompanyDocument,
@@ -43,6 +46,7 @@ from app.models import (
     Ticket,
     TicketMessage,
     User,
+    UserPreference,
 )
 from app.schemas import (
     AIRouterDecision,
@@ -77,8 +81,12 @@ from app.schemas import (
     PaymentAccountCreate,
     PaymentAccountRead,
     PaymentAccountUpdate,
+    EmployeePayrollOverride,
     PayrollRunCreate,
     PayrollRunRead,
+    PayrollRunStatusUpdate,
+    PayslipRead,
+    PayslipUpdate,
     PermissionsUpdate,
     ProductCreate,
     ProductRead,
@@ -305,6 +313,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         db.refresh(user)
     token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id})
     return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)
+
+
+@router.post("/auth/refresh", response_model=TokenResponse)
+def refresh_token(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> TokenResponse:
+    """Issue a new token for an authenticated user (silent refresh)."""
+    token = create_access_token(str(current_user.id), {"role": current_user.role, "company_id": current_user.company_id})
+    return TokenResponse(access_token=token, user=UserRead.model_validate(current_user), must_change_password=current_user.must_change_password)
 
 
 @router.post("/auth/register-company", response_model=TokenResponse, status_code=201)
@@ -1077,6 +1092,100 @@ def scan_product_qr(
     return product
 
 
+@router.post("/products/import-csv", status_code=201)
+async def import_products_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Import products from CSV. Expected columns: name, sku, category, price, stock_quantity, reorder_level, unit"""
+    content = await file.read()
+    text = content.decode("utf-8-sig")  # handle BOM
+    reader = csv.DictReader(io.StringIO(text))
+
+    imported = 0
+    errors = []
+    for i, row in enumerate(reader, 1):
+        try:
+            name = row.get("name", "").strip()
+            if not name:
+                continue
+            # Check if SKU already exists
+            sku = row.get("sku", "").strip()
+            if sku:
+                existing = db.scalar(select(Product).where(Product.company_id == current_user.company_id, Product.sku == sku))
+                if existing:
+                    # Update stock instead
+                    if row.get("stock_quantity"):
+                        existing.stock_quantity = int(float(row["stock_quantity"]))
+                    db.commit()
+                    continue
+
+            product = Product(
+                company_id=current_user.company_id,
+                name=name,
+                sku=sku or str(uuid4())[:8].upper(),
+                category=row.get("category", "").strip() or "Général",
+                price=float(row.get("price", 0) or 0),
+                stock_quantity=int(float(row.get("stock_quantity", 0) or 0)),
+                reorder_level=int(float(row.get("reorder_level", 5) or 5)),
+            )
+            db.add(product)
+            imported += 1
+        except Exception as e:
+            errors.append(f"Ligne {i}: {e}")
+
+    db.commit()
+    return {"imported": imported, "errors": errors}
+
+
+@router.post("/employees/import-csv", status_code=201)
+async def import_employees_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Import employees from CSV. Expected: first_name, last_name, job_title, department, branch, salary, employment_type, phone, email"""
+    if current_user.role not in {"admin_entreprise", "super_admin", "rh_entreprise"}:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    imported = 0
+    errors = []
+    for i, row in enumerate(reader, 1):
+        try:
+            first_name = row.get("first_name", "").strip()
+            last_name = row.get("last_name", "").strip()
+            if not first_name or not last_name:
+                continue
+
+            employee = Employee(
+                company_id=current_user.company_id,
+                first_name=first_name,
+                last_name=last_name,
+                job_title=row.get("job_title", "").strip() or "Employé",
+                department=row.get("department", "").strip() or "Général",
+                branch=row.get("branch", "").strip() or "Siège",
+                salary=float(row.get("salary", 0) or 0),
+                employment_type=row.get("employment_type", "CDI").strip() or "CDI",
+                phone=row.get("phone", "").strip() or "",
+                email=row.get("email", "").strip() or None,
+                account_status="draft",
+                access_role="employe",
+                payout_method="mobile_money",
+            )
+            db.add(employee)
+            imported += 1
+        except Exception as e:
+            errors.append(f"Ligne {i}: {e}")
+
+    db.commit()
+    return {"imported": imported, "errors": errors}
+
+
 @router.get("/inventory/movements")
 def inventory_movements(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
     movements = company_scope(db, current_user, InventoryMovement, InventoryMovement.created_at.desc())
@@ -1092,6 +1201,60 @@ def inventory_movements(db: Session = Depends(get_db), current_user: User = Depe
         }
         for movement in movements
     ]
+
+
+@router.post("/inventory/movements", status_code=201)
+def create_inventory_movement(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Crée un mouvement de stock manuel (entrée ou sortie) et met à jour la quantité du produit."""
+    product_id = payload.get("product_id")
+    movement_type = payload.get("movement_type", "in")  # "in" | "out"
+    quantity = int(payload.get("quantity", 0))
+    reason = payload.get("reason", "")
+    reference = payload.get("reference", "")
+
+    if not product_id or quantity <= 0:
+        raise HTTPException(status_code=400, detail="product_id et quantity (> 0) sont requis")
+    if movement_type not in ("in", "out"):
+        raise HTTPException(status_code=400, detail="movement_type doit être 'in' ou 'out'")
+
+    product = db.get(Product, product_id)
+    if not product or product.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Produit introuvable")
+
+    # Update stock
+    if movement_type == "in":
+        product.stock_quantity += quantity
+    else:
+        if product.stock_quantity < quantity:
+            raise HTTPException(status_code=400, detail=f"Stock insuffisant ({product.stock_quantity} disponibles)")
+        product.stock_quantity -= quantity
+
+    movement = InventoryMovement(
+        product_id=product_id,
+        movement_type=movement_type,
+        quantity=quantity,
+        reason=reason,
+        reference=reference,
+        company_id=current_user.company_id,
+    )
+    db.add(movement)
+    db.commit()
+    db.refresh(movement)
+    db.refresh(product)
+    return {
+        "id": movement.id,
+        "product_id": movement.product_id,
+        "movement_type": movement.movement_type,
+        "quantity": movement.quantity,
+        "reason": movement.reason,
+        "reference": movement.reference,
+        "created_at": movement.created_at,
+        "new_stock": product.stock_quantity,
+    }
 
 
 @router.post("/pos/sales", status_code=201)
@@ -1289,6 +1452,35 @@ def pay_invoice(
     invoice.payment_account_id = payment_account.id if payment_account else None
     invoice.payment_account_label = payment_account.label if payment_account else ""
     invoice.paid_at = datetime.now(timezone.utc)
+
+    # Récupérer la devise de l'entreprise
+    _pref = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
+    _currency = (_pref.currency if _pref and _pref.currency else "XAF")
+
+    # Créer une transaction bancaire correspondante
+    method_labels = {
+        "cash": "Espèces", "card": "Carte bancaire", "mobile_money": "Mobile Money",
+        "zola": "Zola QR", "bank": "Virement bancaire", "paypal": "PayPal",
+    }
+    txn_label_parts = [f"Facture {invoice.number}"]
+    if invoice.customer_name:
+        txn_label_parts.append(invoice.customer_name)
+    account_part = payment_account.label if payment_account else method_labels.get(payment_method, payment_method)
+    txn_label_parts.append(f"({account_part})")
+    txn = BankTransaction(
+        company_id=current_user.company_id,
+        date=invoice.paid_at.strftime("%Y-%m-%d"),
+        label=" — ".join(txn_label_parts),
+        amount=float(invoice.total_amount or 0),
+        credit=float(invoice.total_amount or 0),
+        currency=_currency,
+        category="ventes",
+        counterpart=invoice.customer_name or "",
+        reference=invoice.number,
+        source_type="facture",
+        status="confirmed",
+    )
+    db.add(txn)
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -1450,6 +1642,20 @@ async def upload_task_proof(
     db.commit()
     db.refresh(task)
     return _serialize_task(db, task, current_user, subjects)
+
+
+@router.delete("/products/{product_id}", status_code=204)
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    product = db.get(Product, product_id)
+    if not product or product.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Product not found")
+    db.delete(product)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.patch("/products/{product_id}", response_model=ProductRead)
@@ -1704,13 +1910,39 @@ def create_payroll_run(
         payment_account_label=payment_account.label if payment_account else "",
         company_id=current_user.company_id,
     )
+    # Build a quick lookup for overrides
+    overrides_map: dict[int, EmployeePayrollOverride] = {o.employee_id: o for o in (payload.overrides or [])}
+
     gross_total = 0.0
     net_total = 0.0
+    WORKING_DAYS = 26      # jours ouvrés par mois
+    WORKING_HOURS = 173    # heures mensuelles standard
+    OVERTIME_RATE = 1.5    # coefficient heures sup
+
     for index, employee in enumerate(employees, start=1):
-        deductions = round(employee.salary * 0.1, 2)
-        net_pay = round(employee.salary - deductions, 2)
-        gross_total += employee.salary
+        override = overrides_map.get(employee.id)
+        base = employee.salary or 0.0
+
+        # Variable components
+        overtime_pay = 0.0
+        bonus = 0.0
+        absence_deduction = 0.0
+        if override:
+            if override.overtime_hours > 0:
+                hourly = base / WORKING_HOURS
+                overtime_pay = round(hourly * override.overtime_hours * OVERTIME_RATE, 2)
+            if override.bonus > 0:
+                bonus = round(override.bonus, 2)
+            if override.absence_days > 0:
+                daily = base / WORKING_DAYS
+                absence_deduction = round(daily * override.absence_days, 2)
+
+        gross = round(base + overtime_pay + bonus - absence_deduction, 2)
+        deductions = round(gross * 0.1, 2)   # CNSS 10%
+        net_pay = round(gross - deductions, 2)
+        gross_total += gross
         net_total += net_pay
+
         payout_method = employee.payout_method or (payment_account.provider if payment_account else "mobile_money")
         if payout_method in {"mobile_money", "zola"}:
             payout_destination = employee.payout_phone or employee.phone
@@ -1725,9 +1957,12 @@ def create_payroll_run(
             Payslip(
                 employee_id=employee.id,
                 employee_name=f"{employee.first_name} {employee.last_name}",
-                gross_pay=employee.salary,
+                gross_pay=gross,
                 deductions=deductions,
                 net_pay=net_pay,
+                bonus=bonus,
+                overtime_pay=overtime_pay,
+                absence_deduction=absence_deduction,
                 reference=payslip_reference(payload.period, employee, index),
                 payout_method=payout_method,
                 payout_destination=payout_destination,
@@ -1756,11 +1991,35 @@ def reports_overview(
     products = db.scalars(select(Product).where(Product.company_id == current_user.company_id)).all()
     invoice_filter = [Invoice.company_id == current_user.company_id]
     sale_filter = [Sale.company_id == current_user.company_id]
-    invoices_total = db.scalar(select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(*invoice_filter)) or 0
+    invoices_total   = db.scalar(select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(*invoice_filter)) or 0
+    invoices_paid    = db.scalar(select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(
+        Invoice.company_id == current_user.company_id, Invoice.status == "paid")) or 0
+    invoices_pending = db.scalar(select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(
+        Invoice.company_id == current_user.company_id, Invoice.status.in_(["sent", "overdue"]))) or 0
+    invoices_paid_count = db.scalar(select(func.count()).select_from(Invoice).where(
+        Invoice.company_id == current_user.company_id, Invoice.status == "paid")) or 0
     sales_total = db.scalar(select(func.coalesce(func.sum(Sale.total_amount), 0)).where(*sale_filter)) or 0
     open_tasks = db.scalar(select(func.count()).select_from(Task).where(Task.company_id == current_user.company_id, Task.status != "done")) or 0
     low_stock = [product for product in products if product.stock_quantity <= product.reorder_level]
     branches = sorted({e.branch for e in db.scalars(select(Employee).where(Employee.company_id == current_user.company_id)).all() if e.branch})
+
+    # ── Bank transactions: real treasury balance ─────────────────────────────
+    tx_rows = db.scalars(
+        select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
+    ).all()
+    tx_credits = sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_rows)
+    tx_debits  = sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_rows)
+    tx_balance = round(tx_credits - tx_debits, 2)
+    # Transactions from invoices only (source_type = "facture")
+    tx_invoice_rows = [r for r in tx_rows if r.source_type == "facture"]
+    tx_invoice_total = round(sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_invoice_rows), 2)
+    # Monthly average of last 3 months (for treasury prediction)
+    from datetime import date as _date, timedelta as _td
+    cutoff = (_date.today() - _td(days=90)).isoformat()
+    tx_recent = [r for r in tx_rows if r.date >= cutoff]
+    tx_monthly_in  = round(sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_recent) / 3, 2)
+    tx_monthly_out = round(sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_recent) / 3, 2)
+
     return {
         "company": company.name if company else "KOMPTA",
         "branch": branch,
@@ -1768,10 +2027,21 @@ def reports_overview(
         "kpis": {
             "employees": employees,
             "products": len(products),
-            "invoices_total": invoices_total,
-            "sales_total": sales_total,
-            "open_tasks": open_tasks,
-            "teras_score": company.teras_score if company else 0,
+            "invoices_total":       round(invoices_total, 2),
+            "invoices_paid":        round(invoices_paid, 2),
+            "invoices_pending":     round(invoices_pending, 2),
+            "invoices_paid_count":  invoices_paid_count,
+            "sales_total":          round(sales_total, 2),
+            "open_tasks":           open_tasks,
+            "teras_score":          company.teras_score if company else 0,
+            # Real bank data from BankTransaction
+            "tx_count":             len(tx_rows),
+            "tx_credits":           round(tx_credits, 2),
+            "tx_debits":            round(tx_debits, 2),
+            "tx_balance":           tx_balance,
+            "tx_monthly_in":        tx_monthly_in,
+            "tx_monthly_out":       tx_monthly_out,
+            "tx_invoice_total":     tx_invoice_total,
         },
         "low_stock": [{"id": item.id, "name": item.name, "stock_quantity": item.stock_quantity} for item in low_stock],
         "compliance": compliance_snapshot(),
@@ -1892,6 +2162,75 @@ def export_payroll_html(
   <br><button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">Imprimer / Enregistrer en PDF</button>
 </div></body></html>"""
     return Response(content=html, media_type="text/html", headers={"Content-Disposition": f'inline; filename="paie-{run.period}.html"'})
+
+
+@router.patch("/payroll/runs/{run_id}", response_model=PayrollRunRead)
+def update_payroll_run(
+    run_id: int,
+    payload: PayrollRunStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PayrollRun:
+    """Met à jour le statut d'un cycle de paie (draft → validated, etc.)."""
+    run = db.scalar(
+        select(PayrollRun)
+        .options(selectinload(PayrollRun.payslips))
+        .where(PayrollRun.id == run_id, PayrollRun.company_id == current_user.company_id)
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Cycle de paie introuvable")
+    run.status = payload.status
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+@router.patch("/payroll/payslips/{payslip_id}", response_model=PayslipRead)
+def update_payslip(
+    payslip_id: int,
+    payload: PayslipUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Payslip:
+    """Met à jour un bulletin de paie individuel (primes, ajustements, statut)."""
+    slip = db.scalar(
+        select(Payslip)
+        .join(PayrollRun, Payslip.payroll_run_id == PayrollRun.id)
+        .where(Payslip.id == payslip_id, PayrollRun.company_id == current_user.company_id)
+    )
+    if not slip:
+        raise HTTPException(status_code=404, detail="Bulletin introuvable")
+
+    if payload.gross_pay is not None:
+        slip.gross_pay = payload.gross_pay
+    if payload.deductions is not None:
+        slip.deductions = payload.deductions
+    if payload.net_pay is not None:
+        slip.net_pay = payload.net_pay
+    if payload.payout_status is not None:
+        slip.payout_status = payload.payout_status
+    if payload.payout_destination is not None:
+        slip.payout_destination = payload.payout_destination
+    if payload.payout_method is not None:
+        slip.payout_method = payload.payout_method
+    if payload.bonus is not None:
+        slip.bonus = payload.bonus
+    if payload.overtime_pay is not None:
+        slip.overtime_pay = payload.overtime_pay
+    if payload.absence_deduction is not None:
+        slip.absence_deduction = payload.absence_deduction
+
+    # Recalculate totals on the parent run
+    run = db.scalar(
+        select(PayrollRun).options(selectinload(PayrollRun.payslips)).where(PayrollRun.id == slip.payroll_run_id)
+    )
+    if run:
+        run.gross_total = round(sum(s.gross_pay for s in run.payslips), 2)
+        run.net_total   = round(sum(s.net_pay   for s in run.payslips), 2)
+
+    db.commit()
+    db.refresh(slip)
+    return slip
 
 
 @router.get("/documents", response_model=list[CompanyDocumentRead])

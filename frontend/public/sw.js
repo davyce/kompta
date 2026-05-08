@@ -1,53 +1,71 @@
-const CACHE = "kompta-v1";
-const API_BASE = "http://127.0.0.1:8010/api";
+/* KOMPTA Service Worker v2 — Cache-first for assets, network-first for API */
+const CACHE_NAME = "kompta-v2";
+const API_PREFIX = "/api";
 
-// App-shell files to pre-cache
-const PRECACHE = ["/", "/index.html"];
+// Static assets to pre-cache
+const PRECACHE_URLS = [
+  "/",
+  "/index.html",
+];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting())
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
+  self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  const { request } = e;
-  const url = new URL(request.url);
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
 
-  // Cache-then-network for the products API
-  if (url.href.startsWith(API_BASE + "/products") && request.method === "GET") {
-    e.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, clone));
-          return res;
+  // API calls — network first, no caching for mutations
+  if (url.pathname.startsWith(API_PREFIX)) {
+    if (event.request.method !== "GET") return; // don't intercept mutations
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() => caches.match(event.request)) // offline: serve stale
     );
     return;
   }
 
-  // Network-first with cache fallback for static assets
-  if (request.destination === "script" || request.destination === "style") {
-    e.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, clone));
-          return res;
-        })
-        .catch(() => caches.match(request))
+  // Static assets — cache first
+  if (event.request.method === "GET") {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok && !url.pathname.startsWith("/api")) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
     );
-    return;
+  }
+});
+
+// Background sync for offline mutations (basic implementation)
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-transactions") {
+    // Could be extended to replay queued mutations
+    console.log("[SW] Background sync: sync-transactions");
   }
 });
 

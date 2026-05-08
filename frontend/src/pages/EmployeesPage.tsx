@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Briefcase, CalendarDays, Clipboard, Clock3, ExternalLink, FileCheck2, FileText,
-  KeyRound, Loader2, Maximize2, Search, Send, ShieldOff, UserPlus, Users, Wallet, X,
+  Briefcase, CalendarDays, Clipboard, Clock3, ExternalLink, FileCheck2, FileDown, FileText,
+  KeyRound, Loader2, Maximize2, Search, Send, ShieldOff, Upload, UserPlus, Users, Wallet, X,
   ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 
@@ -12,7 +12,7 @@ import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
-import { money } from "../utils/format";
+import { money, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
 const EMPTY_FORM = {
@@ -215,7 +215,7 @@ function EmployeeDrawer({
                   <option value="Stage">Stage / Alternance</option>
                 </SelectInput>
                 <TextInput
-                  label="Salaire de base (XAF)"
+                  label={`Salaire de base (${currencyLabel()})`}
                   type="number"
                   value={form.salary}
                   onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })}
@@ -471,6 +471,13 @@ export function EmployeesPage() {
     mutationFn: api.submitEmployability,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employabilityChecks"] }),
   });
+  const importCsv = useMutation({
+    mutationFn: api.importEmployeesCsv,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      alert(`✅ ${result.imported} employés importés${result.errors.length ? `\n⚠️ ${result.errors.length} erreurs` : ""}`);
+    },
+  });
 
   async function openContract(employeeId: number, employeeName?: string) {
     setContractError(null);
@@ -533,13 +540,38 @@ export function EmployeesPage() {
             <p className="text-sm font-semibold text-emerald-600">RH et espace employé</p>
             <h1 className="text-3xl font-black text-ink">Dossiers du personnel</h1>
           </div>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-          >
-            <UserPlus size={18} />
-            Nouvel employé
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const csv = "first_name,last_name,job_title,department,branch,salary,employment_type,phone,email\nJean,Dupont,Développeur,Tech,Siège,500000,CDI,+237600000000,jean.dupont@example.com";
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "modele_employes.csv"; a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
+            >
+              <FileDown size={15} />
+              Modèle CSV
+            </button>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
+              <Upload size={15} />
+              Importer CSV
+              <input type="file" accept=".csv" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importCsv.mutate(file);
+                e.target.value = "";
+              }} />
+            </label>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+            >
+              <UserPlus size={18} />
+              Nouvel employé
+            </button>
+          </div>
         </div>
 
         {/* Résultat provisioning */}

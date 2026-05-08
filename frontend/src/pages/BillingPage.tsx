@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCircle2, CreditCard, Download, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Download, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 import { TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
-import { money, shortDate, compactMoney } from "../utils/format";
+import { money, shortDate, compactMoney, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
@@ -274,7 +274,18 @@ export function BillingPage() {
                       <Download size={13} />
                       {exportingId === invoice.id ? "…" : "PDF"}
                     </button>
-                    {invoice.status !== "paid" && (
+                    {isOverdue && (
+                      <button
+                        onClick={() => {
+                          const msg = `Bonjour,\n\nNous vous rappelons que la facture ${invoice.number} d'un montant de ${money(invoice.total_amount)} est arrivée à échéance le ${invoice.due_date ? shortDate(invoice.due_date) : ""}.\n\nMerci de procéder au règlement dans les meilleurs délais.\n\nCordialement,\nKOMPTA`;
+                          navigator.clipboard.writeText(msg).then(() => alert("Message de relance copié dans le presse-papier ✓"));
+                        }}
+                        className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                      >
+                        <Bell size={13} /> Relancer
+                      </button>
+                    )}
+                    {invoice.status !== "paid" && invoice.status !== "draft" && (
                       <div className="flex items-center gap-1">
                         <label className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2 py-1 text-xs font-bold text-[#17211f] dark:bg-white/5 dark:text-white">
                           <CreditCard size={13} />
@@ -384,7 +395,7 @@ export function BillingPage() {
                       />
                     </div>
                     <div>
-                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">Prix unit. (XAF)</p>
+                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">Prix unit. ({currencyLabel()})</p>
                       <input
                         type="number" min={0}
                         value={line.unit_price}

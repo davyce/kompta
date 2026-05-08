@@ -17,6 +17,7 @@ from app.models import (
     DeclarationRecord,
     Employee,
     Invoice,
+    Investment,
     LimuleInteraction,
     Meeting,
     Message,
@@ -50,6 +51,7 @@ PAGE_MODULES: dict[str, str] = {
     "/settings": "settings",
     "/accounting": "accounting",
     "/projects": "projects",
+    "/investments": "investments",
 }
 
 
@@ -125,8 +127,8 @@ def _safe_json(value: str, fallback: Any) -> Any:
         return fallback
 
 
-def _money(value: float | int | None) -> str:
-    return f"{float(value or 0):,.0f} XAF".replace(",", " ")
+def _money(value: float | int | None, currency: str = "XAF") -> str:
+    return f"{float(value or 0):,.0f} {currency}".replace(",", " ")
 
 
 def _short(value: str, limit: int = 220) -> str:
@@ -192,6 +194,23 @@ def _recent_limule_memory(
     }
 
 
+def _resolve_currency(db: Session, user: Any, company_id: int) -> str:
+    """Retourne la devise préférée de l'utilisateur depuis user_preferences."""
+    try:
+        from app.models.domain import UserPreference as _UP
+        uid = getattr(user, "id", None)
+        if uid:
+            pref = db.scalar(select(_UP).where(_UP.user_id == uid))
+            if pref and pref.currency:
+                return pref.currency
+        pref = db.scalar(select(_UP).where(_UP.company_id == company_id))
+        if pref and pref.currency:
+            return pref.currency
+    except Exception:
+        pass
+    return "XAF"
+
+
 def build_limule_context(
     db: Session,
     company_id: int,
@@ -202,6 +221,7 @@ def build_limule_context(
 ) -> dict[str, Any]:
     company = db.get(Company, company_id)
     module_key = focus_module or module_from_path(page_path)
+    company_currency = _resolve_currency(db, user, company_id)
     today = date.today()
     now = datetime.now(timezone.utc)
 
@@ -287,6 +307,23 @@ def build_limule_context(
         .limit(max_records)
     ).all()
 
+    # Investissements boursiers
+    investments = db.scalars(
+        select(Investment)
+        .where(Investment.company_id == company_id)
+        .order_by(Investment.created_at.desc())
+    ).all()
+
+    # Dernière analyse de portefeuille générée par Limule
+    last_portfolio_analysis = db.scalar(
+        select(AIGeneration)
+        .where(
+            AIGeneration.company_id == company_id,
+            AIGeneration.kind.in_(["portfolio_analysis", "investment_analysis"]),
+        )
+        .order_by(AIGeneration.created_at.desc())
+    )
+
     sales_total = _sum(db, Sale.total_amount, company_id, Sale)
     invoices_total = _sum(db, Invoice.total_amount, company_id, Invoice)
     invoices_pending = _count(db, Invoice, company_id, Invoice.status.in_(["draft", "sent", "overdue"]))
@@ -337,6 +374,7 @@ def build_limule_context(
         "module": module_key,
         "page_path": page_path or "",
         "generated_at": now.isoformat(),
+        "currency": company_currency,
         "company": {
             "id": company.id if company else company_id,
             "name": company.name if company else "Entreprise",
@@ -518,6 +556,27 @@ def build_limule_context(
                     for declaration in declarations
                 ],
             },
+            "investments": {
+                "positions": [
+                    {
+                        "ticker": inv.ticker,
+                        "name": inv.display_name,
+                        "exchange": inv.exchange,
+                        "currency_stock": inv.currency_stock,
+                        "shares": inv.shares,
+                        "invested_amount": inv.invested_amount,
+                        "purchase_price_ref": inv.purchase_price_ref,
+                        "purchase_date": inv.purchase_date,
+                        "last_analysis": _short(inv.last_analysis, 400) if inv.last_analysis else None,
+                    }
+                    for inv in investments
+                ],
+                "total_invested": sum(inv.invested_amount for inv in investments),
+                "positions_count": len(investments),
+                "last_analysis": _short(last_portfolio_analysis.content, 1200) if last_portfolio_analysis else None,
+                "last_analysis_kind": last_portfolio_analysis.kind if last_portfolio_analysis else None,
+                "last_analysis_at": last_portfolio_analysis.created_at.isoformat() if last_portfolio_analysis else None,
+            },
             "payments": {
                 "accounts": [
                     {
@@ -547,6 +606,7 @@ def build_limule_context(
             "calendar",
             "notes",
             "payments",
+            "investments",
         ],
     }
     context["prompt_context"] = render_context_for_prompt(context)
@@ -557,16 +617,17 @@ def render_context_for_prompt(context: dict[str, Any]) -> str:
     company = context["company"]
     kpis = context["kpis"]
     modules = context["modules"]
+    cur = context.get("currency", "XAF")
     lines = [
         f"Page active: {context['page_path'] or 'globale'} / module: {context['module']}",
-        f"Entreprise: {company['name']} ({company['industry']}, {company['country']})",
+        f"Entreprise: {company['name']} ({company['industry']}, {company['country']}) | Devise: {cur}",
         f"Scores: completion {company['completion_score']}/100, TERAS {company['teras_score']}/100",
         (
             "KPI: "
             f"{kpis['employees_active']} employés actifs, "
             f"{kpis['products']} produits, "
             f"{kpis['documents']} documents, "
-            f"CA ventes {_money(kpis['sales_total'])}, "
+            f"CA ventes {_money(kpis['sales_total'], cur)}, "
             f"{kpis['tasks_open']} tâches ouvertes, "
             f"{kpis['teras_alerts_open']} alertes TERAS ouvertes"
         ),
@@ -578,7 +639,7 @@ def render_context_for_prompt(context: dict[str, Any]) -> str:
         lines.append(
             "Paie: "
             f"{modules['payroll']['latest_period']} · {modules['payroll']['latest_status']} · "
-            f"net {_money(modules['payroll']['net_total'])} · "
+            f"net {_money(modules['payroll']['net_total'], cur)} · "
             f"{modules['payroll']['payouts_ready']}/{modules['payroll']['payslip_count']} versements prêts"
         )
     if modules["inventory"]["low_stock"]:
@@ -602,7 +663,7 @@ def render_context_for_prompt(context: dict[str, Any]) -> str:
             montants = ext.get("montants") or {}
             total = montants.get("total_ttc") or montants.get("net_a_payer")
             if total:
-                part += f" {float(total):,.0f} XAF"
+                part += f" {float(total):,.0f} {cur}"
             if d.get("text_length", 0) > 0:
                 part += f" ({d['text_length']} cars)"
             doc_parts.append(part)
@@ -611,6 +672,38 @@ def render_context_for_prompt(context: dict[str, Any]) -> str:
         lines.append("Réunions à venir: " + "; ".join(
             f"{m['title']} ({m['tag']})" for m in modules["calendar"]["upcoming_meetings"][:3]
         ))
+    # Notes récentes
+    recent_notes_items = modules.get("notes", {}).get("recent", [])
+    if recent_notes_items:
+        lines.append("Notes récentes: " + "; ".join(
+            f"{n['date'][:10]} – {n['title']}: {n['summary']}"
+            for n in recent_notes_items[:3]
+        ))
+    # Portefeuille boursier
+    inv_module = modules.get("investments", {})
+    positions = inv_module.get("positions", [])
+    if positions:
+        total_invested = inv_module.get("total_invested", 0)
+        lines.append(
+            f"Portefeuille boursier: {len(positions)} position(s), "
+            f"total investi {total_invested:,.0f} — "
+            + "; ".join(
+                f"{p['name']} ({p['ticker']}) {p['shares']} titres × {p['purchase_price_ref']} {p['currency_stock']}"
+                for p in positions
+            )
+        )
+        # Dernière analyse de portefeuille — contexte clé pour les follow-ups
+        last_analysis = inv_module.get("last_analysis")
+        last_kind = inv_module.get("last_analysis_kind", "")
+        last_at = inv_module.get("last_analysis_at", "")
+        if last_analysis:
+            kind_label = "Analyse de portefeuille" if last_kind == "portfolio_analysis" else "Analyse d'action"
+            lines.append(
+                f"\n=== {kind_label} (générée le {last_at[:10] if last_at else '?'}) ===\n"
+                f"{last_analysis}\n"
+                f"=== Fin de l'analyse ==="
+            )
+
     memory_items = context.get("memory", {}).get("recent_interactions", [])
     if memory_items:
         lines.append("Mémoire Limule récente: " + " | ".join(

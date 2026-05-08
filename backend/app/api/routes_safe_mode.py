@@ -6,6 +6,7 @@ POST /safe-mode/restore   → Restaure les données depuis un payload JSON pars�
 """
 from __future__ import annotations
 
+import asyncio
 import base64, io, json, re
 from datetime import datetime, timezone
 from typing import Any
@@ -670,7 +671,17 @@ async def safe_mode_export(
 ) -> StreamingResponse:
     """Génère et retourne le PDF pack Safe Mode complet."""
     snapshot = _collect_snapshot(db, current_user.company_id)
-    limule_summary = await _generate_limule_summary(snapshot, db, current_user.company_id, current_user)
+    try:
+        limule_summary = await asyncio.wait_for(
+            _generate_limule_summary(snapshot, db, current_user.company_id, current_user),
+            timeout=6,
+        )
+    except Exception:
+        limule_summary = (
+            "Analyse Limule indisponible dans le délai de génération du pack Safe Mode.\n\n"
+            "Le snapshot de restauration reste complet. Relancez une analyse depuis Limule "
+            "pour obtenir des recommandations détaillées."
+        )
     pdf_bytes = _build_pdf(snapshot, limule_summary)
     company_name = (snapshot.get("company") or {}).get("name") or "kompta"
     safe_name = re.sub(r"[^\w\-]", "_", company_name.lower())

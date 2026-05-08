@@ -492,9 +492,36 @@ class MessageRead(BaseModel):
     created_at: datetime
 
 
+class EmployeePayrollOverride(BaseModel):
+    """Ajustements variables par employé pour un cycle de paie."""
+    employee_id: int
+    overtime_hours: float = 0        # heures supplémentaires
+    bonus: float = 0                 # prime / gratification
+    absence_days: int = 0            # jours d'absence non rémunérés
+    notes: str = ""
+
+
 class PayrollRunCreate(BaseModel):
     period: str
     payment_account_id: int | None = None
+    overrides: list[EmployeePayrollOverride] = []
+
+
+class PayslipUpdate(BaseModel):
+    """Mise à jour partielle d'un bulletin de paie."""
+    gross_pay: float | None = None
+    deductions: float | None = None
+    net_pay: float | None = None
+    payout_status: str | None = None
+    payout_destination: str | None = None
+    payout_method: str | None = None
+    bonus: float | None = None
+    overtime_pay: float | None = None
+    absence_deduction: float | None = None
+
+
+class PayrollRunStatusUpdate(BaseModel):
+    status: str
 
 
 class PayslipRead(BaseModel):
@@ -510,6 +537,9 @@ class PayslipRead(BaseModel):
     payout_method: str = ""
     payout_destination: str = ""
     payout_status: str = "pending"
+    bonus: float = 0
+    overtime_pay: float = 0
+    absence_deduction: float = 0
 
 
 class PayrollRunRead(BaseModel):

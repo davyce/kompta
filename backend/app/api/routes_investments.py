@@ -32,7 +32,27 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import Investment
+from app.models.domain import UserPreference
 from app.schemas.domain import InvestmentCreate, InvestmentRead, InvestmentUpdate
+
+
+def _get_company_currency(db: Session, user) -> str:
+    """Retourne la devise préférée de l'utilisateur/compagnie depuis user_preferences."""
+    try:
+        pref = db.scalar(
+            select(UserPreference).where(UserPreference.user_id == user.id)
+        )
+        if pref and pref.currency:
+            return pref.currency
+        # Fallback : première préférence de la compagnie
+        pref = db.scalar(
+            select(UserPreference).where(UserPreference.company_id == user.company_id)
+        )
+        if pref and pref.currency:
+            return pref.currency
+    except Exception:
+        pass
+    return "XAF"
 
 router = APIRouter(tags=["investments"])
 
@@ -125,30 +145,97 @@ def delete_investment(
 # MARKET DATA
 # ═══════════════════════════════════════════════════════════════════
 
+# ── Exchange code → display name mapping ────────────────────────────
+EXCHANGE_LABELS: dict[str, str] = {
+    # Americas
+    "NYQ": "NYSE",          "NMS": "NASDAQ",        "NGM": "NASDAQ",
+    "PCX": "NYSE Arca",     "BTS": "BATS",          "ASE": "AMEX",
+    "TSX": "Toronto (TSX)", "TOR": "Toronto (TSX)", "NEO": "NEO Canada",
+    "SAO": "B3 Brésil",     "BUE": "Buenos Aires",  "SGO": "Santiago",
+    "MEX": "Mexico BMV",    "LIM": "Lima",
+    # Europe
+    "PAR": "Euronext Paris",   "AMS": "Euronext Amsterdam",
+    "BRU": "Euronext Bruxelles", "LIS": "Euronext Lisbonne",
+    "LSE": "London (LSE)",     "LON": "London (LSE)",
+    "FRA": "Frankfurt XETRA",  "GER": "Frankfurt XETRA",
+    "XETRA": "Frankfurt XETRA",
+    "SWX": "SIX Zurich",       "VTX": "SIX Zurich",    "EBS": "SIX Zurich",
+    "MCE": "Madrid (BME)",     "MIL": "Borsa Italiana",
+    "OSL": "Oslo Bors",        "STO": "Stockholm",
+    "HEL": "Helsinki",         "CPH": "Copenhague",
+    "ATH": "Athènes",          "IST": "Istanbul (BIST)",
+    "WSE": "Varsovie (GPW)",   "PRA": "Prague",
+    "BUD": "Budapest",         "VIE": "Vienne",
+    "MSE": "Moscou (MOEX)",
+    # Middle East / Africa
+    "TLV": "Tel Aviv (TASE)",  "DFM": "Dubaï (DFM)",
+    "ADX": "Abu Dhabi (ADX)",  "TADAWUL": "Riyad (Tadawul)",
+    "KUW": "Koweït",           "CAI": "Le Caire (EGX)",
+    "JNB": "Johannesburg (JSE)", "NBO": "Nairobi (NSE)",
+    "LOS": "Lagos (NGX)",       "DAK": "Dakar (BRVM)",
+    "BRVM": "BRVM (Afrique Ouest)",
+    "DSX": "Douala (DSX)",      "ACC": "Accra (GSE)",
+    # Asia-Pacific
+    "JPX": "Tokyo (TSE)",       "TYO": "Tokyo (TSE)",
+    "HKG": "Hong Kong (HKEX)", "SHE": "Shenzhen",
+    "SHH": "Shanghai",          "TAI": "Taïwan (TWSE)",
+    "KSC": "Seoul (KRX)",       "BSE": "Bombay (BSE)",
+    "NSI": "Bombay (NSE)",      "NSE": "Nairobi / National (NSE)",
+    "SGX": "Singapore (SGX)",   "ASX": "Australie (ASX)",
+    "NZE": "Nouvelle-Zélande",  "BKK": "Bangkok (SET)",
+    "KLS": "Kuala Lumpur (Bursa)", "JKT": "Jakarta (IDX)",
+    "MNL": "Manille (PSE)",
+    # ETF / generic
+    "CXE": "Chi-X Europe",     "TLO": "Turquoise",
+    "DXE": "DARKEX",           "XC":  "Chi-X",
+}
+
+
+def _exchange_label(code: str, full_name: str | None = None) -> str:
+    """Return human-readable exchange name; fall back to full_name or code."""
+    return EXCHANGE_LABELS.get(code, full_name or code or "")
+
+
 @router.get("/investments/search")
 async def search_tickers(q: str, current_user=Depends(get_current_user)):
-    """Recherche d'entreprises cotées via l'API Yahoo Finance."""
+    """Recherche d'entreprises cotées via l'API Yahoo Finance — toutes bourses mondiales."""
     if not q or len(q.strip()) < 1:
         return []
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.get(
                 "https://query1.finance.yahoo.com/v1/finance/search",
-                params={"q": q, "newsCount": "0", "listsCount": "0", "quotesCount": "10"},
+                params={
+                    "q": q,
+                    "newsCount": "0",
+                    "listsCount": "0",
+                    "quotesCount": "15",   # more results → better global coverage
+                    "enableNavLinks": "false",
+                    "enableEnhancedTrivialQuery": "true",
+                },
                 headers={"User-Agent": "Mozilla/5.0 (compatible; KOMPTA/1.0)"},
             )
         data = resp.json()
         results = []
+        seen: set[str] = set()
         for r in data.get("quotes", []):
-            if r.get("quoteType") not in ("EQUITY", "ETF"):
+            if r.get("quoteType") not in ("EQUITY", "ETF", "MUTUALFUND"):
                 continue
+            symbol = r.get("symbol", "")
+            if not symbol or symbol in seen:
+                continue
+            seen.add(symbol)
+            exch_code = r.get("exchange", "")
+            exch_full = r.get("fullExchangeName", "")
             results.append({
-                "ticker": r.get("symbol", ""),
-                "name": r.get("shortname") or r.get("longname") or r.get("symbol", ""),
-                "exchange": r.get("exchange", ""),
-                "type": r.get("quoteType", ""),
+                "ticker":   symbol,
+                "name":     r.get("shortname") or r.get("longname") or symbol,
+                "exchange": _exchange_label(exch_code, exch_full),
+                "exchange_code": exch_code,
+                "type":     r.get("quoteType", "EQUITY"),
+                "currency": r.get("currency", ""),
             })
-        return results[:8]
+        return results[:10]
     except Exception:
         return []
 
@@ -287,6 +374,92 @@ async def get_news(ticker: str, current_user=Depends(get_current_user)):
         return []
 
 
+@router.get("/investments/news-fr/{ticker}")
+async def get_news_fr(ticker: str, current_user=Depends(get_current_user)):
+    """Actualités françaises liées à l'action (Google News RSS)."""
+    import xml.etree.ElementTree as ET
+
+    # Résoudre un nom d'entreprise lisible pour la recherche (ex: TTE.PA → TotalEnergies)
+    company_name = ticker.split(".")[0]  # fallback: utiliser le symbole brut
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker.upper()).info
+        long_name = info.get("longName") or info.get("shortName") or ""
+        if long_name:
+            company_name = long_name
+    except Exception:
+        pass
+
+    articles: list[dict] = []
+
+    # Sources RSS francophones à interroger
+    rss_feeds: list[tuple[str, str]] = [
+        # Google News France (résultats en français en priorité)
+        (
+            f"https://news.google.com/rss/search?q={company_name}&hl=fr&gl=FR&ceid=FR:fr",
+            "Google News FR",
+        ),
+        # Boursorama — si le ticker est parisien (.PA) ou équivalent
+        (
+            f"https://www.boursorama.com/rss/bourse/",
+            "Boursorama",
+        ),
+    ]
+
+    async with httpx.AsyncClient(timeout=8) as client:
+        for feed_url, feed_name in rss_feeds:
+            try:
+                resp = await client.get(
+                    feed_url,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; KOMPTA/1.0)"},
+                    follow_redirects=True,
+                )
+                if resp.status_code != 200:
+                    continue
+                root = ET.fromstring(resp.text)
+                ns = {"media": "http://search.yahoo.com/mrss/"}
+                channel = root.find("channel")
+                if channel is None:
+                    continue
+                items = channel.findall("item")[:8]
+                for item in items:
+                    title   = (item.findtext("title") or "").strip()
+                    link    = (item.findtext("link") or "").strip()
+                    summary = (item.findtext("description") or "").strip()
+                    pub_date = (item.findtext("pubDate") or "").strip()
+                    source_el = item.find("source")
+                    source = source_el.text if source_el is not None else feed_name
+
+                    # Nettoyage HTML basique dans le summary
+                    import re as _re
+                    summary = _re.sub(r"<[^>]+>", "", summary)[:300]
+
+                    if title:
+                        articles.append({
+                            "title":     title,
+                            "summary":   summary,
+                            "provider":  source or feed_name,
+                            "published": pub_date[:10] if len(pub_date) >= 10 else pub_date,
+                            "url":       link,
+                            "lang":      "fr",
+                        })
+                if len(articles) >= 10:
+                    break
+            except Exception:
+                continue
+
+    # Dédupliquer par titre
+    seen_titles: set[str] = set()
+    unique: list[dict] = []
+    for a in articles:
+        key = a["title"][:60].lower()
+        if key not in seen_titles:
+            seen_titles.add(key)
+            unique.append(a)
+
+    return unique[:10]
+
+
 # ═══════════════════════════════════════════════════════════════════
 # LIMULE ANALYSIS
 # ═══════════════════════════════════════════════════════════════════
@@ -298,6 +471,9 @@ async def analyze_portfolio(
 ):
     """Évalue l'intégralité du portefeuille avec Limule."""
     from app.services.limule import limule_generate
+
+    # Récupérer la devise de l'utilisateur/compagnie
+    company_currency = _get_company_currency(db, current_user)
 
     investments_list = db.scalars(
         select(Investment).where(Investment.company_id == current_user.company_id)
@@ -363,30 +539,32 @@ async def analyze_portfolio(
         perf_str = f", perf 1an: {p['perf_1y']:+.1f}%" if p["perf_1y"] is not None else ""
         lines.append(
             f"  • {p['name']} ({p['ticker']}): {p['shares']} actions, "
-            f"investi {p['invested']:,.0f}, valeur {p['current_value']:,.0f} "
-            f"({p['gain']:+,.0f} / {p['gain_pct']:+.1f}%), poids {p['weight']}%{perf_str}"
+            f"investi {p['invested']:,.0f} {company_currency}, valeur {p['current_value']:,.0f} {company_currency} "
+            f"({p['gain']:+,.0f} {company_currency} / {p['gain_pct']:+.1f}%), poids {p['weight']}%{perf_str}"
         )
     positions_str = "\n".join(lines)
 
     context = (
         f"ÉVALUATION PORTEFEUILLE BOURSIER\n"
-        f"Date : {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}\n\n"
+        f"Date : {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}\n"
+        f"Devise de référence de l'entreprise : {company_currency}\n\n"
         f"== Résumé ==\n"
         f"Positions : {len(positions_data)}\n"
-        f"Montant total investi : {total_invested:,.0f}\n"
-        f"Valeur actuelle : {total_current:,.0f}\n"
-        f"P&L global : {total_gain:+,.0f} ({total_gain_pct:+.1f}%)\n\n"
+        f"Montant total investi : {total_invested:,.0f} {company_currency}\n"
+        f"Valeur actuelle : {total_current:,.0f} {company_currency}\n"
+        f"P&L global : {total_gain:+,.0f} {company_currency} ({total_gain_pct:+.1f}%)\n\n"
         f"== Détail des positions ==\n"
         f"{positions_str}"
     )
 
     prompt = (
         f"Effectue une évaluation stratégique du portefeuille boursier "
-        f"({len(positions_data)} position(s), valeur totale {total_current:,.0f}, "
+        f"({len(positions_data)} position(s), valeur totale {total_current:,.0f} {company_currency}, "
         f"P&L {total_gain_pct:+.1f}%). "
+        f"La devise de l'entreprise est {company_currency} — utilise UNIQUEMENT cette devise dans tes réponses. "
         f"Fournis : (1) Performance globale, (2) Diversification et exposition sectorielle, "
         f"(3) Points forts et faiblesses, (4) Recommandations de rééquilibrage, "
-        f"(5) Stratégie adaptée à un investisseur PME africain. "
+        f"(5) Stratégie adaptée à un investisseur PME. "
         f"Sois précis et actionnable."
     )
 
@@ -400,6 +578,23 @@ async def analyze_portfolio(
         max_tokens=2500,
         temperature=0.3,
     )
+
+    # Persister dans AIGeneration pour que le chat Limule puisse y accéder en contexte
+    try:
+        from app.models.domain import AIGeneration as AIGen
+        db.add(AIGen(
+            kind="portfolio_analysis",
+            title=f"Portefeuille — {len(positions_data)} positions",
+            prompt=prompt,
+            content=analysis,
+            model="limule",
+            teras_used=False,
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+        ))
+        db.commit()
+    except Exception:
+        pass
 
     return {
         "analysis":      analysis,
@@ -423,6 +618,9 @@ async def analyze_investment(
 ):
     """Génère une analyse Limule de l'action, croise avec le portefeuille si inv_id fourni."""
     from app.services.limule import limule_generate
+
+    # ── 0. Devise de l'entreprise ────────────────────────────────
+    company_currency = _get_company_currency(db, current_user)
 
     # ── 1. Récupérer les données marché ──────────────────────────
     try:
@@ -465,6 +663,7 @@ async def analyze_investment(
         perf_str = f"Performance 1 an : {perf_1y:+.1f}%"
 
     # ── 2. Position portefeuille ──────────────────────────────────
+    stock_currency = _safe(info, "currency") or "USD"
     portfolio_str = ""
     if inv_id:
         inv = db.get(Investment, inv_id)
@@ -475,24 +674,27 @@ async def analyze_investment(
             portfolio_str = (
                 f"\n\n== Position de l'entreprise ==\n"
                 f"Nombre d'actions : {inv.shares}\n"
-                f"Montant investi : {inv.invested_amount:,.2f}\n"
-                f"Valeur actuelle estimée : {current_val:,.2f} {_safe(info, 'currency') or 'USD'}\n"
-                f"Plus/moins-value : {gain:+,.2f} ({gain_pct:+.1f}%)\n"
+                f"Montant investi : {inv.invested_amount:,.2f} {company_currency}\n"
+                f"Valeur actuelle estimée : {current_val:,.2f} {stock_currency} "
+                f"(converti : {current_val:,.2f} {stock_currency})\n"
+                f"Plus/moins-value : {gain:+,.2f} {stock_currency} ({gain_pct:+.1f}%)\n"
                 f"Date d'achat : {inv.purchase_date or 'non précisée'}\n"
-                f"Prix d'achat moyen : {inv.purchase_price_ref or '?'} {_safe(info, 'currency') or 'USD'}"
+                f"Prix d'achat moyen : {inv.purchase_price_ref or '?'} {stock_currency}"
             )
 
     # ── 3. Prompt Limule ─────────────────────────────────────────
     context = f"""
 ANALYSE BOURSIÈRE — {name} ({ticker.upper()})
 Date : {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}
+Devise de l'entreprise : {company_currency}
+Devise de la bourse : {stock_currency}
 
 == Données marché ==
-Cours actuel : {price} {_safe(info, 'currency') or 'USD'} ({change_pct:+.2f}% vs clôture précédente)
+Cours actuel : {price} {stock_currency} ({change_pct:+.2f}% vs clôture précédente)
 Capitalisation : {mktcap}
 Secteur : {sector} / {industry}
-P/E : {pe or 'N/A'} | BPA : {eps or 'N/A'} | Bêta : {beta or 'N/A'}
-Plus haut 52 sem : {high52} | Plus bas 52 sem : {low52}
+P/E : {pe or 'N/A'} | BPA : {eps or 'N/A'} {stock_currency} | Bêta : {beta or 'N/A'}
+Plus haut 52 sem : {high52} {stock_currency} | Plus bas 52 sem : {low52} {stock_currency}
 {perf_str}
 
 == Description ==
@@ -513,7 +715,10 @@ Plus haut 52 sem : {high52} | Plus bas 52 sem : {low52}
         f"{portfolio_clause}"
         f"Fournis : (1) Synthèse de la situation actuelle, (2) Analyse fondamentale, "
         f"(3) Facteurs de risque et opportunités, (4) Perspectives à court et moyen terme, "
-        f"(5) Recommandation stratégique pour un investisseur PME africain."
+        f"(5) Recommandation stratégique pour un investisseur PME. "
+        f"IMPORTANT : La devise locale de l'entreprise est {company_currency}. "
+        f"Les montants boursiers sont en {stock_currency}. "
+        f"Utilise les bonnes devises dans ton analyse — ne suppose pas que c'est du FCFA ou CFA si ce n'est pas {company_currency}."
     )
 
     analysis, _ = await limule_generate(
@@ -527,13 +732,27 @@ Plus haut 52 sem : {high52} | Plus bas 52 sem : {low52}
         temperature=0.3,
     )
 
-    # ── 4. Persister l'analyse si lié à un investissement ─────────
-    if inv_id:
-        inv = db.get(Investment, inv_id)
-        if inv and inv.company_id == current_user.company_id:
-            inv.last_analysis = analysis
-            inv.last_analysis_at = datetime.now(timezone.utc).isoformat()
-            db.commit()
+    # ── 4. Persister l'analyse ────────────────────────────────────
+    try:
+        from app.models.domain import AIGeneration as AIGen
+        db.add(AIGen(
+            kind="investment_analysis",
+            title=f"Analyse {name} ({ticker.upper()})",
+            prompt=prompt,
+            content=analysis,
+            model="limule",
+            teras_used=False,
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+        ))
+        if inv_id:
+            inv = db.get(Investment, inv_id)
+            if inv and inv.company_id == current_user.company_id:
+                inv.last_analysis = analysis
+                inv.last_analysis_at = datetime.now(timezone.utc).isoformat()
+        db.commit()
+    except Exception:
+        pass
 
     return {
         "ticker": ticker.upper(),
@@ -558,89 +777,31 @@ def download_analysis_pdf(
     current_user=Depends(get_current_user),
 ):
     """Génère et télécharge le PDF de la dernière analyse Limule pour cet investissement."""
+    from app.services.pdf_export import build_limule_pdf
+    from app.models.domain import Company
+
     inv = db.get(Investment, inv_id)
     if not inv or inv.company_id != current_user.company_id:
         raise HTTPException(404, "Investissement introuvable")
     if not inv.last_analysis:
         raise HTTPException(400, "Aucune analyse disponible — générez-en une d'abord.")
 
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    company = db.get(Company, current_user.company_id)
+    company_name = company.name if company else "KOMPTA"
+    generated_at = (inv.last_analysis_at or datetime.now(timezone.utc).isoformat())[:16]
 
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        topMargin=2 * cm, bottomMargin=2 * cm,
-        leftMargin=2.5 * cm, rightMargin=2.5 * cm,
+    pdf_bytes = build_limule_pdf(
+        title=f"Analyse Limule — {inv.display_name} ({inv.ticker})",
+        content=inv.last_analysis,
+        subtitle=f"{inv.shares} actions · Investi : {inv.invested_amount:,.2f} {inv.currency_stock}",
+        generated_at=generated_at,
+        company_name=company_name,
+        kind="investment_analysis",
     )
 
-    styles = getSampleStyleSheet()
-    brand  = colors.HexColor("#059669")
-
-    title_style = ParagraphStyle(
-        "InvTitle", parent=styles["Title"],
-        textColor=brand, fontSize=22, spaceAfter=6,
-    )
-    sub_style = ParagraphStyle(
-        "InvSub", parent=styles["Normal"],
-        textColor=colors.HexColor("#717182"), fontSize=10, spaceAfter=18,
-    )
-    body_style = ParagraphStyle(
-        "InvBody", parent=styles["Normal"],
-        fontSize=10, leading=15, spaceAfter=8,
-    )
-    h2_style = ParagraphStyle(
-        "InvH2", parent=styles["Heading2"],
-        textColor=brand, fontSize=13, spaceBefore=14, spaceAfter=4,
-    )
-
-    story = []
-    story.append(Paragraph(f"Analyse Limule — {inv.display_name} ({inv.ticker})", title_style))
-    generated_at = inv.last_analysis_at or datetime.now(timezone.utc).isoformat()
-    story.append(Paragraph(
-        f"Généré le {generated_at[:10]} · {inv.shares} actions · "
-        f"Investi : {inv.invested_amount:,.2f} {inv.currency_stock}",
-        sub_style,
-    ))
-    story.append(HRFlowable(width="100%", thickness=1, color=brand, spaceAfter=20))
-
-    # Découpe l'analyse en sections (délimitées par des lignes ##, **, ou numérotées)
-    import re
-    lines = inv.last_analysis.split("\n")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            story.append(Spacer(1, 4))
-            continue
-        # Détection de titre de section
-        if re.match(r"^#{1,3}\s+", line):
-            clean = re.sub(r"^#{1,3}\s+", "", line)
-            story.append(Paragraph(clean, h2_style))
-        elif re.match(r"^\*\*(.+)\*\*$", line):
-            clean = re.sub(r"\*\*", "", line)
-            story.append(Paragraph(f"<b>{clean}</b>", body_style))
-        else:
-            # Formater les **bold** inline
-            formatted = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", line)
-            story.append(Paragraph(formatted, body_style))
-
-    story.append(Spacer(1, 20))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
-    story.append(Paragraph(
-        "Analyse générée par Limule AI · KOMPTA ERP · À titre informatif uniquement.",
-        ParagraphStyle("footer", parent=styles["Normal"],
-                       fontSize=8, textColor=colors.grey, alignment=TA_CENTER),
-    ))
-
-    doc.build(story)
-    buf.seek(0)
     filename = f"limule-analyse-{inv.ticker}-{datetime.now().strftime('%Y%m%d')}.pdf"
     return StreamingResponse(
-        buf,
+        io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

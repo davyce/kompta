@@ -42,11 +42,16 @@ import { OnboardingWizard } from "../components/OnboardingWizard";
 import { ToastStack } from "../components/Toast";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useTheme } from "../hooks/useTheme";
+import { useNotificationsPolling } from "../hooks/useNotifications";
 import { useWebSocketNotifications } from "../hooks/useWebSocketNotifications";
-import { api } from "../services/api";
+import { ApiError, api } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import { initials } from "../utils/format";
 import { useAuth } from "./AuthContext";
+
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
 
 /** Limule status chip shown in the topbar */
 function LimuleStatus() {
@@ -140,17 +145,17 @@ const navSections: NavSection[] = [
     label: "Finance",
     items: [
       { label: "Comptabilité", to: "/accounting", icon: Calculator },
+      { label: "Facturation", to: "/billing", icon: ReceiptText },
       { label: "Budget", to: "/budget", icon: PiggyBank },
       { label: "Transactions", to: "/transactions", icon: Landmark },
-      { label: "POS / Caisse", to: "/pos", icon: ShoppingCart },
-      { label: "Inventaire", to: "/inventory", icon: Boxes },
     ],
   },
   {
-    label: "Commercial",
+    label: "Commerce",
     items: [
-      { label: "Facturation", to: "/billing", icon: ReceiptText },
       { label: "Clients", to: "/clients", icon: UserCheck },
+      { label: "POS / Caisse", to: "/pos", icon: ShoppingCart },
+      { label: "Inventaire", to: "/inventory", icon: Boxes },
     ],
   },
   {
@@ -191,7 +196,7 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/budget": { section: "Finance", title: "Gestion budgétaire" },
   "/transactions": { section: "Finance", title: "Relevés & transactions" },
   "/billing": { section: "Facturation", title: "Clients et encaissements" },
-  "/clients": { section: "Commercial", title: "CRM & Clients" },
+  "/clients": { section: "Commerce", title: "CRM & Clients" },
   "/pos": { section: "POS / Caisse", title: "Caisse et encaissement" },
   "/inventory": { section: "Inventaire", title: "Stock multi-sites" },
   "/projects": { section: "Projets", title: "Boards et budgets" },
@@ -225,8 +230,9 @@ export function Shell() {
   );
 
   const { toasts, dismiss, liveAlertCount, history, markAllRead, clearHistory } = useWebSocketNotifications(user?.company_id);
+  const { notifications: polledNotifications } = useNotificationsPolling(!!user);
   const unreadCount = history.filter((n) => n.unread).length;
-  const bellCount = unreadCount + liveAlertCount + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
+  const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
   const { theme, toggle: toggleTheme } = useTheme();
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () => sessionStorage.getItem("kompta_onboarding_dismissed") === "true"
@@ -255,9 +261,11 @@ export function Shell() {
 
   useEffect(() => {
     if (!user) {
-      api.me().then(setUser).catch(() => {
-        logout();
-        navigate("/login");
+      api.me().then(setUser).catch((error) => {
+        if (isUnauthorized(error)) {
+          logout();
+          navigate("/login");
+        }
       });
     }
   }, [logout, navigate, setUser, user]);
@@ -639,7 +647,7 @@ export function Shell() {
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-5 pb-24 md:pb-7 md:px-6 md:py-7">
+        <main className="mx-auto w-full max-w-7xl px-4 py-5 pb-24 lg:pb-7 md:px-6 md:py-7">
           <Outlet />
         </main>
       </div>

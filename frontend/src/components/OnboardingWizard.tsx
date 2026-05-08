@@ -10,6 +10,7 @@ import {
   FileText, HandCoins, BarChart3, Play, Info, Star
 } from "lucide-react";
 import { api } from "../services/api";
+import { currencyLabel } from "../utils/format";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -545,7 +546,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Salaire brut (XAF)</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Salaire brut ({currencyLabel()})</span>
                   <input
                     type="number"
                     placeholder="ex : 350000"
