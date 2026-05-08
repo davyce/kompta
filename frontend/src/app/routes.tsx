@@ -34,6 +34,7 @@ const InvestmentsPage     = lazy(() => import("../pages/InvestmentsPage").then(m
 const BudgetPage          = lazy(() => import("../pages/BudgetPage").then(m => ({ default: m.BudgetPage })));
 const AssistantsPage      = lazy(() => import("../pages/AssistantsPage").then(m => ({ default: m.AssistantsPage })));
 const DeclarationsPage    = lazy(() => import("../pages/DeclarationsPage").then(m => ({ default: m.DeclarationsPage })));
+const LegislationPage     = lazy(() => import("../pages/LegislationPage"));
 const EmployeeProfilePage = lazy(() => import("../pages/EmployeeProfilePage").then(m => ({ default: m.EmployeeProfilePage })));
 const ActivationPage      = lazy(() => import("../pages/ActivationPage").then(m => ({ default: m.ActivationPage })));
 const NotFoundPage        = lazy(() => import("../pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
@@ -151,6 +152,7 @@ export const router = createBrowserRouter([
       { path: "investments",           element: <LazyRoute page={InvestmentsPage} /> },
       { path: "budget",                element: <LazyRoute page={BudgetPage} /> },
       { path: "transactions",          element: <LazyRoute page={TransactionsPage} /> },
+      { path: "legislation",           element: <LazyRoute page={LegislationPage} /> },
       { path: "*",                     element: <LazyRoute page={NotFoundPage} /> },
     ]
   }

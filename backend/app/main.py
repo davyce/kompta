@@ -11,6 +11,7 @@ from app.api.routes_features import router as features_router
 from app.api.routes_safe_mode import router as safe_mode_router
 from app.api.routes_investments import router as investments_router
 from app.api.routes_transactions import router as transactions_router
+from app.api.routes_legislation import router as legislation_router
 import os
 
 from app.core.config import get_settings
@@ -70,6 +71,7 @@ app.include_router(features_router, prefix=settings.api_prefix)
 app.include_router(safe_mode_router, prefix=settings.api_prefix)
 app.include_router(investments_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)
+app.include_router(legislation_router, prefix=settings.api_prefix)
 
 
 @app.get("/")

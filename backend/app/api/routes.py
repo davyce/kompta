@@ -2740,6 +2740,96 @@ def download_declaration_pdf(
     )
 
 
+@router.post("/declarations/optimize", response_model=DeclarationRecordRead, status_code=201)
+async def optimize_declaration(
+    payload: DeclarationRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DeclarationRecord:
+    """Génère un plan d'optimisation fiscale complet via Limule."""
+    from app.services.limule import limule_generate
+    from app.services.limule_context import build_limule_context, render_context_for_prompt
+    from app.models.domain import LegislationDocument
+
+    company = db.get(Company, current_user.company_id)
+    ctx = build_limule_context(
+        db=db, company_id=current_user.company_id, user=current_user,
+        page_path="/declarations", focus_module="declarations",
+    )
+    ctx_text = render_context_for_prompt(ctx)
+
+    # Enrichissement avec la base législative interne
+    leg_docs = db.scalars(
+        select(LegislationDocument).where(
+            LegislationDocument.company_id == current_user.company_id,
+            LegislationDocument.analyzed == True,
+        ).order_by(LegislationDocument.created_at.desc()).limit(5)
+    ).all()
+    leg_context = ""
+    if leg_docs:
+        leg_parts = [f"[{d.doc_category.upper()} — {d.title}]\n{(d.ai_summary or '')[:600]}" for d in leg_docs]
+        leg_context = "\n\nBASE LÉGISLATIVE INTERNE :\n" + "\n---\n".join(leg_parts)
+
+    type_labels = {
+        "fiscale": "fiscale (TVA, IS, IRPP)", "sociale": "sociale CNPS",
+        "tva": "TVA", "is": "IS (Impôt sur les Sociétés)",
+        "bailleur": "bailleur / financement", "statistique": "statistique",
+    }
+    type_label = type_labels.get(payload.declaration_type, payload.declaration_type)
+    country = company.country if company else "Congo"
+
+    prompt = (
+        f"Génère un PLAN D'OPTIMISATION FISCALE ET COMPTABLE complet pour :\n"
+        f"- Type de déclaration : {type_label}\n"
+        f"- Période : {payload.period}\n"
+        f"- Pays : {country} (zone CEMAC)\n"
+        f"- Entreprise : {company.name if company else 'N/A'}\n\n"
+        f"Le plan doit inclure :\n"
+        f"1. CALENDRIER FISCAL — toutes les dates et échéances légales pour {payload.period} "
+        f"(dépôts, paiements, délais de grâce, pénalités de retard)\n"
+        f"2. STRATÉGIES D'OPTIMISATION — déductions légales, crédits d'impôt, régimes préférentiels "
+        f"applicables aux PME en zone CEMAC, amortissements accélérés, provisions déductibles\n"
+        f"3. POSTES À REVOIR — charges déductibles souvent oubliées, frais généraux optimisables, "
+        f"structure salariale optimale pour réduire la charge fiscale\n"
+        f"4. CONFORMITÉ PRÉVENTIVE — points de contrôle DGI, risques de redressement courants, "
+        f"documents à conserver et durées légales\n"
+        f"5. ACTIONS IMMÉDIATES — liste priorisée d'actions à mener dans les 30/60/90 jours\n"
+        f"6. REGARD CEMAC — impact de la conjoncture CEMAC sur la fiscalité de l'entreprise\n\n"
+        f"Cite des taux et seuils réels applicables au {country}. Sois précis et actionnable."
+        f"{leg_context}"
+    )
+
+    content, _ = await limule_generate(
+        kind="declaration",
+        prompt=prompt,
+        context=ctx_text,
+        structured_context=ctx,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=4000,
+        temperature=0.2,
+    )
+
+    record = DeclarationRecord(
+        period=payload.period,
+        declaration_type=payload.declaration_type,
+        case_reference=f"{payload.declaration_type.upper()}-{payload.period}-OPT",
+        status="optimized",
+        confidence=92,
+        missing_documents=json.dumps([], ensure_ascii=False),
+        checklist=json.dumps([], ensure_ascii=False),
+        generated_text=content or "",
+        provider="limule",
+        created_by_user_id=current_user.id,
+        company_id=current_user.company_id,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
 @router.get("/settings/modules")
 def modules_settings(current_user: User = Depends(get_current_user)) -> dict:
     return {

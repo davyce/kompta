@@ -866,6 +866,55 @@ class ClientUpdate(BaseModel):
     status: str | None = None
 
 
+class ClientStatsRead(BaseModel):
+    client_id: int
+    invoice_count: int
+    total_revenue: float
+    unpaid_count: int
+    last_invoice_date: str | None
+
+
+class ClientDiscountCreate(BaseModel):
+    label: str = ""
+    discount_type: str = "percent"          # percent | fixed | points_threshold
+    discount_value: float = 0.0
+    min_order_amount: float = 0.0
+    applies_to: str = "all"                 # all | invoice | pos
+    active: bool = True
+
+
+class ClientDiscountUpdate(BaseModel):
+    label: str | None = None
+    discount_type: str | None = None
+    discount_value: float | None = None
+    min_order_amount: float | None = None
+    applies_to: str | None = None
+    active: bool | None = None
+
+
+class ClientDiscountRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: int
+    company_id: int
+    label: str
+    discount_type: str
+    discount_value: float
+    min_order_amount: float
+    applies_to: str
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientLoyaltyUpdate(BaseModel):
+    points_delta: int = 0          # positif = ajouter, négatif = retirer
+    loyalty_tier: str | None = None
+    global_discount_percent: float | None = None
+
+
+# Extend ClientRead to include loyalty fields
 class ClientRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -878,17 +927,43 @@ class ClientRead(BaseModel):
     country: str | None
     notes: str | None
     status: str
+    loyalty_points: int = 0
+    loyalty_tier: str = "standard"
+    global_discount_percent: float = 0.0
     company_id: int
     created_at: datetime
     updated_at: datetime
 
 
-class ClientStatsRead(BaseModel):
-    client_id: int
-    invoice_count: int
-    total_revenue: float
-    unpaid_count: int
-    last_invoice_date: str | None
+# ─────────────────────────────────────────────────────────────────────────
+# Législation
+# ─────────────────────────────────────────────────────────────────────────
+
+class LegislationDocumentCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    description: str = ""
+    doc_category: str = "general"     # fiscal | social | commerce | finance | general
+    country_scope: str = "Congo"
+
+
+class LegislationDocumentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    company_id: int
+    title: str
+    description: str
+    filename: str
+    mime_type: str
+    size_bytes: int
+    doc_category: str
+    country_scope: str
+    ai_summary: str
+    ai_tags: str
+    analyzed: bool
+    uploaded_by_user_id: int | None
+    created_at: datetime
+    updated_at: datetime
 
 
 # ─────────────────────────────────────────────────────────────────────────

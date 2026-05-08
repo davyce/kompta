@@ -1,5 +1,6 @@
 import {
   Bell,
+  BookOpen,
   Building2,
   CalendarDays,
   Calculator,
@@ -87,8 +88,8 @@ function LimuleStatus() {
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/settings", "/safe-mode", "/help"],
-  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/reports-teras", "/declarations", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/settings", "/safe-mode", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
@@ -173,6 +174,7 @@ const navSections: NavSection[] = [
       { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
       { label: "Investissements", to: "/investments", icon: TrendingUp },
       { label: "Déclarations", to: "/declarations", icon: ClipboardList },
+      { label: "Législation IA", to: "/legislation", icon: BookOpen },
       { label: "Rédaction IA", to: "/assistants", icon: LimuleIcon },
       { label: "TERAS Connect", to: "/reports-teras", icon: ShieldCheck, badge: "!" },
     ],
@@ -210,6 +212,7 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/reports-teras": { section: "TERAS", title: "Conformité et risques" },
   "/assistants": { section: "Rédaction IA", title: "Studio rédactionnel" },
   "/declarations": { section: "Déclarations", title: "Obligations légales & fiscales" },
+  "/legislation": { section: "Législation IA", title: "Base législative & réglementaire" },
   "/settings": { section: "Paramètres", title: "Configuration" },
   "/safe-mode": { section: "Système", title: "Sauvegarde & Restauration" },
   "/help": { section: "Support", title: "Centre d'aide" },

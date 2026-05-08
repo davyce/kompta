@@ -3,7 +3,7 @@ import { useState } from "react";
 import {
   AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList,
   Download, FileSearch, FileText, RefreshCcw, ShieldCheck,
-  Eye, X,
+  Eye, X, TrendingUp,
 } from "lucide-react";
 
 import { Panel } from "../components/Panel";
@@ -248,6 +248,11 @@ export function DeclarationsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["declarations"] }),
   });
 
+  const optimize = useMutation({
+    mutationFn: api.optimizeDeclaration,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["declarations"] }),
+  });
+
   const analyzeDomain = useMutation({
     mutationFn: (domain: string) => {
       if (domain === "rh") return api.analyzeTerasRh();
@@ -261,6 +266,8 @@ export function DeclarationsPage() {
     },
   });
 
+  const isLoading2 = prepare.isPending || generate.isPending || optimize.isPending;
+
   /* ── Computed ── */
   const activeAlerts = alerts.data?.filter((a) => a.status === "open") ?? [];
   const declarationAlerts = activeAlerts.filter((a) =>
@@ -269,10 +276,10 @@ export function DeclarationsPage() {
     a.module.toLowerCase().includes("compt")
   );
   const allDeclarations = declarations.data ?? [];
-  const generatedCount = allDeclarations.filter((d) => d.status === "generated").length;
+  const generatedCount = allDeclarations.filter((d) => ["generated", "optimized"].includes(d.status)).length;
   const typeInfo = DECLARATION_TYPES.find((t) => t.key === selectedType) ?? DECLARATION_TYPES[0];
   const TypeIcon = typeInfo.icon;
-  const isLoading = prepare.isPending || generate.isPending;
+  const isLoading = isLoading2;
 
   /* ── Recent declarations per type ── */
   const recentByType = allDeclarations.slice(0, 8);
@@ -407,12 +414,28 @@ export function DeclarationsPage() {
                 }
                 {generate.isPending ? "Génération Limule…" : "Générer la déclaration complète"}
               </button>
+              <button
+                onClick={() => optimize.mutate({ period, declaration_type: selectedType })}
+                disabled={isLoading || !period.trim()}
+                className="flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50 transition shadow-sm"
+              >
+                {optimize.isPending
+                  ? <RefreshCcw size={15} className="animate-spin" />
+                  : (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 p-0.5">
+                      <TrendingUp size={12} />
+                    </span>
+                  )
+                }
+                {optimize.isPending ? "Optimisation Limule…" : "Optimisation fiscale"}
+              </button>
             </div>
 
             {/* Indications */}
             <p className="mt-3 text-xs text-[#717182]">
-              <strong>Préparer</strong> : audit des pièces manquantes et checklist de validation. ·
-              <strong> Générer</strong> : document déclaratif complet avec calculs, tableaux et recommandations.
+              <strong>Préparer</strong> : audit + checklist. ·
+              <strong> Générer</strong> : déclaration complète avec calculs et tableaux. ·
+              <strong> Optimisation</strong> : calendrier fiscal, stratégies d'économies d'impôts et actions prioritaires.
             </p>
           </div>
 
@@ -479,7 +502,33 @@ export function DeclarationsPage() {
             </div>
           )}
 
-          {(prepare.isError || generate.isError) && (
+          {/* Résultat optimisation */}
+          {optimize.isSuccess && optimize.data && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20 p-0.5">
+                    <TrendingUp size={14} className="text-amber-700 dark:text-amber-300" />
+                  </span>
+                  <p className="font-bold text-amber-800 dark:text-amber-200 text-sm">
+                    Plan d'optimisation fiscale — {optimize.data.case_reference}
+                  </p>
+                  <StatusBadge label="Optimisation" tone="amber" />
+                </div>
+                <button
+                  onClick={() => setViewRecord(optimize.data!)}
+                  className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
+                >
+                  <Eye size={12} /> Consulter
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                Calendrier fiscal · Stratégies d'économies · Actions prioritaires · Téléchargeable en PDF
+              </p>
+            </div>
+          )}
+
+          {(prepare.isError || generate.isError || optimize.isError) && (
             <p className="text-sm text-red-600 dark:text-red-400">
               Erreur lors de la génération. Vérifiez que le service Limule est actif.
             </p>

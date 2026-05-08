@@ -476,8 +476,48 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  optimizeDeclaration: (payload: { period: string; declaration_type: string }) =>
+    request<DeclarationRecord>("/declarations/optimize", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   downloadDeclarationPdf: (id: number) =>
     requestBlob(`/declarations/${id}/pdf`),
+
+  /* ── Législation ── */
+  legislationDocs: (category?: string) => {
+    const qs = category ? `?category=${category}` : "";
+    return request<LegislationDocumentDto[]>(`/legislation/documents${qs}`);
+  },
+  uploadLegislationDoc: (formData: FormData) =>
+    request<LegislationDocumentDto>("/legislation/documents", { method: "POST", body: formData }),
+  deleteLegislationDoc: (id: number) =>
+    request<void>(`/legislation/documents/${id}`, { method: "DELETE" }),
+  analyzeLegislationDoc: (id: number) =>
+    request<LegislationDocumentDto>(`/legislation/documents/${id}/analyze`, { method: "POST" }),
+  legislationContext: () =>
+    request<{ context: string; doc_count: number; categories: string[] }>("/legislation/context"),
+
+  /* ── Clients — Remises & fidélité ── */
+  clientDiscounts: (clientId: number) =>
+    request<ClientDiscountDto[]>(`/clients/${clientId}/discounts`),
+  createClientDiscount: (clientId: number, payload: ClientDiscountCreateDto) =>
+    request<ClientDiscountDto>(`/clients/${clientId}/discounts`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateClientDiscount: (clientId: number, discountId: number, payload: Partial<ClientDiscountCreateDto>) =>
+    request<ClientDiscountDto>(`/clients/${clientId}/discounts/${discountId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteClientDiscount: (clientId: number, discountId: number) =>
+    request<void>(`/clients/${clientId}/discounts/${discountId}`, { method: "DELETE" }),
+  updateClientLoyalty: (clientId: number, payload: { points_delta?: number; loyalty_tier?: string; global_discount_percent?: number }) =>
+    request<ClientDto>(`/clients/${clientId}/loyalty`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 
   /* ── Super-Admin (cross-tenant) ── */
   adminOverview: () =>
@@ -934,9 +974,9 @@ export const api = {
     return request<ClientDto[]>(`/clients${q ? `?${q}` : ""}`);
   },
   clientStats: (id: number) => request<ClientStatsDto>(`/clients/${id}/stats`),
-  createClient: (payload: Omit<ClientDto, "id" | "company_id" | "created_at" | "updated_at">) =>
+  createClient: (payload: Pick<ClientDto, "name" | "email" | "phone" | "address" | "city" | "country" | "notes" | "status">) =>
     request<ClientDto>("/clients", { method: "POST", body: JSON.stringify(payload) }),
-  updateClient: (id: number, payload: Partial<Omit<ClientDto, "id" | "company_id" | "created_at" | "updated_at">>) =>
+  updateClient: (id: number, payload: Partial<Pick<ClientDto, "name" | "email" | "phone" | "address" | "city" | "country" | "notes" | "status">>) =>
     request<ClientDto>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteClient: (id: number) =>
     request<void>(`/clients/${id}`, { method: "DELETE" }),
@@ -1356,21 +1396,6 @@ export type InvestmentAnalysisDto = {
 };
 
 /* ── Clients / CRM ────────────────────────────────────────────── */
-export type ClientDto = {
-  id: number;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  country: string | null;
-  notes: string | null;
-  status: string;
-  company_id: number;
-  created_at: string;
-  updated_at: string;
-};
-
 export type ClientStatsDto = {
   client_id: number;
   invoice_count: number;
@@ -1477,4 +1502,65 @@ export type TransactionStatsDto = {
   total_debits: number;
   balance: number;
   by_category: Record<string, number>;
+};
+
+/* ── Législation ──────────────────────────────────────────────── */
+export type LegislationDocumentDto = {
+  id: number;
+  company_id: number;
+  title: string;
+  description: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  doc_category: string;
+  country_scope: string;
+  ai_summary: string;
+  ai_tags: string;
+  analyzed: boolean;
+  uploaded_by_user_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/* ── Clients — remises & fidélité ─────────────────────────────── */
+export type ClientDto = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  notes: string | null;
+  status: string;
+  loyalty_points: number;
+  loyalty_tier: string;
+  global_discount_percent: number;
+  company_id: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientDiscountDto = {
+  id: number;
+  client_id: number;
+  company_id: number;
+  label: string;
+  discount_type: string;    // percent | fixed | points_threshold
+  discount_value: number;
+  min_order_amount: number;
+  applies_to: string;       // all | invoice | pos
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientDiscountCreateDto = {
+  label?: string;
+  discount_type: string;
+  discount_value: number;
+  min_order_amount?: number;
+  applies_to?: string;
+  active?: boolean;
 };

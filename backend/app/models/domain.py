@@ -604,7 +604,28 @@ class Client(TimestampMixin, Base):
     country: Mapped[str | None] = mapped_column(String(80), nullable=True, default="Congo")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active | inactive | prospect
+    # Fidélité & remises
+    loyalty_points: Mapped[int] = mapped_column(Integer, default=0)
+    loyalty_tier: Mapped[str] = mapped_column(String(20), default="standard")  # standard|silver|gold|vip
+    global_discount_percent: Mapped[float] = mapped_column(Float, default=0.0)  # ex: 10.0 = 10%
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    discounts: Mapped[list["ClientDiscount"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+
+
+class ClientDiscount(TimestampMixin, Base):
+    """Remises et programmes de fidélité par client."""
+    __tablename__ = "client_discounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    label: Mapped[str] = mapped_column(String(160), default="")                    # ex: "Fidèle 2 ans"
+    discount_type: Mapped[str] = mapped_column(String(30), default="percent")      # percent | fixed | points_threshold
+    discount_value: Mapped[float] = mapped_column(Float, default=0.0)              # %, montant ou nb points
+    min_order_amount: Mapped[float] = mapped_column(Float, default=0.0)            # montant min commande
+    applies_to: Mapped[str] = mapped_column(String(40), default="all")             # all | invoice | pos
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    client: Mapped["Client"] = relationship(back_populates="discounts")
 
 
 class BudgetCategory(TimestampMixin, Base):
@@ -659,3 +680,24 @@ class UserPreference(TimestampMixin, Base):
     theme: Mapped[str] = mapped_column(String(20), default="auto")  # auto | light | dark
     currency: Mapped[str] = mapped_column(String(5), default="XAF")  # XAF | EUR | USD
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class LegislationDocument(TimestampMixin, Base):
+    """Documents législatifs uploadés par l'admin pour enrichir Limule."""
+    __tablename__ = "legislation_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str] = mapped_column(Text, default="")
+    filename: Mapped[str] = mapped_column(String(300))
+    storage_path: Mapped[str] = mapped_column(String(500), default="")
+    mime_type: Mapped[str] = mapped_column(String(80), default="")
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    doc_category: Mapped[str] = mapped_column(String(80), default="general")  # fiscal | social | commerce | finance | general
+    country_scope: Mapped[str] = mapped_column(String(80), default="Congo")   # pays ciblé
+    raw_text: Mapped[str] = mapped_column(Text, default="")                   # texte extrait
+    ai_summary: Mapped[str] = mapped_column(Text, default="")                 # résumé Limule
+    ai_tags: Mapped[str] = mapped_column(Text, default="")                    # tags JSON
+    analyzed: Mapped[bool] = mapped_column(Boolean, default=False)
+    uploaded_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

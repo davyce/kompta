@@ -110,6 +110,11 @@ def ensure_sqlite_migrations() -> None:
         "declaration_records": {
             "generated_text": "TEXT DEFAULT ''",
         },
+        "clients": {
+            "loyalty_points":           "INTEGER DEFAULT 0",
+            "loyalty_tier":             "VARCHAR(20) DEFAULT 'standard'",
+            "global_discount_percent":  "FLOAT DEFAULT 0.0",
+        },
     }
     with engine.begin() as connection:
         for table, columns in additions.items():

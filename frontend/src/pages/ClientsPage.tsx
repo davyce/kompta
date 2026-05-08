@@ -7,6 +7,8 @@ import {
   Phone,
   Plus,
   Search,
+  Star,
+  Tag,
   TrendingUp,
   Users,
   UserCheck,
@@ -16,9 +18,11 @@ import {
   AlertCircle,
   Pencil,
   Trash2,
+  Gift,
+  Loader2,
 } from "lucide-react";
 
-import { api, type ClientDto, type ClientStatsDto } from "../services/api";
+import { api, type ClientDto, type ClientDiscountDto, type ClientStatsDto } from "../services/api";
 import { compactMoney, money, initials, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import type { Invoice } from "../types/domain";
@@ -307,6 +311,261 @@ function ClientModal({
   );
 }
 
+// ─── Tier config ──────────────────────────────────────────────────────────────
+
+const TIERS: Record<string, { label: string; color: string; bg: string; pts: string }> = {
+  standard: { label: "Standard",  color: "text-stone-600",   bg: "bg-stone-100 dark:bg-stone-500/20",   pts: "0 pts" },
+  silver:   { label: "Silver",    color: "text-sky-600",     bg: "bg-sky-100 dark:bg-sky-500/20",       pts: "500+ pts" },
+  gold:     { label: "Gold",      color: "text-amber-600",   bg: "bg-amber-100 dark:bg-amber-500/20",   pts: "2000+ pts" },
+  vip:      { label: "VIP",       color: "text-violet-600",  bg: "bg-violet-100 dark:bg-violet-500/20", pts: "5000+ pts" },
+};
+
+const DISCOUNT_TYPE_LABELS: Record<string, string> = {
+  percent:          "% sur montant",
+  fixed:            "Montant fixe",
+  points_threshold: "Seuil de points",
+};
+
+const APPLIES_TO_LABELS: Record<string, string> = {
+  all:     "Toutes transactions",
+  invoice: "Factures uniquement",
+  pos:     "Caisse POS uniquement",
+};
+
+function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
+  const queryClient = useQueryClient();
+  const [showAddDiscount, setShowAddDiscount] = useState(false);
+  const [discountForm, setDiscountForm] = useState({
+    label: "", discount_type: "percent", discount_value: 10,
+    min_order_amount: 0, applies_to: "all", active: true,
+  });
+  const [pointsDelta, setPointsDelta] = useState("");
+
+  const discounts = useQuery<ClientDiscountDto[]>({
+    queryKey: ["clientDiscounts", client.id],
+    queryFn: () => api.clientDiscounts(client.id),
+  });
+
+  const tier = TIERS[client.loyalty_tier ?? "standard"] ?? TIERS.standard;
+
+  const addDiscount = useMutation({
+    mutationFn: () => api.createClientDiscount(client.id, {
+      ...discountForm,
+      discount_value: Number(discountForm.discount_value),
+      min_order_amount: Number(discountForm.min_order_amount),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientDiscounts", client.id] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setShowAddDiscount(false);
+      setDiscountForm({ label: "", discount_type: "percent", discount_value: 10, min_order_amount: 0, applies_to: "all", active: true });
+    },
+  });
+
+  const delDiscount = useMutation({
+    mutationFn: (dId: number) => api.deleteClientDiscount(client.id, dId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientDiscounts", client.id] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+
+  const updateLoyalty = useMutation({
+    mutationFn: (payload: { points_delta?: number; loyalty_tier?: string; global_discount_percent?: number }) =>
+      api.updateClientLoyalty(client.id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+
+  const addPoints = () => {
+    const n = parseInt(pointsDelta, 10);
+    if (!isNaN(n) && n !== 0) {
+      updateLoyalty.mutate({ points_delta: n });
+      setPointsDelta("");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Fidélité header */}
+      <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f7f8fa] dark:bg-[#14181f] p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] flex items-center gap-1.5">
+            <Star size={12} /> Fidélité
+          </p>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${tier.bg} ${tier.color}`}>
+            {tier.label}
+          </span>
+        </div>
+
+        {/* Points + remise globale */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-white dark:bg-[#1e2229] border border-black/[0.06] dark:border-white/[0.06] p-2.5 text-center">
+            <p className="text-xs text-[#717182]">Points fidélité</p>
+            <p className="text-xl font-black text-amber-600">{client.loyalty_points ?? 0}</p>
+          </div>
+          <div className="rounded-lg bg-white dark:bg-[#1e2229] border border-black/[0.06] dark:border-white/[0.06] p-2.5 text-center">
+            <p className="text-xs text-[#717182]">Remise globale</p>
+            <p className="text-xl font-black text-emerald-600">{client.global_discount_percent ?? 0}%</p>
+          </div>
+        </div>
+
+        {/* Barème tiers */}
+        <div className="flex gap-1.5">
+          {Object.entries(TIERS).map(([k, t]) => (
+            <button
+              key={k}
+              onClick={() => updateLoyalty.mutate({ loyalty_tier: k })}
+              className={`flex-1 rounded-lg py-1 text-[10px] font-bold border transition ${
+                client.loyalty_tier === k
+                  ? `${t.bg} ${t.color} border-current`
+                  : "border-black/[0.06] dark:border-white/[0.06] text-[#717182] hover:bg-black/[0.03]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Ajouter/retirer points */}
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={pointsDelta}
+            onChange={(e) => setPointsDelta(e.target.value)}
+            placeholder="Ex: +100 ou -50"
+            className="flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <button
+            onClick={addPoints}
+            disabled={updateLoyalty.isPending || !pointsDelta.trim()}
+            className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 disabled:opacity-50 transition"
+          >
+            {updateLoyalty.isPending ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} />}
+            Appliquer
+          </button>
+        </div>
+
+        {/* Remise globale rapide */}
+        <div className="flex gap-2 flex-wrap">
+          {[0, 5, 10, 15, 20, 25].map((pct) => (
+            <button
+              key={pct}
+              onClick={() => updateLoyalty.mutate({ global_discount_percent: pct })}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-bold border transition ${
+                client.global_discount_percent === pct
+                  ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-300"
+                  : "border-black/[0.08] dark:border-white/[0.08] text-[#717182] hover:bg-black/[0.03]"
+              }`}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Remises spécifiques */}
+      <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f7f8fa] dark:bg-[#14181f] p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] flex items-center gap-1.5">
+            <Tag size={12} /> Remises spécifiques ({discounts.data?.length ?? 0})
+          </p>
+          <button
+            onClick={() => setShowAddDiscount(!showAddDiscount)}
+            className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 transition"
+          >
+            <Plus size={11} /> Ajouter
+          </button>
+        </div>
+
+        {/* Formulaire ajout */}
+        {showAddDiscount && (
+          <div className="space-y-2 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3">
+            <input
+              value={discountForm.label}
+              onChange={(e) => setDiscountForm((p) => ({ ...p, label: e.target.value }))}
+              placeholder='Libellé (ex: "Client fidèle 2 ans")'
+              className="w-full rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={discountForm.discount_type}
+                onChange={(e) => setDiscountForm((p) => ({ ...p, discount_type: e.target.value }))}
+                className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-2 py-1.5 text-xs"
+              >
+                {Object.entries(DISCOUNT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <input
+                type="number"
+                value={discountForm.discount_value}
+                onChange={(e) => setDiscountForm((p) => ({ ...p, discount_value: +e.target.value }))}
+                placeholder="Valeur"
+                className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={discountForm.applies_to}
+                onChange={(e) => setDiscountForm((p) => ({ ...p, applies_to: e.target.value }))}
+                className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-2 py-1.5 text-xs"
+              >
+                {Object.entries(APPLIES_TO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <input
+                type="number"
+                value={discountForm.min_order_amount}
+                onChange={(e) => setDiscountForm((p) => ({ ...p, min_order_amount: +e.target.value }))}
+                placeholder="Montant min (0 = aucun)"
+                className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => addDiscount.mutate()}
+                disabled={addDiscount.isPending}
+                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+              >
+                {addDiscount.isPending ? <Loader2 size={11} className="animate-spin" /> : <Gift size={11} />}
+                Créer la remise
+              </button>
+              <button onClick={() => setShowAddDiscount(false)} className="px-3 py-1.5 text-xs text-[#717182]">Annuler</button>
+            </div>
+          </div>
+        )}
+
+        {/* Liste des remises */}
+        {discounts.isLoading && <p className="text-xs text-[#717182] text-center py-2">Chargement…</p>}
+        {discounts.data?.length === 0 && !showAddDiscount && (
+          <p className="text-xs text-[#aaa] text-center py-3">Aucune remise configurée</p>
+        )}
+        <div className="space-y-1.5">
+          {discounts.data?.map((d) => (
+            <div key={d.id} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${d.active ? "border-emerald-200 dark:border-emerald-500/30 bg-white dark:bg-[#1e2229]" : "border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] opacity-60"}`}>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[#17211f] dark:text-white truncate">
+                  {d.label || DISCOUNT_TYPE_LABELS[d.discount_type]}
+                </p>
+                <p className="text-[10px] text-[#717182]">
+                  {d.discount_type === "percent" ? `−${d.discount_value}%` : `−${d.discount_value}`}
+                  {d.min_order_amount > 0 ? ` · min ${d.min_order_amount}` : ""}
+                  {" · "}{APPLIES_TO_LABELS[d.applies_to] ?? d.applies_to}
+                </p>
+              </div>
+              <button
+                onClick={() => delDiscount.mutate(d.id)}
+                className="shrink-0 rounded-lg p-1 text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 transition"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Detail Panel ─────────────────────────────────────────────────────────────
 
 function ClientDetailPanel({
@@ -445,6 +704,9 @@ function ClientDetailPanel({
               )}
             </div>
           )}
+
+          {/* ── Fidélité & Remises ────────────────────────────── */}
+          <LoyaltyDiscountPanel client={client} />
 
           {/* Notes */}
           {client.notes && (
