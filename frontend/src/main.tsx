@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 
 import { AuthProvider } from "./app/AuthContext";
+import { CompactProvider } from "./contexts/CompactContext";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/ToastProvider";
@@ -40,11 +41,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <CurrencyProvider>
-            <ToastProvider>
-              <RouterProvider router={router} />
-            </ToastProvider>
-          </CurrencyProvider>
+          <CompactProvider>
+            <CurrencyProvider>
+              <ToastProvider>
+                <RouterProvider router={router} />
+              </ToastProvider>
+            </CurrencyProvider>
+          </CompactProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

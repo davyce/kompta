@@ -11,6 +11,7 @@ import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdat
 import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import { exportTableToExcel } from "../utils/export";
 
 // ── Catégories ────────────────────────────────────────────────────────────────
 const CATEGORIES: { key: string; label: string; color: string }[] = [
@@ -433,6 +434,24 @@ export function TransactionsPage() {
   const filteredCredits = filtered.reduce((s, t) => s + (t.credit ?? Math.max(t.amount, 0)), 0);
   const filteredDebits  = filtered.reduce((s, t) => s + (t.debit  ?? Math.max(-t.amount, 0)), 0);
 
+  // ── Export Excel
+  function handleExportExcel() {
+    const headers = ["Date", "Libellé", "Montant", "Débit", "Crédit", "Devise", "Catégorie", "Source", "Statut", "Notes"];
+    const rows = filtered.map((t): (string | number)[] => [
+      t.date,
+      t.label,
+      t.amount,
+      t.debit ?? "",
+      t.credit ?? "",
+      t.currency,
+      t.category,
+      SOURCE_LABELS[t.source_type] ?? t.source_type,
+      t.status,
+      t.notes ?? "",
+    ]);
+    exportTableToExcel(headers, rows, `transactions-${new Date().toISOString().slice(0, 10)}`);
+  }
+
   // ── Export CSV
   async function handleExport() {
     try {
@@ -468,6 +487,9 @@ export function TransactionsPage() {
         <div className="flex items-center gap-2">
           <button onClick={handleExport} className="flex items-center gap-2 rounded-lg border border-black/[0.08] px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04] transition">
             <Download size={15} /> Export CSV
+          </button>
+          <button onClick={handleExportExcel} disabled={(txQuery.data?.length ?? 0) === 0} className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition">
+            <FileSpreadsheet size={15} /> Export Excel
           </button>
           <button onClick={() => setShowNew(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
             <Plus size={15} /> Nouvelle

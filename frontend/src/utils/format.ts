@@ -1,4 +1,4 @@
-export type CurrencyCode = "XAF" | "EUR" | "USD";
+export type CurrencyCode = "XAF" | "EUR" | "USD" | "XOF" | "GBP" | "CNY";
 
 /* ── Formatters ────────────────────────────────────────────────── */
 const FR  = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
@@ -9,7 +9,34 @@ const _fmt: Record<CurrencyCode, Intl.NumberFormat> = {
   XAF: FR,
   EUR: new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  XOF: FR,
+  GBP: new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  CNY: new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
 };
+
+/* ── Exchange rates (relative to XAF as base) ── */
+export const EXCHANGE_RATES: Record<CurrencyCode, number> = {
+  XAF: 1,
+  USD: 0.00163,
+  EUR: 0.00152,
+  XOF: 1,
+  GBP: 0.00128,
+  CNY: 0.01183,
+};
+
+/** Convert amount from one currency to another (XAF as pivot) */
+export function convertCurrency(amount: number, from: CurrencyCode = "XAF", to: CurrencyCode = "XAF"): number {
+  if (from === to) return amount;
+  const inXaf = amount / EXCHANGE_RATES[from];
+  return inXaf * EXCHANGE_RATES[to];
+}
+
+/** Format an amount in a specific currency (converts from XAF if needed) */
+export function formatInCurrency(amount: number, currency: CurrencyCode = "XAF"): string {
+  const converted = convertCurrency(amount, "XAF", currency);
+  if (currency === "XAF" || currency === "XOF") return `${FR.format(converted)} ${currency}`;
+  return _fmt[currency].format(converted);
+}
 
 /* ── Module-level active currency (updated by CurrencyContext) ── */
 let _activeCurrency: CurrencyCode = (() => {
@@ -36,7 +63,7 @@ export function getActiveCurrency(): CurrencyCode {
  */
 export function money(value: number): string {
   const c = _activeCurrency;
-  if (c === "XAF") return `${FR.format(value)} XAF`;
+  if (c === "XAF" || c === "XOF") return `${FR.format(value)} ${c}`;
   return _fmt[c].format(value);
 }
 
@@ -50,10 +77,28 @@ export function compactMoney(value: number): string {
     return `${FR.format(value)} XAF`;
   }
 
+  if (c === "XOF") {
+    if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M XOF`;
+    if (abs >= 1_000)     return `${FR.format(value / 1_000)} k XOF`;
+    return `${FR.format(value)} XOF`;
+  }
+
   if (c === "EUR") {
     if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M €`;
     if (abs >= 1_000)     return `${FR1.format(value / 1_000)} k €`;
     return _fmt.EUR.format(value);
+  }
+
+  if (c === "GBP") {
+    if (abs >= 1_000_000) return `£${FR1.format(value / 1_000_000)}M`;
+    if (abs >= 1_000)     return `£${FR1.format(value / 1_000)}k`;
+    return _fmt.GBP.format(value);
+  }
+
+  if (c === "CNY") {
+    if (abs >= 1_000_000) return `¥${FR1.format(value / 1_000_000)}M`;
+    if (abs >= 1_000)     return `¥${FR1.format(value / 1_000)}k`;
+    return _fmt.CNY.format(value);
   }
 
   // USD
@@ -66,6 +111,9 @@ export function compactMoney(value: number): string {
 export function currencyLabel(): string {
   if (_activeCurrency === "EUR") return "€";
   if (_activeCurrency === "USD") return "$";
+  if (_activeCurrency === "GBP") return "£";
+  if (_activeCurrency === "CNY") return "¥";
+  if (_activeCurrency === "XOF") return "XOF";
   return "XAF";
 }
 

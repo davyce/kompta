@@ -1,7 +1,9 @@
 import {
+  BarChart2,
   Bell,
   BookOpen,
   Building2,
+  CalendarClock,
   CalendarDays,
   Calculator,
   ChartNoAxesCombined,
@@ -16,6 +18,7 @@ import {
   HelpCircle,
   Landmark,
   LayoutDashboard,
+  LayoutList,
   LogOut,
   Menu,
   MessageSquare,
@@ -43,6 +46,7 @@ import { OnboardingWizard } from "../components/OnboardingWizard";
 import { ToastStack } from "../components/Toast";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useTheme } from "../hooks/useTheme";
+import { useCompact } from "../contexts/CompactContext";
 import { useNotificationsPolling } from "../hooks/useNotifications";
 import { useWebSocketNotifications } from "../hooks/useWebSocketNotifications";
 import { ApiError, api } from "../services/api";
@@ -88,8 +92,8 @@ function LimuleStatus() {
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/settings", "/safe-mode", "/help"],
-  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/audit", "/settings", "/safe-mode", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
@@ -172,6 +176,8 @@ const navSections: NavSection[] = [
     label: "Intelligence",
     items: [
       { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
+      { label: "Analytics", to: "/analytics", icon: BarChart2 },
+      { label: "Agenda fiscal", to: "/fiscal", icon: CalendarClock },
       { label: "Investissements", to: "/investments", icon: TrendingUp },
       { label: "Déclarations", to: "/declarations", icon: ClipboardList },
       { label: "Législation IA", to: "/legislation", icon: BookOpen },
@@ -182,6 +188,7 @@ const navSections: NavSection[] = [
   {
     label: "Système",
     items: [
+      { label: "Journaux d'audit", to: "/audit", icon: FileText },
       { label: "Safe Mode", to: "/safe-mode", icon: ShieldCheck },
       { label: "Paramètres", to: "/settings", icon: Settings },
     ],
@@ -213,6 +220,9 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/assistants": { section: "Rédaction IA", title: "Studio rédactionnel" },
   "/declarations": { section: "Déclarations", title: "Obligations légales & fiscales" },
   "/legislation": { section: "Législation IA", title: "Base législative & réglementaire" },
+  "/analytics": { section: "Intelligence", title: "Analytics & performances" },
+  "/fiscal": { section: "Intelligence", title: "Agenda fiscal" },
+  "/audit": { section: "Système", title: "Journaux d'audit" },
   "/settings": { section: "Paramètres", title: "Configuration" },
   "/safe-mode": { section: "Système", title: "Sauvegarde & Restauration" },
   "/help": { section: "Support", title: "Centre d'aide" },
@@ -237,6 +247,7 @@ export function Shell() {
   const unreadCount = history.filter((n) => n.unread).length;
   const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
   const { theme, toggle: toggleTheme } = useTheme();
+  const { compact, toggleCompact } = useCompact();
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () => sessionStorage.getItem("kompta_onboarding_dismissed") === "true"
   );
@@ -608,6 +619,15 @@ export function Shell() {
                 {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
               </button>
               <button
+                onClick={toggleCompact}
+                className={`grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition ${
+                  compact ? "text-emerald-600 dark:text-emerald-400" : "text-[#717182] dark:text-white/60"
+                }`}
+                title={compact ? "Mode normal" : "Mode compact"}
+              >
+                <LayoutList size={17} />
+              </button>
+              <button
                 onClick={() => navigate("/work")}
                 title="Tâches"
                 className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
@@ -650,7 +670,7 @@ export function Shell() {
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-5 pb-24 lg:pb-7 md:px-6 md:py-7">
+        <main className={`mx-auto w-full max-w-7xl px-4 pb-24 lg:pb-7 md:px-6 ${compact ? "py-3 md:py-4" : "py-5 md:py-7"}`}>
           <Outlet />
         </main>
       </div>

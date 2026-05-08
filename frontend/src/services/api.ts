@@ -323,7 +323,7 @@ export const api = {
     request<{ product: Product; label: Record<string, string | number> }>(`/products/${id}/qr-label`, {
       method: "POST"
     }),
-  createSale: (payload: { payment_method: string; payment_account_id?: number | null; items: Array<{ product_id: number; quantity: number }> }) =>
+  createSale: (payload: { payment_method: string; payment_account_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number }) =>
     request<{ receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
       "/pos/sales",
       {
@@ -352,6 +352,10 @@ export const api = {
     request<Invoice>(`/invoices/${id}/pay`, {
       method: "POST",
       body: JSON.stringify(payload)
+    }),
+  relanceInvoice: (id: number) =>
+    request<{ id: number; relance_count: number; last_relance_at: string }>(`/invoices/${id}/relance`, {
+      method: "POST",
     }),
   tasks: () => request<Task[]>("/tasks"),
   createTask: (payload: Partial<Task>) =>
@@ -848,6 +852,16 @@ export const api = {
       "/ai/health"
     ),
 
+  /* ── Two-Factor Authentication ────────────────────────────── */
+  twoFaSetup: () =>
+    request<{ qr_url?: string; provisioning_uri?: string; secret?: string }>("/auth/2fa/setup"),
+  twoFaVerify: (code: string) =>
+    request<{ valid: boolean }>("/auth/2fa/verify", { method: "POST", body: JSON.stringify({ code }) }),
+  twoFaEnable: () =>
+    request<{ enabled: boolean }>("/auth/2fa/enable", { method: "POST" }),
+  twoFaDisable: () =>
+    request<{ enabled: boolean }>("/auth/2fa/disable", { method: "POST" }),
+
   /* ── Payslip PDF download ─────────────────────────────────── */
   downloadPayslip: (payslipId: number) =>
     requestBlob(`/payroll/payslips/${payslipId}/download`),
@@ -1046,6 +1060,29 @@ export const api = {
     restore: (snapshot: object, sections: string[]): Promise<{ status: string; restored: Record<string, number> }> =>
       request("/safe-mode/restore", { method: "POST", body: JSON.stringify({ snapshot, sections }) }),
   },
+
+  /* ── Fiscal Deadlines ────────────────────────────────────────────── */
+  fiscalDeadlines: (params?: { status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    const q = qs.toString();
+    return request<FiscalDeadlineDto[]>(`/fiscal/deadlines${q ? `?${q}` : ""}`);
+  },
+  createFiscalDeadline: (p: Omit<FiscalDeadlineDto, "id" | "created_at">) =>
+    request<FiscalDeadlineDto>("/fiscal/deadlines", { method: "POST", body: JSON.stringify(p) }),
+  updateFiscalDeadline: (id: number, p: Partial<FiscalDeadlineDto>) =>
+    request<FiscalDeadlineDto>(`/fiscal/deadlines/${id}`, { method: "PATCH", body: JSON.stringify(p) }),
+  deleteFiscalDeadline: (id: number) =>
+    request<void>(`/fiscal/deadlines/${id}`, { method: "DELETE" }),
+  generateFiscalDeadlines: () =>
+    request<FiscalDeadlineDto[]>("/fiscal/deadlines/generate", { method: "POST" }),
+
+  /* ── Relances ─────────────────────────────────────────────────────── */
+  sendRelance: (invoiceId: number) =>
+    request<{ message: string; relance_count: number }>(`/invoices/${invoiceId}/relance`, { method: "POST" }),
+
+  /* ── Analytics KPIs ───────────────────────────────────────────────── */
+  analyticsKpis: () => request<AnalyticsKpisDto>("/analytics/kpis"),
 
   limuleDocumentChatStream: async (
     documentId: number,
@@ -1564,3 +1601,22 @@ export type ClientDiscountCreateDto = {
   applies_to?: string;
   active?: boolean;
 };
+
+/* ── Fiscal Deadlines ─────────────────────────────────────────────── */
+export interface FiscalDeadlineDto {
+  id: number;
+  title: string;
+  description: string;
+  due_date: string;
+  tax_type: string;
+  status: string;
+  recurrence: string;
+  reminder_days: number;
+  created_at: string;
+}
+
+/* ── Analytics KPIs ───────────────────────────────────────────────── */
+export interface AnalyticsKpisDto {
+  recovery_rate: number;
+  avg_cost_per_employee: number;
+}

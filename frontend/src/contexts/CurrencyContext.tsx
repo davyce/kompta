@@ -1,16 +1,29 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api, getToken } from "../services/api";
-import { setActiveCurrency, type CurrencyCode } from "../utils/format";
+import { setActiveCurrency, convertCurrency, formatInCurrency, type CurrencyCode } from "../utils/format";
+
+export const SUPPORTED_CURRENCIES: { code: CurrencyCode; label: string }[] = [
+  { code: "XAF", label: "XAF — Franc CFA BEAC" },
+  { code: "XOF", label: "XOF — Franc CFA BCEAO" },
+  { code: "EUR", label: "EUR — Euro €" },
+  { code: "USD", label: "USD — Dollar américain $" },
+  { code: "GBP", label: "GBP — Livre sterling £" },
+  { code: "CNY", label: "CNY — Yuan chinois ¥" },
+];
 
 /* ── Context type ─────────────────────────────────────────────── */
 type CurrencyContextType = {
   currency: CurrencyCode;
   setCurrency: (c: CurrencyCode) => void;
+  convert: (amount: number, from?: CurrencyCode, to?: CurrencyCode) => number;
+  formatInCurrency: (amount: number, currency?: CurrencyCode) => string;
 };
 
 const CurrencyContext = createContext<CurrencyContextType>({
   currency: "XAF",
   setCurrency: () => {},
+  convert: (amount) => amount,
+  formatInCurrency: (amount) => `${amount} XAF`,
 });
 
 /* ── Provider ─────────────────────────────────────────────────── */
@@ -49,7 +62,12 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency }}>
+    <CurrencyContext.Provider value={{
+      currency,
+      setCurrency,
+      convert: (amount, from = "XAF", to = currency) => convertCurrency(amount, from, to),
+      formatInCurrency: (amount, curr = currency) => formatInCurrency(amount, curr),
+    }}>
       {children}
     </CurrencyContext.Provider>
   );

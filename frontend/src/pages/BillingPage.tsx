@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
-import { Bell, CheckCircle2, CreditCard, Download, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Download, FileSpreadsheet, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 import { TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
@@ -8,6 +8,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
 import { money, shortDate, compactMoney, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { exportTableToExcel } from "../utils/export";
 
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
 type StatusFilter = "all" | "sent" | "paid" | "draft" | "overdue";
@@ -100,6 +101,17 @@ export function BillingPage() {
     },
   });
 
+  const [relanceToast, setRelanceToast] = useState<string | null>(null);
+  const relance = useMutation({
+    mutationFn: (id: number) =>
+      api.relanceInvoice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setRelanceToast("Relance envoyée ✓");
+      setTimeout(() => setRelanceToast(null), 4000);
+    },
+  });
+
   const [exportingId, setExportingId] = useState<number | null>(null);
   async function exportInvoice(id: number, number: string) {
     setExportingId(id);
@@ -159,6 +171,19 @@ export function BillingPage() {
     setLines((l) => l.map((line, idx) => idx === i ? { ...line, [field]: value } : line));
   }
 
+  function exportBillingExcel() {
+    const headers = ["N° Facture", "Client", "Date", "Montant", "Statut", "Relances"];
+    const rows = filtered.map((inv) => [
+      inv.number,
+      inv.customer_name,
+      inv.due_date ?? "",
+      inv.total_amount ?? 0,
+      inv.status,
+      inv.relance_count ?? 0,
+    ]);
+    exportTableToExcel(headers, rows, `factures-kompta-${new Date().toISOString().slice(0, 10)}`);
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     if (lines.every((l) => !l.description.trim())) return;
@@ -181,6 +206,11 @@ export function BillingPage() {
 
   return (
     <div className="space-y-5">
+      {relanceToast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 shadow-lg dark:border-amber-500/30 dark:bg-amber-900/40 dark:text-amber-200">
+          <Bell size={15} /> {relanceToast}
+        </div>
+      )}
       <div>
         <p className="text-sm font-semibold text-emerald-600">Facturation et gestion commerciale</p>
         <h1 className="text-3xl font-black text-ink dark:text-white">Clients, factures et encaissements</h1>
@@ -197,8 +227,16 @@ export function BillingPage() {
       <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
         {/* Liste factures */}
         <Panel title="Factures" action={
-          <div className="flex items-center gap-2 text-sm font-bold text-emerald-600">
-            <TrendingUp size={15} /> {filtered.length} résultats
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportBillingExcel}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
+              <FileSpreadsheet size={13} /> Exporter Excel
+            </button>
+            <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
+              <TrendingUp size={15} /> {filtered.length} résultats
+            </span>
           </div>
         }>
           {/* Filtres */}
@@ -258,6 +296,11 @@ export function BillingPage() {
                         tone={STATUS_TONES[displayStatus] ?? "blue"}
                       />
                       <p className="font-semibold text-ink dark:text-white">{invoice.number} · {invoice.customer_name}</p>
+                      {(invoice.relance_count ?? 0) > 0 && (
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                          Relancée {invoice.relance_count} fois
+                        </span>
+                      )}
                     </div>
                     <p className="mt-0.5 text-xs text-[#717182]">
                       {invoice.status === "paid"
@@ -275,13 +318,11 @@ export function BillingPage() {
                       <Download size={13} />
                       {exportingId === invoice.id ? "…" : "PDF"}
                     </button>
-                    {isOverdue && (
+                    {invoice.status !== "paid" && (
                       <button
-                        onClick={() => {
-                          const msg = `Bonjour,\n\nNous vous rappelons que la facture ${invoice.number} d'un montant de ${money(invoice.total_amount)} est arrivée à échéance le ${invoice.due_date ? shortDate(invoice.due_date) : ""}.\n\nMerci de procéder au règlement dans les meilleurs délais.\n\nCordialement,\nKOMPTA`;
-                          navigator.clipboard.writeText(msg).then(() => alert("Message de relance copié dans le presse-papier ✓"));
-                        }}
-                        className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                        onClick={() => relance.mutate(invoice.id)}
+                        disabled={relance.isPending}
+                        className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                       >
                         <Bell size={13} /> Relancer
                       </button>

@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import math
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -43,13 +45,15 @@ router = APIRouter(tags=["clients"])
 # CRUD clients
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/clients", response_model=list[ClientRead])
+@router.get("/clients")
 def list_clients(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=0, le=200),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
-) -> list[Client]:
+):
     stmt = select(Client).where(Client.company_id == current_user.company_id)
     if status:
         stmt = stmt.where(Client.status == status)
@@ -61,7 +65,11 @@ def list_clients(
             | Client.city.ilike(pattern)
         )
     stmt = stmt.order_by(Client.name)
-    return db.scalars(stmt).all()
+    if per_page == 0:
+        return db.scalars(stmt).all()
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = db.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all()
+    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": math.ceil(total / per_page) if per_page else 1}
 
 
 @router.post("/clients", response_model=ClientRead, status_code=201)

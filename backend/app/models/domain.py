@@ -49,6 +49,8 @@ class User(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
     employee_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"), nullable=True)
+    totp_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     company: Mapped[Company] = relationship(back_populates="users")
     messages: Mapped[list["Message"]] = relationship(back_populates="author")
@@ -165,6 +167,7 @@ class CompanyDocument(TimestampMixin, Base):
     text_length: Mapped[int] = mapped_column(Integer, default=0)     # longueur du texte extrait
     parse_method: Mapped[str] = mapped_column(String(40), default="") # pdf|excel|csv|docx|text|ocr
     source_document_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # doc source si dérivé
+    ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # texte OCR extrait
     # ───────────────────────────────────────────────────────────────────────
     employee_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"), nullable=True)
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -290,6 +293,8 @@ class Invoice(TimestampMixin, Base):
     payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
     payment_account_label: Mapped[str] = mapped_column(String(160), default="")
     paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_relance_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    relance_count: Mapped[int] = mapped_column(Integer, default=0)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     lines: Mapped[list["InvoiceLine"]] = relationship(cascade="all, delete-orphan", back_populates="invoice")
@@ -701,3 +706,49 @@ class LegislationDocument(TimestampMixin, Base):
     ai_tags: Mapped[str] = mapped_column(Text, default="")                    # tags JSON
     analyzed: Mapped[bool] = mapped_column(Boolean, default=False)
     uploaded_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class AuditLog(TimestampMixin, Base):
+    """Journal d'audit des actions utilisateur."""
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_name: Mapped[str] = mapped_column(String(160), default="")
+    action: Mapped[str] = mapped_column(String(40))  # create|update|delete|login|export
+    resource_type: Mapped[str] = mapped_column(String(60))  # invoice|employee|client|etc.
+    resource_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    details: Mapped[str] = mapped_column(Text, default="")
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class FiscalDeadline(TimestampMixin, Base):
+    """Agenda fiscal — échéances déclaratives et fiscales."""
+    __tablename__ = "fiscal_deadlines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    title: Mapped[str] = mapped_column(String(180))
+    description: Mapped[str] = mapped_column(Text, default="")
+    due_date: Mapped[date] = mapped_column(Date)
+    tax_type: Mapped[str] = mapped_column(String(40), default="autre")  # TVA|IS|CNSS|IRpp|patente|autre
+    status: Mapped[str] = mapped_column(String(40), default="upcoming")  # upcoming|done|overdue
+    recurrence: Mapped[str] = mapped_column(String(40), default="once")  # monthly|quarterly|annual|once
+    reminder_days: Mapped[int] = mapped_column(Integer, default=7)
+
+
+class PosSession(TimestampMixin, Base):
+    """Session de caisse POS."""
+    __tablename__ = "pos_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    opened_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    opened_by: Mapped[str] = mapped_column(String(160), default="")
+    opened_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    sales_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_amount: Mapped[float] = mapped_column(Float, default=0)
+    status: Mapped[str] = mapped_column(String(40), default="open")  # open|closed
+    notes: Mapped[str] = mapped_column(Text, default="")
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))

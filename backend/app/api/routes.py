@@ -493,9 +493,21 @@ def onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_c
     }
 
 
-@router.get("/employees", response_model=list[EmployeeRead])
-def list_employees(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Employee]:
-    return company_scope(db, current_user, Employee, Employee.created_at.desc())
+@router.get("/employees")
+def list_employees(
+    page: int = 1,
+    per_page: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    per_page = min(per_page, 200)
+    stmt = select(Employee).where(Employee.company_id == current_user.company_id).order_by(Employee.created_at.desc())
+    if per_page == 0:
+        return db.scalars(stmt).all()
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = db.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all()
+    import math
+    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": math.ceil(total / per_page) if per_page else 1}
 
 
 @router.post("/employees/quick-create", response_model=EmployeeProvisioningResult, status_code=201)
@@ -1513,6 +1525,26 @@ def pay_invoice(
     return invoice
 
 
+@router.post("/invoices/{invoice_id}/relance")
+def relance_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice or invoice.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice.last_relance_at = datetime.now(timezone.utc)
+    invoice.relance_count = (invoice.relance_count or 0) + 1
+    db.commit()
+    db.refresh(invoice)
+    return {
+        "message": "Relance envoyée",
+        "relance_count": invoice.relance_count,
+        "last_relance_at": invoice.last_relance_at.isoformat() if invoice.last_relance_at else None,
+    }
+
+
 @router.get("/tasks", response_model=list[TaskRead])
 def list_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
     subjects, _ = _task_subjects_for_user(db, current_user)
@@ -2311,6 +2343,52 @@ def download_company_document(
     if not path.exists():
         raise HTTPException(status_code=404, detail="Document file missing")
     return FileResponse(path, media_type=document.mime_type, filename=document.filename)
+
+
+@router.post("/documents/{document_id}/ocr")
+def ocr_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    document = db.get(CompanyDocument, document_id)
+    if not document or document.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+    path = Path(document.storage_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Document file missing")
+
+    extracted_text = ""
+    confidence = "low"
+    try:
+        import pdfplumber  # type: ignore
+        if document.mime_type == "application/pdf" or str(path).lower().endswith(".pdf"):
+            with pdfplumber.open(str(path)) as pdf:
+                pages_text = []
+                for page in pdf.pages:
+                    t = page.extract_text()
+                    if t:
+                        pages_text.append(t)
+                extracted_text = "\n".join(pages_text)
+                confidence = "high" if extracted_text else "low"
+        else:
+            raise HTTPException(status_code=400, detail="OCR uniquement supporté pour les PDF actuellement")
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pdfplumber non installé")
+
+    if extracted_text:
+        document.ocr_text = extracted_text
+        db.commit()
+
+    word_count = len(extracted_text.split()) if extracted_text else 0
+    if word_count < 10:
+        confidence = "low"
+    elif word_count < 100:
+        confidence = "medium"
+    else:
+        confidence = "high"
+
+    return {"text": extracted_text, "words": word_count, "confidence": confidence}
 
 
 @router.post("/teras/employability", response_model=EmployabilityCheckRead, status_code=201)

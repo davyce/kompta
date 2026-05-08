@@ -4,14 +4,15 @@ import { useLocation } from "react-router-dom";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
-  Save, Search, ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, Zap,
+  Save, Search, ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, X, Zap,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
-import { useCurrency } from "../contexts/CurrencyContext";
+import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
 import type { CurrencyCode } from "../utils/format";
+import { QRCodeSVG } from "qrcode.react";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type Tab = "general" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
@@ -253,6 +254,42 @@ export function SettingsPage() {
     },
   });
 
+  /* ── 2FA state ── */
+  const [twoFaStep, setTwoFaStep] = useState<"idle" | "setup" | "enabled">("idle");
+  const [twoFaQrUrl, setTwoFaQrUrl] = useState("");
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaError, setTwoFaError] = useState("");
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+
+  async function handle2faSetup() {
+    setTwoFaLoading(true); setTwoFaError("");
+    try {
+      const data = await api.twoFaSetup();
+      setTwoFaQrUrl(data.qr_url ?? data.provisioning_uri ?? "");
+      setTwoFaStep("setup");
+    } catch (e) { setTwoFaError((e as Error).message); }
+    finally { setTwoFaLoading(false); }
+  }
+
+  async function handle2faVerify() {
+    setTwoFaLoading(true); setTwoFaError("");
+    try {
+      await api.twoFaVerify(twoFaCode);
+      await api.twoFaEnable();
+      setTwoFaStep("enabled");
+    } catch (e) { setTwoFaError("Code invalide ou expiré. Réessayez."); }
+    finally { setTwoFaLoading(false); }
+  }
+
+  async function handle2faDisable() {
+    setTwoFaLoading(true); setTwoFaError("");
+    try {
+      await api.twoFaDisable();
+      setTwoFaStep("idle"); setTwoFaCode(""); setTwoFaQrUrl("");
+    } catch (e) { setTwoFaError((e as Error).message); }
+    finally { setTwoFaLoading(false); }
+  }
+
   function setPref<K extends keyof typeof localPrefs>(key: K, value: typeof localPrefs[K]) {
     setLocalPrefs((p) => ({ ...p, [key]: value }));
     updatePrefs.mutate({ [key]: value } as Partial<typeof localPrefs>);
@@ -455,9 +492,9 @@ export function SettingsPage() {
                     value={activeCurrency}
                     onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
-                    <option value="XAF">XAF — Franc CFA BEAC</option>
-                    <option value="EUR">EUR — Euro €</option>
-                    <option value="USD">USD — Dollar américain $</option>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
                   </select>
                 </SettingRow>
                 <SettingRow icon={User} label="Compte connecté" description={user?.email}>
@@ -822,9 +859,81 @@ export function SettingsPage() {
                 <p className="text-sm text-[#717182]">Authentification, sessions et permissions</p>
               </div>
               <div className="px-6 py-2">
-                <SettingRow icon={Lock} label="Authentification à deux facteurs" description="Bientôt disponible">
-                  <Toggle on={false} onChange={() => {}} disabled />
-                </SettingRow>
+                {/* 2FA Section */}
+                <div className="py-4 border-b border-black/[0.04] dark:border-white/[0.04]">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      <Shield size={17} />
+                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#17211f] dark:text-white">Authentification à deux facteurs (2FA)</p>
+                          <p className="text-xs text-[#717182]">Sécurisez votre compte avec une application TOTP (Google Authenticator, Authy…)</p>
+                        </div>
+                        {twoFaStep === "enabled" ? (
+                          <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                            2FA Activé ✓
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-stone-100 dark:bg-white/10 px-3 py-1 text-xs font-semibold text-[#717182]">
+                            Désactivé
+                          </span>
+                        )}
+                      </div>
+
+                      {twoFaStep === "idle" && (
+                        <button
+                          onClick={handle2faSetup}
+                          disabled={twoFaLoading}
+                          className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <ShieldCheck size={15} /> {twoFaLoading ? "Chargement…" : "Activer le 2FA"}
+                        </button>
+                      )}
+
+                      {twoFaStep === "setup" && (
+                        <div className="mt-4 space-y-4">
+                          <p className="text-sm text-[#717182]">Scannez ce QR code avec votre application TOTP :</p>
+                          <div className="flex justify-center rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white p-4 w-fit">
+                            <QRCodeSVG value={twoFaQrUrl || "https://kompta.io"} size={160} />
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={twoFaCode}
+                              onChange={(e) => setTwoFaCode(e.target.value)}
+                              placeholder="Code à 6 chiffres"
+                              maxLength={6}
+                              className="w-48 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 font-mono tracking-widest"
+                            />
+                            <button
+                              onClick={handle2faVerify}
+                              disabled={twoFaLoading || twoFaCode.length !== 6}
+                              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              <Check size={14} /> {twoFaLoading ? "Vérif…" : "Vérifier"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {twoFaStep === "enabled" && (
+                        <button
+                          onClick={handle2faDisable}
+                          disabled={twoFaLoading}
+                          className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                        >
+                          <X size={14} /> {twoFaLoading ? "Désactivation…" : "Désactiver le 2FA"}
+                        </button>
+                      )}
+
+                      {twoFaError && (
+                        <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">{twoFaError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <SettingRow icon={Smartphone} label="Sessions" description="Tu peux te déconnecter depuis le menu en bas à gauche">
                   <span className="text-sm text-[#717182]">{user?.account_status === "active" ? "Session active" : "—"}</span>
                 </SettingRow>

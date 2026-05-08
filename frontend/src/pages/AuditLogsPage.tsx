@@ -1,0 +1,183 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Download, FileText, Search, ShieldCheck } from "lucide-react";
+
+import { api } from "../services/api";
+import type { AuditLogDto } from "../services/api";
+import { exportTableToExcel } from "../utils/export";
+
+const ACTION_TONE: Record<string, { label: string; className: string }> = {
+  create:  { label: "Création",    className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+  update:  { label: "Modification", className: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" },
+  delete:  { label: "Suppression", className: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
+  login:   { label: "Connexion",   className: "bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-white/60" },
+  logout:  { label: "Déconnexion", className: "bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-white/60" },
+  export:  { label: "Export",      className: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" },
+  import:  { label: "Import",      className: "bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300" },
+};
+
+function actionTone(action: string) {
+  const key = Object.keys(ACTION_TONE).find((k) => action.toLowerCase().startsWith(k));
+  return key ? ACTION_TONE[key] : { label: action, className: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" };
+}
+
+const PAGE_SIZE = 50;
+
+export function AuditLogsPage() {
+  const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [page, setPage] = useState(0);
+
+  const logs = useQuery({
+    queryKey: ["auditLogs", "page"],
+    queryFn: () => api.auditLogs({ limit: 500 }),
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (logs.data ?? []).filter((log) => {
+      const matchSearch = !q || (log.actor ?? "").toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || (log.details ?? "").toLowerCase().includes(q);
+      const matchAction = actionFilter === "all" || log.action.toLowerCase().startsWith(actionFilter);
+      return matchSearch && matchAction;
+    });
+  }, [logs.data, search, actionFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  function exportExcel() {
+    const headers = ["Date", "Utilisateur", "Action", "Module", "Détails"];
+    const rows = filtered.map((log): (string | number)[] => [
+      log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "",
+      log.actor ?? "",
+      log.action,
+      log.employee ?? "",
+      log.details ?? "",
+    ]);
+    exportTableToExcel(headers, rows, `audit-logs-${new Date().toISOString().slice(0, 10)}`);
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-emerald-600">Système &amp; conformité</p>
+        <h1 className="text-3xl font-black text-[#17211f] dark:text-white">Journaux d'audit</h1>
+        <p className="mt-1 text-sm text-[#717182]">
+          Historique complet des actions effectuées sur votre espace KOMPTA
+        </p>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-1 min-w-60 items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5">
+          <Search size={15} className="shrink-0 text-[#717182]" />
+          <input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            placeholder="Rechercher par utilisateur, action…"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white"
+          />
+        </div>
+        <select
+          value={actionFilter}
+          onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+          className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none"
+        >
+          <option value="all">Toutes les actions</option>
+          {Object.keys(ACTION_TONE).map((k) => (
+            <option key={k} value={k}>{ACTION_TONE[k].label}</option>
+          ))}
+        </select>
+        <button
+          onClick={exportExcel}
+          disabled={(logs.data?.length ?? 0) === 0}
+          className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition"
+        >
+          <Download size={15} /> Exporter Excel
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[160px_140px_140px_140px_1fr] gap-4 border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-[#717182]">
+          <span>Date</span>
+          <span>Utilisateur</span>
+          <span>Action</span>
+          <span>Module</span>
+          <span>Détails</span>
+        </div>
+
+        {logs.isLoading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+          </div>
+        )}
+
+        {!logs.isLoading && paged.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-16 text-[#717182]">
+            <FileText size={28} className="opacity-30" />
+            <p className="text-sm">Aucun log correspondant.</p>
+          </div>
+        )}
+
+        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+          {paged.map((log: AuditLogDto) => {
+            const tone = actionTone(log.action);
+            return (
+              <div
+                key={log.id}
+                className="grid grid-cols-[160px_140px_140px_140px_1fr] gap-4 items-start px-5 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition"
+              >
+                <span className="text-xs text-[#717182]">
+                  {new Date(log.created_at).toLocaleDateString("fr-FR", {
+                    day: "2-digit", month: "short", year: "numeric",
+                  })}{" "}
+                  <span className="opacity-60">
+                    {new Date(log.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15">
+                    <ShieldCheck size={11} className="text-emerald-600 dark:text-emerald-400" />
+                  </span>
+                  <span className="truncate text-sm font-medium text-[#17211f] dark:text-white">{log.actor ?? "—"}</span>
+                </span>
+                <span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.className}`}>
+                    {tone.label}
+                  </span>
+                </span>
+                <span className="text-xs text-[#717182] truncate">{log.employee ?? "—"}</span>
+                <span className="text-xs text-[#717182] truncate">{log.details ?? "—"}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-sm font-semibold disabled:opacity-40 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+          >
+            ← Préc.
+          </button>
+          <span className="text-sm text-[#717182]">
+            Page {page + 1} / {pageCount} · {filtered.length} entrées
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={page >= pageCount - 1}
+            className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-sm font-semibold disabled:opacity-40 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+          >
+            Suiv. →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

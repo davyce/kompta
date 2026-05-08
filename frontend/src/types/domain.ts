@@ -148,6 +148,8 @@ export type Invoice = {
   paid_at: string | null;
   created_at: string;
   lines: Array<{ id: number; description: string; quantity: number; unit_price: number; total: number }>;
+  relance_count?: number;
+  last_relance_at?: string;
 };
 
 export type Task = {

@@ -18,7 +18,9 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import math
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
@@ -150,10 +152,12 @@ def _safe_float(val: Any) -> float | None:
 # CRUD
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/transactions", response_model=list[BankTransactionRead])
+@router.get("/transactions")
 def list_transactions(
     skip: int = 0,
     limit: int = 500,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=0, le=200),
     category: str | None = None,
     source_type: str | None = None,
     status: str | None = None,
@@ -161,7 +165,7 @@ def list_transactions(
     date_to: str | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
-) -> list[BankTransaction]:
+):
     q = select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
     if category:
         q = q.where(BankTransaction.category == category)
@@ -173,8 +177,13 @@ def list_transactions(
         q = q.where(BankTransaction.date >= date_from)
     if date_to:
         q = q.where(BankTransaction.date <= date_to)
-    q = q.order_by(BankTransaction.date.desc()).offset(skip).limit(limit)
-    return db.scalars(q).all()
+    q = q.order_by(BankTransaction.date.desc())
+    if per_page == 0:
+        # Legacy: use old skip/limit params
+        return db.scalars(q.offset(skip).limit(limit)).all()
+    total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    items = db.scalars(q.offset((page - 1) * per_page).limit(per_page)).all()
+    return {"items": items, "total": total, "page": page, "per_page": per_page, "pages": math.ceil(total / per_page) if per_page else 1}
 
 
 @router.get("/transactions/stats")

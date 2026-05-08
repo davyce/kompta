@@ -1,6 +1,9 @@
 from app.models.domain import (
     Base,
     AccessAuditLog,
+    AuditLog,
+    FiscalDeadline,
+    PosSession,
     AIGeneration,
     BankTransaction,
     BudgetCategory,
@@ -44,6 +47,9 @@ from app.models.domain import (
 __all__ = [
     "Base",
     "AccessAuditLog",
+    "AuditLog",
+    "FiscalDeadline",
+    "PosSession",
     "AIGeneration",
     "BankTransaction",
     "BudgetCategory",
