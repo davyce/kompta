@@ -651,4 +651,4 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 
 Logiciel propriétaire — tous droits réservés.
 
-© 2026 davyce. All rights reserved.
+© 2026 DAVY OKEMBA. All rights reserved.
