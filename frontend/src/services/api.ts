@@ -1172,6 +1172,16 @@ export const api = {
       }>;
     }>("/admin/onboarding-stats"),
 
+  /* ── Admin Email ─────────────────────────────────────────────────── */
+  adminEmailStatus: () =>
+    request<{ enabled: boolean; host: string; from: string; provider: string }>("/admin/email-status"),
+
+  adminTestEmail: (to: string) =>
+    request<{ sent: boolean; message: string }>("/admin/test-email", {
+      method: "POST",
+      body: JSON.stringify({ to }),
+    }),
+
   limuleDocumentChatStream: async (
     documentId: number,
     payload: { prompt: string; conversation_history?: Array<{ role: "user" | "assistant"; content: string }> },

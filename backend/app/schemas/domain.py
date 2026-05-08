@@ -319,6 +319,7 @@ class InvoiceLineCreate(BaseModel):
 
 class InvoiceCreate(BaseModel):
     customer_name: str
+    customer_email: str | None = None
     status: str = "draft"
     due_date: date | None = None
     lines: list[InvoiceLineCreate]
@@ -340,6 +341,7 @@ class InvoiceRead(BaseModel):
     id: int
     number: str
     customer_name: str
+    customer_email: str | None = None
     status: str
     total_amount: float
     due_date: date | None

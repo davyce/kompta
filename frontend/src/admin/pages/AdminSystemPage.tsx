@@ -7,8 +7,10 @@ import {
   Edit2,
   HardDrive,
   Info,
+  Mail,
   Plus,
   RefreshCw,
+  Send,
   Server,
   Trash2,
   ToggleLeft,
@@ -20,7 +22,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "../../services/api";
 
-type Tab = "flags" | "health" | "system";
+type Tab = "flags" | "health" | "system" | "email";
 
 // ── Feature flag types
 type FeatureFlag = {
@@ -400,6 +402,7 @@ export function AdminSystemPage() {
   const TABS: { key: Tab; label: string; icon: typeof Server }[] = [
     { key: "flags", label: "Feature Flags", icon: ToggleRight },
     { key: "health", label: "Health Check", icon: CheckCircle },
+    { key: "email", label: "Email SMTP", icon: Mail },
     { key: "system", label: "Informations système", icon: Info },
   ];
 
@@ -435,7 +438,130 @@ export function AdminSystemPage() {
       {/* Tab content */}
       {tab === "flags" && <FlagsTab />}
       {tab === "health" && <HealthTab />}
+      {tab === "email" && <EmailTab />}
       {tab === "system" && <SystemInfoTab />}
+    </div>
+  );
+}
+
+// ── Email SMTP tab ────────────────────────────────────────────────────────────
+function EmailTab() {
+  const [testTo, setTestTo] = useState("");
+  const [testResult, setTestResult] = useState<{ok: boolean; msg: string} | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const status = useQuery({
+    queryKey: ["adminEmailStatus"],
+    queryFn: () => api.adminEmailStatus(),
+    retry: false,
+  });
+
+  async function handleTest() {
+    if (!testTo.trim()) return;
+    setSending(true);
+    setTestResult(null);
+    try {
+      const r = await api.adminTestEmail(testTo.trim());
+      setTestResult({ ok: r.sent, msg: r.message });
+    } catch {
+      setTestResult({ ok: false, msg: "Erreur lors de l'envoi" });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const s = status.data;
+
+  return (
+    <div className="space-y-6">
+      {/* Status card */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <h3 className="mb-4 font-black text-white flex items-center gap-2">
+          <Mail size={16} className="text-violet-300" /> Configuration SMTP
+        </h3>
+        {status.isLoading ? (
+          <p className="text-sm text-white/40 animate-pulse">Chargement…</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { label: "Statut", value: s?.enabled ? "✅ Activé" : "⚠️ Non configuré" },
+              { label: "Serveur", value: s?.host || "—" },
+              { label: "Expéditeur", value: s?.from || "—" },
+              { label: "Provider", value: s?.provider || "SMTP" },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-lg bg-white/5 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">{label}</p>
+                <p className="mt-1 text-sm font-bold text-white">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {!s?.enabled && (
+          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <p className="font-bold">Configuration requise</p>
+            <p className="mt-1 opacity-80">Ajoutez dans votre fichier <code className="font-mono bg-white/10 px-1 rounded">.env</code> :</p>
+            <pre className="mt-2 rounded bg-black/30 p-3 text-xs font-mono overflow-x-auto">{`SMTP_HOST=smtp.mailjet.com
+SMTP_PORT=587
+SMTP_USER=votre-api-key
+SMTP_PASSWORD=votre-secret
+SMTP_FROM_EMAIL=noreply@votre-domaine.com`}</pre>
+          </div>
+        )}
+      </div>
+
+      {/* Test email */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <h3 className="mb-4 font-black text-white flex items-center gap-2">
+          <Send size={16} className="text-violet-300" /> Tester la configuration
+        </h3>
+        <div className="flex gap-3">
+          <input
+            type="email"
+            value={testTo}
+            onChange={e => setTestTo(e.target.value)}
+            placeholder="email@test.com"
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-400"
+          />
+          <button
+            onClick={handleTest}
+            disabled={sending || !testTo.trim()}
+            className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50 transition"
+          >
+            {sending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+            {sending ? "Envoi…" : "Envoyer le test"}
+          </button>
+        </div>
+        {testResult && (
+          <div className={`mt-3 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-bold ${testResult.ok ? "bg-emerald-500/15 text-emerald-200" : "bg-rose-500/15 text-rose-200"}`}>
+            {testResult.ok ? <CheckCircle size={15} /> : <AlertTriangle size={15} />}
+            {testResult.msg}
+          </div>
+        )}
+      </div>
+
+      {/* Emails déclenchés automatiquement */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <h3 className="mb-4 font-black text-white">Emails automatiques</h3>
+        <div className="space-y-2">
+          {[
+            { label: "Relance facture impayée", trigger: "POST /invoices/{id}/relance", active: true },
+            { label: "Reset de mot de passe", trigger: "POST /admin/users/{id}/reset-password", active: true },
+            { label: "Broadcast plateforme", trigger: "POST /admin/broadcast", active: true },
+            { label: "Bienvenue nouvel utilisateur", trigger: "POST /users (invitation)", active: false },
+            { label: "2FA activé", trigger: "POST /auth/2fa/enable", active: true },
+          ].map(({ label, trigger, active }) => (
+            <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-white">{label}</p>
+                <p className="text-xs font-mono text-white/40">{trigger}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
+                {active ? "Actif" : "Bientôt"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

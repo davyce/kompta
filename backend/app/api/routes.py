@@ -1,11 +1,14 @@
 import csv
 import io
 import json
+import logging
 from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect, status
+logger = logging.getLogger(__name__)
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
@@ -127,6 +130,7 @@ from app.services.deepseek import generate_declaration, generate_writing
 from app.services.deepseek import generate_contract_clauses
 from app.services.documents import create_document_from_upload, create_document_record, reanalyze_document
 from app.services.teras import latest_score_snapshots, route_ai_request, run_teras_analysis, submit_employability_to_teras
+from app.services.email import send_relance_email
 
 router = APIRouter()
 
@@ -1422,6 +1426,7 @@ def create_invoice(
     invoice = Invoice(
         number=f"INV-{date.today().year}-{count + 1:04d}",
         customer_name=payload.customer_name,
+        customer_email=payload.customer_email,
         status=payload.status,
         due_date=payload.due_date,
         company_id=current_user.company_id,
@@ -1455,7 +1460,7 @@ def update_invoice(
     invoice = db.get(Invoice, invoice_id)
     if not invoice or invoice.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    allowed_fields = {"status", "customer_name", "due_date"}
+    allowed_fields = {"status", "customer_name", "customer_email", "due_date"}
     for field, value in payload.items():
         if field in allowed_fields:
             setattr(invoice, field, value)
@@ -1528,6 +1533,7 @@ def pay_invoice(
 @router.post("/invoices/{invoice_id}/relance")
 def relance_invoice(
     invoice_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -1538,6 +1544,26 @@ def relance_invoice(
     invoice.relance_count = (invoice.relance_count or 0) + 1
     db.commit()
     db.refresh(invoice)
+
+    # Envoi email en arrière-plan si le client a un email
+    customer_email = invoice.customer_email
+    if customer_email:
+        company = db.get(Company, invoice.company_id)
+        company_name = company.name if company else "KOMPTA"
+        due_date_str = invoice.due_date.strftime("%d/%m/%Y") if invoice.due_date else "N/A"
+        background_tasks.add_task(
+            send_relance_email,
+            to=customer_email,
+            client_name=invoice.customer_name,
+            invoice_number=invoice.number,
+            invoice_amount=invoice.total_amount,
+            due_date=due_date_str,
+            company_name=company_name,
+            relance_count=invoice.relance_count,
+        )
+    else:
+        logger.info(f"[RELANCE] Invoice {invoice.number}: pas d'email client, envoi ignoré")
+
     return {
         "message": "Relance envoyée",
         "relance_count": invoice.relance_count,

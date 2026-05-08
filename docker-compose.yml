@@ -1,19 +1,51 @@
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: kompta
-      POSTGRES_USER: kompta
-      POSTGRES_PASSWORD: kompta
-    ports:
-      - "5432:5432"
-    volumes:
-      - kompta_postgres:/var/lib/postgresql/data
+version: "3.9"
 
-  redis:
-    image: redis:7
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kompta_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./kompta.db}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-deepseek}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@kompta.app}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-KOMPTA}
+      - SEED_DEMO=${SEED_DEMO:-false}
+    volumes:
+      - kompta_storage:/app/storage
+      - kompta_db:/app  # pour SQLite en mode simple
     ports:
-      - "6379:6379"
+      - "8010:8010"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kompta_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
+  kompta_storage:
+  kompta_db:
   kompta_postgres:

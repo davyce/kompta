@@ -286,6 +286,7 @@ class Invoice(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     number: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     customer_name: Mapped[str] = mapped_column(String(160))
+    customer_email: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(40), default="draft")
     total_amount: Mapped[float] = mapped_column(Float, default=0)
     currency: Mapped[str] = mapped_column(String(10), default="XAF")

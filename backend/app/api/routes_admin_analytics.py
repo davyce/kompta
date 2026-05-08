@@ -19,14 +19,20 @@ import string
 import time
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.core.security import create_access_token, hash_password
 from app.db.session import get_db
+from app.services.email import (
+    send_broadcast_email,
+    send_reset_password_email,
+    send_test_email,
+)
 from app.models import (
     AuditLog,
     BroadcastLog,
@@ -277,6 +283,7 @@ class BroadcastPayload(BaseModel):
 @router.post("/admin/broadcast")
 def broadcast_notification(
     payload: BroadcastPayload,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -297,13 +304,14 @@ def broadcast_notification(
     else:
         raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
 
-    # Compter les utilisateurs admin ciblés
-    sent_count = db.scalar(
-        select(func.count(User.id)).where(
+    # Récupérer les utilisateurs actifs ciblés (max 100 pour éviter timeout)
+    target_users = db.scalars(
+        select(User).where(
             User.company_id.in_(target_company_ids),
             User.is_active == True,
-        )
-    ) or 0
+        ).limit(100)
+    ).all()
+    sent_count = len(target_users)
 
     log = BroadcastLog(
         title=payload.title,
@@ -326,6 +334,18 @@ def broadcast_notification(
         company_id=current_user.company_id,
     ))
     db.commit()
+
+    # Envoi emails en arrière-plan
+    for user in target_users:
+        if user.email:
+            background_tasks.add_task(
+                send_broadcast_email,
+                to=user.email,
+                full_name=user.full_name,
+                title=payload.title,
+                message=payload.message,
+                msg_type=payload.type,
+            )
 
     return {"sent_to": sent_count, "message": "Broadcast envoyé"}
 
@@ -384,6 +404,7 @@ def _generate_temp_password(length: int = 12) -> str:
 @router.post("/admin/users/{user_id}/reset-password")
 def admin_reset_password(
     user_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -407,6 +428,17 @@ def admin_reset_password(
         company_id=current_user.company_id,
     ))
     db.commit()
+
+    # Envoi email en arrière-plan
+    company = db.get(Company, target.company_id) if target.company_id else None
+    company_name = company.name if company else "KOMPTA"
+    background_tasks.add_task(
+        send_reset_password_email,
+        to=target.email,
+        full_name=target.full_name,
+        temp_password=temp_password,
+        company_name=company_name,
+    )
 
     return {"temp_password": temp_password, "user_id": target.id}
 
@@ -708,3 +740,51 @@ def onboarding_stats(
         })
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. EMAIL — TEST & STATUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestEmailPayload(BaseModel):
+    to: str
+
+
+@router.post("/admin/test-email")
+async def test_email(
+    payload: TestEmailPayload,
+    current_user: User = Depends(get_current_user),
+):
+    """Envoie un email de test. Super-admin uniquement."""
+    _require_super_admin(current_user)
+
+    sent = await send_test_email(payload.to)
+    if sent:
+        return {"sent": True, "message": f"Email de test envoyé à {payload.to}"}
+    else:
+        settings = get_settings()
+        if not settings.email_enabled:
+            return {
+                "sent": False,
+                "message": "Email désactivé : SMTP_HOST, SMTP_USER ou SMTP_PASSWORD manquant dans la configuration.",
+            }
+        return {"sent": False, "message": "Échec de l'envoi — vérifiez les logs serveur pour plus de détails."}
+
+
+@router.get("/admin/email-status")
+def email_status(
+    current_user: User = Depends(get_current_user),
+):
+    """Retourne le statut de la configuration email. Super-admin uniquement. Ne retourne jamais le mot de passe."""
+    _require_super_admin(current_user)
+
+    settings = get_settings()
+    return {
+        "enabled": settings.email_enabled,
+        "host": settings.smtp_host or None,
+        "port": settings.smtp_port,
+        "from": settings.smtp_from_email,
+        "from_name": settings.smtp_from_name,
+        "tls": settings.smtp_tls,
+        "provider": "SMTP",
+    }
