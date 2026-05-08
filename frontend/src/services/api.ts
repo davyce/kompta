@@ -324,7 +324,7 @@ export const api = {
       method: "POST"
     }),
   createSale: (payload: { payment_method: string; payment_account_id?: number | null; items: Array<{ product_id: number; quantity: number }> }) =>
-    request<{ receipt_number: string; total_amount: number; payment_account_label?: string; items: Array<{ name: string; quantity: number }> }>(
+    request<{ receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
       "/pos/sales",
       {
         method: "POST",
@@ -471,6 +471,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  generateDeclaration: (payload: { period: string; declaration_type: string }) =>
+    request<DeclarationRecord>("/declarations/generate", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  downloadDeclarationPdf: (id: number) =>
+    requestBlob(`/declarations/${id}/pdf`),
 
   /* ── Super-Admin (cross-tenant) ── */
   adminOverview: () =>

@@ -34,6 +34,8 @@ const catMeta = (key: string) => CATEGORIES.find((c) => c.key === key) ?? { labe
 const SOURCE_LABELS: Record<string, string> = {
   releve_bancaire: "Relevé bancaire",
   facture_externe: "Facture externe",
+  facture: "Facturation",
+  pos: "Caisse POS",
   csv: "CSV",
   manual: "Manuel",
   import: "Import",

@@ -444,6 +444,7 @@ class DeclarationRecord(TimestampMixin, Base):
     confidence: Mapped[int] = mapped_column(Integer, default=0)
     missing_documents: Mapped[str] = mapped_column(Text, default="[]")
     checklist: Mapped[str] = mapped_column(Text, default="[]")
+    generated_text: Mapped[str] = mapped_column(Text, default="")   # ← texte complet généré
     provider: Mapped[str] = mapped_column(String(80), default="limule")
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))

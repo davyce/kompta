@@ -107,6 +107,9 @@ def ensure_sqlite_migrations() -> None:
         "teras_sync_events": {},
         # bank_transactions : created fresh by create_all — no ALTER needed
         "bank_transactions": {},
+        "declaration_records": {
+            "generated_text": "TEXT DEFAULT ''",
+        },
     }
     with engine.begin() as connection:
         for table, columns in additions.items():

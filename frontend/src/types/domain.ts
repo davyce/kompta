@@ -348,6 +348,7 @@ export type DeclarationRecord = {
   confidence: number;
   missing_documents: string;
   checklist: string;
+  generated_text?: string;
   provider: string;
   created_by_user_id: number | null;
   company_id: number;

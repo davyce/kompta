@@ -597,6 +597,7 @@ class DeclarationRecordRead(BaseModel):
     confidence: int
     missing_documents: str
     checklist: str
+    generated_text: str = ""
     provider: str
     created_by_user_id: int | None = None
     company_id: int

@@ -147,13 +147,15 @@ export function PosPage() {
       setCart([]);
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["posSales"] });
+      queryClient.invalidateQueries({ queryKey: ["overview"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });
 
-  /* Auto-effacement du toast succès après 5 s */
+  /* Auto-effacement du toast succès après 12 s */
   useEffect(() => {
     if (!sale.isSuccess) return;
-    const t = setTimeout(() => sale.reset(), 5000);
+    const t = setTimeout(() => sale.reset(), 12000);
     return () => clearTimeout(t);
   }, [sale.isSuccess, sale]);
 
@@ -584,11 +586,36 @@ export function PosPage() {
             </div>
           )}
 
-          {/* Succès */}
+          {/* Reçu de vente */}
           {sale.isSuccess && sale.data && (
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-semibold text-emerald-700">
-              <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />
-              <span>Reçu {sale.data.receipt_number} · {money(sale.data.total_amount)} encaissé</span>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-sm">
+                <CheckCircle2 size={16} className="shrink-0" />
+                <span>Vente enregistrée — {sale.data.receipt_number}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 text-xs text-emerald-800 dark:text-emerald-200">
+                <span className="text-[#717182]">Montant</span>
+                <span className="font-bold text-right">{money(sale.data.total_amount)}</span>
+                <span className="text-[#717182]">Mode</span>
+                <span className="font-semibold text-right capitalize">
+                  {sale.data.payment_account_label || sale.data.payment_method}
+                </span>
+                <span className="text-[#717182]">Articles</span>
+                <span className="font-semibold text-right">{sale.data.items?.length ?? 0} ligne(s)</span>
+              </div>
+              {sale.data.items && sale.data.items.length > 0 && (
+                <div className="border-t border-emerald-200 dark:border-emerald-500/30 pt-2 space-y-0.5">
+                  {sale.data.items.map((item: { product_id: number; name: string; quantity: number; total: number }) => (
+                    <div key={item.product_id} className="flex justify-between text-xs text-emerald-700 dark:text-emerald-300">
+                      <span>{item.quantity}× {item.name}</span>
+                      <span className="font-semibold">{money(item.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 pt-1">
+                ✓ Transaction enregistrée · Impact comptabilité et trésorerie mis à jour
+              </p>
             </div>
           )}
         </div>

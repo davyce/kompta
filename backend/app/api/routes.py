@@ -1311,6 +1311,32 @@ def create_sale(
         db.add_all([sale_item, movement])
         response_items.append({"product_id": product.id, "name": product.name, "quantity": item.quantity, "total": line_total})
     sale.total_amount = total
+
+    # ── Créer la transaction bancaire correspondante ──────────────────────
+    _pref_pos = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
+    _currency_pos = (_pref_pos.currency if _pref_pos and _pref_pos.currency else "XAF")
+    _method_labels = {
+        "cash": "Espèces", "card": "Carte bancaire", "mobile_money": "Mobile Money",
+        "zola": "Zola QR", "bank": "Virement bancaire", "paypal": "PayPal",
+        "wave": "Wave", "orange_money": "Orange Money", "mtn": "MTN MoMo", "airtel": "Airtel Money",
+    }
+    _item_summary = ", ".join(f"{i['quantity']}× {i['name']}" for i in response_items[:3])
+    if len(response_items) > 3:
+        _item_summary += f" (+{len(response_items) - 3})"
+    _account_label = payment_account.label if payment_account else _method_labels.get(payment_method, payment_method)
+    pos_txn = BankTransaction(
+        company_id=current_user.company_id,
+        date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        label=f"Vente {sale.receipt_number} — {_item_summary} ({_account_label})",
+        amount=float(total),
+        credit=float(total),
+        currency=_currency_pos,
+        category="ventes",
+        reference=sale.receipt_number,
+        source_type="pos",
+        status="confirmed",
+    )
+    db.add(pos_txn)
     db.commit()
     db.refresh(sale)
     return {
@@ -1322,6 +1348,7 @@ def create_sale(
         "status": sale.status,
         "total_amount": sale.total_amount,
         "items": response_items,
+        "transaction_id": pos_txn.id,
     }
 
 
@@ -2580,6 +2607,137 @@ async def prepare_declaration(
     db.commit()
     db.refresh(record)
     return record
+
+
+@router.post("/declarations/generate", response_model=DeclarationRecordRead, status_code=201)
+async def generate_full_declaration(
+    payload: DeclarationRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DeclarationRecord:
+    """Génère une déclaration complète via Limule avec données réelles de l'entreprise."""
+    from app.services.limule import limule_generate
+    from app.services.limule_context import build_limule_context, render_context_for_prompt
+
+    company = db.get(Company, current_user.company_id)
+
+    # Construire le contexte complet de l'entreprise
+    ctx = build_limule_context(
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        page_path="/declarations",
+        focus_module="declarations",
+    )
+    ctx_text = render_context_for_prompt(ctx)
+
+    # Labels détaillés par type
+    type_labels = {
+        "fiscale": "Déclaration fiscale (TVA, IS, acomptes provisionnels, IRPP)",
+        "sociale": "Déclaration sociale CNPS (cotisations patronales et salariales)",
+        "bailleur": "Rapport bailleur / ONG / agence de financement",
+        "statistique": "Rapport statistique (ANSS/INS)",
+        "tva": "Déclaration de TVA mensuelle",
+        "is": "Déclaration d'Impôt sur les Sociétés (IS)",
+        "cnps": "Déclaration CNPS trimestrielle",
+        "daf": "Déclaration Annuelle des Finances",
+    }
+    type_label = type_labels.get(payload.declaration_type, payload.declaration_type)
+
+    prompt = (
+        f"Génère une DÉCLARATION COMPLÈTE de type : {type_label}\n"
+        f"Période : {payload.period}\n"
+        f"Entreprise : {company.name if company else 'N/A'} ({company.country if company else 'N/A'})\n\n"
+        f"La déclaration doit être EXHAUSTIVE et inclure :\n"
+        f"1. En-tête officiel avec identité de l'entreprise et référence\n"
+        f"2. Tableau des montants calculés (base imposable, taux, montant dû)\n"
+        f"3. Détail ligne par ligne des éléments déclarés\n"
+        f"4. Récapitulatif des pièces justificatives à joindre\n"
+        f"5. Analyse des risques et points d'attention pour cette période\n"
+        f"6. Instructions de dépôt (délais, modalités, pénalités en cas de retard)\n"
+        f"7. Recommandations Limule pour optimiser la déclaration\n\n"
+        f"Utilise les données réelles de l'entreprise du contexte. "
+        f"Format professionnel exploitable par un comptable ou DAF."
+    )
+
+    content, _ = await limule_generate(
+        kind="declaration",
+        prompt=prompt,
+        context=ctx_text,
+        structured_context=ctx,
+        db=db,
+        company_id=current_user.company_id,
+        user=current_user,
+        max_tokens=4000,
+        temperature=0.2,
+    )
+
+    # Aussi préparer l'audit (checklist + pièces manquantes)
+    audit_result = await generate_declaration(
+        DeclarationRequest(period=payload.period, declaration_type=payload.declaration_type)
+    )
+    missing_documents = audit_result.get("missing_documents") or []
+    checklist = audit_result.get("checklist") or []
+
+    record = DeclarationRecord(
+        period=payload.period,
+        declaration_type=payload.declaration_type,
+        case_reference=f"{payload.declaration_type.upper()}-{payload.period}-GEN",
+        status="generated",
+        confidence=int(audit_result.get("confidence") or 85),
+        missing_documents=json.dumps(missing_documents, ensure_ascii=False),
+        checklist=json.dumps(checklist, ensure_ascii=False),
+        generated_text=content or "",
+        provider="limule",
+        created_by_user_id=current_user.id,
+        company_id=current_user.company_id,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@router.get("/declarations/{record_id}/pdf")
+def download_declaration_pdf(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Télécharge la déclaration générée en PDF."""
+    from app.services.pdf_export import build_limule_pdf
+
+    record = db.scalar(
+        select(DeclarationRecord).where(
+            DeclarationRecord.id == record_id,
+            DeclarationRecord.company_id == current_user.company_id,
+        )
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Déclaration introuvable")
+    if not record.generated_text:
+        raise HTTPException(status_code=400, detail="Aucun document généré pour cette déclaration")
+
+    company = db.get(Company, current_user.company_id)
+    type_labels = {
+        "fiscale": "Déclaration fiscale", "sociale": "Déclaration sociale CNPS",
+        "bailleur": "Rapport bailleur", "statistique": "Rapport statistique",
+        "tva": "Déclaration TVA", "is": "Déclaration IS", "cnps": "Déclaration CNPS",
+    }
+    title = f"{type_labels.get(record.declaration_type, 'Déclaration')} — {record.period}"
+    pdf_bytes = build_limule_pdf(
+        content=record.generated_text,
+        title=title,
+        kind="declaration",
+        company_name=company.name if company else "KOMPTA",
+        generated_at=record.created_at.strftime("%d/%m/%Y %H:%M"),
+    )
+    filename = f"declaration-{record.declaration_type}-{record.period}-{record.id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/settings/modules")

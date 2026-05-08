@@ -35,18 +35,20 @@
 | **Tableau de bord** | KPIs temps réel, graphiques, rafraîchissement auto 30 s, résumé IA |
 | **RH & Employés** | Fiches, contrats IA, organigramme, présences, congés, profil détaillé |
 | **Paie** | Bulletins de salaire, calcul net/brut, anomalies, export PDF |
-| **Facturation** | Devis, factures, avoirs, suivi paiements, export PDF |
+| **Facturation** | Devis, factures, avoirs, paiement espèces/mobile/virement, BankTransaction automatique, export PDF |
 | **Inventaire** | Produits, stock temps réel, alertes seuil bas, mouvements |
-| **POS** | Caisse enregistreuse, ventes, tickets, export CSV |
+| **POS / Caisse** | Caisse enregistreuse, reçu détaillé par article, BankTransaction automatique, export CSV |
+| **Transactions** | Relevé comptable unifié (factures + POS + imports), filtres par source, Limule analyse |
 | **Documents** | Upload, classification IA, analyse, rattachement employé |
-| **Agenda** | Réunions, ordre du jour, participants, liens visio |
+| **Agenda** | Réunions, ordre du jour, participants, liens visio, intégration Journal |
 | **Tâches** | Kanban board, filtres, recherche, upload de preuves (image/vidéo/PDF) |
-| **Déclarations** | Assistance IA déclarations fiscales/sociales CEMAC |
+| **Déclarations** | Génération complète par Limule (TVA, IS, CNPS, fiscal…), PDF téléchargeable, checklist conformité |
+| **Journal** | Notes quotidiennes IA connectées aux réunions et tâches du jour |
 | **TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA, module activable |
-| **Limule (IA)** | Assistant conversationnel streaming, création de tâches, historique multi-tour |
+| **Limule (IA)** | Assistant conversationnel streaming, analyses narratives 5 parties + Regard CEMAC, création de tâches, historique multi-tour |
 | **Rédaction IA** | Emails, courriers, contrats, clauses assistés par Limule |
-| **Rapports** | Hub analytique centralisé, export PDF/CSV |
-| **Paramètres** | Profil entreprise, utilisateurs, RBAC, modules, journal d'audit |
+| **Rapports** | Hub analytique centralisé, KPI Encaissé/Facturé/En attente, export PDF/CSV |
+| **Paramètres** | Profil entreprise, devise multi-devises, utilisateurs, RBAC, modules, journal d'audit |
 
 ---
 
@@ -235,11 +237,12 @@ npm run preview        # serveur preview local
 
 ### Tableau de bord
 
-- KPIs consolidés : chiffre d'affaires, masse salariale, stock, trésorerie
+- KPIs consolidés : **Encaissé** (montant réellement perçu), Total facturé, En attente, Trésorerie réelle
 - Graphiques évolution par période (Mois / Trimestre / Année)
 - Donut Canaux de vente et Structure des dépenses
 - **Rafraîchissement automatique toutes les 30 secondes**
 - Bouton **Résumé IA** (Limule) — analyse directionnelle en un clic
+- Impact immédiat des paiements factures et ventes POS sur tous les KPIs
 
 ### RH & Employés
 
@@ -259,13 +262,23 @@ npm run preview        # serveur preview local
 
 - Devis → Facture → Avoir
 - Suivi statuts : brouillon / envoyé / payé / en retard
+- **Paiement multi-modes** : espèces, carte, mobile money, virement, PayPal, Zola QR
+- **BankTransaction automatique** à chaque encaissement → impact immédiat sur trésorerie et Dashboard
 - Export PDF, envoi simulé
 
 ### POS — Point de vente
 
 - Interface caisse avec recherche produit
-- Tickets de caisse
+- **Reçu détaillé** : liste articles + quantités + prix + mode de paiement
+- **BankTransaction automatique** à chaque vente → trésorerie et transactions mises à jour en temps réel
 - **Export CSV des ventes** avec filtres date et produit
+
+### Transactions
+
+- Relevé comptable unifié : toutes les entrées/sorties (factures, POS, imports, manuelles)
+- **Labels de source** : Facturation, Caisse POS, Relevé bancaire, CSV, Manuel
+- Filtres par source, catégorie, date
+- Import de relevés bancaires avec analyse IA (Limule)
 
 ### Inventaire
 
@@ -291,6 +304,24 @@ npm run preview        # serveur preview local
 - Badge "Justificatif requis" sur les cartes concernées
 - Indicateur "En retard" si échéance dépassée
 
+### Déclarations
+
+- **6 types** : Fiscale, Sociale CNPS, TVA, IS, Bailleur, Statistique
+- **Préparer** : audit rapide — checklist de conformité + pièces manquantes
+- **Générer** : Limule produit un document déclaratif complet (4 000 tokens) :
+  - En-tête officiel, tableaux de montants calculés, détail ligne par ligne
+  - Pièces justificatives à joindre, risques et points d'attention
+  - Instructions de dépôt et recommandations d'optimisation
+- **Téléchargement PDF** de chaque déclaration générée
+- Scores TERAS par domaine avec barres de progression
+- Icône Limule native sur le bouton de génération
+
+### Journal (Notes)
+
+- Notes quotidiennes générées automatiquement par Limule
+- **Connectées aux réunions du jour** (réunions filtrées par date et affichées)
+- Vue 7 jours glissants avec tâches et réunions
+
 ### TERAS Connect
 
 - Analyse conformité réglementaire multi-domaines (RH, Paie, Déclarations, Documents)
@@ -306,7 +337,10 @@ npm run preview        # serveur preview local
 - **Assistant flottant** disponible sur toutes les pages
 - Chat avec **streaming SSE temps réel**
 - Suggestions contextuelles selon la page courante
-- **Création de tâche inline** depuis une réponse (titre extrait intelligemment, description structurée, assignée, priorité détectée)
+- **Création de tâche 1-clic** : si Limule est confiant sur l'intention, création directe sans modal
+- **Analyses narratives approfondies** : structure obligatoire en 5 parties (état des lieux → causes → impacts → recommandations → actions), minimum 400 mots, chiffres et benchmarks cités
+- **Bloc "Regard CEMAC"** : avis systématique sur la conjoncture zone CEMAC à la fin de chaque analyse
+- Budget de tokens adaptatif : 3 500 tokens pour analyses lourdes, 2 200 pour réponses standard
 - **Historique multi-tour** : recherche, suppression unitaire, sélection multiple, effacement global
 - Mode rapport plein écran + épinglage de messages
 - Quick replies contextuels par intention
@@ -548,6 +582,24 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 ---
 
 ## Changelog
+
+### v1.4.0 — Mai 2026
+
+- ✅ **Facturation — Paiement espèces** : mode cash désormais sélectionnable, BankTransaction créée automatiquement
+- ✅ **Facturation — Impact comptable** : paiement facture → transaction visible immédiatement + Dashboard mis à jour
+- ✅ **POS/Caisse — Reçu complet** : liste articles, quantités, prix, mode de paiement, confirmation comptable
+- ✅ **POS/Caisse — BankTransaction automatique** : chaque vente crée une transaction (`source_type=pos`)
+- ✅ **Dashboard — KPI "Encaissé"** : affiche le montant réellement perçu (vs. total facturé)
+- ✅ **Transactions — Sources** : labels "Facturation" et "Caisse POS" ajoutés au filtre source
+- ✅ **Déclarations — Refonte complète** : 6 types, génération Limule 4 000 tokens, PDF téléchargeable, icône Limule native
+- ✅ **Limule — Analyses approfondies** : structure 5 parties obligatoire, min 400 mots, benchmark CEMAC
+- ✅ **Limule — Bloc "Regard CEMAC"** : avis conjoncture zone CEMAC systématique en fin d'analyse
+- ✅ **Limule — Budget tokens adaptatif** : 3 500 (analyses) / 2 200 (réponses standard)
+- ✅ **Limule — Création tâche 1-clic** : création directe si confiance suffisante sur l'intention
+- ✅ **PDF — Rendu Markdown** : `###` et `####` remplacés par du texte en gras (fin des titres brisés)
+- ✅ **Journal — Réunions connectées** : notes quotidiennes intègrent les réunions du jour
+- ✅ **Multi-devises** : devise utilisateur respectée dans toutes les analyses Limule
+- ✅ **Audit qualité complet** : 0 erreur TypeScript, 11 modules backend vérifiés, DB intègre
 
 ### v1.3.0 — Mai 2026
 
