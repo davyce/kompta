@@ -51,6 +51,10 @@ const AdminLimulePage       = lazy(() => import("../admin/pages/AdminLimulePage"
 const AdminTicketDetailPage = lazy(() => import("../admin/pages/AdminTicketDetailPage").then(m => ({ default: m.AdminTicketDetailPage })));
 const AdminTicketsPage      = lazy(() => import("../admin/pages/AdminTicketsPage").then(m => ({ default: m.AdminTicketsPage })));
 const AdminUsersPage        = lazy(() => import("../admin/pages/AdminUsersPage").then(m => ({ default: m.AdminUsersPage })));
+const AdminAnalyticsPage    = lazy(() => import("../admin/pages/AdminAnalyticsPage").then(m => ({ default: m.AdminAnalyticsPage })));
+const AdminBroadcastPage    = lazy(() => import("../admin/pages/AdminBroadcastPage").then(m => ({ default: m.AdminBroadcastPage })));
+const AdminSystemPage       = lazy(() => import("../admin/pages/AdminSystemPage").then(m => ({ default: m.AdminSystemPage })));
+const AdminOnboardingPage   = lazy(() => import("../admin/pages/AdminOnboardingPage").then(m => ({ default: m.AdminOnboardingPage })));
 
 // ── Route error boundary (replaces React Router's ugly default) ───────────
 function RouteErrorElement() {
@@ -119,6 +123,10 @@ export const router = createBrowserRouter([
       { path: "tickets/:ticketId",     element: <LazyRoute page={AdminTicketDetailPage} /> },
       { path: "limule",                element: <LazyRoute page={AdminLimulePage} /> },
       { path: "logs",                  element: <LazyRoute page={AdminLogsPage} /> },
+      { path: "analytics",             element: <LazyRoute page={AdminAnalyticsPage} /> },
+      { path: "broadcast",             element: <LazyRoute page={AdminBroadcastPage} /> },
+      { path: "system",                element: <LazyRoute page={AdminSystemPage} /> },
+      { path: "onboarding",            element: <LazyRoute page={AdminOnboardingPage} /> },
     ],
   },
   {

@@ -26,6 +26,7 @@ class Company(TimestampMixin, Base):
     accent_color: Mapped[str] = mapped_column(String(16), default="#f59e0b")
     completion_score: Mapped[int] = mapped_column(Integer, default=72)
     teras_score: Mapped[int] = mapped_column(Integer, default=81)
+    status: Mapped[str] = mapped_column(String(40), default="active")  # active | suspended
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
 
@@ -752,3 +753,27 @@ class PosSession(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(40), default="open")  # open|closed
     notes: Mapped[str] = mapped_column(Text, default="")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+
+class BroadcastLog(TimestampMixin, Base):
+    """Journal des broadcasts admin envoyés à toute la plateforme."""
+    __tablename__ = "broadcast_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    message: Mapped[str] = mapped_column(Text, default="")
+    type: Mapped[str] = mapped_column(String(40), default="info")   # info | warning | critical
+    target: Mapped[str] = mapped_column(String(200), default="all") # all | company_id:123
+    sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    sent_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class FeatureFlag(TimestampMixin, Base):
+    """Feature flags système gérés par le super-admin."""
+    __tablename__ = "feature_flags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    value: Mapped[str] = mapped_column(String(500), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)

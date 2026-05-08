@@ -1084,6 +1084,94 @@ export const api = {
   /* ── Analytics KPIs ───────────────────────────────────────────────── */
   analyticsKpis: () => request<AnalyticsKpisDto>("/analytics/kpis"),
 
+  /* ── Admin Broadcast ──────────────────────────────────────────────── */
+  adminBroadcast: (payload: { title: string; message: string; type: string; target_company_id?: number }) =>
+    request<{ status: string; user_count: number; broadcast_id?: number }>("/admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /* ── Admin System Flags ───────────────────────────────────────────── */
+  adminSystemFlags: () =>
+    request<Array<{ id: number; key: string; description: string; value: string; enabled: boolean }>>(
+      "/admin/system/flags"
+    ),
+  adminCreateSystemFlag: (payload: { key: string; description: string; value: string; enabled: boolean }) =>
+    request<{ id: number; key: string; description: string; value: string; enabled: boolean }>(
+      "/admin/system/flags",
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
+  adminUpdateSystemFlag: (id: number, payload: { key?: string; description?: string; value?: string; enabled?: boolean }) =>
+    request<{ id: number; key: string; description: string; value: string; enabled: boolean }>(
+      `/admin/system/flags/${id}`,
+      { method: "PATCH", body: JSON.stringify(payload) }
+    ),
+  adminDeleteSystemFlag: (id: number) =>
+    request<void>(`/admin/system/flags/${id}`, { method: "DELETE" }),
+
+  /* ── Admin System Health ──────────────────────────────────────────── */
+  adminSystemHealth: () =>
+    request<{
+      services: Array<{ name: string; status: "healthy" | "degraded" | "down"; latency_ms: number | null; last_check: string | null }>;
+      uptime_seconds?: number;
+      version?: string;
+      environment?: string;
+      database?: string;
+      updated_at?: string;
+    }>("/admin/system/health"),
+
+  /* ── Admin Analytics Platform ────────────────────────────────────── */
+  adminAnalyticsPlatform: () =>
+    request<AdminAnalyticsPlatformDto>("/admin/analytics/platform"),
+
+  /* ── Admin Activity Feed ──────────────────────────────────────────── */
+  adminActivityFeed: () =>
+    request<AdminActivityItemDto[]>("/admin/analytics/activity-feed"),
+
+  /* ── Admin Impersonate ────────────────────────────────────────────── */
+  adminImpersonate: (userId: number) =>
+    request<{ token: string; user_email: string }>(`/admin/impersonate/${userId}`, { method: "POST" }),
+
+  /* ── Admin Reset Password ─────────────────────────────────────────── */
+  adminResetPassword: (userId: number) =>
+    request<{ temp_password: string }>(`/admin/users/${userId}/reset-password`, { method: "POST" }),
+
+  /* ── Admin Suspend/Reactivate Company ────────────────────────────── */
+  adminSuspendCompany: (companyId: number, status: string) =>
+    request<unknown>(`/admin/companies/${companyId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  /* ── Admin Feature Flags (aliases matching the task spec) ────────── */
+  adminFeatureFlags: () =>
+    request<FeatureFlagDto[]>("/admin/system/flags"),
+  adminCreateFlag: (payload: Omit<FeatureFlagDto, "id" | "created_at">) =>
+    request<FeatureFlagDto>("/admin/system/flags", { method: "POST", body: JSON.stringify(payload) }),
+  adminUpdateFlag: (id: number, payload: Partial<FeatureFlagDto>) =>
+    request<FeatureFlagDto>(`/admin/system/flags/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminDeleteFlag: (id: number) =>
+    request<void>(`/admin/system/flags/${id}`, { method: "DELETE" }),
+
+  /* ── Admin Onboarding Stats ───────────────────────────────────────── */
+  adminOnboardingStats: () =>
+    request<{
+      total: number;
+      advanced: number;
+      medium: number;
+      low: number;
+      companies: Array<{
+        id: number;
+        name: string;
+        has_employees: boolean;
+        has_invoices: boolean;
+        has_pos: boolean;
+        has_documents: boolean;
+        score: number;
+        last_activity: string | null;
+      }>;
+    }>("/admin/onboarding-stats"),
+
   limuleDocumentChatStream: async (
     documentId: number,
     payload: { prompt: string; conversation_history?: Array<{ role: "user" | "assistant"; content: string }> },
@@ -1619,4 +1707,59 @@ export interface FiscalDeadlineDto {
 export interface AnalyticsKpisDto {
   recovery_rate: number;
   avg_cost_per_employee: number;
+}
+
+/* ── Admin Analytics Platform ─────────────────────────────────────── */
+export interface AdminAnalyticsPlatformDto {
+  monthly_growth: Array<{ month: string; companies: number; users: number }>;
+  companies_by_industry: Array<{ industry: string; count: number }>;
+  companies_by_country: Array<{ country: string; count: number }>;
+  mrr_estimate: number;
+  retention_rate: number;
+  onboarding_rate: number;
+}
+
+/* ── Admin Activity Feed ──────────────────────────────────────────── */
+export interface AdminActivityItemDto {
+  id: number;
+  company_name: string;
+  action: string;
+  action_type: string;
+  amount: number | null;
+  created_at: string;
+}
+
+/* ── Admin System Health ──────────────────────────────────────────── */
+export interface AdminSystemHealthDto {
+  database: { ok: boolean; latency_ms: number | null };
+  limule: { ok: boolean; latency_ms: number | null };
+  storage: { ok: boolean; latency_ms: number | null };
+  services?: Array<{ name: string; status: "healthy" | "degraded" | "down"; latency_ms: number | null; last_check: string | null }>;
+  uptime_seconds?: number;
+  version?: string;
+  environment?: string;
+  database_name?: string;
+  updated_at?: string;
+}
+
+/* ── Feature Flags ────────────────────────────────────────────────── */
+export interface FeatureFlagDto {
+  id: number;
+  key: string;
+  description: string;
+  value: string;
+  enabled: boolean;
+  created_at?: string;
+}
+
+/* ── Admin Onboarding Stat ────────────────────────────────────────── */
+export interface AdminOnboardingStatDto {
+  id: number;
+  name: string;
+  has_employees: boolean;
+  has_invoices: boolean;
+  has_pos: boolean;
+  has_documents: boolean;
+  score: number;
+  last_activity: string | null;
 }

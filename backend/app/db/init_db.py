@@ -123,6 +123,13 @@ def ensure_sqlite_migrations() -> None:
             "loyalty_tier":             "VARCHAR(20) DEFAULT 'standard'",
             "global_discount_percent":  "FLOAT DEFAULT 0.0",
         },
+        "companies": {
+            "status": "VARCHAR(40) DEFAULT 'active'",
+        },
+        # new tables — create_all handles creation, but we register them so
+        # ALTER logic does not crash on existing DBs
+        "broadcast_logs": {},
+        "feature_flags": {},
     }
     with engine.begin() as connection:
         for table, columns in additions.items():
