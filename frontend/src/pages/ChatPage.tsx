@@ -413,7 +413,7 @@ export function ChatPage() {
               </button>
             </div>
             {channels.data?.map((c) => {
-              const unread = c.id === activeChannelId ? 0 : c.id % 4;
+              const unread = 0; // badges calculés côté backend (pas encore exposés)
               return (
                 <button
                   key={c.id}

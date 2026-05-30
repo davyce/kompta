@@ -27,6 +27,11 @@ from app.models import (
     OrganizationGroup,
     User,
 )
+from app.services.access import (
+    generate_temporary_password,
+    generated_email_from_phone,
+    normalize_phone,
+)
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -238,6 +243,97 @@ def add_member(group_id: int, payload: MemberCreate, request: Request, db: Sessi
     db.commit()
     db.refresh(member)
     return _serialize_member(member)
+
+
+@router.post("/{group_id}/members/{member_id}/provision-account", status_code=201)
+def provision_member_account(
+    group_id: int, member_id: int, request: Request,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+) -> dict:
+    """Crée un compte utilisateur pour un membre du groupe.
+
+    Si le membre a déjà un compte (user_id non null), retourne le compte existant.
+    Sinon : crée un User avec rôle 'membre_groupe', interface minimale,
+    mot de passe temporaire à transmettre au membre.
+
+    Interface membre_groupe : dashboard, investissements, rédaction IA,
+    documents, groupes, projets, chat, agenda.
+    """
+    group = _get_group(db, group_id, current_user)
+    _require_manage(db, group, current_user)
+    member = db.get(GroupMember, member_id)
+    if not member or member.group_id != group.id:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    # Si le membre est déjà lié à un compte
+    if member.user_id:
+        existing = db.get(User, member.user_id)
+        if existing:
+            return {
+                "created": False,
+                "user_id": existing.id,
+                "login_identifier": existing.phone or existing.email,
+                "account_status": existing.account_status,
+                "message": "Compte déjà existant",
+            }
+
+    # Déduire l'identifiant de connexion
+    phone = normalize_phone(member.phone or "")
+    email = (member.email or "").strip().lower()
+    if not email and phone:
+        email = generated_email_from_phone(phone)
+    if not email:
+        raise HTTPException(status_code=400, detail="Email ou téléphone requis pour créer un compte")
+
+    # Vérifier doublon
+    existing_user = db.scalar(select(User).where(User.email == email))
+    if existing_user:
+        # Associer ce compte existant au membre
+        member.user_id = existing_user.id
+        db.commit()
+        return {
+            "created": False,
+            "user_id": existing_user.id,
+            "login_identifier": phone or email,
+            "account_status": existing_user.account_status,
+            "message": "Compte existant associé au membre",
+        }
+
+    from app.core.security import hash_password
+    from datetime import timezone
+    temp_password = generate_temporary_password()
+    new_user = User(
+        email=email,
+        phone=phone,
+        full_name=member.full_name,
+        # Rôle dédié : interface minimale (dashboard/groupes/chat/docs/investissements/IA)
+        role="membre_groupe",
+        department=group.name,
+        branch=group.city or group.country or "Groupe",
+        password_hash=hash_password(temp_password),
+        must_change_password=True,
+        account_status="pending_first_login",
+        invited_at=datetime.now(timezone.utc),
+        is_active=True,
+        company_id=current_user.company_id,
+    )
+    db.add(new_user)
+    db.flush()
+    member.user_id = new_user.id
+    _group_audit(db, group.id, current_user, "member_account_provisioned",
+                 target_type="member", target_id=member.id,
+                 new=f"user_id={new_user.id}", request=request)
+    db.commit()
+    db.refresh(new_user)
+    return {
+        "created": True,
+        "user_id": new_user.id,
+        "login_identifier": phone or email,
+        "temporary_password": temp_password,
+        "account_status": new_user.account_status,
+        "must_change_password": True,
+        "message": f"Compte créé — transmets le mot de passe temporaire à {member.full_name}",
+    }
 
 
 @router.get("/{group_id}/members")

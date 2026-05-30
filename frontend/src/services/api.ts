@@ -1268,6 +1268,18 @@ export const api = {
   addMember: (groupId: number, payload: { full_name: string; phone?: string; email?: string; date_of_birth?: string; zone?: string; profession?: string }) =>
     request<GroupMember>(`/groups/${groupId}/members`, { method: "POST", body: JSON.stringify(payload) }),
 
+  /** Crée un compte utilisateur pour un membre du groupe (interface membre_groupe). */
+  provisionMemberAccount: (groupId: number, memberId: number) =>
+    request<{
+      created: boolean;
+      user_id: number;
+      login_identifier: string;
+      temporary_password?: string;
+      account_status: string;
+      must_change_password?: boolean;
+      message: string;
+    }>(`/groups/${groupId}/members/${memberId}/provision-account`, { method: "POST" }),
+
   groupRoles: (groupId: number) => request<GroupRole[]>(`/groups/${groupId}/roles`),
   assignRole: (groupId: number, payload: { member_id: number; role_name: string; reason?: string }) =>
     request<{ member_id: number; role: string }>(`/groups/${groupId}/roles/assign`, { method: "POST", body: JSON.stringify(payload) }),

@@ -98,6 +98,8 @@ const ROLE_ROUTES: Record<string, string[]> = {
   responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
+  // Membre de groupe/organisation : interface légère orientée collaboration & suivi
+  membre_groupe: ["/", "/groups", "/chat", "/calendar", "/meetings", "/notes", "/documents", "/investments", "/projects", "/assistants", "/work", "/settings", "/help"],
 };
 
 function canAccess(role: string | undefined, path: string): boolean {
@@ -114,6 +116,7 @@ function roleLabel(role?: string) {
     caissier_pos: "Caisse",
     comptable: "Comptable",
     employe: "Employé",
+    membre_groupe: "Membre",
   };
   return role ? labels[role] ?? role : "session";
 }
@@ -676,15 +679,24 @@ export function Shell() {
         </main>
       </div>
 
-      {/* ── Mobile bottom navigation bar ── */}
+      {/* ── Mobile bottom navigation bar — adapté au rôle ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2">
-        {[
-          { to: "/",           icon: LayoutDashboard, label: "Accueil"  },
-          { to: "/billing",    icon: ReceiptText,      label: "Factures" },
-          { to: "/pos",        icon: ShoppingCart,     label: "Caisse"   },
-          { to: "/chat",       icon: MessageSquare,    label: "Chat"     },
-          { to: "/settings",   icon: Settings,         label: "Params"   },
-        ].map(({ to, icon: Icon, label }) => (
+        {(user?.role === "membre_groupe"
+          ? [
+              { to: "/",        icon: LayoutDashboard, label: "Accueil"  },
+              { to: "/groups",  icon: Users,            label: "Groupes"  },
+              { to: "/chat",    icon: MessageSquare,    label: "Chat"     },
+              { to: "/calendar",icon: CalendarDays,     label: "Agenda"   },
+              { to: "/settings",icon: Settings,         label: "Profil"   },
+            ]
+          : [
+              { to: "/",           icon: LayoutDashboard, label: "Accueil"  },
+              { to: "/billing",    icon: ReceiptText,      label: "Factures" },
+              { to: "/pos",        icon: ShoppingCart,     label: "Caisse"   },
+              { to: "/chat",       icon: MessageSquare,    label: "Chat"     },
+              { to: "/settings",   icon: Settings,         label: "Params"   },
+            ]
+        ).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
