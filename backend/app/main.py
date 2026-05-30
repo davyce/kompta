@@ -102,9 +102,24 @@ app.add_middleware(
 )
 
 
+_IS_PROD = settings.environment.strip().lower() in {"prod", "production"}
+# CSP : 'unsafe-inline' toléré pour les pages HTML internes (contrats, reçus) qui
+# embarquent du style/script inline ; l'API JSON n'est pas impactée.
+_CSP = (
+    "default-src 'self'; "
+    "img-src 'self' data: blob: https:; "
+    "style-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "connect-src 'self' https: wss: ws:; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "object-src 'none'"
+)
+
+
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Journalise chaque requête (méthode, chemin, statut, durée) et trace les erreurs."""
+async def security_and_logging(request: Request, call_next):
+    """En-têtes de sécurité HTTP + journalisation (méthode, chemin, statut, durée)."""
     start = time.perf_counter()
     try:
         response = await call_next(request)
@@ -112,6 +127,14 @@ async def log_requests(request: Request, call_next):
         elapsed = (time.perf_counter() - start) * 1000
         logger.exception("%s %s → 500 (%.1f ms)", request.method, request.url.path, elapsed)
         raise
+    # ── En-têtes de sécurité (OWASP) ──
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = _CSP
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
+    if _IS_PROD:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     elapsed = (time.perf_counter() - start) * 1000
     log = logger.warning if response.status_code >= 500 else logger.info
     log("%s %s → %s (%.1f ms)", request.method, request.url.path, response.status_code, elapsed)
