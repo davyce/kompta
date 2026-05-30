@@ -66,7 +66,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={ctx}>
       {children}
       {/* Toast portal */}
-      <div className="pointer-events-none fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 w-80">
+      <div className="pointer-events-none fixed right-5 z-[9999] flex flex-col gap-2 w-[calc(100vw-2.5rem)] max-w-80 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5">
         {toasts.map((t) => (
           <div
             key={t.id}

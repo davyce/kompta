@@ -28,7 +28,15 @@ export default {
       },
       boxShadow: {
         soft: "0 18px 50px rgba(23, 33, 31, 0.08)"
-      }
+      },
+      // Hauteurs dynamiques (dvh) pour mobile : évitent le bug de la barre URL iOS Safari
+      // qui fait sauter le layout. À utiliser au lieu de min-h-screen / h-screen.
+      minHeight: {
+        "dvh": "100dvh",
+      },
+      height: {
+        "dvh": "100dvh",
+      },
     }
   },
   plugins: []

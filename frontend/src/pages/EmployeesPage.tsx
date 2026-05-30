@@ -932,7 +932,7 @@ export function EmployeesPage() {
 
       {/* Contract error toast */}
       {contractError && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-red-200 bg-white px-5 py-3 shadow-xl">
+        <div className="fixed left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-red-200 bg-white px-5 py-3 shadow-xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6">
           <span className="text-sm font-semibold text-red-700">{contractError}</span>
           <button onClick={() => setContractError(null)} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
         </div>

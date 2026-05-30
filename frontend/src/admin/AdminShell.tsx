@@ -285,6 +285,14 @@ export function AdminShell() {
     }
   }, [user, navigate]);
 
+  // Sur mobile : ferme automatiquement le drawer après navigation (sinon il masque
+  // le contenu de la page que l'utilisateur vient d'ouvrir).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      setCollapsed(true);
+    }
+  }, [location.pathname]);
+
   // Live clock
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -303,15 +311,26 @@ export function AdminShell() {
   const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-950 via-indigo-950 to-slate-950 text-white">
+    <div className="min-h-dvh bg-gradient-to-br from-violet-950 via-indigo-950 to-slate-950 text-white">
       {/* Animated gradient overlay */}
       <div className="pointer-events-none fixed inset-0 z-0 opacity-20 bg-[radial-gradient(ellipse_at_20%_20%,_#7c3aed_0%,_transparent_60%),radial-gradient(ellipse_at_80%_80%,_#4f46e5_0%,_transparent_60%)]" />
 
-      {/* Sidebar */}
+      {/* Mobile sidebar overlay (clic pour fermer) */}
+      {!collapsed && (
+        <button
+          aria-label="Fermer le menu"
+          onClick={() => setCollapsed(true)}
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      )}
+
+      {/* Sidebar : drawer mobile (caché par défaut), fixe sur desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-white/10 bg-black/40 backdrop-blur-xl transition-all duration-200 ${
-          collapsed ? "w-16" : "w-64"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-white/10 bg-black/80 md:bg-black/40 backdrop-blur-xl transition-all duration-200
+          ${collapsed
+            ? "-translate-x-full w-64 md:translate-x-0 md:w-16"
+            : "translate-x-0 w-64 md:w-64"
+          }`}
       >
         {/* Logo */}
         <div className="flex items-center justify-between border-b border-white/10 px-3 py-4">
@@ -394,12 +413,21 @@ export function AdminShell() {
       </aside>
 
       {/* Main content */}
-      <div className={`relative z-10 transition-all duration-200 ${collapsed ? "pl-16" : "pl-64"}`}>
+      {/* Sur mobile : pas de padding-left (sidebar en drawer). Sur md+ : padding adapté au collapse */}
+      <div className={`relative z-10 transition-all duration-200 ${collapsed ? "md:pl-16" : "md:pl-64"}`}>
         {/* Sticky header */}
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-black/50 px-6 py-3 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
+        <header className="sticky top-0 z-30 border-b border-white/10 bg-black/50 px-4 md:px-6 py-3 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3 md:gap-4">
+            {/* Hamburger : ouvre le drawer mobile (caché sur md+) */}
+            <button
+              onClick={() => setCollapsed(false)}
+              className="md:hidden grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white hover:bg-white/10 shrink-0"
+              aria-label="Ouvrir le menu"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {/* Breadcrumb (caché sur très petit écran pour économiser la place) */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold min-w-0">
               {breadcrumb.map((seg, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   {i > 0 && <span className="text-white/30">/</span>}
@@ -418,7 +446,7 @@ export function AdminShell() {
             </div>
 
             {/* Search */}
-            <div className="flex flex-1 max-w-md items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+            <div className="hidden md:flex flex-1 max-w-md items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
               <Search size={14} className="text-white/40 shrink-0" />
               <input
                 value={searchValue}
@@ -464,7 +492,7 @@ export function AdminShell() {
         </header>
 
         {/* Page */}
-        <main className="mx-auto w-full max-w-7xl px-6 py-6">
+        <main className="mx-auto w-full max-w-7xl px-4 md:px-6 py-4 md:py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <Outlet />
         </main>
       </div>

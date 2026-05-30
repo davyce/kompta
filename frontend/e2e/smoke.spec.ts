@@ -38,6 +38,22 @@ test("accès sans session → formulaire de login", async ({ page, context }) =>
   await expect(page.locator('input[type="password"]').first()).toBeVisible({ timeout: 10_000 });
 });
 
+test("super-admin login → redirige sur /admin", async ({ page }) => {
+  await page.goto("/");
+  const pwd = page.locator('input[type="password"]').first();
+  // Si déjà connecté en non-super-admin, on déconnecte d'abord
+  if (!(await pwd.isVisible().catch(() => false))) {
+    await page.evaluate(() => window.localStorage.clear());
+    await page.goto("/");
+  }
+  await page.locator('input[type="text"], input:not([type])').first().fill("superadmin@kompta.io");
+  await pwd.fill("super2026");
+  await page.getByRole("button", { name: /entrer dans kompta/i }).click();
+  await expect(page).toHaveURL(/\/admin/, { timeout: 12_000 });
+  // Doit afficher l'interface admin (mot "SUPER ADMIN" présent dans le sidebar)
+  await expect(page.locator("body")).toContainText(/super admin/i, { timeout: 5_000 });
+});
+
 test("URL inconnue → page 404", async ({ page }) => {
   await ensureLoggedIn(page);
   await page.goto("/cette-route-nexiste-pas-xyz");

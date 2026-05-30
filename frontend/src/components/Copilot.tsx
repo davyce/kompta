@@ -737,7 +737,7 @@ export function Copilot() {
   /* ── Layout ─────────────────────────────────────────────────────────────── */
   const panelCls = fullscreen
     ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]"
-    : "fixed bottom-24 right-5 z-40 flex h-[38rem] w-[calc(100vw-2rem)] max-w-[26rem] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]";
+    : "fixed right-5 z-40 flex h-[min(38rem,calc(100vh-12rem))] w-[calc(100vw-2rem)] max-w-[26rem] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229] bottom-[calc(9rem+env(safe-area-inset-bottom))] lg:bottom-24";
 
   const suggestions = PAGE_SUGGESTIONS[location.pathname] ?? DEFAULT_CHIPS;
   const pinnedMsgs = messages.filter((m) => pinnedIds.has(m.id));
@@ -750,7 +750,7 @@ export function Copilot() {
   return (
     <>
       {/* ── FAB avec badge alerte (#11) ──────────────────────────────────── */}
-      <div className="fixed bottom-5 right-5 z-30">
+      <div className="fixed right-5 z-30 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5">
         <button
           onClick={() => setOpen(true)}
           className="relative rounded-full p-0 transition hover:scale-[1.06] focus:outline-none"

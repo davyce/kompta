@@ -24,7 +24,7 @@ export function ToastStack({
 }) {
   if (!toasts.length) return null;
   return (
-    <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 w-80">
+    <div className="fixed right-5 z-[100] flex flex-col gap-2 w-[calc(100vw-2.5rem)] max-w-80 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5">
       {toasts.map((t) => {
         const Icon = TONE_ICONS[t.tone];
         return (

@@ -365,7 +365,7 @@ export function PosPage() {
 
       {/* Mobile floating cart button */}
       {cart.length > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 xl:hidden">
+        <div className="fixed left-1/2 -translate-x-1/2 z-40 xl:hidden bottom-[calc(5rem+env(safe-area-inset-bottom))]">
           <button
             onClick={() => document.getElementById("pos-cart")?.scrollIntoView({ behavior: "smooth" })}
             className="flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-emerald-700"

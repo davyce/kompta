@@ -91,6 +91,7 @@ function LimuleStatus() {
 
 /* ─── Role-based access control ──────────────────────────────────────────── */
 const ROLE_ROUTES: Record<string, string[]> = {
+  super_admin: ["*"],   // accès complet (mais redirigé vers /admin via AuthContext)
   admin_entreprise: ["*"],
   manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/audit", "/settings", "/safe-mode", "/help"],
   comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
@@ -293,6 +294,15 @@ export function Shell() {
       navigate("/activation");
     }
   }, [location.pathname, navigate, user?.must_change_password]);
+
+  // Super-admin → toujours sur l'AdminShell, quel que soit le point d'entrée
+  // (reload, navigation directe, etc.). Sans cette redirection, le super-admin
+  // restauré depuis le localStorage atterrit sur Shell normal et perd ses menus.
+  useEffect(() => {
+    if (user?.role === "super_admin" && !location.pathname.startsWith("/admin")) {
+      navigate("/admin", { replace: true });
+    }
+  }, [user?.role, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -674,13 +684,14 @@ export function Shell() {
             </div>
           </div>
         </header>
-        <main className={`mx-auto w-full max-w-7xl px-4 pb-24 lg:pb-7 md:px-6 ${compact ? "py-3 md:py-4" : "py-5 md:py-7"}`}>
+        {/* pb-[calc(...)] = hauteur nav + safe-area iOS, garantit qu'aucun contenu n'est masqué */}
+        <main className={`mx-auto w-full max-w-7xl px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-7 md:px-6 ${compact ? "py-3 md:py-4" : "py-5 md:py-7"}`}>
           <Outlet />
         </main>
       </div>
 
-      {/* ── Mobile bottom navigation bar — adapté au rôle ── */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2">
+      {/* ── Mobile bottom navigation bar — adapté au rôle (safe-area iPhone notch) ── */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2 pb-[env(safe-area-inset-bottom)]">
         {(user?.role === "membre_groupe"
           ? [
               { to: "/",        icon: LayoutDashboard, label: "Accueil"  },
@@ -703,7 +714,7 @@ export function Shell() {
             end={to === "/"}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition text-xs font-semibold ${
+              `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl transition text-[10px] sm:text-xs font-semibold min-w-0 flex-1 ${
                 isActive
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white"
@@ -713,17 +724,17 @@ export function Shell() {
             {({ isActive }) => (
               <>
                 <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                <span>{label}</span>
+                <span className="truncate w-full text-center">{label}</span>
               </>
             )}
           </NavLink>
         ))}
         <button
           onClick={() => setPaletteOpen(true)}
-          className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl text-xs font-semibold text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white transition"
+          className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[10px] sm:text-xs font-semibold text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white transition min-w-0 flex-1"
         >
           <Search size={20} strokeWidth={2} />
-          <span>Recherche</span>
+          <span className="truncate w-full text-center">Recherche</span>
         </button>
       </nav>
 

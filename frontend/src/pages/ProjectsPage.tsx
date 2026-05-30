@@ -1081,7 +1081,7 @@ export function ProjectsPage() {
       <button
         onClick={() => navigate("/assistants")}
         title="Ouvrir le studio Limule"
-        className="fixed bottom-6 right-6 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#0b1f3a] shadow-lg transition hover:scale-105 hover:shadow-xl"
+        className="fixed right-6 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#0b1f3a] shadow-lg transition hover:scale-105 hover:shadow-xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       >
         <LimuleIcon size={24} />
       </button>

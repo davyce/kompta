@@ -97,8 +97,8 @@ export function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-canvas">
-      <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+    <main className="min-h-dvh bg-canvas">
+      <div className="grid min-h-dvh lg:grid-cols-[1.05fr_0.95fr]">
         {/* ── Colonne gauche : panel marketing ────────────────────────── */}
         <section className="hidden lg:flex flex-col justify-between bg-ink p-10 text-white">
           {/* Header */}
