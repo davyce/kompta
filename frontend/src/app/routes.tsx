@@ -42,6 +42,25 @@ const NotFoundPage        = lazy(() => import("../pages/NotFoundPage").then(m =>
 const AnalyticsPage       = lazy(() => import("../pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
 const AgendaFiscalPage    = lazy(() => import("../pages/AgendaFiscalPage").then(m => ({ default: m.AgendaFiscalPage })));
 
+// ── Groups module ──────────────────────────────────────────────────────────
+const GroupsListPage        = lazy(() => import("../pages/groups/GroupsListPage").then(m => ({ default: m.GroupsListPage })));
+const GroupLayout           = lazy(() => import("../pages/groups/GroupLayout").then(m => ({ default: m.GroupLayout })));
+const GroupDashboardPage    = lazy(() => import("../pages/groups/GroupDashboardPage").then(m => ({ default: m.GroupDashboardPage })));
+const GroupMembersPage      = lazy(() => import("../pages/groups/GroupMembersPage").then(m => ({ default: m.GroupMembersPage })));
+const GroupContributionsPage = lazy(() => import("../pages/groups/GroupContributionsPage").then(m => ({ default: m.GroupContributionsPage })));
+const GroupTransactionsPage = lazy(() => import("../pages/groups/GroupTransactionsPage").then(m => ({ default: m.GroupTransactionsPage })));
+const GroupExpensesPage     = lazy(() => import("../pages/groups/GroupExpensesPage").then(m => ({ default: m.GroupExpensesPage })));
+const GroupCalendarPage     = lazy(() => import("../pages/groups/GroupCalendarPage").then(m => ({ default: m.GroupCalendarPage })));
+const GroupMeetingsPage     = lazy(() => import("../pages/groups/GroupMeetingsPage").then(m => ({ default: m.GroupMeetingsPage })));
+const GroupBirthdaysPage    = lazy(() => import("../pages/groups/GroupBirthdaysPage").then(m => ({ default: m.GroupBirthdaysPage })));
+const GroupChatPage         = lazy(() => import("../pages/groups/GroupChatPage").then(m => ({ default: m.GroupChatPage })));
+const GroupDocumentsPage    = lazy(() => import("../pages/groups/GroupDocumentsPage").then(m => ({ default: m.GroupDocumentsPage })));
+const GroupVotesPage        = lazy(() => import("../pages/groups/GroupVotesPage").then(m => ({ default: m.GroupVotesPage })));
+const GroupLeadershipPage   = lazy(() => import("../pages/groups/GroupLeadershipPage").then(m => ({ default: m.GroupLeadershipPage })));
+const GroupAIAssistantPage  = lazy(() => import("../pages/groups/GroupAIAssistantPage").then(m => ({ default: m.GroupAIAssistantPage })));
+const GroupReportsPage      = lazy(() => import("../pages/groups/GroupReportsPage").then(m => ({ default: m.GroupReportsPage })));
+const GroupSettingsPage     = lazy(() => import("../pages/groups/GroupSettingsPage").then(m => ({ default: m.GroupSettingsPage })));
+
 // ── Lazy admin page imports ────────────────────────────────────────────────
 const AdminCompaniesPage    = lazy(() => import("../admin/pages/AdminCompaniesPage").then(m => ({ default: m.AdminCompaniesPage })));
 const AdminCompanyDetailPage = lazy(() => import("../admin/pages/AdminCompanyDetailPage").then(m => ({ default: m.AdminCompanyDetailPage })));
@@ -167,6 +186,29 @@ export const router = createBrowserRouter([
       { path: "audit",                 element: <LazyRoute page={AuditLogsPage} /> },
       { path: "analytics",             element: <LazyRoute page={AnalyticsPage} /> },
       { path: "fiscal",                element: <LazyRoute page={AgendaFiscalPage} /> },
+      { path: "groups",                element: <LazyRoute page={GroupsListPage} /> },
+      {
+        path: "groups/:groupId",
+        element: <Suspense fallback={<div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}><GroupLayout /></Suspense>,
+        children: [
+          { index: true,               element: <LazyRoute page={GroupDashboardPage} /> },
+          { path: "dashboard",         element: <LazyRoute page={GroupDashboardPage} /> },
+          { path: "members",           element: <LazyRoute page={GroupMembersPage} /> },
+          { path: "contributions",     element: <LazyRoute page={GroupContributionsPage} /> },
+          { path: "transactions",      element: <LazyRoute page={GroupTransactionsPage} /> },
+          { path: "expenses",          element: <LazyRoute page={GroupExpensesPage} /> },
+          { path: "calendar",          element: <LazyRoute page={GroupCalendarPage} /> },
+          { path: "meetings",          element: <LazyRoute page={GroupMeetingsPage} /> },
+          { path: "birthdays",         element: <LazyRoute page={GroupBirthdaysPage} /> },
+          { path: "chat",              element: <LazyRoute page={GroupChatPage} /> },
+          { path: "documents",         element: <LazyRoute page={GroupDocumentsPage} /> },
+          { path: "votes",             element: <LazyRoute page={GroupVotesPage} /> },
+          { path: "leadership",        element: <LazyRoute page={GroupLeadershipPage} /> },
+          { path: "ai-assistant",      element: <LazyRoute page={GroupAIAssistantPage} /> },
+          { path: "reports",           element: <LazyRoute page={GroupReportsPage} /> },
+          { path: "settings",          element: <LazyRoute page={GroupSettingsPage} /> },
+        ],
+      },
       { path: "*",                     element: <LazyRoute page={NotFoundPage} /> },
     ]
   }

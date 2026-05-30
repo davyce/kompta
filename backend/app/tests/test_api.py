@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
 
@@ -110,7 +111,9 @@ def test_core_product_flow() -> None:
             },
         )
         assert invoice.status_code == 201
-        assert invoice.json()["total_amount"] == 50
+        # Depuis l'ajout de la TVA : 2×25 = 50 HT, TVA 18% = 9, TTC = 59
+        assert invoice.json()["subtotal"] == 50
+        assert invoice.json()["total_amount"] == 59
         paid_invoice = client.post(
             f"/api/invoices/{invoice.json()['id']}/pay",
             headers=headers,
@@ -184,7 +187,9 @@ def test_collaboration_payroll_teras_flow() -> None:
         assert deleted.status_code == 200
         audit = client.get("/api/audit-logs?limit=20", headers=headers)
         assert audit.status_code == 200
-        actions = [item["action"] for item in audit.json()]
+        _audit_body = audit.json()
+        _audit_items = _audit_body["items"] if isinstance(_audit_body, dict) else _audit_body
+        actions = [item["action"] for item in _audit_items]
         assert "task_updated" in actions
         assert "task_deleted" in actions
 
@@ -345,7 +350,9 @@ def test_company_registration_and_workspace_reset_flow() -> None:
 
         empty_employees = client.get("/api/employees", headers=headers)
         assert empty_employees.status_code == 200
-        assert empty_employees.json() == []
+        _emp_body = empty_employees.json()
+        _emp_items = _emp_body["items"] if isinstance(_emp_body, dict) else _emp_body
+        assert _emp_items == []
 
         product = client.post(
             "/api/products",

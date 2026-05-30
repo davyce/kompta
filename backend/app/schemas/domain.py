@@ -13,6 +13,7 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    totp_code: str | None = None  # requis si le compte a activé le 2FA
 
 
 class CompanyRegistrationRequest(BaseModel):
@@ -315,6 +316,7 @@ class InvoiceLineCreate(BaseModel):
     description: str
     quantity: int = Field(default=1, gt=0)
     unit_price: float = Field(default=0, ge=0)
+    tax_rate: float = Field(default=18.0, ge=0, le=100)  # taux TVA % (CEMAC 18%)
 
 
 class InvoiceCreate(BaseModel):
@@ -332,6 +334,7 @@ class InvoiceLineRead(BaseModel):
     description: str
     quantity: int
     unit_price: float
+    tax_rate: float = 18.0
     total: float
 
 
@@ -343,7 +346,9 @@ class InvoiceRead(BaseModel):
     customer_name: str
     customer_email: str | None = None
     status: str
-    total_amount: float
+    subtotal: float = 0      # total HT
+    tax_amount: float = 0    # total TVA
+    total_amount: float      # total TTC
     due_date: date | None
     payment_method: str = ""
     payment_account_id: int | None = None
@@ -490,8 +495,23 @@ class MessageRead(BaseModel):
     body: str
     mentions: str
     ai_suggestion: str
+    ai_action: dict | None = None   # action structurée Limule (parsed depuis ai_action_json)
     company_id: int
     created_at: datetime
+
+    @classmethod
+    def from_orm_with_action(cls, msg: object) -> "MessageRead":
+        import json
+        data = {c: getattr(msg, c) for c in [
+            "id", "channel_id", "author_id", "author_name", "body",
+            "mentions", "ai_suggestion", "company_id", "created_at",
+        ]}
+        raw = getattr(msg, "ai_action_json", "") or ""
+        try:
+            data["ai_action"] = json.loads(raw) if raw else None
+        except Exception:
+            data["ai_action"] = None
+        return cls(**data)
 
 
 class EmployeePayrollOverride(BaseModel):

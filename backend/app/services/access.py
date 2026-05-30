@@ -266,6 +266,9 @@ def change_first_login_password(db: Session, *, user: User, current_password: st
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
     user.account_status = "active"
+    # NB : on ne bump PAS token_version ici — l'activation se fait en session,
+    # révoquer le jeton courant casserait le flux. La révocation se fait au logout
+    # explicite et lors d'une réinitialisation administrateur (reset-access).
     user.activated_at = datetime.now(timezone.utc)
     user.last_login_at = datetime.now(timezone.utc)
     employee = db.get(Employee, user.employee_id) if user.employee_id else None

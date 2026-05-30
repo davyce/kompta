@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -27,6 +27,12 @@ class Company(TimestampMixin, Base):
     completion_score: Mapped[int] = mapped_column(Integer, default=72)
     teras_score: Mapped[int] = mapped_column(Integer, default=81)
     status: Mapped[str] = mapped_column(String(40), default="active")  # active | suspended
+    # Compteurs de numérotation persistants (jamais dérivés de COUNT → ni collision ni réutilisation)
+    invoice_seq: Mapped[int] = mapped_column(Integer, default=0)
+    sale_seq: Mapped[int] = mapped_column(Integer, default=0)
+    # Moteur comptable : "simple" (petit commerce, écritures auto invisibles) | "full" (SYSCOHADA visible)
+    accounting_mode: Mapped[str] = mapped_column(String(20), default="simple")
+    accounting_seq: Mapped[int] = mapped_column(Integer, default=0)  # n° séquentiel des écritures
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
 
@@ -52,6 +58,9 @@ class User(TimestampMixin, Base):
     employee_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"), nullable=True)
     totp_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Révocation de jetons : tout token porte cette version ; l'incrémenter
+    # (logout, suspension, changement de mot de passe) invalide tous les jetons émis avant.
+    token_version: Mapped[int] = mapped_column(Integer, default=0)
 
     company: Mapped[Company] = relationship(back_populates="users")
     messages: Mapped[list["Message"]] = relationship(back_populates="author")
@@ -70,7 +79,8 @@ class Employee(TimestampMixin, Base):
     department: Mapped[str] = mapped_column(String(120), default="Operations")
     branch: Mapped[str] = mapped_column(String(120), default="Siege")
     manager_name: Mapped[str] = mapped_column(String(160), default="")
-    salary: Mapped[float] = mapped_column(Float, default=0)
+    salary: Mapped[float] = mapped_column(Float, default=0)   # DEPRECATED — utiliser salary_cents
+    salary_cents: Mapped[int] = mapped_column(BigInteger, default=0)  # source de vérité exacte
     salary_currency: Mapped[str] = mapped_column(String(10), default="XAF")
     status: Mapped[str] = mapped_column(String(40), default="active")
     account_status: Mapped[str] = mapped_column(String(40), default="draft")
@@ -239,6 +249,7 @@ class Product(TimestampMixin, Base):
     brand: Mapped[str] = mapped_column(String(100), default="KOMPTA")
     variant: Mapped[str] = mapped_column(String(100), default="Standard")
     price: Mapped[float] = mapped_column(Float, default=0)
+    price_cents: Mapped[int] = mapped_column(BigInteger, default=0)  # source de vérité exacte
     currency: Mapped[str] = mapped_column(String(10), default="XAF")
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0)
     reorder_level: Mapped[int] = mapped_column(Integer, default=5)
@@ -288,7 +299,12 @@ class Invoice(TimestampMixin, Base):
     customer_name: Mapped[str] = mapped_column(String(160))
     customer_email: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(40), default="draft")
-    total_amount: Mapped[float] = mapped_column(Float, default=0)
+    subtotal: Mapped[float] = mapped_column(Float, default=0)             # HT (Float compat)
+    tax_amount: Mapped[float] = mapped_column(Float, default=0)           # TVA (Float compat)
+    total_amount: Mapped[float] = mapped_column(Float, default=0)         # TTC (Float compat)
+    subtotal_cents: Mapped[int] = mapped_column(BigInteger, default=0)    # HT exact (centimes)
+    tax_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)  # TVA exacte
+    total_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)# TTC exact
     currency: Mapped[str] = mapped_column(String(10), default="XAF")
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     payment_method: Mapped[str] = mapped_column(String(80), default="")
@@ -310,7 +326,10 @@ class InvoiceLine(Base):
     description: Mapped[str] = mapped_column(String(180))
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     unit_price: Mapped[float] = mapped_column(Float, default=0)
+    unit_price_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    tax_rate: Mapped[float] = mapped_column(Float, default=18.0)
     total: Mapped[float] = mapped_column(Float, default=0)
+    total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
 
     invoice: Mapped[Invoice] = relationship(back_populates="lines")
 
@@ -324,6 +343,7 @@ class Sale(TimestampMixin, Base):
     payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
     payment_account_label: Mapped[str] = mapped_column(String(160), default="")
     total_amount: Mapped[float] = mapped_column(Float, default=0)
+    total_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     status: Mapped[str] = mapped_column(String(40), default="paid")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
@@ -339,7 +359,9 @@ class SaleItem(Base):
     product_name: Mapped[str] = mapped_column(String(160))
     quantity: Mapped[int] = mapped_column(Integer)
     unit_price: Mapped[float] = mapped_column(Float)
+    unit_price_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     line_total: Mapped[float] = mapped_column(Float)
+    line_total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
 
     sale: Mapped[Sale] = relationship(back_populates="items")
 
@@ -380,7 +402,8 @@ class Message(TimestampMixin, Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     body: Mapped[str] = mapped_column(Text)
     mentions: Mapped[str] = mapped_column(String(255), default="")
-    ai_suggestion: Mapped[str] = mapped_column(String(255), default="")
+    ai_suggestion: Mapped[str] = mapped_column(String(512), default="")
+    ai_action_json: Mapped[str] = mapped_column(Text, default="")   # JSON structuré de l'action Limule
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     channel: Mapped[ChatChannel] = relationship(back_populates="messages")
@@ -399,6 +422,8 @@ class PayrollRun(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(40), default="draft")
     gross_total: Mapped[float] = mapped_column(Float, default=0)
     net_total: Mapped[float] = mapped_column(Float, default=0)
+    gross_total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    net_total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
     payment_account_label: Mapped[str] = mapped_column(String(160), default="")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
@@ -416,11 +441,15 @@ class Payslip(TimestampMixin, Base):
     gross_pay: Mapped[float] = mapped_column(Float)
     deductions: Mapped[float] = mapped_column(Float)
     net_pay: Mapped[float] = mapped_column(Float)
+    gross_pay_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    deductions_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    net_pay_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     reference: Mapped[str] = mapped_column(String(80), unique=True)
     payout_method: Mapped[str] = mapped_column(String(40), default="")
     payout_destination: Mapped[str] = mapped_column(String(180), default="")
     payout_status: Mapped[str] = mapped_column(String(40), default="pending")
     bonus: Mapped[float] = mapped_column(Float, default=0)
+    bonus_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     overtime_pay: Mapped[float] = mapped_column(Float, default=0)
     absence_deduction: Mapped[float] = mapped_column(Float, default=0)
 
@@ -778,3 +807,392 @@ class FeatureFlag(TimestampMixin, Base):
     value: Mapped[str] = mapped_column(String(500), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MOTEUR COMPTABLE — partie double (SYSCOHADA-lite)
+# Montants en CENTIMES ENTIERS (minor units) : exactitude garantie, pas de Float.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class Account(TimestampMixin, Base):
+    """Compte du plan comptable (classe SYSCOHADA 1 à 7)."""
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    code: Mapped[str] = mapped_column(String(20), index=True)     # ex. "411", "70", "443", "571"
+    name: Mapped[str] = mapped_column(String(160))
+    # type normalisé : asset|liability|equity|revenue|expense
+    type: Mapped[str] = mapped_column(String(20))
+    syscohada_class: Mapped[int] = mapped_column(Integer, default=0)  # 1..7
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class JournalEntry(TimestampMixin, Base):
+    """En-tête d'écriture comptable. Σ débits = Σ crédits (garanti au posting)."""
+    __tablename__ = "journal_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    reference: Mapped[str] = mapped_column(String(40), index=True)   # EC-YYYY-NNNNN
+    entry_date: Mapped[date] = mapped_column(Date, default=date.today)
+    label: Mapped[str] = mapped_column(String(255), default="")
+    source_type: Mapped[str] = mapped_column(String(40), default="manual")  # sale|invoice_payment|group_contribution|group_expense|payroll|manual
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)  # total débit (= total crédit)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    posted: Mapped[bool] = mapped_column(Boolean, default=True)
+    reversed_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"), nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    lines: Mapped[list["JournalLine"]] = relationship(cascade="all, delete-orphan", back_populates="entry")
+
+
+class JournalLine(Base):
+    """Ligne d'écriture : un compte, un débit OU un crédit (en centimes)."""
+    __tablename__ = "journal_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey("journal_entries.id"), index=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
+    account_code: Mapped[str] = mapped_column(String(20), default="")
+    label: Mapped[str] = mapped_column(String(255), default="")
+    debit_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    credit_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    entry: Mapped[JournalEntry] = relationship(back_populates="lines")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE GROUPES & ORGANISATIONS — fondation (G1)
+# Rattaché à company_id pour réutiliser le multi-tenant + l'auth existants.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class OrganizationGroup(TimestampMixin, Base):
+    """Groupe / organisation : association, tontine, mutuelle, ONG, club…"""
+    __tablename__ = "organization_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160), index=True)
+    type: Mapped[str] = mapped_column(String(40), default="association")
+    description: Mapped[str] = mapped_column(Text, default="")
+    logo: Mapped[str] = mapped_column(String(255), default="")
+    country: Mapped[str] = mapped_column(String(80), default="Congo")
+    city: Mapped[str] = mapped_column(String(120), default="")
+    address: Mapped[str] = mapped_column(String(255), default="")
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    default_language: Mapped[str] = mapped_column(String(10), default="fr")
+    linked_company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="active")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class GroupMember(TimestampMixin, Base):
+    __tablename__ = "group_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    full_name: Mapped[str] = mapped_column(String(160))
+    phone: Mapped[str] = mapped_column(String(40), default="")
+    email: Mapped[str] = mapped_column(String(255), default="")
+    photo: Mapped[str] = mapped_column(String(255), default="")
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    joined_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="active")
+    member_number: Mapped[str] = mapped_column(String(40), default="")
+    zone: Mapped[str] = mapped_column(String(120), default="")
+    profession: Mapped[str] = mapped_column(String(120), default="")
+    emergency_contact: Mapped[str] = mapped_column(String(160), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class GroupRole(TimestampMixin, Base):
+    __tablename__ = "group_roles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    permissions: Mapped[str] = mapped_column(Text, default="[]")  # JSON liste de clés de permission
+
+
+class GroupMemberRole(TimestampMixin, Base):
+    """Affectation d'un rôle interne à un membre (un membre peut avoir plusieurs rôles)."""
+    __tablename__ = "group_member_roles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("group_members.id"), index=True)
+    role_id: Mapped[int] = mapped_column(ForeignKey("group_roles.id"))
+    role_name: Mapped[str] = mapped_column(String(80), default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    assigned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    reason: Mapped[str] = mapped_column(String(255), default="")
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class GroupLeadershipHistory(TimestampMixin, Base):
+    """Historique des mandats du bureau : conserve chaque composition du directoire."""
+    __tablename__ = "group_leadership_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    president_member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    vice_president_member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    secretary_member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    treasurer_member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    mandate_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    mandate_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    elected_by: Mapped[str] = mapped_column(String(160), default="")
+    election_notes: Mapped[str] = mapped_column(Text, default="")
+    official_document: Mapped[str] = mapped_column(String(255), default="")
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class GroupAuditLog(TimestampMixin, Base):
+    """Traçabilité des actions sensibles d'un groupe (rôles, bureau, finances)."""
+    __tablename__ = "group_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(60))
+    target_type: Mapped[str] = mapped_column(String(60), default="")
+    target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    old_value: Mapped[str] = mapped_column(Text, default="")
+    new_value: Mapped[str] = mapped_column(Text, default="")
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE GROUPES — G2 : Cotisations, paiements, caisse, dépenses
+# Montants en CENTIMES ENTIERS (cohérent avec le moteur comptable).
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ContributionPlan(TimestampMixin, Base):
+    """Plan de cotisation : définit montant, fréquence, échéance, membres cibles."""
+    __tablename__ = "group_contribution_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)   # montant dû en centimes
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    frequency: Mapped[str] = mapped_column(String(20), default="mensuelle")  # unique|hebdomadaire|mensuelle|trimestrielle|annuelle|personnalisee
+    due_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # jour du mois (1-31) pour échéance mensuelle
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    is_mandatory: Mapped[bool] = mapped_column(Boolean, default=True)
+    target_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)  # objectif total
+    status: Mapped[str] = mapped_column(String(40), default="active")   # active|paused|closed
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class ContributionPayment(TimestampMixin, Base):
+    """Paiement (complet, partiel, en retard) d'un membre pour un plan de cotisation."""
+    __tablename__ = "group_contribution_payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("group_members.id"), index=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("group_contribution_plans.id"), index=True)
+    amount_due_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    amount_paid_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    late_fee_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    payment_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(40), default="cash")
+    transaction_reference: Mapped[str] = mapped_column(String(120), default="")
+    status: Mapped[str] = mapped_column(String(40), default="pending")  # paid|partial|late|cancelled|refunded|pending
+    proof_file: Mapped[str] = mapped_column(String(255), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    recorded_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    validated_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Lien vers l'écriture comptable générée automatiquement
+    journal_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"), nullable=True)
+
+
+class GroupTransaction(TimestampMixin, Base):
+    """Toutes les entrées/sorties financières de la caisse du groupe."""
+    __tablename__ = "group_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    type: Mapped[str] = mapped_column(String(20), default="in")   # in|out|internal_transfer|adjustment|refund
+    category: Mapped[str] = mapped_column(String(80), default="")
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    description: Mapped[str] = mapped_column(String(255), default="")
+    transaction_date: Mapped[date] = mapped_column(Date, default=date.today)
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    contribution_payment_id: Mapped[int | None] = mapped_column(ForeignKey("group_contribution_payments.id"), nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(40), default="cash")
+    reference: Mapped[str] = mapped_column(String(120), default="")
+    status: Mapped[str] = mapped_column(String(40), default="confirmed")  # confirmed|pending|cancelled
+    attachment: Mapped[str] = mapped_column(String(255), default="")
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    validated_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    journal_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"), nullable=True)
+
+
+class GroupExpense(TimestampMixin, Base):
+    """Dépense du groupe (validée par bureau avant paiement)."""
+    __tablename__ = "group_expenses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    category: Mapped[str] = mapped_column(String(80), default="")
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    expense_date: Mapped[date] = mapped_column(Date, default=date.today)
+    paid_to: Mapped[str] = mapped_column(String(160), default="")
+    payment_method: Mapped[str] = mapped_column(String(40), default="cash")
+    proof_file: Mapped[str] = mapped_column(String(255), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(40), default="pending")  # pending|approved|paid|cancelled
+    approved_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    journal_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"), nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE GROUPES — G3 : Réunions, activités, calendrier, anniversaires, votes
+# ═══════════════════════════════════════════════════════════════════════════
+
+class GroupMeeting(TimestampMixin, Base):
+    __tablename__ = "group_meetings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    start_datetime: Mapped[datetime] = mapped_column(DateTime)
+    end_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    meeting_type: Mapped[str] = mapped_column(String(40), default="ordinaire")  # ordinaire|extraordinaire|bilan|election
+    agenda: Mapped[str] = mapped_column(Text, default="")
+    minutes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(40), default="scheduled")  # scheduled|done|cancelled
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class GroupActivity(TimestampMixin, Base):
+    __tablename__ = "group_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    activity_type: Mapped[str] = mapped_column(String(80), default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    start_datetime: Mapped[datetime] = mapped_column(DateTime)
+    end_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    budget_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    responsible_member_id: Mapped[int | None] = mapped_column(ForeignKey("group_members.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="planned")
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class GroupReminder(TimestampMixin, Base):
+    __tablename__ = "group_reminders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    target_type: Mapped[str] = mapped_column(String(40), default="")  # meeting|payment|activity|birthday|custom
+    target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    title: Mapped[str] = mapped_column(String(160))
+    message: Mapped[str] = mapped_column(Text, default="")
+    remind_at: Mapped[datetime] = mapped_column(DateTime)
+    channels: Mapped[str] = mapped_column(String(120), default="app")  # JSON list: app,email,sms
+    status: Mapped[str] = mapped_column(String(40), default="pending")  # pending|sent|cancelled
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class GroupVote(TimestampMixin, Base):
+    __tablename__ = "group_votes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    options: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    start_datetime: Mapped[datetime] = mapped_column(DateTime)
+    end_datetime: Mapped[datetime] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(40), default="open")  # open|closed|cancelled
+    visibility: Mapped[str] = mapped_column(String(40), default="members")
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class GroupVoteResponse(TimestampMixin, Base):
+    __tablename__ = "group_vote_responses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    vote_id: Mapped[int] = mapped_column(ForeignKey("group_votes.id"), index=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("group_members.id"), index=True)
+    selected_option: Mapped[str] = mapped_column(String(160))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE GROUPES — G4 : Chat, médias, documents
+# ═══════════════════════════════════════════════════════════════════════════
+
+class GroupChatRoom(TimestampMixin, Base):
+    __tablename__ = "group_chat_rooms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    type: Mapped[str] = mapped_column(String(40), default="general")  # general|bureau|finance|event|private
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    messages: Mapped[list["GroupChatMessage"]] = relationship(
+        back_populates="room", cascade="all, delete-orphan"
+    )
+
+
+class GroupChatMessage(TimestampMixin, Base):
+    __tablename__ = "group_chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("group_chat_rooms.id"), index=True)
+    sender_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    sender_name: Mapped[str] = mapped_column(String(160), default="")
+    content: Mapped[str] = mapped_column(Text, default="")
+    message_type: Mapped[str] = mapped_column(String(40), default="text")
+    # text|image|video|audio|document|gif|system|payment_alert|meeting_alert|ai_summary
+    media_url: Mapped[str] = mapped_column(String(512), default="")
+    gif_url: Mapped[str] = mapped_column(String(512), default="")
+    reply_to_id: Mapped[int | None] = mapped_column(ForeignKey("group_chat_messages.id"), nullable=True)
+    reactions: Mapped[str] = mapped_column(Text, default="{}")  # JSON {"👍":2,"❤️":1}
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ai_suggestion: Mapped[str] = mapped_column(String(512), default="")
+
+    room: Mapped[GroupChatRoom] = relationship(back_populates="messages")
+
+
+class GroupDocument(TimestampMixin, Base):
+    __tablename__ = "group_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("organization_groups.id"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    filename: Mapped[str] = mapped_column(String(255), default="")
+    storage_path: Mapped[str] = mapped_column(String(512), default="")
+    category: Mapped[str] = mapped_column(String(80), default="autre")
+    # statut|reglement|rapport_financier|pv|recu|facture|contrat|preuve_paiement|autre
+    uploaded_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    visibility: Mapped[str] = mapped_column(String(40), default="members")  # members|bureau|public
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    mime_type: Mapped[str] = mapped_column(String(120), default="")

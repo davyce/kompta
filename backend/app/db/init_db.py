@@ -54,6 +54,7 @@ def ensure_sqlite_migrations() -> None:
             "employee_id": "INTEGER",
             "totp_secret": "VARCHAR(64)",
             "totp_enabled": "BOOLEAN DEFAULT 0",
+            "token_version": "INTEGER DEFAULT 0",
         },
         "employees": {
             "phone": "VARCHAR(40) DEFAULT ''",
@@ -72,7 +73,14 @@ def ensure_sqlite_migrations() -> None:
                 "payout_paypal_email": "VARCHAR(255) DEFAULT ''",
             },
         "invoices": {
+            "customer_email": "VARCHAR(255)",
+            "currency": "VARCHAR(10) DEFAULT 'XAF'",
+            "subtotal": "FLOAT DEFAULT 0",
+            "tax_amount": "FLOAT DEFAULT 0",
             "payment_method": "VARCHAR(80) DEFAULT ''",
+        },
+        "invoice_lines": {
+            "tax_rate": "FLOAT DEFAULT 18.0",
             "payment_account_id": "INTEGER",
             "payment_account_label": "VARCHAR(160) DEFAULT ''",
             "paid_at": "DATETIME",
@@ -86,14 +94,8 @@ def ensure_sqlite_migrations() -> None:
         "payroll_runs": {
             "payment_account_id": "INTEGER",
             "payment_account_label": "VARCHAR(160) DEFAULT ''",
-        },
-        "payslips": {
-            "payout_method": "VARCHAR(40) DEFAULT ''",
-            "payout_destination": "VARCHAR(180) DEFAULT ''",
-            "payout_status": "VARCHAR(40) DEFAULT 'pending'",
-            "bonus": "FLOAT DEFAULT 0",
-            "overtime_pay": "FLOAT DEFAULT 0",
-            "absence_deduction": "FLOAT DEFAULT 0",
+            "gross_total_cents": "INTEGER DEFAULT 0",
+            "net_total_cents": "INTEGER DEFAULT 0",
         },
         "meetings": {
             "agenda": "TEXT DEFAULT ''",
@@ -125,11 +127,78 @@ def ensure_sqlite_migrations() -> None:
         },
         "companies": {
             "status": "VARCHAR(40) DEFAULT 'active'",
+            "invoice_seq": "INTEGER DEFAULT 0",
+            "sale_seq": "INTEGER DEFAULT 0",
+            "accounting_mode": "VARCHAR(20) DEFAULT 'simple'",
+            "accounting_seq": "INTEGER DEFAULT 0",
         },
+        # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
+        "products": {
+            "price_cents": "INTEGER DEFAULT 0",
+        },
+        "invoices": {
+            "subtotal_cents": "INTEGER DEFAULT 0",
+            "tax_amount_cents": "INTEGER DEFAULT 0",
+            "total_amount_cents": "INTEGER DEFAULT 0",
+        },
+        "invoice_lines": {
+            "tax_rate": "FLOAT DEFAULT 18.0",
+            "unit_price_cents": "INTEGER DEFAULT 0",
+            "total_cents": "INTEGER DEFAULT 0",
+        },
+        "sales": {
+            "total_amount_cents": "INTEGER DEFAULT 0",
+        },
+        "sale_items": {
+            "unit_price_cents": "INTEGER DEFAULT 0",
+            "line_total_cents": "INTEGER DEFAULT 0",
+        },
+        "payslips": {
+            "payout_method": "VARCHAR(40) DEFAULT ''",
+            "payout_destination": "VARCHAR(180) DEFAULT ''",
+            "payout_status": "VARCHAR(40) DEFAULT 'pending'",
+            "bonus": "FLOAT DEFAULT 0",
+            "overtime_pay": "FLOAT DEFAULT 0",
+            "absence_deduction": "FLOAT DEFAULT 0",
+            "gross_pay_cents": "INTEGER DEFAULT 0",
+            "deductions_cents": "INTEGER DEFAULT 0",
+            "net_pay_cents": "INTEGER DEFAULT 0",
+            "bonus_cents": "INTEGER DEFAULT 0",
+        },
+        # Moteur comptable — créées par create_all ; enregistrées ici pour ne pas
+        # faire planter la logique ALTER sur des bases existantes.
+        "accounts": {},
+        "journal_entries": {},
+        "journal_lines": {},
+        # Module Groupes & Organisations (G1)
+        "organization_groups": {},
+        "group_members": {},
+        "group_roles": {},
+        "group_member_roles": {},
+        "group_leadership_history": {},
+        "group_audit_logs": {},
+        # G2 — Cotisations, caisse, dépenses
+        "group_contribution_plans": {},
+        "group_contribution_payments": {},
+        "group_transactions": {},
+        "group_expenses": {},
+        # G3 — Calendrier, réunions, votes
+        "group_meetings": {},
+        "group_activities": {},
+        "group_reminders": {},
+        "group_votes": {},
+        "group_vote_responses": {},
+        # G4 — Chat, médias, documents
+        "group_chat_rooms": {},
+        "group_chat_messages": {},
+        "group_documents": {},
         # new tables — create_all handles creation, but we register them so
         # ALTER logic does not crash on existing DBs
         "broadcast_logs": {},
         "feature_flags": {},
+        "messages": {
+            "ai_action_json": "TEXT DEFAULT ''",
+        },
     }
     with engine.begin() as connection:
         for table, columns in additions.items():
@@ -137,6 +206,49 @@ def ensure_sqlite_migrations() -> None:
             for column, definition in columns.items():
                 if column not in existing:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+
+        # ── Backfill des colonnes _cents depuis les Float existants ────────────
+        # Convertit les montants Float actuels en centimes entiers pour les
+        # enregistrements qui n'ont pas encore été créés avec le nouveau code.
+        _backfill = [
+            ("products",      "price_cents",          "CAST(ROUND(price * 100) AS INTEGER)"),
+            ("invoices",      "subtotal_cents",        "CAST(ROUND(subtotal * 100) AS INTEGER)"),
+            ("invoices",      "tax_amount_cents",      "CAST(ROUND(tax_amount * 100) AS INTEGER)"),
+            ("invoices",      "total_amount_cents",    "CAST(ROUND(total_amount * 100) AS INTEGER)"),
+            ("invoice_lines", "unit_price_cents",      "CAST(ROUND(unit_price * 100) AS INTEGER)"),
+            ("invoice_lines", "total_cents",           "CAST(ROUND(total * 100) AS INTEGER)"),
+            ("sales",         "total_amount_cents",    "CAST(ROUND(total_amount * 100) AS INTEGER)"),
+            ("sale_items",    "unit_price_cents",      "CAST(ROUND(unit_price * 100) AS INTEGER)"),
+            ("sale_items",    "line_total_cents",      "CAST(ROUND(line_total * 100) AS INTEGER)"),
+            ("payslips",      "gross_pay_cents",       "CAST(ROUND(gross_pay * 100) AS INTEGER)"),
+            ("payslips",      "deductions_cents",      "CAST(ROUND(deductions * 100) AS INTEGER)"),
+            ("payslips",      "net_pay_cents",         "CAST(ROUND(net_pay * 100) AS INTEGER)"),
+            ("payslips",      "bonus_cents",           "CAST(ROUND(bonus * 100) AS INTEGER)"),
+        ]
+        # NOTE : on tente le backfill sur TOUTES les colonnes _cents (les ALTERs
+        # sont déjà passés dans la même transaction). On absorbe les erreurs
+        # silencieusement pour les bases qui n'auraient pas encore la colonne.
+        for _table, _col, _expr in _backfill:
+            try:
+                connection.execute(text(
+                    f"UPDATE {_table} SET {_col} = {_expr} WHERE {_col} = 0 OR {_col} IS NULL"
+                ))
+            except Exception:
+                pass  # colonne absente sur schéma très ancien : ignoré
+
+        # Backfill des compteurs de numérotation pour les sociétés existantes :
+        # on initialise invoice_seq/sale_seq au nombre de pièces déjà émises afin
+        # que les nouveaux numéros ne collisionnent jamais avec l'existant.
+        connection.execute(text(
+            "UPDATE companies SET invoice_seq = "
+            "(SELECT COUNT(*) FROM invoices WHERE invoices.company_id = companies.id) "
+            "WHERE invoice_seq = 0 AND EXISTS (SELECT 1 FROM invoices WHERE invoices.company_id = companies.id)"
+        ))
+        connection.execute(text(
+            "UPDATE companies SET sale_seq = "
+            "(SELECT COUNT(*) FROM sales WHERE sales.company_id = companies.id) "
+            "WHERE sale_seq = 0 AND EXISTS (SELECT 1 FROM sales WHERE sales.company_id = companies.id)"
+        ))
 
 
 def seed_demo_data(db: Session) -> None:

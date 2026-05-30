@@ -12,6 +12,22 @@ import type {
   InventoryMovement,
   Invoice,
   Message,
+  OrganizationGroup,
+  GroupMember,
+  GroupRole,
+  GroupLeadershipHistory,
+  ContributionPlan,
+  ContributionPayment,
+  GroupTransaction,
+  GroupExpense,
+  GroupMeeting,
+  GroupActivity,
+  GroupVote,
+  GroupChatRoom,
+  GroupChatMessage,
+  GroupDocument,
+  GroupFinanceDashboard,
+  GroupCalendarEvent,
   PaymentAccount,
   Payslip,
   PayrollRun,
@@ -206,7 +222,7 @@ export const api = {
       low_stock: Array<{ id: number; name: string; stock_quantity: number }>;
       compliance: { checks: Array<{ label: string; status: string }> };
     }>(branch ? `/reports/overview?branch=${encodeURIComponent(branch)}` : "/reports/overview"),
-  employees: () => request<Employee[]>("/employees"),
+  employees: () => request<{ items: Employee[]; total: number; page: number; per_page: number; pages: number }>("/employees?per_page=500").then((r) => (Array.isArray(r) ? r : r.items ?? [])),
   myEmployeePayout: () => request<Employee>("/employees/me/payout"),
   updateMyEmployeePayout: (payload: {
     payout_method: string;
@@ -429,6 +445,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ body })
     }),
+  quickTaskFromMessage: (messageId: number) =>
+    request<Task>(`/chat/messages/${messageId}/quick-task`, { method: "POST" }),
   payrollRuns: () => request<PayrollRun[]>("/payroll/runs"),
   createPayrollRun: (payload: { period: string; payment_account_id?: number | null; overrides?: EmployeePayrollOverride[] }) =>
     request<PayrollRun>("/payroll/runs", {
@@ -877,7 +895,8 @@ export const api = {
     const qs = new URLSearchParams();
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
-    return request<AuditLogDto[]>(`/audit-logs?${qs.toString()}`);
+    return request<{ items: AuditLogDto[]; total: number } | AuditLogDto[]>(`/audit-logs?${qs.toString()}`)
+      .then((r) => (Array.isArray(r) ? r : (r as { items: AuditLogDto[] }).items ?? []));
   },
 
   /* ── Meeting agenda ───────────────────────────────────────── */
@@ -985,7 +1004,7 @@ export const api = {
     if (params?.status) qs.set("status", params.status);
     if (params?.search) qs.set("search", params.search);
     const q = qs.toString();
-    return request<ClientDto[]>(`/clients${q ? `?${q}` : ""}`);
+    return request<{ items: ClientDto[]; total: number } | ClientDto[]>(`/clients${q ? `?${q}` : ""}`).then((r) => (Array.isArray(r) ? r : (r as { items: ClientDto[] }).items ?? []));
   },
   clientStats: (id: number) => request<ClientStatsDto>(`/clients/${id}/stats`),
   createClient: (payload: Pick<ClientDto, "name" | "email" | "phone" | "address" | "city" | "country" | "notes" | "status">) =>
@@ -1003,7 +1022,7 @@ export const api = {
     if (params?.date_from)   q.set("date_from",   params.date_from);
     if (params?.date_to)     q.set("date_to",     params.date_to);
     const qs = q.toString();
-    return request<BankTransactionDto[]>(`/transactions${qs ? `?${qs}` : ""}`);
+    return request<{ items: BankTransactionDto[]; total: number } | BankTransactionDto[]>(`/transactions${qs ? `?${qs}` : ""}`).then((r) => (Array.isArray(r) ? r : (r as { items: BankTransactionDto[] }).items ?? []));
   },
   transactionStats: () => request<TransactionStatsDto>("/transactions/stats"),
   createTransaction: (payload: BankTransactionCreateDto) =>
@@ -1236,6 +1255,92 @@ export const api = {
       onError?.(e instanceof Error ? e : new Error(String(e)));
     }
   },
+
+  // ── Module Groupes & Organisations ─────────────────────────────────────
+  groups: () => request<OrganizationGroup[]>("/groups"),
+  group: (id: number) => request<OrganizationGroup>(`/groups/${id}`),
+  createGroup: (payload: { name: string; type?: string; city?: string; currency?: string; description?: string }) =>
+    request<OrganizationGroup>("/groups", { method: "POST", body: JSON.stringify(payload) }),
+  updateGroup: (id: number, payload: Partial<OrganizationGroup>) =>
+    request<OrganizationGroup>(`/groups/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+
+  groupMembers: (groupId: number) => request<GroupMember[]>(`/groups/${groupId}/members`),
+  addMember: (groupId: number, payload: { full_name: string; phone?: string; email?: string; date_of_birth?: string; zone?: string; profession?: string }) =>
+    request<GroupMember>(`/groups/${groupId}/members`, { method: "POST", body: JSON.stringify(payload) }),
+
+  groupRoles: (groupId: number) => request<GroupRole[]>(`/groups/${groupId}/roles`),
+  assignRole: (groupId: number, payload: { member_id: number; role_name: string; reason?: string }) =>
+    request<{ member_id: number; role: string }>(`/groups/${groupId}/roles/assign`, { method: "POST", body: JSON.stringify(payload) }),
+
+  groupLeadership: (groupId: number) => request<{ current: GroupLeadershipHistory | null; history: GroupLeadershipHistory[] }>(`/groups/${groupId}/leadership`),
+  changeLeadership: (groupId: number, payload: { president_member_id?: number | null; vice_president_member_id?: number | null; secretary_member_id?: number | null; treasurer_member_id?: number | null; mandate_start?: string; elected_by?: string; election_notes?: string }) =>
+    request<GroupLeadershipHistory>(`/groups/${groupId}/leadership/change`, { method: "POST", body: JSON.stringify(payload) }),
+
+  // G2 — Cotisations, caisse, dépenses
+  groupContributionPlans: (groupId: number) => request<ContributionPlan[]>(`/groups/${groupId}/contributions/plans`),
+  createContributionPlan: (groupId: number, payload: { title: string; amount: number; frequency?: string; currency?: string; due_day?: number; is_mandatory?: boolean }) =>
+    request<ContributionPlan>(`/groups/${groupId}/contributions/plans`, { method: "POST", body: JSON.stringify(payload) }),
+  groupPayments: (groupId: number, params?: { member_id?: number; status?: string }) =>
+    request<{ items: ContributionPayment[]; stats: Record<string, number> }>(`/groups/${groupId}/contributions/payments${params ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : ""}`),
+  recordPayment: (groupId: number, payload: { member_id: number; plan_id: number; amount_paid: number; payment_method?: string; notes?: string }) =>
+    request<ContributionPayment>(`/groups/${groupId}/contributions/payments`, { method: "POST", body: JSON.stringify(payload) }),
+  validatePayment: (groupId: number, paymentId: number) =>
+    request<ContributionPayment>(`/groups/${groupId}/contributions/payments/${paymentId}/validate`, { method: "POST" }),
+  groupTransactions: (groupId: number) => request<{ balance: number; total_in: number; total_out: number; items: GroupTransaction[] }>(`/groups/${groupId}/transactions`),
+  groupExpenses: (groupId: number) => request<GroupExpense[]>(`/groups/${groupId}/expenses`),
+  createExpense: (groupId: number, payload: { title: string; amount: number; category?: string; payment_method?: string; paid_to?: string; notes?: string }) =>
+    request<GroupExpense>(`/groups/${groupId}/expenses`, { method: "POST", body: JSON.stringify(payload) }),
+  approveExpense: (groupId: number, expenseId: number) =>
+    request<GroupExpense>(`/groups/${groupId}/expenses/${expenseId}/approve`, { method: "POST" }),
+  groupFinanceDashboard: (groupId: number) => request<GroupFinanceDashboard>(`/groups/${groupId}/dashboard/finance`),
+
+  // G3 — Réunions, calendrier, votes
+  groupMeetings: (groupId: number) => request<GroupMeeting[]>(`/groups/${groupId}/meetings`),
+  createGroupMeeting: (groupId: number, payload: { title: string; start_datetime: string; location?: string; meeting_type?: string; agenda?: string }) =>
+    request<GroupMeeting>(`/groups/${groupId}/meetings`, { method: "POST", body: JSON.stringify(payload) }),
+  updateGroupMinutes: (groupId: number, meetingId: number, minutes: string) =>
+    request<GroupMeeting>(`/groups/${groupId}/meetings/${meetingId}/minutes`, { method: "PATCH", body: JSON.stringify({ minutes }) }),
+  groupActivities: (groupId: number) => request<GroupActivity[]>(`/groups/${groupId}/activities`),
+  createGroupActivity: (groupId: number, payload: { title: string; start_datetime: string; location?: string; activity_type?: string; budget?: number }) =>
+    request<GroupActivity>(`/groups/${groupId}/activities`, { method: "POST", body: JSON.stringify(payload) }),
+  groupCalendar: (groupId: number) => request<{ group_id: number; events: GroupCalendarEvent[] }>(`/groups/${groupId}/calendar`),
+  groupBirthdays: (groupId: number) => request<GroupCalendarEvent[]>(`/groups/${groupId}/birthdays`),
+  groupReminders: (groupId: number) => request<unknown[]>(`/groups/${groupId}/reminders`),
+  groupVotes: (groupId: number) => request<GroupVote[]>(`/groups/${groupId}/votes`),
+  createVote: (groupId: number, payload: { title: string; options: string[]; start_datetime: string; end_datetime: string }) =>
+    request<GroupVote>(`/groups/${groupId}/votes`, { method: "POST", body: JSON.stringify(payload) }),
+  respondToVote: (groupId: number, voteId: number, selected_option: string) =>
+    request<{ vote_id: number; selected: string }>(`/groups/${groupId}/votes/${voteId}/respond`, { method: "POST", body: JSON.stringify({ selected_option }) }),
+  voteResults: (groupId: number, voteId: number) => request<{ title: string; total_votes: number; results: { option: string; count: number; percent: number }[] }>(`/groups/${groupId}/votes/${voteId}/results`),
+
+  // G4 — Chat, documents
+  groupChatRooms: (groupId: number) => request<GroupChatRoom[]>(`/groups/${groupId}/chat/rooms`),
+  createChatRoom: (groupId: number, name: string, type = "general") => {
+    const fd = new FormData(); fd.append("name", name); fd.append("room_type", type);
+    return request<GroupChatRoom>(`/groups/${groupId}/chat/rooms`, { method: "POST", body: fd, headers: {} });
+  },
+  groupChatMessages: (groupId: number, roomId: number, limit = 60) => request<GroupChatMessage[]>(`/groups/${groupId}/chat/rooms/${roomId}/messages?limit=${limit}`),
+  sendGroupMessage: (groupId: number, roomId: number, content: string, type = "text", reply_to_id?: number) =>
+    request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages`, { method: "POST", body: JSON.stringify({ content, message_type: type, reply_to_id }) }),
+  reactToGroupMessage: (groupId: number, roomId: number, msgId: number, emoji: string) =>
+    request<{ reactions: Record<string, number> }>(`/groups/${groupId}/chat/rooms/${roomId}/messages/${msgId}/react`, { method: "POST", body: JSON.stringify({ emoji }) }),
+  deleteGroupMessage: (groupId: number, roomId: number, msgId: number) =>
+    request<{ deleted: boolean }>(`/groups/${groupId}/chat/rooms/${roomId}/messages/${msgId}`, { method: "DELETE" }),
+  groupDocuments: (groupId: number) => request<GroupDocument[]>(`/groups/${groupId}/documents`),
+
+  // G5 — IA, rapports
+  groupAskAI: (groupId: number, question: string) =>
+    request<{ answer: string; context_lines: number }>(`/groups/${groupId}/ai/ask`, { method: "POST", body: JSON.stringify({ question }) }),
+  groupSummarizeChat: (groupId: number, messages: string[], extract_tasks = true) =>
+    request<{ summary: string; message_count: number }>(`/groups/${groupId}/ai/summarize-chat`, { method: "POST", body: JSON.stringify({ messages, extract_tasks }) }),
+  groupGenerateReport: (groupId: number, report_type = "monthly") =>
+    request<{ content: string; report_type: string; generated_at: string }>(`/groups/${groupId}/ai/generate-report`, { method: "POST", body: JSON.stringify({ report_type }) }),
+  groupPaymentAnalysis: (groupId: number) =>
+    request<{ analysis: string }>(`/groups/${groupId}/ai/payment-analysis`, { method: "POST" }),
+  groupGenerateReminder: (groupId: number, payload: { member_name: string; amount_due: number; plan_title: string; tone?: string }) =>
+    request<{ message: string; member_name: string }>(`/groups/${groupId}/ai/generate-reminder-message`, { method: "POST", body: JSON.stringify(payload) }),
+  groupReportPayments: (groupId: number) => request<{ total_due: number; total_paid: number; recovery_rate: number; rows: ContributionPayment[]; currency: string }>(`/groups/${groupId}/reports/payments`),
+  groupReportExpenses: (groupId: number) => request<{ total: number; by_category: Record<string, number>; rows: GroupExpense[]; currency: string }>(`/groups/${groupId}/reports/expenses`),
 };
 
 export type MeetingDto = {

@@ -419,6 +419,7 @@ export function EmployeesPage() {
   const [contractModal, setContractModal] = useState<{ html: string; name: string } | null>(null);
   const [contractLoading, setContractLoading] = useState<number | null>(null);
   const [contractError, setContractError] = useState<string | null>(null);
+  const provisioningRef = useRef<HTMLDivElement>(null);
   const [provisioning, setProvisioning] = useState<null | {
     employeeName: string;
     employeeId: number;
@@ -427,6 +428,7 @@ export function EmployeesPage() {
     phone: string;
     password: string;
     note: string;
+    isReset?: boolean;
   }>(null);
 
   const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
@@ -442,9 +444,11 @@ export function EmployeesPage() {
         phone: result.employee.phone,
         password: result.temporary_password,
         note: result.access_note,
+        isReset: false,
       });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
+      setTimeout(() => provisioningRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
     },
   });
   const resetAccess = useMutation({
@@ -458,8 +462,10 @@ export function EmployeesPage() {
         phone: result.employee.phone,
         password: result.temporary_password,
         note: result.access_note,
+        isReset: true,
       });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      setTimeout(() => provisioningRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
     },
   });
   const updateStatus = useMutation({
@@ -576,40 +582,53 @@ export function EmployeesPage() {
 
         {/* Résultat provisioning */}
         {provisioning && (
-          <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-5">
+          <div ref={provisioningRef} className="rounded-xl border-2 border-emerald-400 bg-emerald-50 p-5 shadow-md">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-bold text-emerald-900">✓ Compte créé — {provisioning.employeeName}</p>
-                <div className="mt-3 grid gap-1.5 rounded-lg bg-white p-4 text-sm sm:grid-cols-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
+                    {provisioning.isReset ? "Accès réinitialisé" : "Compte créé"}
+                  </span>
+                  <p className="font-bold text-emerald-900">{provisioning.employeeName}</p>
+                </div>
+
+                {/* ⚠️ One-time warning */}
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <span className="text-base">⚠️</span>
+                  <p><strong>Ce mot de passe ne sera plus affiché.</strong> Copiez-le maintenant et transmettez-le à l'employé via un canal sécurisé.</p>
+                </div>
+
+                {/* Credentials grid */}
+                <div className="mt-3 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
                   <div>
                     <p className="text-xs font-bold uppercase text-stone-400">Identifiant recommandé</p>
-                    <p className="font-mono font-semibold text-ink">{provisioning.login}</p>
+                    <p className="mt-0.5 break-all font-mono font-bold text-emerald-700 text-base">{provisioning.login}</p>
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase text-stone-400">Mot de passe temporaire</p>
-                    <p className="font-mono font-semibold text-ink">{provisioning.password}</p>
+                    <p className="mt-0.5 break-all font-mono font-bold text-rose-600 text-base">{provisioning.password}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Email utilisable</p>
-                    <p className="font-mono font-semibold text-ink">{provisioning.email}</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">Email (aussi accepté)</p>
+                    <p className="mt-0.5 font-mono text-ink">{provisioning.email}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Téléphone utilisable</p>
-                    <p className="font-mono font-semibold text-ink">{provisioning.phone || "Non renseigné"}</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">Téléphone (aussi accepté)</p>
+                    <p className="mt-0.5 font-mono text-ink">{provisioning.phone || "Non renseigné"}</p>
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-emerald-700">
-                  {provisioning.note} Le login accepte aussi le téléphone avec ou sans espaces et avec ou sans indicatif.
+                  {provisioning.note} Le login accepte le téléphone avec ou sans indicatif (+242...).
                 </p>
               </div>
-              <button onClick={() => setProvisioning(null)} className="text-emerald-600 hover:text-emerald-900">
+              <button onClick={() => setProvisioning(null)} className="shrink-0 text-emerald-600 hover:text-emerald-900">
                 <X size={18} />
               </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={copyProvisioning}
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"
               >
                 <Clipboard size={15} />
                 Copier les identifiants
@@ -621,6 +640,12 @@ export function EmployeesPage() {
               >
                 {contractLoading === provisioning.employeeId ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
                 {contractLoading === provisioning.employeeId ? "Génération…" : "Ouvrir le contrat"}
+              </button>
+              <button
+                onClick={() => setProvisioning(null)}
+                className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              >
+                ✓ J'ai copié, fermer
               </button>
             </div>
           </div>
@@ -739,7 +764,15 @@ export function EmployeesPage() {
                       <td>
                         <div className="flex items-center gap-1.5">
                           <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Voir la fiche"><ExternalLink size={15} /></Link>
-                          <button onClick={() => resetAccess.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Régénérer accès"><KeyRound size={15} /></button>
+                          <button
+                            onClick={() => resetAccess.mutate(emp.id)}
+                            disabled={resetAccess.isPending}
+                            className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#17211f] hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
+                            title="Générer un nouveau mot de passe temporaire"
+                          >
+                            {resetAccess.isPending ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                            Réinit. MDP
+                          </button>
                           <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title="Contrat imprimable">{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
                           <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Employabilité TERAS"><Send size={15} /></button>
                           <button

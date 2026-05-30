@@ -1,13 +1,15 @@
+import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Hash, Paperclip, Plus, Search,
   Send, Sparkles, X, Info,
-  CheckSquare, Loader2,
+  CheckSquare, Loader2, Zap, Calendar, User, FileText, CreditCard, Bell, Users2,
 } from "lucide-react";
 
 import { api } from "../services/api";
 import { useAuth } from "../app/AuthContext";
+import type { LimuleAction } from "../types/domain";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
 const WS_BASE = API_URL.replace(/^http/, "ws").replace(/\/api$/, "");
@@ -41,6 +43,37 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
 function shortTime(iso: string) {
   if (!iso) return "";
   return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+
+/* ── Limule action type helpers ──────────────────────────────────── */
+function actionTypeIcon(type: LimuleAction["type"]) {
+  const icons: Record<string, React.ReactElement> = {
+    task:     <CheckSquare size={10} />,
+    meeting:  <Users2 size={10} />,
+    document: <FileText size={10} />,
+    approval: <CheckSquare size={10} />,
+    payment:  <CreditCard size={10} />,
+    reminder: <Bell size={10} />,
+  };
+  return icons[type] ?? <Zap size={10} />;
+}
+function actionTypeLabel(type: LimuleAction["type"]) {
+  const map: Record<string, string> = {
+    task: "Tâche", meeting: "Réunion", document: "Document",
+    approval: "Approbation", payment: "Paiement", reminder: "Rappel",
+  };
+  return map[type] ?? type;
+}
+function actionTypeStyle(type: LimuleAction["type"]) {
+  const map: Record<string, string> = {
+    task:     "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
+    meeting:  "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
+    document: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+    approval: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+    payment:  "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+    reminder: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+  };
+  return map[type] ?? "bg-gray-100 text-gray-700 dark:bg-white/[0.08] dark:text-gray-300";
 }
 
 /* ── Inline message renderer (mentions + links) ───────────────────── */
@@ -88,11 +121,14 @@ export function ChatPage() {
   const [taskComposer, setTaskComposer] = useState({
     open: false,
     title: "",
+    description: "",
     assignee_name: "",
     priority: "normal",
     due_date: "",
+    due_time: "",
     source: "chat",
   });
+  const [quickTaskDone, setQuickTaskDone] = useState<number | null>(null); // messageId après succès
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionStart, setMentionStart] = useState(0);
@@ -160,6 +196,7 @@ export function ChatPage() {
   const createTask = useMutation({
     mutationFn: () => api.createTask({
       title: taskComposer.title,
+      description: taskComposer.description || undefined,
       assignee_name: taskComposer.assignee_name,
       priority: taskComposer.priority,
       due_date: taskComposer.due_date || null,
@@ -168,7 +205,17 @@ export function ChatPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["channelDetail", activeChannelId] });
-      setTaskComposer({ open: false, title: "", assignee_name: "", priority: "normal", due_date: "", source: "chat" });
+      setTaskComposer({ open: false, title: "", description: "", assignee_name: "", priority: "normal", due_date: "", due_time: "", source: "chat" });
+    },
+  });
+
+  const quickTask = useMutation({
+    mutationFn: (messageId: number) => api.quickTaskFromMessage(messageId),
+    onSuccess: (_, messageId) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["channelDetail", activeChannelId] });
+      setQuickTaskDone(messageId);
+      setTimeout(() => setQuickTaskDone(null), 3000);
     },
   });
 
@@ -319,13 +366,16 @@ export function ChatPage() {
     return match ? `${match.first_name} ${match.last_name}`.trim() : "";
   }
 
-  function openTaskComposer(title: string, source: string) {
+  function openTaskComposer(title: string, source: string, action?: LimuleAction | null) {
+    const truncated = title.length > 140 ? `${title.slice(0, 137)}...` : title;
     setTaskComposer({
       open: true,
-      title: title.length > 140 ? `${title.slice(0, 137)}...` : title,
-      assignee_name: suggestAssignee(title),
-      priority: /urgent|priorit|bloqu|avant vendredi|critique/i.test(title) ? "high" : "normal",
-      due_date: "",
+      title: action?.title || truncated,
+      description: action?.description || "",
+      assignee_name: action?.assignee || suggestAssignee(title),
+      priority: action?.priority || (/urgent|priorit|bloqu|avant vendredi|critique/i.test(title) ? "high" : "normal"),
+      due_date: action?.due_date || "",
+      due_time: action?.due_time || "",
       source,
     });
   }
@@ -514,20 +564,109 @@ export function ChatPage() {
                       → Tâche
                     </button>
                   </div>
-                  {/* Only real Limule suggestions (filter out "no action" noise) */}
-                  {hasRealSuggestion && (
-                    <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-left dark:border-violet-500/30 dark:bg-violet-500/10">
+                  {/* Limule action card — rich if structured ai_action, fallback to plain suggestion */}
+                  {(m.ai_action?.detected || hasRealSuggestion) && (
+                    <div className="mt-2 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50/60 px-3 py-2.5 text-left dark:border-violet-500/30 dark:from-violet-500/10 dark:to-indigo-500/5">
+                      {/* Header */}
                       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">
-                        <Sparkles size={10}/> Action détectée par Limule
+                        <Zap size={10} className="text-amber-500" />
+                        Limule · Action détectée
+                        {m.ai_action?.detected && (
+                          <span className="ml-auto rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+                            {Math.round(m.ai_action.confidence * 100)}%
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm leading-5 text-[#17211f] dark:text-white">{m.ai_suggestion}</p>
-                      <button
-                        onClick={() => openTaskComposer(m.ai_suggestion || m.body, `chat:${activeChannelId}:suggestion:${m.id}`)}
-                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
-                      >
-                        <CheckSquare size={12} />
-                        Créer cette tâche
-                      </button>
+
+                      {m.ai_action?.detected ? (
+                        <>
+                          {/* Type badge + title */}
+                          <div className="mb-1.5 flex items-start gap-2">
+                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${actionTypeStyle(m.ai_action.type)}`}>
+                              {actionTypeIcon(m.ai_action.type)}
+                              {actionTypeLabel(m.ai_action.type)}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold leading-5 text-[#17211f] dark:text-white">
+                            {m.ai_action.title}
+                          </p>
+
+                          {/* Info chips */}
+                          {(m.ai_action.due_date || m.ai_action.assignee || m.ai_action.priority === "high") && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {m.ai_action.due_date && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2 py-0.5 text-[11px] text-[#717182] dark:border-white/[0.08] dark:bg-white/[0.06]">
+                                  <Calendar size={10} />
+                                  {m.ai_action.due_date}{m.ai_action.due_time ? ` à ${m.ai_action.due_time}` : ""}
+                                </span>
+                              )}
+                              {m.ai_action.assignee && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2 py-0.5 text-[11px] text-[#717182] dark:border-white/[0.08] dark:bg-white/[0.06]">
+                                  <User size={10} />
+                                  {m.ai_action.assignee}
+                                </span>
+                              )}
+                              {m.ai_action.priority === "high" && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10">
+                                  🔴 Urgent
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Confidence bar */}
+                          <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+                            <div
+                              className="h-1 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all"
+                              style={{ width: `${Math.round(m.ai_action.confidence * 100)}%` }}
+                            />
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              disabled={quickTask.isPending || quickTaskDone === m.id}
+                              onClick={() => quickTask.mutate(m.id)}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white transition ${
+                                quickTaskDone === m.id
+                                  ? "bg-emerald-500"
+                                  : "bg-violet-600 hover:bg-violet-700 active:scale-95"
+                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                            >
+                              {quickTask.isPending && quickTask.variables === m.id ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : quickTaskDone === m.id ? (
+                                <CheckSquare size={11} />
+                              ) : (
+                                <Zap size={11} />
+                              )}
+                              {quickTaskDone === m.id ? "Tâche créée !" : "Créer directement"}
+                            </button>
+                            <button
+                              onClick={() => openTaskComposer(
+                                m.ai_action!.title,
+                                `chat:${activeChannelId}:action:${m.id}`,
+                                m.ai_action,
+                              )}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-700 transition hover:bg-violet-50 active:scale-95 dark:border-violet-500/30 dark:bg-transparent dark:text-violet-300 dark:hover:bg-violet-500/10"
+                            >
+                              Personnaliser
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        /* Fallback: plain suggestion for old messages without structured ai_action */
+                        <>
+                          <p className="text-sm leading-5 text-[#17211f] dark:text-white">{m.ai_suggestion}</p>
+                          <button
+                            onClick={() => openTaskComposer(m.ai_suggestion || m.body, `chat:${activeChannelId}:suggestion:${m.id}`)}
+                            className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
+                          >
+                            <CheckSquare size={12} />
+                            Créer cette tâche
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -766,12 +905,23 @@ export function ChatPage() {
                 Titre
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={taskComposer.title}
                   onChange={(event) => setTaskComposer({ ...taskComposer, title: event.target.value })}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
                 />
               </label>
+              {taskComposer.description && (
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Description
+                  <textarea
+                    rows={2}
+                    value={taskComposer.description}
+                    onChange={(event) => setTaskComposer({ ...taskComposer, description: event.target.value })}
+                    className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                  />
+                </label>
+              )}
               <label className="block text-xs font-bold uppercase text-[#717182]">
                 Responsable
                 <select
@@ -797,10 +947,21 @@ export function ChatPage() {
                   </select>
                 </label>
                 <label className="block text-xs font-bold uppercase text-[#717182]">
-                  Échéance
+                  Date limite
                   <input type="date" value={taskComposer.due_date} onChange={(event) => setTaskComposer({ ...taskComposer, due_date: event.target.value })} className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                 </label>
               </div>
+              {taskComposer.due_date && (
+                <label className="block text-xs font-bold uppercase text-[#717182]">
+                  Heure (optionnel)
+                  <input
+                    type="time"
+                    value={taskComposer.due_time}
+                    onChange={(event) => setTaskComposer({ ...taskComposer, due_time: event.target.value })}
+                    className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                  />
+                </label>
+              )}
               {createTask.error && <p className="text-sm font-semibold text-rose-600">{createTask.error.message}</p>}
               <button disabled={!taskComposer.title.trim() || createTask.isPending} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:bg-stone-300">
                 {createTask.isPending ? <Loader2 className="animate-spin" size={16} /> : <CheckSquare size={16} />}

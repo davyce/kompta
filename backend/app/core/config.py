@@ -1,6 +1,13 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Chemin ABSOLU et déterministe vers l'unique base canonique (backend/kompta.db),
+# ancré au dossier backend quel que soit le répertoire de lancement.
+# Évite la fragmentation : ./kompta.db relatif créait 2-3 fichiers selon le cwd.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+_DEFAULT_DB_PATH = _BACKEND_DIR / "kompta.db"
 
 
 class Settings(BaseSettings):
@@ -8,9 +15,9 @@ class Settings(BaseSettings):
     environment: str = "local"
     api_prefix: str = "/api"
     secret_key: str = "dev-kompta-secret"
-    database_url: str = "sqlite:///./kompta.db"
+    database_url: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     cors_origins: str = "http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173"
-    access_token_expire_minutes: int = 720
+    access_token_expire_minutes: int = 480  # 8h (réduit de 12h) ; révocable via token_version
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"

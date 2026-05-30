@@ -20,6 +20,10 @@ def get_current_user(
     user = db.get(User, int(payload["sub"]))
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
+    # Révocation : un token dont la version ne correspond plus est rejeté
+    # (logout, suspension ou changement de mot de passe a incrémenté token_version).
+    if int(payload.get("ver", 0)) != int(getattr(user, "token_version", 0) or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token révoqué")
     return user
 
 

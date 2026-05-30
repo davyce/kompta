@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
+# VITE_API_URL=/api → le browser appelle /api/... → nginx proxie vers le backend
+# Pas d'URL absolue donc ça marche sur n'importe quel host/port
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Stage 2: Serve

@@ -196,6 +196,18 @@ export type ChatChannelDetail = {
   online_count: number;
 };
 
+export type LimuleAction = {
+  detected: boolean;
+  type: "task" | "meeting" | "document" | "approval" | "payment" | "reminder";
+  title: string;
+  description: string;
+  priority: "high" | "normal" | "low";
+  due_date: string | null;
+  due_time: string | null;
+  assignee: string;
+  confidence: number; // 0.0 – 1.0
+};
+
 export type Message = {
   id: number;
   channel_id: number;
@@ -204,6 +216,7 @@ export type Message = {
   body: string;
   mentions: string;
   ai_suggestion: string;
+  ai_action: LimuleAction | null;  // action structurée Limule
   created_at: string;
 };
 
@@ -441,4 +454,206 @@ export type SyscemacJournal = {
   label: string;
   status: "ready" | "empty" | "draft" | string;
   count: number;
+};
+
+/* ── Module Groupes & Organisations ──────────────────────────────────── */
+
+export type OrganizationGroup = {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  country: string;
+  city: string;
+  address: string;
+  currency: string;
+  status: string;
+  is_active: boolean;
+  created_at: string;
+  member_count?: number;
+  my_roles?: string[];
+  can_manage?: boolean;
+};
+
+export type GroupMember = {
+  id: number;
+  full_name: string;
+  phone: string;
+  email: string;
+  date_of_birth: string | null;
+  zone: string;
+  profession: string;
+  member_number: string;
+  status: string;
+  is_active: boolean;
+  roles: string[];
+};
+
+export type GroupRole = {
+  id: number;
+  name: string;
+  permissions: string[];
+};
+
+export type GroupLeadershipHistory = {
+  id: number;
+  president_member_id: number | null;
+  vice_president_member_id: number | null;
+  secretary_member_id: number | null;
+  treasurer_member_id: number | null;
+  mandate_start: string | null;
+  mandate_end: string | null;
+  elected_by: string;
+  is_current: boolean;
+};
+
+export type ContributionPlan = {
+  id: number;
+  title: string;
+  amount: number;
+  currency: string;
+  frequency: string;
+  due_day: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_mandatory: boolean;
+  status: string;
+  target_amount: number;
+};
+
+export type ContributionPayment = {
+  id: number;
+  member_id: number;
+  member_name: string;
+  plan_id: number;
+  plan_title: string;
+  amount_due: number;
+  amount_paid: number;
+  late_fee: number;
+  payment_date: string | null;
+  due_date: string | null;
+  payment_method: string;
+  status: string;
+  validated_at: string | null;
+  journal_entry_id: number | null;
+};
+
+export type GroupTransaction = {
+  id: number;
+  type: string;
+  category: string;
+  amount: number;
+  currency: string;
+  description: string;
+  transaction_date: string;
+  payment_method: string;
+  status: string;
+};
+
+export type GroupExpense = {
+  id: number;
+  title: string;
+  category: string;
+  amount: number;
+  currency: string;
+  expense_date: string;
+  paid_to: string;
+  payment_method: string;
+  status: string;
+  approved_at: string | null;
+  journal_entry_id: number | null;
+};
+
+export type GroupMeeting = {
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  start_datetime: string;
+  end_datetime: string | null;
+  meeting_type: string;
+  agenda: string;
+  minutes: string;
+  status: string;
+  reminder_enabled: boolean;
+  created_at: string;
+};
+
+export type GroupActivity = {
+  id: number;
+  title: string;
+  activity_type: string;
+  location: string;
+  start_datetime: string;
+  end_datetime: string | null;
+  budget: number;
+  status: string;
+  created_at: string;
+};
+
+export type GroupVote = {
+  id: number;
+  title: string;
+  options: string[];
+  start_datetime: string;
+  end_datetime: string;
+  status: string;
+  created_at: string;
+};
+
+export type GroupChatRoom = {
+  id: number;
+  name: string;
+  type: string;
+  created_at: string;
+};
+
+export type GroupChatMessage = {
+  id: number;
+  room_id: number;
+  sender_name: string;
+  content: string;
+  message_type: string;
+  media_url: string;
+  gif_url: string;
+  reply_to_id: number | null;
+  reactions: Record<string, number>;
+  pinned: boolean;
+  created_at: string;
+  deleted_at: string | null;
+};
+
+export type GroupDocument = {
+  id: number;
+  title: string;
+  filename: string;
+  category: string;
+  visibility: string;
+  size_bytes: number;
+  mime_type: string;
+  created_at: string;
+};
+
+export type GroupFinanceDashboard = {
+  balance: number;
+  total_contributions_expected: number;
+  total_contributions_received: number;
+  total_expenses: number;
+  members_count: number;
+  members_up_to_date: number;
+  members_late: number;
+  pending_expenses: number;
+};
+
+export type GroupCalendarEvent = {
+  type: "meeting" | "activity" | "vote" | "birthday" | string;
+  id?: number;
+  member_id?: number;
+  member_name?: string;
+  title: string;
+  start: string;
+  end?: string;
+  status?: string;
+  location?: string;
+  days_until?: number;
 };

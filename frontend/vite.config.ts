@@ -8,6 +8,13 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 3001,
     strictPort: true,
+    // Proxy /api → backend local
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8010",
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     // Single React instance across every dependency

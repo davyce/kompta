@@ -166,6 +166,7 @@ const navSections: NavSection[] = [
   {
     label: "Collaboration",
     items: [
+      { label: "Groupes & Orgs", to: "/groups", icon: Building2 },
       { label: "Projets & boards", to: "/projects", icon: CheckSquare },
       { label: "Chat", to: "/chat", icon: MessageSquare },
       { label: "Agenda", to: "/calendar", icon: CalendarDays },

@@ -8,9 +8,9 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import company_scope, get_current_user
@@ -119,6 +119,7 @@ from app.services.access import (
     render_contract_html,
 )
 from app.services.business import (
+    chat_ai_action,
     chat_ai_suggestion,
     compliance_snapshot,
     extract_mentions,
@@ -126,6 +127,7 @@ from app.services.business import (
     payslip_reference,
     product_qr_payload,
 )
+from app.services import accounting as _accounting
 from app.services.deepseek import generate_declaration, generate_writing
 from app.services.deepseek import generate_contract_clauses
 from app.services.documents import create_document_from_upload, create_document_record, reanalyze_document
@@ -153,6 +155,65 @@ def _login_lookup_conditions(identifier: str):
     if phone_variants:
         conditions.append(User.phone.in_(phone_variants))
     return or_(*conditions)
+
+
+    # ── Anti-brute-force login (compteur d'échecs en mémoire + verrouillage) ──
+_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW_SECONDS = 300   # 5 minutes glissantes
+_LOGIN_LOCKOUT_SECONDS = 900  # 15 minutes de blocage
+
+
+def _login_rate_key(identifier: str, request: "Request | None") -> str:
+    ip = ""
+    if request is not None and request.client:
+        ip = request.client.host or ""
+    return f"{ip}::{identifier.strip().lower()}"
+
+
+def _check_login_rate(key: str) -> None:
+    import time as _t
+    now = _t.time()
+    attempts = [t for t in _LOGIN_ATTEMPTS.get(key, []) if now - t < _LOGIN_LOCKOUT_SECONDS]
+    _LOGIN_ATTEMPTS[key] = attempts
+    recent = [t for t in attempts if now - t < _LOGIN_WINDOW_SECONDS]
+    if len(recent) >= _LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Trop de tentatives. Réessayez dans quelques minutes.",
+        )
+
+
+def _record_login_failure(key: str) -> None:
+    import time as _t
+    _LOGIN_ATTEMPTS.setdefault(key, []).append(_t.time())
+
+
+def _reset_login_attempts(key: str) -> None:
+    _LOGIN_ATTEMPTS.pop(key, None)
+
+
+def _next_invoice_number(db: Session, company_id: int) -> str:
+    """Numéro de facture séquentiel, atomique, sans trou ni réutilisation.
+
+    On incrémente un compteur persistant sur la société (UPDATE ... RETURNING)
+    au lieu de dériver de COUNT(*) — ce qui évitait à la fois les collisions
+    concurrentes et la réutilisation de numéros après suppression.
+    """
+    seq = db.execute(
+        text("UPDATE companies SET invoice_seq = invoice_seq + 1 WHERE id = :cid RETURNING invoice_seq"),
+        {"cid": company_id},
+    ).scalar_one()
+    return f"INV-{date.today().year}-{seq:04d}"
+
+
+def _next_receipt_number(db: Session, company_id: int) -> str:
+    """Numéro de ticket POS séquentiel et atomique (même logique que les factures)."""
+    seq = db.execute(
+        text("UPDATE companies SET sale_seq = sale_seq + 1 WHERE id = :cid RETURNING sale_seq"),
+        {"cid": company_id},
+    ).scalar_one()
+    return f"POS-{date.today().year}-{seq:05d}"
 
 
 TASK_MANAGER_ROLES = {"rh_entreprise", "manager_entreprise", "super_admin"}
@@ -300,13 +361,25 @@ def health() -> dict[str, str]:
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     identifier = payload.email.strip()
+    rate_key = _login_rate_key(identifier, request)
+    _check_login_rate(rate_key)
     user = db.scalar(select(User).where(_login_lookup_conditions(identifier)))
     if not user or not verify_password(payload.password, user.password_hash):
+        _record_login_failure(rate_key)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe invalide")
     if user.account_status in {"suspended", "disabled", "archived"} or not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Compte suspendu ou desactive")
+    # 2FA réellement appliqué : si le compte a activé le TOTP, exiger un code valide.
+    if getattr(user, "totp_enabled", False) and user.totp_secret:
+        if not payload.totp_code:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="2fa_required")
+        import pyotp
+        if not pyotp.TOTP(user.totp_secret).verify(payload.totp_code.strip(), valid_window=1):
+            _record_login_failure(rate_key)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Code 2FA invalide")
+    _reset_login_attempts(rate_key)
     if not user.must_change_password:
         user.last_login_at = datetime.now(timezone.utc)
         if user.employee_id:
@@ -315,15 +388,23 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
                 employee.last_login_at = user.last_login_at
         db.commit()
         db.refresh(user)
-    token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id})
+    token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id, "ver": user.token_version})
     return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)
 
 
 @router.post("/auth/refresh", response_model=TokenResponse)
 def refresh_token(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> TokenResponse:
     """Issue a new token for an authenticated user (silent refresh)."""
-    token = create_access_token(str(current_user.id), {"role": current_user.role, "company_id": current_user.company_id})
+    token = create_access_token(str(current_user.id), {"role": current_user.role, "company_id": current_user.company_id, "ver": current_user.token_version})
     return TokenResponse(access_token=token, user=UserRead.model_validate(current_user), must_change_password=current_user.must_change_password)
+
+
+@router.post("/auth/logout")
+def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """Révoque tous les jetons actifs de l'utilisateur en incrémentant token_version."""
+    current_user.token_version = (current_user.token_version or 0) + 1
+    db.commit()
+    return {"status": "logged_out", "revoked": True}
 
 
 @router.post("/auth/register-company", response_model=TokenResponse, status_code=201)
@@ -367,7 +448,7 @@ def register_company(payload: CompanyRegistrationRequest, db: Session = Depends(
     db.commit()
     db.refresh(admin)
 
-    token = create_access_token(str(admin.id), {"role": admin.role, "company_id": admin.company_id})
+    token = create_access_token(str(admin.id), {"role": admin.role, "company_id": admin.company_id, "ver": admin.token_version})
     return TokenResponse(access_token=token, user=UserRead.model_validate(admin), must_change_password=False)
 
 
@@ -1045,6 +1126,7 @@ def create_product(
     if existing:
         raise HTTPException(status_code=409, detail="Product SKU already exists")
     product = Product(**payload.model_dump(), company_id=current_user.company_id)
+    product.price_cents = _accounting.to_cents(payload.price)
     db.add(product)
     db.flush()
     product.qr_code = product_qr_payload(current_user.company_id, product)
@@ -1289,7 +1371,7 @@ def create_sale(
         use_case="pos",
     )
     sale = Sale(
-        receipt_number=f"POS-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+        receipt_number=_next_receipt_number(db, current_user.company_id),
         payment_method=payment_method,
         payment_account_id=payment_account.id if payment_account else None,
         payment_account_label=payment_account.label if payment_account else "",
@@ -1303,10 +1385,21 @@ def create_sale(
         product = db.get(Product, item.product_id)
         if not product or product.company_id != current_user.company_id:
             raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        if product.stock_quantity < item.quantity:
+        # Décrément atomique anti-TOCTOU : l'UPDATE ne réussit que si le stock est
+        # suffisant. Deux ventes simultanées ne peuvent plus passer le stock négatif.
+        affected = db.execute(
+            update(Product)
+            .where(
+                Product.id == product.id,
+                Product.company_id == current_user.company_id,
+                Product.stock_quantity >= item.quantity,
+            )
+            .values(stock_quantity=Product.stock_quantity - item.quantity)
+        ).rowcount
+        if not affected:
             raise HTTPException(status_code=409, detail=f"Stock insuffisant pour {product.name}")
+        db.refresh(product)
         line_total = product.price * item.quantity
-        product.stock_quantity -= item.quantity
         total += line_total
         sale_item = SaleItem(
             sale_id=sale.id,
@@ -1324,9 +1417,12 @@ def create_sale(
             reference=sale.receipt_number,
             company_id=current_user.company_id,
         )
+        sale_item.unit_price_cents = _accounting.to_cents(product.price)
+        sale_item.line_total_cents = _accounting.to_cents(line_total)
         db.add_all([sale_item, movement])
         response_items.append({"product_id": product.id, "name": product.name, "quantity": item.quantity, "total": line_total})
     sale.total_amount = total
+    sale.total_amount_cents = _accounting.to_cents(total)
 
     # ── Créer la transaction bancaire correspondante ──────────────────────
     _pref_pos = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
@@ -1353,6 +1449,15 @@ def create_sale(
         status="confirmed",
     )
     db.add(pos_txn)
+    # ── Écriture comptable automatique (partie double) ──
+    try:
+        company = db.get(Company, current_user.company_id)
+        _accounting.record_sale(
+            db, company, sale_id=sale.id, total=total,
+            payment_method=payment_method, tax_amount=0.0, user_id=current_user.id,
+        )
+    except Exception:  # une vente ne doit jamais échouer à cause de la compta
+        logging.getLogger("kompta").exception("Échec écriture comptable vente #%s", sale.id)
     db.commit()
     db.refresh(sale)
     return {
@@ -1422,28 +1527,39 @@ def create_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Invoice:
-    count = db.scalar(select(func.count()).select_from(Invoice).where(Invoice.company_id == current_user.company_id)) or 0
     invoice = Invoice(
-        number=f"INV-{date.today().year}-{count + 1:04d}",
+        number=_next_invoice_number(db, current_user.company_id),
         customer_name=payload.customer_name,
         customer_email=payload.customer_email,
         status=payload.status,
         due_date=payload.due_date,
         company_id=current_user.company_id,
     )
-    total = 0.0
+    subtotal = 0.0   # HT
+    tax_total = 0.0  # TVA
     for line in payload.lines:
-        line_total = line.quantity * line.unit_price
-        total += line_total
+        line_ht = round(line.quantity * line.unit_price, 2)
+        line_tax = round(line_ht * (line.tax_rate / 100.0), 2)
+        subtotal += line_ht
+        tax_total += line_tax
         invoice.lines.append(
             InvoiceLine(
                 description=line.description,
                 quantity=line.quantity,
                 unit_price=line.unit_price,
-                total=line_total,
+                unit_price_cents=_accounting.to_cents(line.unit_price),
+                tax_rate=line.tax_rate,
+                total=line_ht,
+                total_cents=_accounting.to_cents(line_ht),
             )
         )
-    invoice.total_amount = total
+    invoice.subtotal = round(subtotal, 2)
+    invoice.tax_amount = round(tax_total, 2)
+    invoice.total_amount = round(subtotal + tax_total, 2)
+    # Valeurs exactes en centimes (source de vérité monétaire)
+    invoice.subtotal_cents = _accounting.to_cents(subtotal)
+    invoice.tax_amount_cents = _accounting.to_cents(tax_total)
+    invoice.total_amount_cents = _accounting.to_cents(subtotal + tax_total)
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
@@ -1460,6 +1576,13 @@ def update_invoice(
     invoice = db.get(Invoice, invoice_id)
     if not invoice or invoice.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    # Immutabilité comptable : une facture payée ne peut plus être modifiée.
+    # Pour corriger, il faut émettre un avoir (note de crédit).
+    if invoice.status == "paid":
+        raise HTTPException(
+            status_code=409,
+            detail="Facture payée : non modifiable. Émettez un avoir pour corriger.",
+        )
     allowed_fields = {"status", "customer_name", "customer_email", "due_date"}
     for field, value in payload.items():
         if field in allowed_fields:
@@ -1470,6 +1593,51 @@ def update_invoice(
     db.commit()
     db.refresh(invoice)
     return invoice
+
+
+@router.post("/invoices/{invoice_id}/credit-note", response_model=InvoiceRead, status_code=201)
+def create_credit_note(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Invoice:
+    """Émet un avoir (note de crédit) : nouvelle pièce miroir à montants négatifs
+    référençant la facture d'origine. La facture d'origine reste immuable."""
+    origin = db.get(Invoice, invoice_id)
+    if not origin or origin.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    credit = Invoice(
+        number=_next_invoice_number(db, current_user.company_id),
+        customer_name=origin.customer_name,
+        customer_email=origin.customer_email,
+        status="credit_note",
+        due_date=origin.due_date,
+        company_id=current_user.company_id,
+    )
+    subtotal = 0.0
+    tax_total = 0.0
+    for line in origin.lines:
+        rate = getattr(line, "tax_rate", 18.0) or 0.0
+        neg_ht = -abs(line.total)
+        neg_tax = round(neg_ht * (rate / 100.0), 2)
+        subtotal += neg_ht
+        tax_total += neg_tax
+        credit.lines.append(
+            InvoiceLine(
+                description=f"Avoir s/ {origin.number} — {line.description}",
+                quantity=line.quantity,
+                unit_price=-abs(line.unit_price),
+                tax_rate=rate,
+                total=neg_ht,
+            )
+        )
+    credit.subtotal = round(subtotal, 2)
+    credit.tax_amount = round(tax_total, 2)
+    credit.total_amount = round(subtotal + tax_total, 2)
+    db.add(credit)
+    db.commit()
+    db.refresh(credit)
+    return credit
 
 
 @router.post("/invoices/{invoice_id}/pay", response_model=InvoiceRead)
@@ -1525,6 +1693,15 @@ def pay_invoice(
         status="confirmed",
     )
     db.add(txn)
+    # ── Écriture comptable automatique : Dr Trésorerie / Cr Clients ──
+    try:
+        company = db.get(Company, current_user.company_id)
+        _accounting.record_invoice_payment(
+            db, company, invoice_id=invoice.id, total=float(invoice.total_amount or 0),
+            payment_method=payment_method, user_id=current_user.id,
+        )
+    except Exception:
+        logging.getLogger("kompta").exception("Échec écriture comptable règlement facture #%s", invoice.id)
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -1927,20 +2104,100 @@ async def post_message(
     channel = db.get(ChatChannel, channel_id)
     if not channel or channel.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Channel not found")
+    import json as _json
+    action = chat_ai_action(payload.body)
     message = Message(
         channel_id=channel_id,
         author_id=current_user.id,
         body=payload.body,
         mentions=extract_mentions(payload.body),
-        ai_suggestion=chat_ai_suggestion(payload.body),
+        ai_suggestion=action["title"] if action["detected"] else "Aucune action critique detectee, message archive dans le contexte entreprise.",
+        ai_action_json=_json.dumps(action, ensure_ascii=False) if action["detected"] else "",
         company_id=current_user.company_id,
     )
     db.add(message)
     db.commit()
     db.refresh(message)
     db.refresh(message, attribute_names=["author"])
-    await manager.broadcast(channel_id, {"type": "message", "body": message.body, "author": current_user.full_name})
-    return message
+    await manager.broadcast(channel_id, {
+        "type": "message",
+        "body": message.body,
+        "author": current_user.full_name,
+        "has_action": action["detected"],
+    })
+    return MessageRead.from_orm_with_action(message)
+
+
+@router.post("/chat/messages/{message_id}/quick-task", response_model=TaskRead, status_code=201)
+def quick_task_from_message(
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Crée une tâche directement depuis l'action détectée dans un message de chat.
+    Utilise les données structurées ai_action_json — pas de modal côté frontend.
+    """
+    import json as _json
+    from datetime import date as _date
+
+    msg = db.get(Message, message_id)
+    if not msg or msg.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Message introuvable")
+
+    # Charger l'action structurée
+    action: dict = {}
+    if msg.ai_action_json:
+        try:
+            action = _json.loads(msg.ai_action_json)
+        except Exception:
+            pass
+
+    if not action or not action.get("detected"):
+        raise HTTPException(status_code=422, detail="Aucune action Limule détectée dans ce message")
+
+    # Convertir la date si présente
+    due = None
+    if action.get("due_date"):
+        try:
+            due = _date.fromisoformat(action["due_date"])
+        except ValueError:
+            pass
+
+    task = Task(
+        title=action.get("title") or msg.body[:120],
+        description=action.get("description") or msg.body[:500],
+        priority=action.get("priority", "normal"),
+        due_date=due,
+        due_time=action.get("due_time"),
+        assignee_name=action.get("assignee") or current_user.full_name,
+        source=f"chat:message:{message_id}:limule",
+        status="todo",
+        proof_required=False,
+        company_id=current_user.company_id,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    # Audit
+    db.add(AuditLog(
+        actor=current_user.full_name,
+        action="task.created_from_chat",
+        employee=action.get("assignee") or "",
+        details=f"Tâche '{task.title}' créée depuis message #{message_id} (confiance {action.get('confidence', 0):.0%})",
+        company_id=current_user.company_id,
+    ))
+    db.commit()
+    return {
+        "id": task.id, "title": task.title, "status": task.status,
+        "priority": task.priority, "due_date": task.due_date,
+        "assignee_name": task.assignee_name, "source": task.source,
+        "description": task.description, "proof_required": task.proof_required,
+        "created_at": task.created_at, "updated_at": task.updated_at,
+        "due_time": task.due_time, "proof_url": None, "company_id": task.company_id,
+        "assigned_to_me": False, "can_update": True, "can_delete": False,
+    }
 
 
 @router.websocket("/ws/chat/{channel_id}")
@@ -1974,12 +2231,69 @@ def list_payroll_runs(db: Session = Depends(get_db), current_user: User = Depend
     ).all()
 
 
+# ── Barème social & fiscal (Congo / CEMAC, paramétrable) ───────────────────
+# Cotisation CNSS part salariale (~4 %). La part patronale (~à 8 %) est calculée
+# pour information mais ne réduit pas le net du salarié.
+CNSS_EMPLOYEE_RATE = 0.04
+CNSS_EMPLOYER_RATE = 0.08
+# Barème IRPP progressif par tranches mensuelles (XAF) — valeurs indicatives.
+IRPP_BRACKETS = [
+    (0, 0.00),
+    (464_000, 0.01),
+    (1_000_000, 0.10),
+    (3_000_000, 0.25),
+    (8_000_000, 0.40),
+]
+
+
+def _compute_irpp(taxable: float) -> float:
+    """IRPP progressif : chaque tranche n'est taxée que sur sa fraction."""
+    tax = 0.0
+    for index, (floor, rate) in enumerate(IRPP_BRACKETS):
+        if taxable <= floor:
+            break
+        ceiling = IRPP_BRACKETS[index + 1][0] if index + 1 < len(IRPP_BRACKETS) else float("inf")
+        portion = min(taxable, ceiling) - floor
+        if portion > 0:
+            tax += portion * rate
+    return round(tax, 2)
+
+
+def _compute_payslip_amounts(gross: float) -> dict[str, float]:
+    """Décompose un brut en cotisations + IRPP + net (au lieu d'un forfait 10 %)."""
+    cnss_employee = round(gross * CNSS_EMPLOYEE_RATE, 2)
+    taxable = max(gross - cnss_employee, 0.0)
+    irpp = _compute_irpp(taxable)
+    cnss_employer = round(gross * CNSS_EMPLOYER_RATE, 2)
+    deductions = round(cnss_employee + irpp, 2)
+    net = round(gross - deductions, 2)
+    return {
+        "cnss_employee": cnss_employee,
+        "cnss_employer": cnss_employer,
+        "irpp": irpp,
+        "deductions": deductions,
+        "net": net,
+    }
+
+
 @router.post("/payroll/runs", response_model=PayrollRunRead, status_code=201)
 def create_payroll_run(
     payload: PayrollRunCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PayrollRun:
+    # Idempotence : une seule paie validée par période et par société (évite les doublons / double-paiement).
+    existing_run = db.scalar(
+        select(PayrollRun).where(
+            PayrollRun.company_id == current_user.company_id,
+            PayrollRun.period == payload.period,
+        )
+    )
+    if existing_run:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Une paie existe déjà pour la période {payload.period}.",
+        )
     employees = db.scalars(select(Employee).where(Employee.company_id == current_user.company_id, Employee.status == "active")).all()
     payment_account: PaymentAccount | None = None
     if payload.payment_account_id:
@@ -2023,8 +2337,9 @@ def create_payroll_run(
                 absence_deduction = round(daily * override.absence_days, 2)
 
         gross = round(base + overtime_pay + bonus - absence_deduction, 2)
-        deductions = round(gross * 0.1, 2)   # CNSS 10%
-        net_pay = round(gross - deductions, 2)
+        amounts = _compute_payslip_amounts(gross)   # CNSS salarié + IRPP progressif
+        deductions = amounts["deductions"]
+        net_pay = amounts["net"]
         gross_total += gross
         net_total += net_pay
 
@@ -2043,9 +2358,13 @@ def create_payroll_run(
                 employee_id=employee.id,
                 employee_name=f"{employee.first_name} {employee.last_name}",
                 gross_pay=gross,
+                gross_pay_cents=_accounting.to_cents(gross),
                 deductions=deductions,
+                deductions_cents=_accounting.to_cents(deductions),
                 net_pay=net_pay,
+                net_pay_cents=_accounting.to_cents(net_pay),
                 bonus=bonus,
+                bonus_cents=_accounting.to_cents(bonus),
                 overtime_pay=overtime_pay,
                 absence_deduction=absence_deduction,
                 reference=payslip_reference(payload.period, employee, index),
@@ -2056,6 +2375,8 @@ def create_payroll_run(
         )
     run.gross_total = round(gross_total, 2)
     run.net_total = round(net_total, 2)
+    run.gross_total_cents = _accounting.to_cents(gross_total)
+    run.net_total_cents = _accounting.to_cents(net_total)
     db.add(run)
     db.commit()
     db.refresh(run)
