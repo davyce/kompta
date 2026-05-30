@@ -6,7 +6,10 @@ import { useAuth } from "../../app/AuthContext";
 import { api } from "../../services/api";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
-const WS_BASE = API_URL.replace(/^http/, "ws").replace(/\/api$/, "");
+// WS absolu (ws://|wss://). API relative (/api) → dérive de l'origine (tunnel https → wss).
+const WS_BASE = /^https?:/i.test(API_URL)
+  ? API_URL.replace(/^http/i, "ws").replace(/\/api\/?$/, "")
+  : `${window.location.origin.replace(/^http/i, "ws")}`;
 const EMOJI_QUICK = ["👍","❤️","😂","🎉","👏","🙏"];
 
 export function GroupChatPage() {

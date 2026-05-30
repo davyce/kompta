@@ -1,18 +1,24 @@
-/// <reference types="vitest" />
+/// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: "127.0.0.1",
+    host: true,            // écoute sur 0.0.0.0 → accessible via tunnel / réseau local
     port: 3001,
     strictPort: true,
-    // Proxy /api → backend local
+    // Autorise les hôtes des tunnels (cloudflare, ngrok) en dev — sinon Vite renvoie
+    // « Blocked request. This host is not allowed ». Dev uniquement, jamais en prod.
+    // Le point initial autorise tous les sous-domaines.
+    allowedHosts: [".trycloudflare.com", ".ngrok.io", ".ngrok-free.app", ".loca.lt", "localhost", "127.0.0.1"],
+    // Proxy /api + /groups WS → backend local. Permet au frontend d'appeler des URL
+    // RELATIVES (/api) qui fonctionnent aussi bien en local que derrière un tunnel iPhone.
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8010",
         changeOrigin: true,
+        ws: true,
       },
     },
   },

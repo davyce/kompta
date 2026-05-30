@@ -61,7 +61,15 @@ async def lifespan(app: FastAPI):
     create_tables()
     if settings.environment.strip().lower() in {"prod", "production"} and settings.secret_key == "dev-kompta-secret":
         raise RuntimeError("SECRET_KEY must be configured before running KOMPTA in production.")
-    # Local/dev/staging keep the demo tenant available. Production must opt in explicitly.
+    # Super-admin plateforme : TOUJOURS garanti (même en production sur base vierge).
+    try:
+        from app.db.init_db import seed_platform_admin
+        with SessionLocal() as db:
+            seed_platform_admin(db)
+        logger.info("Super-admin plateforme : OK")
+    except Exception:
+        logger.exception("Seed super-admin échoué")
+    # Données de DÉMO (société fictive) : dev/staging uniquement. Jamais en production.
     if _should_seed_demo():
         with SessionLocal() as db:
             seed_demo_data(db)

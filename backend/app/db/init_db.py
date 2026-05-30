@@ -251,6 +251,48 @@ def ensure_sqlite_migrations() -> None:
         ))
 
 
+def seed_platform_admin(db: Session) -> None:
+    """Crée/garantit le super-admin plateforme — exécuté DANS TOUS LES ENVIRONNEMENTS
+    (y compris production), indépendamment des données de démo.
+
+    Identifiants configurables par variables d'environnement (recommandé en prod) :
+      SUPER_ADMIN_EMAIL    (défaut : superadmin@kompta.io)
+      SUPER_ADMIN_PASSWORD (défaut : super2026 — À CHANGER en production)
+    Ce compte permet de se connecter sur une base vierge et d'enregistrer de
+    vraies entreprises via /auth/register-company (zéro donnée fictive requise).
+    """
+    import os
+    email = os.getenv("SUPER_ADMIN_EMAIL", "superadmin@kompta.io").strip().lower()
+    password = os.getenv("SUPER_ADMIN_PASSWORD", "super2026")
+
+    existing = db.scalar(select(User).where(User.role == "super_admin"))
+    if existing:
+        existing.is_active = True
+        existing.account_status = "active"
+        db.commit()
+        return
+
+    # Société "plateforme" minimale pour rattacher le super-admin (pas une donnée de démo).
+    platform = db.scalar(select(Company).where(Company.name == "KOMPTA Platform"))
+    if not platform:
+        platform = Company(
+            name="KOMPTA Platform", legal_name="KOMPTA Platform",
+            industry="Plateforme", organization_type="SaaS", country="Congo",
+            completion_score=100, teras_score=0,
+        )
+        db.add(platform)
+        db.flush()
+    admin = User(
+        email=email, phone=os.getenv("SUPER_ADMIN_PHONE", "+242060000099"),
+        full_name="Super Admin KOMPTA", role="super_admin",
+        department="KOMPTA Platform", branch="HQ",
+        password_hash=hash_password(password),
+        account_status="active", is_active=True, company_id=platform.id,
+    )
+    db.add(admin)
+    db.commit()
+
+
 def seed_demo_data(db: Session) -> None:
     existing_user = db.scalar(select(User).where(User.email == "admin@kompta.local"))
     if existing_user:

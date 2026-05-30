@@ -12,7 +12,11 @@ import { useAuth } from "../app/AuthContext";
 import type { LimuleAction } from "../types/domain";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
-const WS_BASE = API_URL.replace(/^http/, "ws").replace(/\/api$/, "");
+// WS_BASE doit être ABSOLU (ws://|wss://). Si l'API est en chemin relatif (/api),
+// on dérive de l'origine courante → fonctionne en local ET derrière un tunnel https (wss).
+const WS_BASE = /^https?:/i.test(API_URL)
+  ? API_URL.replace(/^http/i, "ws").replace(/\/api\/?$/, "")
+  : `${window.location.origin.replace(/^http/i, "ws")}`;
 
 /* ── Avatar ───────────────────────────────────────────────────────── */
 const GRADS = [

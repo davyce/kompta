@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# KOMPTA — Tunnel Cloudflare temporaire
-# Usage : ./tunnel.sh
+# KOMPTA — Tunnel Cloudflare temporaire (test iPhone / démo à distance)
 #
-# Expose le frontend (port 3001) et le backend (port 8010) via deux URL
-# publiques temporaires (valables ~2h, sans compte Cloudflare).
-# Pratique pour tester sur iPhone, Android ou partager une démo à distance.
+# UN SEUL tunnel vers le frontend (:3001). Le frontend appelle /api en relatif,
+# que Vite proxifie vers le backend local (:8010). Donc le backend n'a PAS besoin
+# de son propre tunnel — tout passe par l'URL publique du frontend.
+#
+# Pré-requis : backend (:8010) ET frontend (:3001) déjà lancés.
+# Usage : ./tunnel.sh
 # ─────────────────────────────────────────────────────────────────────────────
-set -e
-
 FRONTEND_PORT="${FRONTEND_PORT:-3001}"
 BACKEND_PORT="${BACKEND_PORT:-8010}"
 LOG_DIR="/tmp/kompta_tunnel"
 mkdir -p "$LOG_DIR"
+LOG="$LOG_DIR/frontend.log"
+: > "$LOG"
 
-# ── Couleurs ─────────────────────────────────────────────────────────────────
-GREEN="\033[0;32m"; YELLOW="\033[1;33m"; RED="\033[0;31m"; BLUE="\033[0;34m"; RESET="\033[0m"
-BOLD="\033[1m"
+GREEN="\033[0;32m"; YELLOW="\033[1;33m"; RED="\033[0;31m"; BLUE="\033[0;34m"; RESET="\033[0m"; BOLD="\033[1m"
 
 echo ""
 echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════╗${RESET}"
@@ -24,90 +24,72 @@ echo -e "${BOLD}${BLUE}║        KOMPTA — Tunnel Cloudflare            ║${R
 echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════╝${RESET}"
 echo ""
 
-# ── Vérification des prérequis ───────────────────────────────────────────────
+# ── Prérequis ────────────────────────────────────────────────────────────────
 if ! command -v cloudflared &>/dev/null; then
-  echo -e "${RED}✗ cloudflared non trouvé.${RESET}"
-  echo "  Installe avec : brew install cloudflared"
-  exit 1
+  echo -e "${RED}✗ cloudflared non trouvé. Installe : brew install cloudflared${RESET}"; exit 1
 fi
-
-check_port() {
-  lsof -i:"$1" | grep -q LISTEN && return 0 || return 1
-}
-
-if ! check_port "$FRONTEND_PORT"; then
-  echo -e "${YELLOW}⚠  Frontend non détecté sur :${FRONTEND_PORT}${RESET}"
-  echo "   Lance d'abord : cd frontend && npm run dev"
-  echo ""
-fi
+check_port() { lsof -i:"$1" 2>/dev/null | grep -q LISTEN; }
 
 if ! check_port "$BACKEND_PORT"; then
-  echo -e "${YELLOW}⚠  Backend non détecté sur :${BACKEND_PORT}${RESET}"
-  echo "   Lance d'abord : cd backend && ENVIRONMENT=development .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload"
+  echo -e "${RED}✗ Backend non détecté sur :${BACKEND_PORT}.${RESET}"
+  echo -e "  Lance d'abord (Terminal 1) :"
+  echo -e "  ${BOLD}cd backend && ENVIRONMENT=development .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload${RESET}"
+  echo ""
+fi
+if ! check_port "$FRONTEND_PORT"; then
+  echo -e "${RED}✗ Frontend non détecté sur :${FRONTEND_PORT}.${RESET}"
+  echo -e "  Lance d'abord (Terminal 2) : ${BOLD}cd frontend && npm run dev${RESET}"
+  echo -e "${YELLOW}Le tunnel démarre quand même, mais la page sera vide sans frontend.${RESET}"
   echo ""
 fi
 
-# ── Extraction de l'URL cloudflare depuis les logs ───────────────────────────
-extract_url() {
-  local log="$1" retries=30
-  while [[ $retries -gt 0 ]]; do
-    if grep -qE "trycloudflare\.com" "$log" 2>/dev/null; then
-      grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" "$log" | tail -1
-      return 0
-    fi
-    sleep 1
-    ((retries--))
-  done
-  echo "(URL non détectée — voir $log)"
-}
-
-# ── Tunnel Frontend ───────────────────────────────────────────────────────────
-echo -e "${BOLD}Démarrage du tunnel FRONTEND (:${FRONTEND_PORT})…${RESET}"
+# ── Démarrage du tunnel ───────────────────────────────────────────────────────
+echo -e "${BOLD}Établissement du tunnel vers le frontend (:${FRONTEND_PORT})…${RESET}"
+# --http-host-header localhost : réécrit le Host envoyé à Vite en "localhost" pour
+# contourner le contrôle allowedHosts de Vite 8 (qui ignore la config server du fichier).
 cloudflared tunnel --url "http://127.0.0.1:${FRONTEND_PORT}" \
-  --no-autoupdate 2>"$LOG_DIR/frontend.log" &
-PID_FRONTEND=$!
+  --http-host-header localhost --no-autoupdate > "$LOG" 2>&1 &
+PID=$!
 
-# ── Tunnel Backend ────────────────────────────────────────────────────────────
-echo -e "${BOLD}Démarrage du tunnel BACKEND  (:${BACKEND_PORT})…${RESET}"
-cloudflared tunnel --url "http://127.0.0.1:${BACKEND_PORT}" \
-  --no-autoupdate 2>"$LOG_DIR/backend.log" &
-PID_BACKEND=$!
-
-# ── Attente et affichage des URLs ─────────────────────────────────────────────
-echo ""
-echo -e "${YELLOW}⏳ Attente de l'établissement des tunnels (30s max)…${RESET}"
-
-FRONTEND_URL=$(extract_url "$LOG_DIR/frontend.log")
-BACKEND_URL=$(extract_url "$LOG_DIR/backend.log")
-
-echo ""
-echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}${GREEN}║  ✅  TUNNELS ACTIFS — URLs publiques temporaires          ║${RESET}"
-echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
-echo -e "${GREEN}║  🌐 FRONTEND  : ${BOLD}${FRONTEND_URL}${RESET}${GREEN}${RESET}"
-echo -e "${GREEN}║  🔌 BACKEND   : ${BOLD}${BACKEND_URL}${RESET}${GREEN}${RESET}"
-echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}"
-echo ""
-echo -e "${BLUE}📱 Pour tester sur iPhone :${RESET}"
-echo -e "   1. Ouvre Safari sur iPhone"
-echo -e "   2. Va sur : ${BOLD}${FRONTEND_URL}${RESET}"
-echo -e "   3. Connexion : admin@kompta.local / kompta123"
-echo ""
-echo -e "${YELLOW}⚠  Ces URLs expirent après ~2h. Relance le script pour en générer de nouvelles.${RESET}"
-echo -e "${YELLOW}   Les tunnels sont anonymes — pas de données stockées chez Cloudflare.${RESET}"
-echo ""
-echo -e "Logs : $LOG_DIR/"
-echo -e "Appuie sur ${BOLD}Ctrl+C${RESET} pour arrêter les tunnels."
-echo ""
-
-# ── Attente signal d'arrêt ────────────────────────────────────────────────────
 cleanup() {
   echo ""
-  echo -e "${RED}Arrêt des tunnels…${RESET}"
-  kill "$PID_FRONTEND" "$PID_BACKEND" 2>/dev/null || true
-  echo -e "${GREEN}✓ Tunnels fermés.${RESET}"
+  echo -e "${RED}Arrêt du tunnel…${RESET}"
+  kill "$PID" 2>/dev/null || true
+  echo -e "${GREEN}✓ Tunnel fermé.${RESET}"
   exit 0
 }
 trap cleanup INT TERM
 
-wait "$PID_FRONTEND" "$PID_BACKEND"
+# ── Extraction robuste de l'URL (60s max) ─────────────────────────────────────
+URL=""
+for i in $(seq 1 60); do
+  URL=$(grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" "$LOG" 2>/dev/null | head -1)
+  [ -n "$URL" ] && break
+  kill -0 "$PID" 2>/dev/null || { echo -e "${RED}✗ cloudflared s'est arrêté. Logs :${RESET}"; tail -20 "$LOG"; exit 1; }
+  sleep 1
+done
+
+if [ -z "$URL" ]; then
+  echo -e "${RED}✗ URL non détectée après 60s. Derniers logs :${RESET}"
+  tail -25 "$LOG"
+  wait "$PID"; exit 1
+fi
+
+# ── Affichage ──────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}${GREEN}╔════════════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${BOLD}${GREEN}║  ✅  TUNNEL ACTIF — URL publique temporaire                      ║${RESET}"
+echo -e "${BOLD}${GREEN}╚════════════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+echo -e "   🌐  ${BOLD}${GREEN}${URL}${RESET}"
+echo ""
+echo -e "${BLUE}📱 Sur iPhone :${RESET}"
+echo -e "   1. Ouvre Safari et va sur : ${BOLD}${URL}${RESET}"
+echo -e "   2. Connexion admin       : ${BOLD}admin@kompta.local${RESET} / ${BOLD}kompta123${RESET}"
+echo -e "   3. Connexion super-admin  : ${BOLD}superadmin@kompta.io${RESET} / ${BOLD}super2026${RESET}"
+echo ""
+echo -e "${YELLOW}ℹ  L'API passe par le même domaine (proxy Vite) — pas besoin d'un 2e tunnel.${RESET}"
+echo -e "${YELLOW}ℹ  URL valable quelques heures. Ctrl+C pour arrêter.${RESET}"
+echo ""
+
+wait "$PID"
