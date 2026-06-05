@@ -22,5 +22,28 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nouvelle vente POS",
+      "short_name": "POS",
+      "description": "Encaisser une vente rapidement",
+      "url": "/pos",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Nouvelle facture",
+      "short_name": "Facturer",
+      "description": "Créer une facture client",
+      "url": "/billing",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mes groupes",
+      "short_name": "Groupes",
+      "description": "Accéder à mes groupes/organisations",
+      "url": "/groups",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

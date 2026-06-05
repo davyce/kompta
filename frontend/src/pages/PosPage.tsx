@@ -1,18 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, CreditCard, Download, Minus, Percent, Plus, Printer,
   QrCode, RefreshCcw, Scan, Search, ShoppingCart,
   Smartphone, Trash2, Wallet, WifiOff, X, Zap,
 } from "lucide-react";
+import { QrScannerModal } from "../components/QrScannerModal";
+import { MoMoPaymentModal } from "../components/MoMoPaymentModal";
+import { StripeCardPaymentModal } from "../components/StripeCardPaymentModal";
+import { QRCodeSVG } from "qrcode.react";
 import { productIconSuggestions } from "../utils/productIcons";
-
 import { api } from "../services/api";
+import { useToast } from "../components/ToastProvider";
 import { enqueue, listPending, dequeue } from "../lib/offlineQueue";
 import type { PaymentAccount, Product } from "../types/domain";
 import { inferProductIcon } from "../utils/productIcons";
 import { money } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+
+/* Modes de paiement qui passent par MTN Mobile Money (Collection API) */
+const MOMO_METHODS = new Set(["mobile_money", "orange_money", "mtn", "airtel", "wave"]);
 
 /* ── Product icon component ─────────────────────────────────────────── */
 function ProductIcon({ name, category, size = 28 }: { name: string; category: string; size?: number }) {
@@ -146,12 +154,15 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
 
 /* ════════════════════════════════════════════════════════════════════════ */
 export function PosPage() {
+  const toast = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   // Subscribe to currency changes so the component re-renders when currency switches
   useCurrency();
 
   const products       = useQuery({ queryKey: ["products"],        queryFn: api.products });
   const paymentAccounts = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
+  const payConfig      = useQuery({ queryKey: ["paymentsConfig"],   queryFn: api.paymentsConfig });
 
   /* ── Recherche + catégorie ── */
   const [search,   setSearch]   = useState("");
@@ -162,9 +173,24 @@ export function PosPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartId]        = useState(() => Math.floor(Math.random() * 9000) + 1000);
 
+  /* ── Bouton flottant panier : masqué quand le panier est à l'écran ── */
+  const cartSectionRef = useRef<HTMLDivElement>(null);
+  const [cartVisible, setCartVisible] = useState(false);
+  useEffect(() => {
+    const el = cartSectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setCartVisible(entry.isIntersecting),
+      { threshold: 0.25 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   /* ── Paiement ── */
   const [paymentMethod,    setPaymentMethod]    = useState("cash");
   const [paymentAccountId, setPaymentAccountId] = useState<number | null>(null);
+  const [paymentSelectionInitialized, setPaymentSelectionInitialized] = useState(false);
 
   /* ── TVA ── */
   const [tvaEnabled, setTvaEnabled] = useState(true);
@@ -181,6 +207,18 @@ export function PosPage() {
   const [pendingCount,   setPendingCount]   = useState(0);
   const [syncing,        setSyncing]        = useState(false);
   const [offlineToast,   setOfflineToast]   = useState<string | null>(null);
+
+  /* ── Scanner QR ── */
+  const [scannerOpen,   setScannerOpen]   = useState(false);
+
+  /* ── Zola QR paiement ── */
+  const [zolaQrOpen,    setZolaQrOpen]    = useState(false);
+
+  /* ── Mobile Money paiement ── */
+  const [momoOpen,      setMomoOpen]      = useState(false);
+
+  /* ── Stripe card paiement ── */
+  const [stripeOpen,    setStripeOpen]    = useState(false);
 
   /* ── Export CSV ── */
   const [exportFrom,    setExportFrom]    = useState("");
@@ -206,30 +244,46 @@ export function PosPage() {
 
   /* Sélection du compte par défaut au chargement */
   useEffect(() => {
-    if (paymentAccountId !== null) return;
+    if (paymentSelectionInitialized) return;
     const def = posAccounts.find((a) => a.is_default_pos) ?? posAccounts[0];
-    if (def) { setPaymentAccountId(def.id); setPaymentMethod(accountMethodKey(def)); }
-  }, [posAccounts, paymentAccountId]);
+    if (def) {
+      setPaymentAccountId(def.id);
+      setPaymentMethod(accountMethodKey(def));
+      setPaymentSelectionInitialized(true);
+      return;
+    }
+    if (paymentAccounts.isSuccess) {
+      setPaymentSelectionInitialized(true);
+    }
+  }, [paymentAccounts.isSuccess, paymentSelectionInitialized, posAccounts]);
 
   /* ── Options de paiement affichées ──
      - Si des comptes POS sont configurés : afficher ces comptes + Espèces
      - Sinon : afficher tous les modes génériques */
   const paymentOptions = useMemo(() => {
-    if (posAccounts.length > 0) {
-      const options: { key: string; method: string; accountId: number | null; label: string; icon: React.ElementType }[] = posAccounts.map((a) => ({
-        key:       `account-${a.id}`,
-        method:    accountMethodKey(a),
-        accountId: a.id as number | null,
-        label:     a.label,
-        icon:      ALL_PAYMENT_METHODS.find((m) => m.key === accountMethodKey(a))?.icon ?? Wallet,
-      }));
-      // Ajouter Espèces si pas déjà inclus via un compte
-      const hasCash = posAccounts.some((a) => a.provider === "cash");
-      if (!hasCash) options.push({ key: "cash", method: "cash", accountId: null, label: "Espèces", icon: Wallet });
-      return options;
+    type Opt = { key: string; method: string; accountId: number | null; label: string; icon: React.ElementType };
+    const options: Opt[] = posAccounts.map((a) => ({
+      key:       `account-${a.id}`,
+      method:    accountMethodKey(a),
+      accountId: a.id as number | null,
+      label:     a.label,
+      icon:      ALL_PAYMENT_METHODS.find((m) => m.key === accountMethodKey(a))?.icon ?? Wallet,
+    }));
+
+    // Espèces : toujours disponible (sauf si déjà présent via un compte cash)
+    if (!posAccounts.some((a) => a.provider === "cash")) {
+      options.push({ key: "cash", method: "cash", accountId: null, label: "Espèces", icon: Wallet });
     }
-    return ALL_PAYMENT_METHODS.map((m) => ({ key: m.key, method: m.key, accountId: null, label: m.label, icon: m.icon }));
-  }, [posAccounts]);
+    // Carte bancaire : toujours affichée (Stripe activé OU non, le modal explique)
+    if (!options.some((o) => o.method === "card")) {
+      options.push({ key: "card", method: "card", accountId: null, label: "Carte", icon: CreditCard });
+    }
+    // Mobile Money : disponible dès que MoMo est configuré
+    if (payConfig.data?.momo_enabled && !options.some((o) => MOMO_METHODS.has(o.method))) {
+      options.push({ key: "mobile_money", method: "mobile_money", accountId: null, label: "Mobile Money", icon: Smartphone });
+    }
+    return options;
+  }, [posAccounts, payConfig.data?.momo_enabled]);
 
   /* ── Sync hors-ligne ── */
   const syncPending = useCallback(async () => {
@@ -251,6 +305,30 @@ export function PosPage() {
 
   useEffect(() => { if (isOnline && pendingCount > 0) syncPending(); }, [isOnline, pendingCount, syncPending]);
 
+  /* ── Raccourcis clavier globaux ── */
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      // Ne pas intercepter si l'utilisateur tape dans un input/textarea
+      const tag = (e.target as HTMLElement).tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+      if (e.key === "Enter" && cart.length > 0 && !momoOpen && !stripeOpen && !zolaQrOpen && !scannerOpen) {
+        e.preventDefault();
+        handleCheckout();
+      }
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === "Escape") {
+        if (search) setSearch("");
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.length, momoOpen, stripeOpen, zolaQrOpen, scannerOpen, search]);
+
   /* ── Vente ── */
   const sale = useMutation({
     mutationFn: api.createSale,
@@ -268,12 +346,17 @@ export function PosPage() {
         tax: tvaEnabled ? Math.round(cart.reduce((s, i) => s + i.price * i.quantity, 0) * (1 - discountPercent / 100) * (tvaRate / 100)) : 0,
         date: new Date().toLocaleString("fr-FR"),
       });
+      toast.success(`Vente encaissée : ${data.receipt_number}`);
       setCart([]);
       setDiscountPercent(0);
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["posSales"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Erreur d'encaissement";
+      toast.error(`Encaissement refusé : ${message}`);
     },
   });
 
@@ -320,14 +403,34 @@ export function PosPage() {
     setCart((c) => c.map((i) => i.product_id === productId ? { ...i, quantity: qty } : i).filter((i) => i.quantity > 0));
   }
 
-  async function handleCheckout() {
-    if (!cart.length) return;
-    const payload = {
+  function handleQrScan(value: string) {
+    setScannerOpen(false);
+    const v = value.trim().toLowerCase();
+    const match = (products.data ?? []).find(
+      (p) => p.sku?.toLowerCase() === v || p.qr_code?.toLowerCase() === v,
+    );
+    if (match) {
+      addToCart(match);
+      toast.success(`"${match.name}" ajouté au panier`);
+    } else {
+      setSearch(value);
+      searchRef.current?.focus();
+      toast.error("Produit non trouvé — SKU affiché dans la recherche");
+    }
+  }
+
+  function buildSalePayload(paymentTransactionId?: number) {
+    return {
       payment_method: paymentMethod,
       payment_account_id: paymentAccountId,
       items: cart.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
       ...(discountPercent > 0 ? { discount_percent: discountPercent } : {}),
+      ...(paymentTransactionId ? { payment_transaction_id: paymentTransactionId } : {}),
     };
+  }
+
+  async function recordSale(paymentTransactionId?: number) {
+    const payload = buildSalePayload(paymentTransactionId);
     if (!isOnline) {
       await enqueue(payload);
       const rows = await listPending();
@@ -338,6 +441,25 @@ export function PosPage() {
     } else {
       sale.mutate(payload);
     }
+  }
+
+  async function handleCheckout() {
+    if (!cart.length) {
+      toast.error("Le panier est vide.");
+      return;
+    }
+    // Paiement carte — ouvre le modal Stripe réel et exige une confirmation serveur.
+    if (paymentMethod === "card") {
+      setStripeOpen(true);
+      return;
+    }
+    // Paiement Mobile Money réel : on encaisse via MoMo AVANT d'enregistrer la vente.
+    if (isOnline && MOMO_METHODS.has(paymentMethod) && payConfig.data?.momo_enabled) {
+      setMomoOpen(true);
+      return;
+    }
+    // Cash + autres modes → enregistrement direct
+    await recordSale();
   }
 
   async function handleExportCsv() {
@@ -352,7 +474,7 @@ export function PosPage() {
       a.click();
       URL.revokeObjectURL(url);
 
-    } catch { alert("Erreur lors de l'export CSV"); }
+    } catch { toast.error("Erreur lors de l'export CSV"); }
     finally { setExportLoading(false); }
   }
 
@@ -363,11 +485,12 @@ export function PosPage() {
     <>
     <div className="flex flex-col gap-4 xl:flex-row xl:h-[calc(100vh-56px)]">
 
-      {/* Mobile floating cart button */}
-      {cart.length > 0 && (
+      {/* Mobile floating cart button — masqué dès que le panier est visible
+          pour ne PAS recouvrir le bouton « Encaisser ». */}
+      {cart.length > 0 && !cartVisible && (
         <div className="fixed left-1/2 -translate-x-1/2 z-40 xl:hidden bottom-[calc(5rem+env(safe-area-inset-bottom))]">
           <button
-            onClick={() => document.getElementById("pos-cart")?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() => cartSectionRef.current?.scrollIntoView({ behavior: "smooth" })}
             className="flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-emerald-700"
           >
             <ShoppingCart size={16} />
@@ -425,8 +548,8 @@ export function PosPage() {
               )}
             </div>
             <button
-              onClick={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
-              title="Scanner un code-barres"
+              onClick={() => setScannerOpen(true)}
+              title="Scanner un QR / code-barres produit"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
             >
               <Scan size={17} />
@@ -549,14 +672,17 @@ export function PosPage() {
       </div>
 
       {/* ── DROITE — Caisse ────────────────────────────────────────────── */}
-      <div id="pos-cart" className="flex xl:w-[400px] xl:shrink-0 flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
+      <div ref={cartSectionRef} id="pos-cart" className="flex xl:w-[400px] xl:shrink-0 flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
 
         {/* En-tête panier */}
         <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-3.5 dark:border-white/[0.06]">
           <div className="flex items-center gap-2">
             <ShoppingCart size={16} className="text-emerald-600" />
             <div>
-              <p className="text-sm font-semibold text-[#17211f] dark:text-white">Panier #{cartId}</p>
+              <p className="text-sm font-semibold text-[#17211f] dark:text-white">
+                Panier en cours
+                <span className="ml-1.5 font-normal text-[10px] text-[#aaaabc]">#{cartId}</span>
+              </p>
               <p className="text-[11px] text-[#717182]">{cart.length} article{cart.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
@@ -613,8 +739,9 @@ export function PosPage() {
           )}
         </div>
 
-        {/* Totaux + paiement + encaisser */}
-        <div className="shrink-0 border-t border-black/[0.06] bg-[#f8f8fc] p-4 space-y-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
+        {/* Totaux + paiement + encaisser — sticky en bas sur mobile pour rester
+            accessible quand on scrolle le panier ; statique sur desktop (xl). */}
+        <div className="shrink-0 sticky bottom-0 z-10 border-t border-black/[0.08] bg-[#f8f8fc] p-4 space-y-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:bg-[#1a1d23] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.3)] xl:static xl:shadow-none">
 
           {/* Totaux */}
           <div className="space-y-1.5 text-sm">
@@ -696,7 +823,13 @@ export function PosPage() {
                 return (
                   <button
                     key={m.key}
-                    onClick={() => { setPaymentMethod(m.method); setPaymentAccountId(m.accountId); }}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      setPaymentMethod(m.method);
+                      setPaymentAccountId(m.accountId);
+                      setPaymentSelectionInitialized(true);
+                    }}
                     className={`flex flex-col items-center gap-1 rounded-xl border py-2.5 px-1 text-xs font-medium transition ${
                       selected
                         ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
@@ -711,10 +844,26 @@ export function PosPage() {
             </div>
             {posAccounts.length === 0 && (
               <p className="mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                Aucun compte POS configuré. Ajoutez-en dans <strong>Paramètres → Paiements</strong>.
+                Ajoutez vos modes de paiement dans{" "}
+                <button
+                  onClick={() => navigate("/settings?tab=payments")}
+                  className="font-semibold underline underline-offset-2 hover:text-amber-900 transition"
+                >
+                  Paramètres → Paiements
+                </button>.
               </p>
             )}
           </div>
+
+          {/* QR Zola — afficher le QR au client pour paiement */}
+          {paymentMethod === "qr" && cart.length > 0 && (
+            <button
+              onClick={() => setZolaQrOpen(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400 bg-emerald-50 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/40 dark:text-emerald-300 transition"
+            >
+              <QrCode size={16} /> Afficher le QR Zola au client
+            </button>
+          )}
 
           {/* Bouton Encaisser */}
           <button
@@ -732,6 +881,11 @@ export function PosPage() {
               ? `Sauvegarder hors-ligne${total ? " · " + money(total) : ""}`
               : `Encaisser${total ? " · " + money(total) : ""}`}
           </button>
+
+          {/* Hint raccourcis clavier */}
+          <p className="text-[10px] text-center text-[#aaaabc] mt-1">
+            <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">↵ Enter</kbd> pour encaisser · <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">/</kbd> pour rechercher
+          </p>
 
           {/* Erreur */}
           {sale.isError && (
@@ -784,6 +938,78 @@ export function PosPage() {
         onClose={() => setTicketData(null)}
         onNewSale={() => { setTicketData(null); setCart([]); setDiscountPercent(0); }}
       />
+    )}
+
+    {/* Scanner QR / code-barres produit */}
+    {scannerOpen && (
+      <QrScannerModal
+        title="Scanner un produit"
+        onScan={handleQrScan}
+        onClose={() => setScannerOpen(false)}
+      />
+    )}
+
+    {/* Paiement Mobile Money réel (MTN MoMo) */}
+    {momoOpen && (
+      <MoMoPaymentModal
+        amountCents={Math.round(total * 100)}
+        currency="XAF"
+        description={`Vente POS #${cartId}`}
+        onSuccess={(transactionId) => { setMomoOpen(false); recordSale(transactionId); }}
+        onClose={() => setMomoOpen(false)}
+      />
+    )}
+
+    {/* Paiement carte Stripe réel */}
+    {stripeOpen && (
+      <StripeCardPaymentModal
+        amountCents={Math.round(total * 100)}
+        currency="XAF"
+        description={`Vente POS #${cartId}`}
+        onSuccess={(transactionId) => { setStripeOpen(false); recordSale(transactionId); }}
+        onClose={() => setStripeOpen(false)}
+      />
+    )}
+
+    {/* Modal QR Zola — paiement client */}
+    {zolaQrOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <QrCode size={16} className="text-emerald-600" />
+              <h3 className="font-bold text-[#17211f] dark:text-white">Paiement QR Zola</h3>
+            </div>
+            <button onClick={() => setZolaQrOpen(false)} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white transition">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex flex-col items-center gap-4 px-5 py-6">
+            <div className="rounded-2xl bg-white p-4 shadow-sm border border-black/[0.06]">
+              <QRCodeSVG
+                value={`zola://pay?amount=${total}&ref=${cartId}&currency=XAF`}
+                size={200}
+                level="M"
+                includeMargin
+              />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{money(total)}</p>
+              <p className="text-sm text-[#717182]">Montant à payer via Zola</p>
+              <p className="text-xs font-mono text-[#aaaabc]">Réf. #{cartId}</p>
+            </div>
+            <p className="text-xs text-[#717182] text-center max-w-56">
+              Le client scanne ce QR avec son application Zola pour confirmer le paiement.
+            </p>
+            <button
+              onClick={() => { setZolaQrOpen(false); handleCheckout(); }}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white transition"
+            >
+              <CheckCircle2 size={15} /> Confirmer le paiement
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );

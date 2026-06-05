@@ -113,7 +113,7 @@ function MessageBody({ text, isMe }: { text: string; isMe: boolean }) {
 
 /* ── Main ─────────────────────────────────────────────────────────── */
 export function ChatPage() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const queryClient = useQueryClient();
   const canManageTasks = Boolean(user && (user.role.startsWith("admin") || ["rh_entreprise", "manager_entreprise", "super_admin"].includes(user.role)));
   const [activeChannelId, setActiveChannelId] = useState<number | null>(null);
@@ -253,30 +253,36 @@ export function ChatPage() {
   }, [channels.data, activeChannelId]);
 
   useEffect(() => {
-    if (activeChannelId === null) return;
+    if (activeChannelId === null || !token) return;
     let cancelled = false;
-    function connect() {
+    async function connect() {
       if (cancelled) return;
-      const ws = new WebSocket(`${WS_BASE}/api/ws/chat/${activeChannelId}`);
-      wsRef.current = ws;
-      ws.onmessage = (ev) => {
-        try {
-          const data = JSON.parse(ev.data);
-          if (data.type === "message") {
-            queryClient.invalidateQueries({ queryKey: ["messages", activeChannelId] });
-          } else if (data.type === "ephemeral" && data.event === "typing" && data.user && data.user !== user?.full_name) {
-            setTypingUsers((p) => p.includes(data.user) ? p : [...p, data.user]);
-            if (typingClearTimer.current[data.user]) clearTimeout(typingClearTimer.current[data.user]);
-            typingClearTimer.current[data.user] = setTimeout(() =>
-              setTypingUsers((p) => p.filter((u) => u !== data.user)), 3000);
-          }
-        } catch { /* ignore */ }
-      };
-      ws.onclose = () => { if (!cancelled) reconnectTimer.current = setTimeout(connect, 4000); };
+      try {
+        const { ticket } = await api.realtimeTicket();
+        if (cancelled) return;
+        const ws = new WebSocket(`${WS_BASE}/api/ws/chat/${activeChannelId}?token=${encodeURIComponent(ticket)}`);
+        wsRef.current = ws;
+        ws.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data.type === "message") {
+              queryClient.invalidateQueries({ queryKey: ["messages", activeChannelId] });
+            } else if (data.type === "ephemeral" && data.event === "typing" && data.user && data.user !== user?.full_name) {
+              setTypingUsers((p) => p.includes(data.user) ? p : [...p, data.user]);
+              if (typingClearTimer.current[data.user]) clearTimeout(typingClearTimer.current[data.user]);
+              typingClearTimer.current[data.user] = setTimeout(() =>
+                setTypingUsers((p) => p.filter((u) => u !== data.user)), 3000);
+            }
+          } catch { /* ignore */ }
+        };
+        ws.onclose = () => { if (!cancelled) reconnectTimer.current = setTimeout(connect, 4000); };
+      } catch {
+        if (!cancelled) reconnectTimer.current = setTimeout(connect, 4000);
+      }
     }
     connect();
     return () => { cancelled = true; if (reconnectTimer.current) clearTimeout(reconnectTimer.current); wsRef.current?.close(); };
-  }, [activeChannelId, queryClient, user?.full_name]);
+  }, [activeChannelId, queryClient, token, user?.full_name]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.data, typingUsers.length]);
 

@@ -417,6 +417,7 @@ def admin_reset_password(
     temp_password = _generate_temp_password()
     target.password_hash = hash_password(temp_password)
     target.must_change_password = True
+    target.token_version = int(target.token_version or 0) + 1
 
     db.add(AuditLog(
         user_id=current_user.id,
@@ -440,7 +441,12 @@ def admin_reset_password(
         company_name=company_name,
     )
 
-    return {"temp_password": temp_password, "user_id": target.id}
+    return {
+        "temp_password": temp_password,
+        "user_id": target.id,
+        "must_change_password": True,
+        "message": "Mot de passe temporaire généré. L'utilisateur devra créer un nouveau mot de passe à la prochaine connexion.",
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -613,23 +619,23 @@ def system_health(
     from app.core.config import get_settings
     settings = get_settings()
 
-    services: dict = {}
+    services: list = []
 
     # Database
     try:
         t0 = time.monotonic()
         db.execute(__import__("sqlalchemy").text("SELECT 1"))
         latency_ms = round((time.monotonic() - t0) * 1000, 2)
-        services["database"] = {"status": "ok", "latency_ms": latency_ms}
+        services.append({"name": "database", "status": "healthy", "latency_ms": latency_ms, "last_check": None})
     except Exception as exc:
-        services["database"] = {"status": "down", "latency_ms": None, "error": str(exc)}
+        services.append({"name": "database", "status": "down", "latency_ms": None, "last_check": None, "error": str(exc)})
 
     # Limule / AI provider
     ai_key = settings.deepseek_api_key or settings.openai_api_key
     if ai_key:
-        services["limule"] = {"status": "ok", "latency_ms": None}
+        services.append({"name": "limule", "status": "healthy", "latency_ms": None, "last_check": None})
     else:
-        services["limule"] = {"status": "degraded", "latency_ms": None, "note": "Clé API non configurée"}
+        services.append({"name": "limule", "status": "degraded", "latency_ms": None, "last_check": None, "note": "Clé API non configurée"})
 
     # Storage
     try:
@@ -640,16 +646,13 @@ def system_health(
         disk_free_mb = round(stat.f_bavail * stat.f_frsize / (1024 * 1024), 2)
         disk_total_mb = round(stat.f_blocks * stat.f_frsize / (1024 * 1024), 2)
         disk_used_mb = round(disk_total_mb - disk_free_mb, 2)
-        services["storage"] = {
-            "status": "ok",
-            "disk_used_mb": disk_used_mb,
-            "disk_free_mb": disk_free_mb,
-        }
+        services.append({"name": "storage", "status": "healthy", "latency_ms": None, "last_check": None,
+                         "disk_used_mb": disk_used_mb, "disk_free_mb": disk_free_mb})
     except Exception as exc:
-        services["storage"] = {"status": "degraded", "error": str(exc)}
+        services.append({"name": "storage", "status": "degraded", "latency_ms": None, "last_check": None, "error": str(exc)})
 
     # Statut global
-    statuses = [s.get("status") for s in services.values()]
+    statuses = [s.get("status") for s in services]
     if "down" in statuses:
         overall = "down"
     elif "degraded" in statuses:

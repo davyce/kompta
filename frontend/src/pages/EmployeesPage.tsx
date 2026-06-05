@@ -11,6 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
 import { money, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
@@ -393,6 +394,7 @@ function EmployeeDrawer({
 
 /* ─── Page principale ──────────────────────────────────────────────────── */
 export function EmployeesPage() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   useCurrency();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -481,7 +483,8 @@ export function EmployeesPage() {
     mutationFn: api.importEmployeesCsv,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      alert(`✅ ${result.imported} employés importés${result.errors.length ? `\n⚠️ ${result.errors.length} erreurs` : ""}`);
+      const suffix = result.errors.length ? `, ${result.errors.length} erreur(s)` : "";
+      toast.success(`${result.imported} employé(s) importé(s)${suffix}`);
     },
   });
 

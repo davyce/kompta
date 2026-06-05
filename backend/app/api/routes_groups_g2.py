@@ -87,7 +87,10 @@ class PaymentCreate(BaseModel):
 
 
 class PaymentValidate(BaseModel):
-    validate: bool = True
+    # Renommé pour éviter de masquer BaseModel.validate. Alias rétro-compat.
+    validation_requested: bool = Field(default=True, alias="validate")
+
+    model_config = {"populate_by_name": True}
 
 
 class ExpenseCreate(BaseModel):

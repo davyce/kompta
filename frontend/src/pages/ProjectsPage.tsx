@@ -9,7 +9,9 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../app/AuthContext";
+import { useConfirm } from "../components/ConfirmProvider";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
 import { shortDate, shortDateTime } from "../utils/format";
 import type { Employee, Task } from "../types/domain";
@@ -144,6 +146,7 @@ function TaskDetailModal({
   onAdvance: (id: number, status: string) => void;
   onProofUploaded: (updated: Task) => void;
 }) {
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
@@ -169,7 +172,7 @@ function TaskDetailModal({
       setProofFile(null);
       setProofPreview(null);
     } catch {
-      alert("Erreur lors de l'envoi du fichier.");
+      toast.error("Erreur lors de l'envoi du fichier.");
     } finally {
       setProofUploading(false);
     }
@@ -608,6 +611,7 @@ export function ProjectsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
 
@@ -657,8 +661,14 @@ export function ProjectsPage() {
     if (!editingTask || !editForm.title.trim()) return;
     updateTask.mutate({ id: editingTask.id, payload: { ...editForm, due_date: editForm.due_date || null, due_time: editForm.due_time || null } });
   }
-  function confirmDelete(task: TaskEx) {
-    if (!window.confirm(`Supprimer "${task.title}" ?`)) return;
+  async function confirmDelete(task: TaskEx) {
+    const ok = await confirm({
+      title: "Supprimer cette tâche ?",
+      message: task.title,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (!ok) return;
     deleteTask.mutate(task.id);
   }
 

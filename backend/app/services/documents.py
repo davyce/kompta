@@ -2,12 +2,13 @@
 documents.py — Gestion documentaire KOMPTA avec pipeline d'intelligence complète.
 
 Pipeline à l'upload :
-  1. Persistance fichier sur disque
-  2. Extraction texte brut (PDF, Excel, Word, CSV, texte…)      ← doc_parser
-  3. Extraction LLM structurée (montants, parties, risques…)    ← doc_extractor
-  4. Analyse/classification basique (type, tags, résumé)        ← deepseek.analyze_document
-  5. Ingestion automatique DB (factures, etc.)                  ← doc_extractor.ingest_extracted_data
-  6. Persistance enrichie dans CompanyDocument
+  1. Validation MIME + taille (blocage si non autorisé)         ← sécurité D3
+  2. Persistance fichier sur disque
+  3. Extraction texte brut (PDF, Excel, Word, CSV, texte…)      ← doc_parser
+  4. Extraction LLM structurée (montants, parties, risques…)    ← doc_extractor
+  5. Analyse/classification basique (type, tags, résumé)        ← deepseek.analyze_document
+  6. Ingestion automatique DB (suggestions, jamais Invoice réel) ← doc_extractor.ingest_extracted_data
+  7. Persistance enrichie dans CompanyDocument
 """
 from __future__ import annotations
 
@@ -17,9 +18,75 @@ import secrets
 from pathlib import Path
 from typing import Any
 
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+# ── Sécurité upload (D3) ──────────────────────────────────────────────────────
+
+# Types MIME autorisés (allowlist stricte)
+ALLOWED_MIME_TYPES: frozenset[str] = frozenset({
+    # Documents textuels
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "text/plain",
+    "text/csv",
+    # Images (pour OCR)
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/tiff",
+})
+
+# Extensions autorisées (double vérification)
+ALLOWED_EXTENSIONS: frozenset[str] = frozenset({
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".odt", ".ods",
+    ".txt", ".csv", ".jpg", ".jpeg", ".png", ".webp", ".tiff", ".tif",
+})
+
+# Taille maximale : 15 Mo
+MAX_UPLOAD_SIZE_BYTES: int = 15 * 1024 * 1024  # 15 MB
+
+
+def validate_upload_security(upload: UploadFile, content: bytes) -> None:
+    """Valide MIME, extension et taille avant traitement.
+    Lève HTTPException 422 si le fichier n'est pas autorisé.
+    """
+    # Vérification taille
+    if len(content) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Fichier trop volumineux : {len(content) // (1024*1024)} Mo. Maximum autorisé : {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} Mo.",
+        )
+
+    # Vérification MIME (déclaré par le client)
+    mime = (upload.content_type or "").lower().split(";")[0].strip()
+    if mime and mime not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Type de fichier non autorisé : {mime}. Types acceptés : PDF, Word, Excel, CSV, images.",
+        )
+
+    # Vérification extension
+    filename = upload.filename or ""
+    ext = Path(filename).suffix.lower()
+    if ext and ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Extension non autorisée : {ext}. Extensions acceptées : {', '.join(sorted(ALLOWED_EXTENSIONS))}.",
+        )
+
+    # Vérification magic bytes pour les types les plus courants
+    if mime == "application/pdf" and not content.startswith(b"%PDF"):
+        raise HTTPException(
+            status_code=422,
+            detail="Le fichier ne semble pas être un PDF valide (signature incorrecte).",
+        )
 
 from app.core.config import get_settings
 from app.models import CompanyDocument, Employee, User
@@ -137,7 +204,10 @@ async def create_document_from_upload(
     current_user: User,
     employee_id: int | None = None,
 ) -> CompanyDocument:
+    # ── D3 : Validation sécurité avant tout traitement ────────────────────────
     content = await upload.read()
+    validate_upload_security(upload, content)
+    # ─────────────────────────────────────────────────────────────────────────
     return await create_document_record(
         db,
         title=title or upload.filename or "document",

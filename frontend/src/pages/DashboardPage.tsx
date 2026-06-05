@@ -1,9 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, ArrowUpRight, ArrowDownRight, CheckCircle2, Download,
-  Filter, ShieldCheck, TrendingUp, TrendingDown, WalletCards,
-  ReceiptText, Users, Landmark, Boxes,
+  AlertTriangle, ArrowUpRight, ArrowDownRight, BellOff, CheckCircle2,
+  ChevronDown, ChevronUp, Download, Filter, ShieldCheck, TrendingUp,
+  TrendingDown, WalletCards, ReceiptText, Users, Landmark, Boxes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -85,6 +85,7 @@ function KpiCard({
         <span className={`text-sm font-bold ${positive ? "text-emerald-600" : "text-rose-500"}`}>{delta}</span>
         <span className="text-xs text-[#717182]">{hint}</span>
       </div>
+      <p className="text-[10px] text-[#aaaabc] mt-0.5">Mis à jour à l'instant</p>
     </div>
   );
 }
@@ -140,6 +141,25 @@ function TreasuryPrediction({
   );
 }
 
+/* ── Équivalent EUR indicatif sous la trésorerie ───────────────── */
+function TreasuryEurEquivalent({ amountXaf }: { amountXaf: number }) {
+  const conversion = useQuery({
+    queryKey: ["currencyConvert", "XAF", "EUR", amountXaf],
+    queryFn: () => api.currencyConvert(amountXaf, "XAF", "EUR"),
+    staleTime: 60 * 60 * 1000,
+  });
+  if (!conversion.data || conversion.data.converted === null) return null;
+  return (
+    <p className="text-xs text-[#717182] -mt-3 pl-1">
+      Trésorerie ≈{" "}
+      <span className="font-mono font-semibold">
+        {conversion.data.converted.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} EUR
+      </span>{" "}
+      <span className="opacity-60">(taux {conversion.data.source})</span>
+    </p>
+  );
+}
+
 /* ── main component ──────────────────────────────────────────────── */
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -161,10 +181,28 @@ export function DashboardPage() {
   const terasScores   = useQuery({ queryKey: ["terasScores"],      queryFn: api.terasScores, refetchInterval: 60_000 });
   const meetings      = useQuery({ queryKey: ["meetings"],         queryFn: api.meetings, refetchInterval: 60_000 });
   const investments   = useQuery({ queryKey: ["investments"],      queryFn: api.investments, refetchInterval: 120_000 });
+  const limuleProactive = useQuery({ queryKey: ["limuleAlerts"], queryFn: api.limuleAlerts, refetchInterval: 60_000 });
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [cashFlow, setCashFlow] = useState<string | null>(null);
   const [cashFlowLoading, setCashFlowLoading] = useState(false);
+
+  // Alertes TERAS — rétractable + désactivable (persisté en localStorage)
+  // Sur mobile : réduit par défaut pour ne pas casser la mise en page
+  const [terasCollapsed, setTerasCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem("kompta_teras_collapsed");
+    if (saved !== null) return saved === "true";
+    return typeof window !== "undefined" && window.innerWidth < 1024;
+  });
+  const [terasDisabled, setTerasDisabled] = useState<boolean>(
+    () => localStorage.getItem("kompta_teras_disabled") === "true"
+  );
+  function toggleTerasCollapse() {
+    setTerasCollapsed(v => { const n = !v; localStorage.setItem("kompta_teras_collapsed", String(n)); return n; });
+  }
+  function toggleTerasDisabled() {
+    setTerasDisabled(v => { const n = !v; localStorage.setItem("kompta_teras_disabled", String(n)); return n; });
+  }
 
   // Track last refresh time
   useEffect(() => {
@@ -411,6 +449,44 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Limule détecte : alertes proactives ── */}
+      {(limuleProactive.data?.length ?? 0) > 0 && (
+        <div className="rounded-2xl border border-emerald-200 bg-white p-4 dark:bg-[#1e2229] dark:border-emerald-500/30">
+          <div className="mb-3 flex items-center gap-2">
+            <LimuleIcon size={18} />
+            <h2 className="text-sm font-extrabold text-[#17211f] dark:text-white">
+              Limule détecte
+            </h2>
+            <span className="text-xs text-[#717182]">
+              · {limuleProactive.data?.length} signal{(limuleProactive.data?.length ?? 0) > 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(limuleProactive.data ?? []).map((a, i) => {
+              const palette =
+                a.severity === "critical"
+                  ? "border-rose-200 bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300"
+                  : a.severity === "warning"
+                  ? "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300"
+                  : "border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:border-sky-500/30 dark:text-sky-300";
+              const Icon = a.severity === "critical" ? AlertTriangle : a.severity === "warning" ? AlertTriangle : CheckCircle2;
+              return (
+                <button
+                  key={`${a.type}-${i}`}
+                  type="button"
+                  onClick={() => navigate(a.action_url)}
+                  className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition hover:opacity-90 ${palette}`}
+                  title={`Aller vers ${a.action_url}`}
+                >
+                  <Icon size={16} className="mt-0.5 shrink-0" />
+                  <span className="flex-1">{a.message}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Getting Started banner (only for brand-new accounts) ── */}
       {data?.kpis.employees === 0 && data?.kpis.invoices_total === 0 && (
         <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 dark:from-emerald-500/10 dark:to-[#1e2229] dark:border-emerald-500/30">
@@ -479,6 +555,9 @@ export function DashboardPage() {
         />
       </div>
 
+      {/* ── Équivalent trésorerie en EUR (indicatif) ── */}
+      {treasury !== 0 && <TreasuryEurEquivalent amountXaf={treasury} />}
+
       {/* ── Résumé IA (visible si lancé) ── */}
       {(aiSummary !== null) && (
         <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-5 dark:border-violet-500/30 dark:from-violet-500/10 dark:to-fuchsia-500/10">
@@ -513,6 +592,13 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="h-72 p-4">
+            {revenueChartData.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <TrendingUp size={32} className="text-[#d1d5db]" />
+                <p className="text-sm font-semibold text-[#717182]">Aucune transaction ce mois</p>
+                <p className="text-xs text-[#9ca3af]">Créez votre première vente pour voir les revenus ici</p>
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueChartData} margin={{ left: 4, right: 16, top: 12, bottom: 4 }}>
                 <defs>
@@ -536,6 +622,7 @@ export function DashboardPage() {
                 <Area type="monotone" dataKey="e" stroke="#059669" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
               </AreaChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -592,56 +679,102 @@ export function DashboardPage() {
       />
 
       {/* ── Alerts + Tasks row ── */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="flex flex-col lg:grid lg:gap-5 lg:grid-cols-3 gap-4">
 
-        {/* TERAS Alerts */}
-        <div className="lg:col-span-2 rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
-          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <div>
-              <h3 className="flex items-center gap-2 font-bold text-[#17211f] dark:text-white">
-                Alertes TERAS
-                <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:ring-rose-500/30">
-                  {activeAlerts.length} actives
-                </span>
-              </h3>
-              <p className="text-xs text-[#717182]">Conformité fiscale, comptable et RH</p>
+        {/* TERAS Alerts — rétractable + désactivable */}
+        {!terasDisabled ? (
+          <div className="lg:col-span-2 rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-4 sm:px-5 py-3.5">
+              <button
+                onClick={toggleTerasCollapse}
+                className="flex items-center gap-2 text-left hover:opacity-75 transition"
+              >
+                <h3 className="flex items-center gap-2 font-bold text-[#17211f] dark:text-white">
+                  Alertes TERAS
+                  {activeAlerts.length > 0 && (
+                    <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:ring-rose-500/30">
+                      {activeAlerts.length}
+                    </span>
+                  )}
+                </h3>
+                {terasCollapsed
+                  ? <ChevronDown size={15} className="text-[#717182]" />
+                  : <ChevronUp size={15} className="text-[#717182]" />
+                }
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate("/reports-teras")}
+                  className="hidden sm:flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Voir tout <ArrowUpRight size={13} />
+                </button>
+                <button
+                  onClick={toggleTerasDisabled}
+                  title="Masquer les alertes TERAS"
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-rose-500 transition"
+                >
+                  <BellOff size={13} />
+                  <span className="hidden sm:inline">Désactiver</span>
+                </button>
+              </div>
             </div>
+            {/* Contenu (rétractable) */}
+            {!terasCollapsed && (
+              <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04] max-h-[320px] lg:max-h-none overflow-y-auto">
+                {activeAlerts.length === 0 ? (
+                  <div className="flex items-center gap-2 px-5 py-6 text-sm text-[#717182]">
+                    <CheckCircle2 size={16} className="text-emerald-500" />
+                    Aucune alerte active — conformité OK.
+                  </div>
+                ) : activeAlerts.map((a) => {
+                  const tone = a.severity === "high"
+                    ? { bg: "bg-rose-50  text-rose-600  dark:bg-rose-500/15  dark:text-rose-400",  badge: "bg-rose-50  text-rose-700  ring-rose-200  dark:bg-rose-500/15  dark:text-rose-400  dark:ring-rose-500/30",  label: "Critique"  }
+                    : a.severity === "medium"
+                    ? { bg: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400", badge: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30", label: "Attention" }
+                    : { bg: "bg-sky-50   text-sky-600   dark:bg-sky-500/15   dark:text-sky-400",   badge: "bg-sky-50   text-sky-700   ring-sky-200   dark:bg-sky-500/15   dark:text-sky-400   dark:ring-sky-500/30",   label: "Info"      };
+                  return (
+                    <div key={a.id} className="flex items-start gap-3 px-4 sm:px-5 py-3.5">
+                      <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${tone.bg}`}>
+                        <AlertTriangle size={14} />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ${tone.badge}`}>{tone.label}</span>
+                          <span className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{a.title}</span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-[#717182] truncate">{a.module} · {a.recommendation}</p>
+                      </div>
+                      <button
+                        onClick={() => navigate("/reports-teras")}
+                        className="flex-shrink-0 rounded-lg border border-black/[0.08] px-2.5 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white dark:border-white/[0.08] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition hidden sm:block">
+                        Traiter
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Bouton de réactivation compact */
+          <div className="lg:col-span-2 flex items-center justify-between rounded-xl border border-dashed border-black/[0.08] dark:border-white/[0.08] px-4 py-3">
+            <span className="flex items-center gap-2 text-xs text-[#717182]">
+              <BellOff size={14} />
+              Alertes TERAS masquées
+              {activeAlerts.length > 0 && (
+                <span className="rounded-full bg-rose-50 dark:bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">{activeAlerts.length}</span>
+              )}
+            </span>
             <button
-              onClick={() => navigate("/reports-teras")}
-              className="flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+              onClick={toggleTerasDisabled}
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition"
             >
-              Voir tout <ArrowUpRight size={15} />
+              Réactiver
             </button>
           </div>
-          <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
-            {activeAlerts.map((a) => {
-              const tone = a.severity === "high"
-                ? { bg: "bg-rose-50  text-rose-600  dark:bg-rose-500/15  dark:text-rose-400",  badge: "bg-rose-50  text-rose-700  ring-rose-200  dark:bg-rose-500/15  dark:text-rose-400  dark:ring-rose-500/30",  label: "Critique"  }
-                : a.severity === "medium"
-                ? { bg: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400", badge: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30", label: "Attention" }
-                : { bg: "bg-sky-50   text-sky-600   dark:bg-sky-500/15   dark:text-sky-400",   badge: "bg-sky-50   text-sky-700   ring-sky-200   dark:bg-sky-500/15   dark:text-sky-400   dark:ring-sky-500/30",   label: "Info"      };
-              return (
-                <div key={a.id} className="flex items-start gap-3 px-5 py-4">
-                  <span className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${tone.bg}`}>
-                    <AlertTriangle size={16} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ${tone.badge}`}>{tone.label}</span>
-                      <span className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{a.title}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-[#717182]">{a.module} · {a.recommendation}</p>
-                  </div>
-                  <button
-                    onClick={() => navigate("/reports-teras")}
-                    className="flex-shrink-0 rounded-lg border border-black/[0.08] px-2.5 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white dark:border-white/[0.08] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
-                    Traiter
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
         {/* Urgent tasks */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
@@ -650,6 +783,13 @@ export function DashboardPage() {
             <span className="text-xs text-[#717182]">{urgentTasks.length} à faire</span>
           </div>
           <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+            {urgentTasks.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-8 text-center px-5">
+                <CheckCircle2 size={28} className="text-emerald-300" />
+                <p className="text-sm font-semibold text-[#717182]">Aucune tâche urgente</p>
+                <p className="text-xs text-[#9ca3af]">Toutes vos tâches sont à jour</p>
+              </div>
+            )}
             {urgentTasks.map((t) => (
               <div key={t.id} className="flex items-center gap-3 px-5 py-3.5">
                 <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(t.assignee_name)}`}>

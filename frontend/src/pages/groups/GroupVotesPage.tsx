@@ -50,14 +50,14 @@ export function GroupVotesPage() {
               <div className="space-y-2">
                 {v.options.map(opt => (
                   <button key={opt} onClick={() => setSelectedOption(opt)}
-                    className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-sm text-left transition ${selectedOption === opt ? "border-violet-500 bg-violet-50 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300" : "border-black/[0.08] dark:border-white/[0.08] hover:border-violet-300"}`}>
-                    {selectedOption === opt && <CheckCircle size={14} className="text-violet-500 shrink-0" />}
+                    className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-sm text-left transition ${selectedOption === opt ? "border-blue-700 bg-blue-50 dark:bg-blue-800/12 text-blue-900 dark:text-blue-400" : "border-black/[0.08] dark:border-white/[0.08] hover:border-blue-400"}`}>
+                    {selectedOption === opt && <CheckCircle size={14} className="text-blue-700 shrink-0" />}
                     {opt}
                   </button>
                 ))}
                 {selectedOption && (
                   <button onClick={() => respond.mutate({ voteId: v.id, option: selectedOption })} disabled={respond.isPending}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-60 transition">
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-800 py-2.5 text-sm font-black text-white hover:bg-blue-900 disabled:opacity-60 transition">
                     {respond.isPending ? <Loader2 size={14} className="animate-spin" /> : <Vote size={14} />} Voter
                   </button>
                 )}
@@ -80,9 +80,9 @@ export function GroupVotesPage() {
             <div className="space-y-3">
               {results.results.map(r => (
                 <div key={r.option}>
-                  <div className="flex justify-between text-sm mb-1"><span className="font-medium">{r.option}</span><span className="font-black text-violet-600">{r.percent}%</span></div>
+                  <div className="flex justify-between text-sm mb-1"><span className="font-medium">{r.option}</span><span className="font-black text-blue-800">{r.percent}%</span></div>
                   <div className="h-2 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
-                    <div className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500" style={{ width: `${r.percent}%` }} />
+                    <div className="h-2 rounded-full bg-gradient-to-r from-blue-700 to-blue-800" style={{ width: `${r.percent}%` }} />
                   </div>
                   <p className="text-xs text-[#717182] mt-0.5">{r.count} vote{r.count > 1 ? "s" : ""}</p>
                 </div>

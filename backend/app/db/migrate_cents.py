@@ -47,6 +47,14 @@ MIGRATIONS: list[tuple[str, str, str]] = [
     ("investments",       "invested_amount",     "invested_amount_cents"),
     ("investments",       "purchase_price_ref",  "purchase_price_ref_cents"),
     ("pos_sessions",      "total_amount",        "total_amount_cents"),
+    # Payslips — colonnes ajoutées (v2)
+    ("payslips",          "overtime_pay",        "overtime_pay_cents"),
+    ("payslips",          "absence_deduction",   "absence_deduction_cents"),
+    # Avoirs — colonnes ajoutées (v2)
+    ("invoices",          "subtotal",            "subtotal_cents"),
+    ("invoices",          "tax_amount",          "tax_amount_cents"),
+    ("invoice_lines",     "unit_price",          "unit_price_cents"),
+    ("invoice_lines",     "total",               "total_cents"),
 ]
 
 

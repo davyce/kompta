@@ -62,7 +62,7 @@ export function LineAreaChart({
           {data.map((item, index) => {
             const x = primaryPoints[index].x;
             return (
-              <g key={item.label}>
+              <g key={`${item.label}-${index}`}>
                 <line x1={x} x2={x} y1={0} y2={height} stroke="#edf1ee" strokeDasharray="4 6" />
                 <text x={x} y={height + 28} textAnchor="middle" className="fill-slate-400 text-[13px] font-semibold">
                   {item.label}
@@ -76,7 +76,7 @@ export function LineAreaChart({
           ) : null}
           <path d={primaryPath} fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
           {primaryPoints.map((point, index) => (
-            <circle key={data[index].label} cx={point.x} cy={point.y} r={5} fill="white" stroke={color} strokeWidth={3} />
+            <circle key={`${data[index].label}-${index}`} cx={point.x} cy={point.y} r={5} fill="white" stroke={color} strokeWidth={3} />
           ))}
         </g>
       </svg>

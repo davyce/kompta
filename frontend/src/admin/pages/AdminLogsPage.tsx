@@ -46,9 +46,9 @@ function detectIcon(log: LogEntry) {
 }
 
 function levelColors(level: "info" | "warning" | "error") {
-  if (level === "error") return { icon: "text-rose-400 bg-rose-500/15", badge: "bg-rose-500/20 text-rose-200", dot: "bg-rose-500", line: "bg-rose-500/30" };
-  if (level === "warning") return { icon: "text-amber-400 bg-amber-500/15", badge: "bg-amber-500/20 text-amber-200", dot: "bg-amber-400", line: "bg-amber-500/30" };
-  return { icon: "text-violet-400 bg-violet-500/15", badge: "bg-violet-500/20 text-violet-200", dot: "bg-violet-400", line: "bg-violet-500/30" };
+  if (level === "error") return { icon: "text-rose-500 bg-rose-100 dark:text-rose-400 dark:bg-rose-500/15", badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200", dot: "bg-rose-500", line: "bg-rose-300 dark:bg-rose-500/30" };
+  if (level === "warning") return { icon: "text-indigo-600 bg-indigo-100 dark:text-indigo-500 dark:bg-indigo-600/15", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-200", dot: "bg-indigo-500", line: "bg-indigo-300 dark:bg-indigo-600/30" };
+  return { icon: "text-indigo-500 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-500/15", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200", dot: "bg-indigo-400", line: "bg-indigo-300 dark:bg-indigo-500/30" };
 }
 
 function relativeTime(dateStr: string | null): string {
@@ -150,52 +150,52 @@ export function AdminLogsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Observabilité</p>
-          <h1 className="text-3xl font-black">Audit & logs</h1>
-          <p className="mt-1 text-sm text-white/60">Journal centralisé des actions sensibles et opérations support.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Observabilité</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Audit & logs</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Journal centralisé des actions sensibles et opérations support.</p>
         </div>
         <div className="flex items-center gap-3">
           <div
             ref={spinRef}
             title="Auto-refresh 10s"
-            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-violet-300 transition-all"
+            className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-indigo-500 transition-all dark:border-white/10 dark:bg-white/5 dark:text-indigo-300"
           >
             <RefreshCw size={14} />
           </div>
           <button
             onClick={() => exportLogs(filtered, "csv")}
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70 hover:bg-white/10"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
           >
             <Download size={14} /> CSV
           </button>
           <button
             onClick={() => exportLogs(filtered, "json")}
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70 hover:bg-white/10"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
           >
             <Download size={14} /> JSON
           </button>
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-center">
-            <p className="text-2xl font-black">{filtered.length}</p>
-            <p className="text-[10px] font-bold uppercase text-white/40">événements</p>
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-center dark:border-white/10 dark:bg-white/5">
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{filtered.length}</p>
+            <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">événements</p>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-          <Search size={18} className="text-white/40" />
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/5">
+          <Search size={18} className="text-slate-400 dark:text-white/40" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filtrer action, acteur, détails..."
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
         <select
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value as typeof levelFilter)}
-          className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           <option value="all">Tous niveaux</option>
           <option value="info">Info</option>
@@ -205,20 +205,20 @@ export function AdminLogsPage() {
         <select
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value as typeof dateRange)}
-          className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           <option value="all">Toutes dates</option>
           <option value="today">Aujourd'hui</option>
           <option value="7d">7 jours</option>
           <option value="30d">30 jours</option>
         </select>
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2">
-          <Search size={14} className="text-white/40" />
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-white/10 dark:bg-white/5">
+          <Search size={14} className="text-slate-400 shrink-0 dark:text-white/40" />
           <input
             value={actorFilter}
             onChange={(e) => setActorFilter(e.target.value)}
             placeholder="Acteur / entreprise..."
-            className="w-40 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
       </div>
@@ -226,13 +226,13 @@ export function AdminLogsPage() {
       {/* Loading */}
       {logs.isLoading && (
         <div className="flex h-32 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
         </div>
       )}
 
       {/* Timeline */}
       {!logs.isLoading && (
-        <section className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <section className="rounded-xl border border-slate-200 bg-white p-4 overflow-x-hidden dark:border-white/10 dark:bg-white/5">
           <div className="relative ml-3 space-y-0">
             {pageData.map((log, i) => {
               const level = detectLevel(log);
@@ -250,53 +250,53 @@ export function AdminLogsPage() {
                     <Icon size={13} />
                   </div>
                   {/* Content */}
-                  <div className="flex-1 rounded-lg border border-white/5 bg-white/5 px-3 py-2.5">
+                  <div className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/5 dark:bg-white/5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${colors.badge}`}>
                           {log.action}
                         </span>
-                        <span className="text-xs font-semibold text-white/60">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-white/60">
                           {log.actor_name}
                           {log.target_name ? ` → ${log.target_name}` : ""}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-white/35">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 dark:text-white/35">
                         <span>tenant #{log.company_id}</span>
                         <span>·</span>
                         <span>{relativeTime(log.created_at)}</span>
                       </div>
                     </div>
                     {log.details && (
-                      <p className="mt-1 text-xs text-white/50 leading-5">{log.details}</p>
+                      <p className="mt-1 text-xs text-slate-500 leading-5 break-words dark:text-white/50">{log.details}</p>
                     )}
                   </div>
                 </article>
               );
             })}
             {pageData.length === 0 && (
-              <p className="py-12 text-center text-sm font-semibold text-white/40">Aucun log disponible.</p>
+              <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">Aucun log disponible.</p>
             )}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-              <span className="text-xs font-bold text-white/45">
+            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-white/10">
+              <span className="text-xs font-bold text-slate-500 dark:text-white/45">
                 Page {page + 1} / {totalPages} ({filtered.length} entrées)
               </span>
               <div className="flex gap-2">
                 <button
                   disabled={page === 0}
                   onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/70 hover:bg-white/10 disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                 >
                   Précédent
                 </button>
                 <button
                   disabled={page >= totalPages - 1}
                   onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/70 hover:bg-white/10 disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                 >
                   Suivant
                 </button>

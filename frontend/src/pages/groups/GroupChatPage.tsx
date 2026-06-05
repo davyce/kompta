@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Hash, Loader2, Smile, Trash2, Reply } from "lucide-react";
+import { Bot, FileText, Send, Hash, Loader2, Trash2, Reply, Plus, X, MessageSquare, Sparkles, Wifi, WifiOff, Paperclip, ImageIcon, Download, File as FileIcon } from "lucide-react";
 import { useAuth } from "../../app/AuthContext";
 import { api } from "../../services/api";
+import { useToast } from "../../components/ToastProvider";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
 // WS absolu (ws://|wss://). API relative (/api) → dérive de l'origine (tunnel https → wss).
@@ -11,6 +12,44 @@ const WS_BASE = /^https?:/i.test(API_URL)
   ? API_URL.replace(/^http/i, "ws").replace(/\/api\/?$/, "")
   : `${window.location.origin.replace(/^http/i, "ws")}`;
 const EMOJI_QUICK = ["👍","❤️","😂","🎉","👏","🙏"];
+
+function formatMessageTime(value: string) {
+  try {
+    return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  } catch {
+    return "";
+  }
+}
+
+function formatDateSeparator(value: string) {
+  try {
+    const d = new Date(value);
+    const today = new Date();
+    const yest = new Date(); yest.setDate(today.getDate() - 1);
+    const same = (a: Date, b: Date) =>
+      a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+    if (same(d, today)) return "Aujourd'hui";
+    if (same(d, yest)) return "Hier";
+    return new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(d);
+  } catch {
+    return "";
+  }
+}
+
+function dateKey(value: string) {
+  try {
+    return new Date(value).toDateString();
+  } catch {
+    return value;
+  }
+}
+
+const IMAGE_MIME = /^image\//i;
+function isImageMedia(m: { message_type?: string; media_url?: string }) {
+  if (m.message_type === "image") return true;
+  if (m.media_url && /\.(png|jpe?g|gif|webp|avif|heic|heif)$/i.test(m.media_url)) return true;
+  return false;
+}
 
 export function GroupChatPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -20,15 +59,43 @@ export function GroupChatPage() {
   const [activeRoomId, setActiveRoomId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomType, setNewRoomType] = useState("general");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantAnswer, setAssistantAnswer] = useState("");
+  const [assistantError, setAssistantError] = useState("");
+  const [wsConnected, setWsConnected] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const { data: rooms = [] } = useQuery({ queryKey: ["group-chat-rooms", id], queryFn: () => api.groupChatRooms(id) });
+  const { data: group } = useQuery({ queryKey: ["group", id], queryFn: () => api.group(id), enabled: !!id });
+
+  const createRoom = useMutation({
+    mutationFn: () => api.createChatRoom(id, newRoomName.trim(), newRoomType),
+    onSuccess: (room) => {
+      qc.invalidateQueries({ queryKey: ["group-chat-rooms", id] });
+      setActiveRoomId(room.id);
+      setShowCreateRoom(false);
+      setNewRoomName("");
+      setNewRoomType("general");
+    },
+  });
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["group-chat-messages", id, activeRoomId],
     queryFn: () => api.groupChatMessages(id, activeRoomId!, 60),
     enabled: !!activeRoomId,
   });
+  const activeRoom = rooms.find(r => r.id === activeRoomId);
+  const chatTranscript = messages
+    .filter(m => !m.deleted_at && m.content?.trim())
+    .slice(-40)
+    .map(m => `${m.sender_name} (${formatMessageTime(m.created_at)}): ${m.content.trim()}`);
 
   // Sélectionner le premier salon automatiquement
   useEffect(() => { if (rooms.length && !activeRoomId) setActiveRoomId(rooms[0].id); }, [rooms, activeRoomId]);
@@ -37,11 +104,24 @@ export function GroupChatPage() {
   // WebSocket pour temps réel
   useEffect(() => {
     if (!activeRoomId || !token) return;
-    const ws = new WebSocket(`${WS_BASE}/api/groups/${id}/chat/rooms/${activeRoomId}/ws?token=${token}`);
-    wsRef.current = ws;
-    ws.onmessage = () => qc.invalidateQueries({ queryKey: ["group-chat-messages", id, activeRoomId] });
-    ws.onerror = () => {};
-    return () => { ws.close(); };
+    let cancelled = false;
+    api.realtimeTicket()
+      .then(({ ticket }) => {
+        if (cancelled) return;
+        const ws = new WebSocket(`${WS_BASE}/api/groups/${id}/chat/rooms/${activeRoomId}/ws?token=${encodeURIComponent(ticket)}`);
+        wsRef.current = ws;
+        ws.onopen = () => setWsConnected(true);
+        ws.onmessage = () => qc.invalidateQueries({ queryKey: ["group-chat-messages", id, activeRoomId] });
+        ws.onerror = () => setWsConnected(false);
+        ws.onclose = () => setWsConnected(false);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      setWsConnected(false);
+      wsRef.current?.close();
+      wsRef.current = null;
+    };
   }, [activeRoomId, id, token, qc]);
 
   const send = useMutation({
@@ -57,51 +137,239 @@ export function GroupChatPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["group-chat-messages", id, activeRoomId] }),
   });
 
+  const uploadMedia = useMutation({
+    mutationFn: (file: File) => {
+      const messageType = file.type.startsWith("image/") ? "image"
+        : file.type.startsWith("video/") ? "video"
+        : file.type.startsWith("audio/") ? "audio"
+        : "document";
+      return api.uploadGroupChatMedia(id, activeRoomId!, file, {
+        message_type: messageType,
+        reply_to_id: replyTo ?? undefined,
+      });
+    },
+    onSuccess: () => {
+      setReplyTo(null);
+      qc.invalidateQueries({ queryKey: ["group-chat-messages", id, activeRoomId] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Échec de l'upload"),
+  });
+
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f && activeRoomId) uploadMedia.mutate(f);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f && activeRoomId) uploadMedia.mutate(f);
+  }
+  const summarizeChat = useMutation({
+    mutationFn: () => api.groupSummarizeChat(id, chatTranscript, true),
+    onMutate: () => {
+      setAssistantOpen(true);
+      setAssistantError("");
+      setAssistantAnswer("");
+    },
+    onSuccess: (data) => {
+      setAssistantAnswer(data.summary || "Limule n'a pas trouvé assez de contenu à résumer.");
+    },
+    onError: (err) => setAssistantError(err instanceof Error ? err.message : "Résumé Limule indisponible"),
+  });
+  const askLimule = useMutation({
+    mutationFn: () =>
+      api.groupAskAI(
+        id,
+        [
+          assistantQuestion.trim(),
+          "",
+          `Contexte du salon "${activeRoom?.name ?? "groupe"}" :`,
+          ...chatTranscript,
+        ].join("\n")
+      ),
+    onMutate: () => {
+      setAssistantOpen(true);
+      setAssistantError("");
+      setAssistantAnswer("");
+    },
+    onSuccess: (data) => setAssistantAnswer(data.answer),
+    onError: (err) => setAssistantError(err instanceof Error ? err.message : "Limule est indisponible"),
+  });
+
+  function handleSummarizeChat() {
+    if (chatTranscript.length === 0) {
+      setAssistantOpen(true);
+      setAssistantAnswer("");
+      setAssistantError("Aucun message réel à résumer dans ce salon.");
+      return;
+    }
+    summarizeChat.mutate();
+  }
+
+  function handleAskLimule() {
+    if (!assistantQuestion.trim()) {
+      setAssistantError("Écris une question pour Limule.");
+      return;
+    }
+    askLimule.mutate();
+  }
+
   const TYPE_BADGE: Record<string, string> = { general: "🏠", bureau: "👔", finance: "💰", event: "🎉", private: "🔒" };
+  const assistantPending = summarizeChat.isPending || askLimule.isPending;
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <>
+    <div className="flex h-full min-h-[560px] overflow-hidden">
       {/* Rooms sidebar */}
-      <div className="w-44 shrink-0 border-r border-black/[0.05] dark:border-white/[0.05] bg-[#f6f7fb] dark:bg-[#161920] p-2 space-y-0.5 overflow-y-auto">
-        <p className="px-2 py-1.5 text-[10px] font-bold uppercase text-[#717182]">Salons</p>
-        {rooms.map(r => (
-          <button key={r.id} onClick={() => setActiveRoomId(r.id)}
-            className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-2 text-left text-sm transition ${activeRoomId === r.id ? "bg-violet-100 dark:bg-violet-500/20 font-semibold text-violet-700 dark:text-violet-300" : "text-[#17211f] dark:text-white/80 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"}`}>
-            <span className="text-[11px]">{TYPE_BADGE[r.type] ?? "#"}</span>
-            <span className="truncate text-xs">{r.name}</span>
-          </button>
-        ))}
-        {rooms.length === 0 && <p className="px-2 text-xs text-[#717182]">Aucun salon</p>}
+      <div className="w-28 shrink-0 border-r border-black/[0.05] bg-[#f6f7fb] dark:border-white/[0.05] dark:bg-[#161920] sm:w-44 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-2 py-2">
+          <p className="text-[10px] font-bold uppercase text-[#717182]">Salons</p>
+          {group?.can_manage && (
+            <button
+              onClick={() => setShowCreateRoom(true)}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-[#717182] hover:bg-blue-100 hover:text-blue-800 dark:hover:bg-blue-800/15 dark:hover:text-blue-400 transition"
+              title="Créer un salon"
+            >
+              <Plus size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 space-y-0.5 pb-2">
+          {rooms.map(r => (
+            <button key={r.id} onClick={() => setActiveRoomId(r.id)}
+              className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-2 text-left transition ${activeRoomId === r.id ? "bg-blue-100 dark:bg-blue-800/15 font-semibold text-blue-900 dark:text-blue-400" : "text-[#17211f] dark:text-white/80 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"}`}>
+              <span className="text-[11px]">{TYPE_BADGE[r.type] ?? "#"}</span>
+              <span className="truncate text-xs">{r.name}</span>
+            </button>
+          ))}
+          {rooms.length === 0 && (
+            <div className="px-2 py-4 text-center">
+              <Hash size={20} className="mx-auto text-[#c4c4cf] mb-1.5" />
+              <p className="text-[11px] text-[#717182]">Aucun salon</p>
+              {group?.can_manage && (
+                <button onClick={() => setShowCreateRoom(true)} className="mt-2 text-[11px] font-semibold text-blue-800 hover:underline">
+                  Créer le premier
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
       <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-4 py-3 bg-white dark:bg-[#1e2229]">
-          <p className="font-bold text-[#17211f] dark:text-white text-sm">{rooms.find(r => r.id === activeRoomId)?.name ?? "Salon"}</p>
+        <div className="border-b border-black/[0.05] bg-white px-3 py-3 dark:border-white/[0.05] dark:bg-[#1e2229] sm:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-bold text-[#17211f] dark:text-white">{activeRoom?.name ?? "Salon"}</p>
+                <span className="hidden rounded-full border border-black/[0.08] px-2 py-0.5 text-[10px] font-bold text-[#717182] dark:border-white/[0.08] sm:inline-flex">
+                  {messages.length} messages
+                </span>
+              </div>
+              <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-[#717182]">
+                {wsConnected ? <Wifi size={11} className="text-emerald-600" /> : <WifiOff size={11} className="text-amber-500" />}
+                <span>{wsConnected ? "Temps réel connecté" : "Synchronisation par rafraîchissement"}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSummarizeChat}
+                disabled={!activeRoomId || assistantPending}
+                className="hidden items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 sm:flex"
+              >
+                <FileText size={13} />
+                Résumer
+              </button>
+              <button
+                onClick={() => setAssistantOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-800 to-emerald-700 px-3 py-2 text-xs font-black text-white shadow-sm shadow-blue-900/15 transition hover:brightness-105"
+              >
+                <Bot size={13} />
+                Limule
+              </button>
+            </div>
+          </div>
         </div>
-        {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#fbfbfd] dark:bg-[#171a21]">
-          {isLoading && <div className="flex h-32 items-center justify-center"><Loader2 size={20} className="animate-spin text-violet-500" /></div>}
-          {messages.map(m => {
+        {/* Messages area — drag&drop pour upload fichiers */}
+        <div
+          className={`flex-1 overflow-y-auto p-4 space-y-2 bg-[#fbfbfd] dark:bg-[#171a21] transition ${dragOver ? "ring-4 ring-inset ring-blue-500/40" : ""}`}
+          onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={(e) => { e.preventDefault(); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+        >
+          {!activeRoomId && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center py-10">
+              <MessageSquare size={36} className="text-blue-200 dark:text-blue-700/40" />
+              <p className="text-sm text-[#717182]">
+                {rooms.length === 0 ? "Créez votre premier salon pour commencer à discuter." : "Sélectionnez un salon."}
+              </p>
+              {rooms.length === 0 && group?.can_manage && (
+                <button onClick={() => setShowCreateRoom(true)} className="flex items-center gap-1.5 rounded-xl bg-blue-800 px-4 py-2 text-sm font-bold text-white hover:bg-blue-900 transition">
+                  <Plus size={14} /> Créer un salon
+                </button>
+              )}
+            </div>
+          )}
+          {isLoading && <div className="flex h-32 items-center justify-center"><Loader2 size={20} className="animate-spin text-blue-700" /></div>}
+          {messages.map((m, idx) => {
             const isMe = m.sender_name === user?.full_name;
             const deleted = !!m.deleted_at;
+            const prev = messages[idx - 1];
+            const showDateSep = !prev || dateKey(prev.created_at) !== dateKey(m.created_at);
+            const showSenderName = !isMe && (!prev || prev.sender_name !== m.sender_name || dateKey(prev.created_at) !== dateKey(m.created_at));
+            const mediaUrl = m.media_url ? api.groupChatMediaUrl(m.media_url) : null;
             return (
-              <div key={m.id} className={`group flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
-                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white text-[10px] font-bold self-end`}>
-                  {m.sender_name.split(" ").map((p: string) => p[0]).join("").slice(0, 2)}
-                </div>
-                <div className={`max-w-[70%] ${isMe ? "items-end" : ""}`}>
-                  {!isMe && <p className="text-[10px] font-bold text-[#717182] mb-0.5 px-1">{m.sender_name}</p>}
-                  <div className={`rounded-2xl px-3 py-2 text-sm ${isMe ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white" : "bg-[#ececf2] dark:bg-white/[0.07] text-[#17211f] dark:text-white"} ${deleted ? "opacity-50 italic" : ""}`}>
-                    {deleted ? "Message supprimé" : m.content}
+              <div key={m.id}>
+                {showDateSep && (
+                  <div className="flex items-center justify-center my-3">
+                    <span className="rounded-full bg-black/[0.05] dark:bg-white/[0.07] px-3 py-1 text-[10px] font-bold text-[#717182] uppercase tracking-wide">
+                      {formatDateSeparator(m.created_at)}
+                    </span>
                   </div>
+                )}
+                <div className={`group flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-800 text-white text-[10px] font-bold self-end ${!showSenderName && !isMe ? "invisible" : ""}`}>
+                    {m.sender_name.split(" ").map((p: string) => p[0]).join("").slice(0, 2)}
+                  </div>
+                <div className={`max-w-[82%] sm:max-w-[70%] ${isMe ? "items-end" : ""}`}>
+                  {showSenderName && <p className="text-[10px] font-bold text-[#717182] mb-0.5 px-1">{m.sender_name}</p>}
+                  {/* Bulle texte ou média */}
+                  {mediaUrl && isImageMedia(m) ? (
+                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.08]">
+                      <img src={mediaUrl} alt={m.content || "image"} className="max-h-72 w-auto max-w-full object-cover" loading="lazy" />
+                    </a>
+                  ) : mediaUrl ? (
+                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer"
+                      className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 ${isMe ? "bg-gradient-to-r from-blue-800 to-blue-900 text-white" : "bg-[#ececf2] dark:bg-white/[0.07] text-[#17211f] dark:text-white"} hover:opacity-90 transition`}
+                    >
+                      <FileIcon size={18} className="shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-semibold">{m.content || "Fichier"}</p>
+                        <p className="text-[10px] opacity-70">Cliquer pour ouvrir</p>
+                      </div>
+                      <Download size={14} className="shrink-0 opacity-70" />
+                    </a>
+                  ) : (
+                    <div className={`rounded-2xl px-3 py-2 text-sm ${isMe ? "bg-gradient-to-r from-blue-800 to-blue-900 text-white" : "bg-[#ececf2] dark:bg-white/[0.07] text-[#17211f] dark:text-white"} ${deleted ? "opacity-50 italic" : ""}`}>
+                      {deleted ? "Message supprimé" : m.content}
+                    </div>
+                  )}
+                  <p className={`mt-0.5 px-1 text-[10px] text-[#9a9aaa] ${isMe ? "text-right" : ""}`}>
+                    {formatMessageTime(m.created_at)}
+                    {m.edited_at && <span className="ml-1 italic opacity-70">· modifié</span>}
+                  </p>
                   {/* Reactions */}
                   {!deleted && Object.keys(m.reactions ?? {}).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-0.5 px-1">
                       {Object.entries(m.reactions).map(([e, c]) => (
                         <button key={e} onClick={() => react.mutate({ msgId: m.id, emoji: e })}
-                          className="flex items-center gap-0.5 rounded-full border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-1.5 py-0.5 text-[11px] hover:bg-violet-50 dark:hover:bg-violet-500/10">
+                          className="flex items-center gap-0.5 rounded-full border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-1.5 py-0.5 text-[11px] hover:bg-blue-50 dark:hover:bg-blue-800/10">
                           {e} <span className="text-[#717182]">{c}</span>
                         </button>
                       ))}
@@ -118,6 +386,7 @@ export function GroupChatPage() {
                     </div>
                   )}
                 </div>
+                </div>
               </div>
             );
           })}
@@ -127,18 +396,176 @@ export function GroupChatPage() {
         <div className="border-t border-black/[0.05] dark:border-white/[0.05] p-3 bg-white dark:bg-[#1e2229]">
           {replyTo && <div className="mb-1 flex items-center gap-2 text-xs text-[#717182]"><Reply size={10} />Réponse au message #{replyTo} <button onClick={() => setReplyTo(null)}><span className="text-rose-400 ml-1">✕</span></button></div>}
           <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f6f8] dark:bg-[#252931] px-3 py-2">
+            {/* Bouton pièce jointe */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!activeRoomId || uploadMedia.isPending}
+              title="Joindre une image ou un fichier"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#717182] hover:bg-blue-100 hover:text-blue-800 transition disabled:opacity-40"
+            >
+              {uploadMedia.isPending ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={16} />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,audio/*,application/pdf,.docx,.xlsx,.txt"
+              onChange={handleFilePick}
+              className="hidden"
+            />
             <input value={draft} onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && draft.trim()) { e.preventDefault(); send.mutate(); } }}
               placeholder={activeRoomId ? "Écrire un message…" : "Sélectionnez un salon"}
               disabled={!activeRoomId}
               className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182] disabled:cursor-not-allowed" />
             <button onClick={() => send.mutate()} disabled={!draft.trim() || send.isPending || !activeRoomId}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white disabled:bg-black/10 dark:disabled:bg-white/10">
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-800 text-white disabled:bg-black/10 dark:disabled:bg-white/10">
               {send.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             </button>
           </div>
+          <p className="mt-1.5 hidden text-[10px] text-[#aaaabc] sm:block">
+            ✦ Glisse une image ou un fichier ici · ↵ Entrée pour envoyer · Max 50 MB
+          </p>
         </div>
       </div>
+
+      {assistantOpen && (
+        <aside className="fixed inset-x-3 bottom-4 top-20 z-50 flex flex-col overflow-hidden rounded-2xl border border-black/[0.08] bg-white shadow-2xl shadow-slate-950/20 dark:border-white/[0.08] dark:bg-[#1e2229] xl:static xl:inset-auto xl:z-auto xl:w-80 xl:shrink-0 xl:rounded-none xl:border-y-0 xl:border-r-0 xl:shadow-none">
+          <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <div className="grid h-8 w-8 place-items-center rounded-xl bg-blue-800 text-white">
+                <Bot size={16} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-[#17211f] dark:text-white">Limule du chat</p>
+                <p className="text-[10px] font-semibold text-[#717182]">Résumé, décisions, actions</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAssistantOpen(false)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+              title="Fermer Limule"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {assistantPending ? (
+              <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
+                <Loader2 size={24} className="animate-spin text-blue-800 dark:text-blue-300" />
+                <p className="text-sm font-semibold text-[#717182]">Limule analyse les messages réels du salon…</p>
+              </div>
+            ) : assistantError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                {assistantError}
+              </div>
+            ) : assistantAnswer ? (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  Réponse générée depuis les messages visibles du groupe. Valider humainement avant toute décision financière ou juridique.
+                </div>
+                <div className="whitespace-pre-wrap rounded-xl border border-black/[0.06] bg-[#f8fafc] p-4 text-sm leading-relaxed text-[#17211f] dark:border-white/[0.06] dark:bg-[#161920] dark:text-white">
+                  {assistantAnswer}
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
+                <Sparkles size={30} className="text-blue-300 dark:text-blue-500/60" />
+                <div>
+                  <p className="font-black text-[#17211f] dark:text-white">Assistant connecté</p>
+                  <p className="mt-1 text-sm text-[#717182]">Demande un résumé, les décisions prises ou les prochaines actions du salon.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-black/[0.06] p-3 dark:border-white/[0.06]">
+            <textarea
+              value={assistantQuestion}
+              onChange={(e) => setAssistantQuestion(e.target.value)}
+              rows={3}
+              placeholder="Ex: Quelles actions ont été décidées ? Qui doit payer ?"
+              className="w-full resize-none rounded-xl border border-black/[0.08] bg-[#f6f7fb] px-3 py-2 text-sm text-[#17211f] outline-none placeholder:text-[#717182] focus:border-blue-700 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+            />
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={handleSummarizeChat}
+                disabled={!activeRoomId || assistantPending}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-black/[0.08] px-3 py-2 text-xs font-black text-[#17211f] transition hover:bg-black/[0.04] disabled:opacity-50 dark:border-white/[0.08] dark:text-white dark:hover:bg-white/[0.05]"
+              >
+                <FileText size={13} />
+                Résumé
+              </button>
+              <button
+                onClick={handleAskLimule}
+                disabled={assistantPending || !assistantQuestion.trim()}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-800 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-900 disabled:opacity-50"
+              >
+                <Sparkles size={13} />
+                Demander
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
+
+      {/* Modal création de salon */}
+      {showCreateRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <h3 className="font-bold text-[#17211f] dark:text-white">Nouveau salon</h3>
+              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-5 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Nom du salon</label>
+                <input
+                  autoFocus
+                  value={newRoomName}
+                  onChange={e => setNewRoomName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && newRoomName.trim() && createRoom.mutate()}
+                  placeholder="ex: Annonces, Projets, Finance…"
+                  className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-blue-700"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Type</label>
+                <select
+                  value={newRoomType}
+                  onChange={e => setNewRoomType(e.target.value)}
+                  className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-blue-700"
+                >
+                  <option value="general">🏠 Général — visible par tous</option>
+                  <option value="bureau">👔 Bureau — membres du bureau</option>
+                  <option value="finance">💰 Finance — trésorier et bureau</option>
+                  <option value="event">🎉 Événement</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 px-5 py-4 border-t border-black/[0.06] dark:border-white/[0.06]">
+              <button
+                onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }}
+                className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => createRoom.mutate()}
+                disabled={!newRoomName.trim() || createRoom.isPending}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-800 hover:bg-blue-900 py-2.5 text-sm font-bold text-white transition disabled:opacity-50"
+              >
+                {createRoom.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

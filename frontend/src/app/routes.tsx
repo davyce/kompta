@@ -1,11 +1,15 @@
 import { lazy, Suspense } from "react";
-import { Navigate, createBrowserRouter, useRouteError } from "react-router-dom";
+import { Navigate, createBrowserRouter, useNavigate, useRouteError } from "react-router-dom";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
-import { AdminShell } from "../admin/AdminShell";
 import { Shell } from "./Shell";
+// AdminShell lazy-loadé : non inclus dans le bundle principal pour les utilisateurs
+// non-admin (la grande majorité). Chargé uniquement sur les routes /admin/*.
+const AdminShell = lazy(() => import("../admin/AdminShell").then(m => ({ default: m.AdminShell })));
 import { useAuth } from "./AuthContext";
 import { LoginPage } from "../pages/LoginPage";
+import { WorkspaceSelectPage } from "../pages/WorkspaceSelectPage";
+import { RegisterGroupPage } from "../pages/RegisterGroupPage";
 
 // ── Lazy page imports ──────────────────────────────────────────────────────
 const DashboardPage       = lazy(() => import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
@@ -43,6 +47,7 @@ const AnalyticsPage       = lazy(() => import("../pages/AnalyticsPage").then(m =
 const AgendaFiscalPage    = lazy(() => import("../pages/AgendaFiscalPage").then(m => ({ default: m.AgendaFiscalPage })));
 
 // ── Groups module ──────────────────────────────────────────────────────────
+const GroupsShell           = lazy(() => import("../pages/groups/GroupsShell").then(m => ({ default: m.GroupsShell })));
 const GroupsListPage        = lazy(() => import("../pages/groups/GroupsListPage").then(m => ({ default: m.GroupsListPage })));
 const GroupLayout           = lazy(() => import("../pages/groups/GroupLayout").then(m => ({ default: m.GroupLayout })));
 const GroupDashboardPage    = lazy(() => import("../pages/groups/GroupDashboardPage").then(m => ({ default: m.GroupDashboardPage })));
@@ -102,8 +107,9 @@ function RouteErrorElement() {
 function LazyRoute({ page: Page }: { page: React.ComponentType }) {
   return (
     <Suspense fallback={
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+        <p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement du module KOMPTA en cours...</p>
       </div>
     }>
       <Page />
@@ -111,24 +117,86 @@ function LazyRoute({ page: Page }: { page: React.ComponentType }) {
   );
 }
 
+function AuthBootstrapSpinner() {
+  return (
+    <div className="flex h-dvh flex-col items-center justify-center gap-3 text-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      <p className="text-sm font-semibold text-[#717182] dark:text-white/60">Restauration de la session...</p>
+    </div>
+  );
+}
+
 function ProtectedRoute() {
-  const { token } = useAuth();
+  const { token, bootstrapping, user } = useAuth();
+  if (bootstrapping) return <AuthBootstrapSpinner />;
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+  // Un membre de groupe n'a pas accès à l'espace entreprise : redirigé vers ses groupes.
+  if (user?.role === "membre_groupe") {
+    return <Navigate to="/groups" replace />;
   }
   return <Shell />;
 }
 
 function AdminProtectedRoute() {
-  const { token } = useAuth();
+  const { token, bootstrapping } = useAuth();
+  if (bootstrapping) return <AuthBootstrapSpinner />;
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  return <AdminShell />;
+  return (
+    <Suspense fallback={<AuthBootstrapSpinner />}>
+      <AdminShell />
+    </Suspense>
+  );
+}
+
+function GroupsProtectedRoute() {
+  const { token, bootstrapping } = useAuth();
+  if (bootstrapping) return <AuthBootstrapSpinner />;
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return (
+    <Suspense fallback={<div className="flex h-dvh flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement des groupes KOMPTA...</p></div>}>
+      <GroupsShell />
+    </Suspense>
+  );
+}
+
+/**
+ * Route /activation — accessible à tout utilisateur authentifié (entreprise OU membre_groupe).
+ * Redirige vers le bon espace après changement de mot de passe.
+ */
+function ActivationRoute() {
+  const { token, bootstrapping, user } = useAuth();
+  if (bootstrapping) return <AuthBootstrapSpinner />;
+  if (!token) return <Navigate to="/login" replace />;
+  return (
+    <Suspense fallback={<div className="flex h-dvh flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement de l'activation KOMPTA...</p></div>}>
+      <ActivationPageWrapper user={user} />
+    </Suspense>
+  );
+}
+
+function ActivationPageWrapper({ user }: { user: import("../types/domain").User | null }) {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+  // Si le mot de passe a déjà été changé, rediriger vers le bon espace
+  if (user && !user.must_change_password) {
+    return <Navigate to={user.role === "membre_groupe" ? "/groups" : "/"} replace />;
+  }
+  // Injecter le callback de redirection post-activation dans ActivationPage
+  return <LazyRoute page={ActivationPage} />;
 }
 
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage />, errorElement: <RouteErrorElement /> },
+  { path: "/login",          element: <LoginPage />,          errorElement: <RouteErrorElement /> },
+  { path: "/register-group", element: <RegisterGroupPage />,  errorElement: <RouteErrorElement /> },
+  { path: "/workspace",      element: <WorkspaceSelectPage />, errorElement: <RouteErrorElement /> },
+  /* Activation accessible à TOUS les rôles authentifiés (entreprise ET membre_groupe) */
+  { path: "/activation",     element: <ActivationRoute />,    errorElement: <RouteErrorElement /> },
   {
     path: "/admin",
     element: <AdminProtectedRoute />,
@@ -146,6 +214,36 @@ export const router = createBrowserRouter([
       { path: "broadcast",             element: <LazyRoute page={AdminBroadcastPage} /> },
       { path: "system",                element: <LazyRoute page={AdminSystemPage} /> },
       { path: "onboarding",            element: <LazyRoute page={AdminOnboardingPage} /> },
+    ],
+  },
+  {
+    path: "/groups",
+    element: <GroupsProtectedRoute />,
+    errorElement: <RouteErrorElement />,
+    children: [
+      { index: true,               element: <LazyRoute page={GroupsListPage} /> },
+      {
+        path: ":groupId",
+        element: <Suspense fallback={<div className="flex h-64 flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement du groupe...</p></div>}><GroupLayout /></Suspense>,
+        children: [
+          { index: true,               element: <LazyRoute page={GroupDashboardPage} /> },
+          { path: "dashboard",         element: <LazyRoute page={GroupDashboardPage} /> },
+          { path: "members",           element: <LazyRoute page={GroupMembersPage} /> },
+          { path: "contributions",     element: <LazyRoute page={GroupContributionsPage} /> },
+          { path: "transactions",      element: <LazyRoute page={GroupTransactionsPage} /> },
+          { path: "expenses",          element: <LazyRoute page={GroupExpensesPage} /> },
+          { path: "calendar",          element: <LazyRoute page={GroupCalendarPage} /> },
+          { path: "meetings",          element: <LazyRoute page={GroupMeetingsPage} /> },
+          { path: "birthdays",         element: <LazyRoute page={GroupBirthdaysPage} /> },
+          { path: "chat",              element: <LazyRoute page={GroupChatPage} /> },
+          { path: "documents",         element: <LazyRoute page={GroupDocumentsPage} /> },
+          { path: "votes",             element: <LazyRoute page={GroupVotesPage} /> },
+          { path: "leadership",        element: <LazyRoute page={GroupLeadershipPage} /> },
+          { path: "ai-assistant",      element: <LazyRoute page={GroupAIAssistantPage} /> },
+          { path: "reports",           element: <LazyRoute page={GroupReportsPage} /> },
+          { path: "settings",          element: <LazyRoute page={GroupSettingsPage} /> },
+        ],
+      },
     ],
   },
   {
@@ -186,29 +284,6 @@ export const router = createBrowserRouter([
       { path: "audit",                 element: <LazyRoute page={AuditLogsPage} /> },
       { path: "analytics",             element: <LazyRoute page={AnalyticsPage} /> },
       { path: "fiscal",                element: <LazyRoute page={AgendaFiscalPage} /> },
-      { path: "groups",                element: <LazyRoute page={GroupsListPage} /> },
-      {
-        path: "groups/:groupId",
-        element: <Suspense fallback={<div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}><GroupLayout /></Suspense>,
-        children: [
-          { index: true,               element: <LazyRoute page={GroupDashboardPage} /> },
-          { path: "dashboard",         element: <LazyRoute page={GroupDashboardPage} /> },
-          { path: "members",           element: <LazyRoute page={GroupMembersPage} /> },
-          { path: "contributions",     element: <LazyRoute page={GroupContributionsPage} /> },
-          { path: "transactions",      element: <LazyRoute page={GroupTransactionsPage} /> },
-          { path: "expenses",          element: <LazyRoute page={GroupExpensesPage} /> },
-          { path: "calendar",          element: <LazyRoute page={GroupCalendarPage} /> },
-          { path: "meetings",          element: <LazyRoute page={GroupMeetingsPage} /> },
-          { path: "birthdays",         element: <LazyRoute page={GroupBirthdaysPage} /> },
-          { path: "chat",              element: <LazyRoute page={GroupChatPage} /> },
-          { path: "documents",         element: <LazyRoute page={GroupDocumentsPage} /> },
-          { path: "votes",             element: <LazyRoute page={GroupVotesPage} /> },
-          { path: "leadership",        element: <LazyRoute page={GroupLeadershipPage} /> },
-          { path: "ai-assistant",      element: <LazyRoute page={GroupAIAssistantPage} /> },
-          { path: "reports",           element: <LazyRoute page={GroupReportsPage} /> },
-          { path: "settings",          element: <LazyRoute page={GroupSettingsPage} /> },
-        ],
-      },
       { path: "*",                     element: <LazyRoute page={NotFoundPage} /> },
     ]
   }

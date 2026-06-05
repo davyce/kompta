@@ -10,6 +10,8 @@ import {
 import { api } from "../services/api";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
+import { useConfirm } from "../components/ConfirmProvider";
+import { resetOnboardingTour } from "../components/OnboardingTour";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
 import type { CurrencyCode } from "../utils/format";
 import { QRCodeSVG } from "qrcode.react";
@@ -20,6 +22,8 @@ type Tab = "general" | "modules" | "payments" | "security" | "notifications" | "
 const PROVIDERS = [
   { key: "zola", label: "Zola / QR", icon: Wallet },
   { key: "mobile_money", label: "Mobile money", icon: Smartphone },
+  { key: "card", label: "Carte / Stripe", icon: CreditCard },
+  { key: "cash", label: "Espèces", icon: Wallet },
   { key: "bank", label: "Compte bancaire", icon: Landmark },
   { key: "paypal", label: "PayPal", icon: CreditCard },
 ];
@@ -59,7 +63,7 @@ function SettingRow({ icon: Icon, label, description, children }: {
   icon: React.ElementType; label: string; description?: string; children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-4 border-b border-black/[0.04] dark:border-white/[0.04] last:border-0">
+    <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-black/[0.04] dark:border-white/[0.04] last:border-0">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
           <Icon size={17} />
@@ -100,6 +104,7 @@ export function SettingsPage() {
   const { user } = useAuth();
   const { currency: activeCurrency, setCurrency } = useCurrency();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
   const location = useLocation();
   const initialTab = (new URLSearchParams(location.search).get("tab") as Tab | null) ?? "general";
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -136,6 +141,7 @@ export function SettingsPage() {
     country: "République du Congo",
     primary_color: "#0f766e",
     accent_color: "#f59e0b",
+    cash_low_threshold_cents: 5_000_000,
   });
   const [myPayoutForm, setMyPayoutForm] = useState({
     payout_method: "mobile_money",
@@ -144,6 +150,27 @@ export function SettingsPage() {
     payout_account_number: "",
     payout_paypal_email: "",
   });
+
+  async function handleDeletePaymentAccount(accountId: number, label: string) {
+    const ok = await confirm({
+      title: "Supprimer ce compte de paiement ?",
+      message: label,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deletePaymentAccount.mutate(accountId);
+  }
+
+  async function handleResetWorkspace() {
+    const ok = await confirm({
+      title: "Remettre l'espace à zéro ?",
+      message: "Les données métier locales seront supprimées. Le compte connecté et le canal général seront conservés.",
+      confirmLabel: "Réinitialiser",
+      danger: true,
+      requireAcknowledge: "Je comprends que cette action supprime les données de cet espace local.",
+    });
+    if (ok) resetWorkspace.mutate();
+  }
 
   const toggleModule = useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) => api.toggleModule(key, enabled),
@@ -173,6 +200,7 @@ export function SettingsPage() {
       country: company.data.country || "République du Congo",
       primary_color: company.data.primary_color || "#0f766e",
       accent_color: company.data.accent_color || "#f59e0b",
+      cash_low_threshold_cents: company.data.cash_low_threshold_cents ?? 5_000_000,
     });
   }, [company.data]);
 
@@ -429,13 +457,13 @@ export function SettingsPage() {
                         <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.accent_color }} />
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {[
-                        { label: "Nom commercial", key: "name", placeholder: "KOMPTA Demo" },
-                        { label: "Raison sociale", key: "legal_name", placeholder: "KOMPTA Demo SARL" },
-                        { label: "Activité", key: "industry", placeholder: "Commerce et services" },
-                        { label: "Forme / organisation", key: "organization_type", placeholder: "PME" },
-                        { label: "Pays principal", key: "country", placeholder: "République du Congo" },
+                        { label: "Nom commercial", key: "name", placeholder: "Ex : Mon Entreprise" },
+                        { label: "Raison sociale", key: "legal_name", placeholder: "Ex : Mon Entreprise SARL" },
+                        { label: "Activité", key: "industry", placeholder: "Ex : Commerce et services" },
+                        { label: "Forme / organisation", key: "organization_type", placeholder: "Ex : PME" },
+                        { label: "Pays principal", key: "country", placeholder: "Ex : République du Congo" },
                       ].map((field) => (
                         <label key={field.key} className="block text-xs font-bold uppercase text-[#717182]">
                           {field.label}
@@ -468,6 +496,29 @@ export function SettingsPage() {
                           className="mt-1 h-11 w-full rounded-xl border border-black/[0.08] bg-white p-1 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931]"
                         />
                       </label>
+                      <label className="block text-xs font-bold uppercase text-[#717182] md:col-span-2">
+                        Seuil d'alerte trésorerie
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={Math.round((companyForm.cash_low_threshold_cents ?? 0) / 100)}
+                            onChange={(event) =>
+                              setCompanyForm({
+                                ...companyForm,
+                                cash_low_threshold_cents: Math.max(0, Math.round(Number(event.target.value) || 0)) * 100,
+                              })
+                            }
+                            disabled={isEmployeeSelfService}
+                            className="w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                          />
+                          <span className="shrink-0 text-sm font-semibold text-[#717182]">{activeCurrency}</span>
+                        </div>
+                        <span className="mt-1 block text-[11px] font-normal normal-case text-[#717182]">
+                          Limule t'alerte quand ta trésorerie passe sous ce montant. Mets 0 pour désactiver l'alerte.
+                        </span>
+                      </label>
                     </div>
                   </div>
                   {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">Profil entreprise enregistré.</p>}
@@ -499,6 +550,18 @@ export function SettingsPage() {
                 </SettingRow>
                 <SettingRow icon={User} label="Compte connecté" description={user?.email}>
                   <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">{user?.role}</span>
+                </SettingRow>
+                <SettingRow icon={Zap} label="Visite guidée" description="Redécouvrir KOMPTA pas à pas">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetOnboardingTour();
+                      window.location.reload();
+                    }}
+                    className="rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  >
+                    Relancer la visite guidée
+                  </button>
                 </SettingRow>
               </div>
             </div>
@@ -569,7 +632,7 @@ export function SettingsPage() {
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
                 <h2 className="font-bold text-[#17211f] dark:text-white">Comptes de paiement</h2>
-                <p className="text-sm text-[#717182]">Configurez Zola, mobile money, banque et PayPal pour la caisse et la paie.</p>
+                <p className="text-sm text-[#717182]">Configurez espèces, carte Stripe, Zola, mobile money, banque et PayPal pour la caisse et la paie.</p>
               </div>
               {user?.employee_id && (
                 <div className="border-b border-black/[0.05] p-6 dark:border-white/[0.05]">
@@ -759,9 +822,7 @@ export function SettingsPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (window.confirm("Supprimer ce compte de paiement ?")) deletePaymentAccount.mutate(account.id);
-                                }}
+                                onClick={() => handleDeletePaymentAccount(account.id, account.label)}
                                 disabled={deletePaymentAccount.isPending}
                                 className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50"
                               >
@@ -802,11 +863,21 @@ export function SettingsPage() {
                       Titulaire
                       <input value={paymentForm.account_name} onChange={(e) => setPaymentForm({ ...paymentForm, account_name: e.target.value })} placeholder="Nom du compte" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                     </label>
-                    {paymentForm.provider !== "bank" && paymentForm.provider !== "paypal" && (
+                    {!["bank", "paypal", "cash", "card"].includes(paymentForm.provider) && (
                       <label className="block text-xs font-bold uppercase text-[#717182]">
                         Téléphone / identifiant
                         <input value={paymentForm.phone_number} onChange={(e) => setPaymentForm({ ...paymentForm, phone_number: e.target.value })} placeholder="+242 06..." className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                       </label>
+                    )}
+                    {paymentForm.provider === "card" && (
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                        La saisie carte du POS utilise Stripe.js et les clés Stripe du backend. Le Tap to Pay sans contact nécessite une app mobile Stripe Terminal ou un lecteur Terminal.
+                      </div>
+                    )}
+                    {paymentForm.provider === "cash" && (
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+                        Utilisez ce compte pour identifier une caisse espèces précise dans le POS.
+                      </div>
                     )}
                     {paymentForm.provider === "bank" && (
                       <>
@@ -830,7 +901,7 @@ export function SettingsPage() {
                       Instructions internes
                       <textarea value={paymentForm.instructions} onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })} rows={3} placeholder="Ex : vérifier le reçu avant validation..." className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                     </label>
-                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-[#17211f] dark:text-white">
+                    <div className="grid grid-cols-1 gap-2 text-xs font-semibold text-[#17211f] dark:text-white sm:grid-cols-2">
                       <label className="flex items-center gap-2 rounded-lg border border-black/[0.06] p-2 dark:border-white/[0.06]">
                         <input type="checkbox" checked={paymentForm.use_for_pos} onChange={(e) => setPaymentForm({ ...paymentForm, use_for_pos: e.target.checked })} />
                         Caisse
@@ -898,14 +969,14 @@ export function SettingsPage() {
                           <div className="flex justify-center rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white p-4 w-fit">
                             <QRCodeSVG value={twoFaQrUrl || "https://kompta.io"} size={160} />
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <input
                               type="text"
                               value={twoFaCode}
                               onChange={(e) => setTwoFaCode(e.target.value)}
                               placeholder="Code à 6 chiffres"
                               maxLength={6}
-                              className="w-48 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 font-mono tracking-widest"
+                              className="w-full max-w-[12rem] rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 font-mono tracking-widest"
                             />
                             <button
                               onClick={handle2faVerify}
@@ -949,11 +1020,7 @@ export function SettingsPage() {
                   description="Supprime employés, produits, ventes, documents, paie, tâches, notes, réunions et messages. Le compte connecté et le canal général sont conservés."
                 >
                   <button
-                    onClick={() => {
-                      if (window.confirm("Confirmer la remise à zéro de cet espace local ?")) {
-                        resetWorkspace.mutate();
-                      }
-                    }}
+                    onClick={handleResetWorkspace}
                     disabled={resetWorkspace.isPending || user?.role !== "admin_entreprise"}
                     className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -1079,16 +1146,16 @@ export function SettingsPage() {
                     </div>
                   </div>
                 ))}
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-wrap gap-3 pt-2">
                   <button
                     onClick={exportInvoicesCsv}
                     disabled={(myInvoices.data?.length ?? 0) === 0}
-                    className="flex-1 rounded-xl border border-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition disabled:opacity-50">
+                    className="flex-1 min-w-[200px] rounded-xl border border-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition disabled:opacity-50">
                     Télécharger factures (CSV)
                   </button>
                   <a
                     href="mailto:contact@kompta.io?subject=Mise%20%C3%A0%20niveau%20KOMPTA"
-                    className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition text-center">
+                    className="flex-1 min-w-[200px] rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition text-center">
                     Contacter pour mise à niveau
                   </a>
                 </div>

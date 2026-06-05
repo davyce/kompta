@@ -23,7 +23,7 @@ import textwrap
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,42 +50,104 @@ router = APIRouter()
 settings = get_settings()
 
 # ──────────────────────────────────────────────────────────────────────────────
-# In-memory reset token store (suffisant pour mode local / démo)
-# En production : stocker en DB avec expiry
+# Reset de mot de passe — tokens PERSISTÉS EN DB, hashés, usage unique, expiration.
+# (remplace l'ancien store en mémoire). Le token clair n'est renvoyé en réponse
+# qu'en dev/local ; en prod il part par email (si SMTP configuré).
 # ──────────────────────────────────────────────────────────────────────────────
-_reset_tokens: dict[str, dict[str, Any]] = {}  # token → {user_id, expires_at}
+import hashlib
+
+from app.models import PasswordResetToken
+
+_RESET_TTL_MINUTES = 30
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _is_prod_env() -> bool:
+    env = (getattr(get_settings(), "environment", "") or "").strip().lower()
+    return env in {"prod", "production", "staging"}
 
 
 @router.post("/auth/request-reset")
 def request_password_reset(
     payload: dict[str, str],
+    request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-) -> dict[str, str]:
-    """Génère un token de réinitialisation (affiché dans la réponse — mode local)."""
+) -> dict[str, Any]:
+    """Génère un token de réinitialisation persisté en DB (hashé), usage unique.
+
+    En prod : le token part par email si SMTP est configuré, jamais dans la réponse.
+    En dev/local : le token clair est renvoyé pour faciliter les tests.
+    Lookup permissif (email ou téléphone, plusieurs formats).
+    """
+    from app.api.routes import _login_lookup_conditions
     identifier = (payload.get("identifier") or "").strip()
     if not identifier:
         raise HTTPException(status_code=400, detail="Identifiant requis")
 
-    user = db.scalar(
-        select(User).where(
-            (User.email == identifier) | (User.phone == identifier)
-        )
-    )
+    generic = {"message": "Si un compte correspond, un lien de réinitialisation a été envoyé."}
+    user = db.scalar(select(User).where(_login_lookup_conditions(identifier)))
     if not user:
-        # Ne pas révéler si l'utilisateur existe ou non
-        return {"message": "Si un compte correspond, un token de réinitialisation a été généré."}
+        # Ne jamais révéler si le compte existe (anti-énumération)
+        return generic
 
-    token = secrets.token_urlsafe(32)
-    _reset_tokens[token] = {
-        "user_id": user.id,
-        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=30),
-    }
+    # Invalider les anciens tokens actifs de cet utilisateur (un seul à la fois)
+    now = datetime.now(timezone.utc)
+    old_tokens = db.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+    ).all()
+    for t in old_tokens:
+        t.used_at = now  # marqués consommés → invalides
 
-    # En mode local on retourne le token directement (pas d'email)
+    clear_token = secrets.token_urlsafe(32)
+    reset = PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_reset_token(clear_token),
+        expires_at=now + timedelta(minutes=_RESET_TTL_MINUTES),
+        request_ip=(request.client.host if request.client else "")[:64],
+    )
+    db.add(reset)
+
+    # Audit
+    try:
+        db.add(AccessAuditLog(
+            actor_user_id=user.id, target_user_id=user.id,
+            action="password_reset_requested",
+            details=f"Demande de réinitialisation depuis {reset.request_ip}",
+            company_id=user.company_id,
+        ))
+    except Exception:
+        pass
+    db.commit()
+
+    # Email en prod (best-effort en arrière-plan)
+    settings = get_settings()
+    if settings.email_enabled and user.email:
+        try:
+            from app.services.email import send_reset_password_email
+            company = db.get(Company, user.company_id) if user.company_id else None
+            background_tasks.add_task(
+                send_reset_password_email,
+                to=user.email, full_name=user.full_name,
+                temp_password=clear_token,  # ici le token, l'email expliquera la procédure
+                company_name=(company.name if company else "KOMPTA"),
+            )
+        except Exception:
+            pass
+
+    # En dev/local uniquement : renvoyer le token clair pour test
+    if _is_prod_env():
+        return generic
     return {
-        "message": "Token généré.",
-        "reset_token": token,
-        "expires_in_minutes": 30,
+        "message": "Token généré (mode dev).",
+        "reset_token": clear_token,
+        "expires_in_minutes": _RESET_TTL_MINUTES,
         "note": "Mode local : copiez ce token pour réinitialiser le mot de passe.",
     }
 
@@ -95,32 +157,49 @@ def reset_password(
     payload: dict[str, str],
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    """Réinitialise le mot de passe via un token valide."""
+    """Réinitialise le mot de passe via un token DB valide (hashé, usage unique)."""
     token = (payload.get("token") or "").strip()
     new_password = (payload.get("new_password") or "").strip()
 
     if not token or not new_password:
         raise HTTPException(status_code=400, detail="Token et nouveau mot de passe requis")
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="Mot de passe trop court (min. 6 caractères)")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Mot de passe trop court (min. 8 caractères)")
 
-    entry = _reset_tokens.get(token)
-    if not entry:
-        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
-    if datetime.now(timezone.utc) > entry["expires_at"]:
-        del _reset_tokens[token]
+    entry = db.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == _hash_reset_token(token))
+    )
+    if not entry or entry.used_at is not None:
+        raise HTTPException(status_code=400, detail="Token invalide ou déjà utilisé")
+    # SQLite stocke les datetimes en naïf : normaliser en UTC aware pour comparer.
+    expires_at = entry.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="Token expiré")
 
-    user = db.get(User, entry["user_id"])
+    user = db.get(User, entry.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
     from app.core.security import hash_password
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
+    # Révoquer toutes les sessions actives (le mdp a changé)
+    user.token_version = int(user.token_version or 0) + 1
+    entry.used_at = datetime.now(timezone.utc)
+
+    try:
+        db.add(AccessAuditLog(
+            actor_user_id=user.id, target_user_id=user.id,
+            action="password_reset_completed",
+            details="Mot de passe réinitialisé via token",
+            company_id=user.company_id,
+        ))
+    except Exception:
+        pass
     db.commit()
 
-    del _reset_tokens[token]
     return {"message": "Mot de passe réinitialisé avec succès."}
 
 
@@ -231,6 +310,7 @@ def download_payslip(
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """Télécharge le bulletin de paie d'un employé en PDF."""
+    privileged_roles = {"admin_entreprise", "manager_entreprise", "rh_entreprise", "super_admin"}
     slip = db.scalar(
         select(Payslip)
         .join(PayrollRun, Payslip.payroll_run_id == PayrollRun.id)
@@ -238,9 +318,21 @@ def download_payslip(
     )
     if not slip:
         raise HTTPException(status_code=404, detail="Bulletin introuvable")
+    if current_user.role not in privileged_roles and slip.employee_id != current_user.employee_id:
+        raise HTTPException(status_code=404, detail="Bulletin introuvable")
 
     company = db.get(Company, current_user.company_id)
     company_name = company.name if company else "KOMPTA"
+    db.add(
+        AccessAuditLog(
+            company_id=current_user.company_id,
+            actor_user_id=current_user.id,
+            employee_id=slip.employee_id,
+            action="payroll.payslip_download",
+            details=f"Payslip#{payslip_id} telecharge : {slip.reference}",
+        )
+    )
+    db.commit()
 
     pdf_bytes = _generate_payslip_pdf_bytes(slip, company_name)
     filename = f"bulletin_{slip.reference}.pdf"

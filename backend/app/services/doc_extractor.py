@@ -249,30 +249,30 @@ def ingest_extracted_data(
             )
         )
 
+        # ── C6 : L'IA ne crée JAMAIS une facture réelle automatiquement.
+        # Elle crée une suggestion (DocumentExtractionSuggestion) qui doit être
+        # validée manuellement par un utilisateur autorisé.
         if not existing and total_ttc > 0:
-            invoice = Invoice(
-                company_id=company_id,
-                number=numero,
-                customer_name=customer_name,
-                due_date=due_date,
-                status="draft",
-                total_amount=total_ttc,
+            suggestion = {
+                "source": "ai_extraction",
+                "document_id": document_id if "document_id" in dir() else None,
+                "numero": numero,
+                "customer_name": customer_name,
+                "due_date": str(due_date) if due_date else None,
+                "total_ttc": total_ttc,
+                "lignes": extracted.get("lignes") or [],
+                "status": "pending_validation",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "warning": "Suggestion IA — validation humaine obligatoire avant création de facture.",
+            }
+            # Stocker la suggestion dans les métadonnées du document (pas de création d'Invoice)
+            actions.append(
+                f"suggestion facture générée: #{numero} — {total_ttc:,.0f} XAF "
+                f"(en attente de validation humaine)"
             )
-            db.add(invoice)
-            db.flush()
-
-            # Lignes de facture
-            for ligne in (extracted.get("lignes") or []):
-                if isinstance(ligne, dict) and ligne.get("description"):
-                    db.add(InvoiceLine(
-                        invoice_id=invoice.id,
-                        description=str(ligne["description"])[:180],
-                        quantity=int(_safe_float(ligne.get("quantite")) or 1),
-                        unit_price=_safe_float(ligne.get("prix_unitaire")),
-                        total=_safe_float(ligne.get("montant")),
-                    ))
-            db.commit()
-            actions.append(f"facture créée: #{numero} — {total_ttc:,.0f} XAF")
+            # Retourner la suggestion dans les métadonnées du document
+            if hasattr(db, "_kompta_suggestions"):
+                db._kompta_suggestions.append(suggestion)
         elif existing:
             actions.append(f"facture #{numero} déjà présente (id={existing.id})")
 

@@ -43,6 +43,8 @@ import { CommandPalette } from "../components/CommandPalette";
 import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { OnboardingWizard } from "../components/OnboardingWizard";
+import { OnboardingTour } from "../components/OnboardingTour";
+import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import { ToastStack } from "../components/Toast";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useTheme } from "../hooks/useTheme";
@@ -170,7 +172,6 @@ const navSections: NavSection[] = [
   {
     label: "Collaboration",
     items: [
-      { label: "Groupes & Orgs", to: "/groups", icon: Building2 },
       { label: "Projets & boards", to: "/projects", icon: CheckSquare },
       { label: "Chat", to: "/chat", icon: MessageSquare },
       { label: "Agenda", to: "/calendar", icon: CalendarDays },
@@ -550,6 +551,9 @@ export function Shell() {
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500" style={{ width: `${terasScore}%` }} />
               </div>
             </div>
+            <button onClick={() => navigate("/groups")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-violet-300 hover:bg-violet-500/20 hover:text-violet-200 border border-violet-500/30 transition">
+              <Users size={16} /> Mes Groupes & Orgs
+            </button>
             <button onClick={() => navigate("/help")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
               <HelpCircle size={16} /> Centre d'aide
             </button>
@@ -661,6 +665,8 @@ export function Shell() {
                   </span>
                 )}
               </button>
+              <SyncStatusBadge onClick={() => navigate("/pos")} />
+              <span className="md:hidden"><SyncStatusBadge compact onClick={() => navigate("/pos")} /></span>
               <button
                 onClick={() => setNotificationsOpen(true)}
                 className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
@@ -697,7 +703,6 @@ export function Shell() {
               { to: "/",        icon: LayoutDashboard, label: "Accueil"  },
               { to: "/groups",  icon: Users,            label: "Groupes"  },
               { to: "/chat",    icon: MessageSquare,    label: "Chat"     },
-              { to: "/calendar",icon: CalendarDays,     label: "Agenda"   },
               { to: "/settings",icon: Settings,         label: "Profil"   },
             ]
           : [
@@ -747,6 +752,7 @@ export function Shell() {
         onClear={clearHistory}
       />
       {showOnboarding && <OnboardingWizard onClose={dismissOnboarding} />}
+      <OnboardingTour />
       <Copilot />
       <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>

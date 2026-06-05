@@ -131,6 +131,8 @@ def ensure_sqlite_migrations() -> None:
             "sale_seq": "INTEGER DEFAULT 0",
             "accounting_mode": "VARCHAR(20) DEFAULT 'simple'",
             "accounting_seq": "INTEGER DEFAULT 0",
+            "invoice_approval_threshold_cents": "INTEGER DEFAULT 0",
+            "cash_low_threshold_cents": "INTEGER DEFAULT 5000000",
         },
         # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
         "products": {
@@ -140,6 +142,10 @@ def ensure_sqlite_migrations() -> None:
             "subtotal_cents": "INTEGER DEFAULT 0",
             "tax_amount_cents": "INTEGER DEFAULT 0",
             "total_amount_cents": "INTEGER DEFAULT 0",
+            "approval_status": "VARCHAR(20) DEFAULT 'not_required'",
+            "approved_by_user_id": "INTEGER",
+            "approved_at": "DATETIME",
+            "rejection_reason": "VARCHAR(500) DEFAULT ''",
         },
         "invoice_lines": {
             "tax_rate": "FLOAT DEFAULT 18.0",
@@ -252,25 +258,26 @@ def ensure_sqlite_migrations() -> None:
 
 
 def seed_platform_admin(db: Session) -> None:
-    """Crée/garantit le super-admin plateforme — exécuté DANS TOUS LES ENVIRONNEMENTS
-    (y compris production), indépendamment des données de démo.
+    """Crée/garantit le super-admin plateforme — exécuté DANS TOUS LES ENVIRONNEMENTS.
 
-    Identifiants configurables par variables d'environnement (recommandé en prod) :
-      SUPER_ADMIN_EMAIL    (défaut : superadmin@kompta.io)
-      SUPER_ADMIN_PASSWORD (défaut : super2026 — À CHANGER en production)
-    Ce compte permet de se connecter sur une base vierge et d'enregistrer de
-    vraies entreprises via /auth/register-company (zéro donnée fictive requise).
+    Variables d'environnement OBLIGATOIRES en production :
+      SUPER_ADMIN_EMAIL    (défaut dev : superadmin@kompta.io)
+      SUPER_ADMIN_PASSWORD (défaut dev : super2026 — INTERDIT en production)
+
+    En production, le démarrage est bloqué dans main.py si le password par défaut est utilisé.
     """
     import os
+    import logging
+    _log = logging.getLogger("kompta.init_db")
+
     email = os.getenv("SUPER_ADMIN_EMAIL", "superadmin@kompta.io").strip().lower()
     password = os.getenv("SUPER_ADMIN_PASSWORD", "super2026")
 
-    existing = db.scalar(select(User).where(User.role == "super_admin"))
-    if existing:
-        existing.is_active = True
-        existing.account_status = "active"
-        db.commit()
-        return
+    _env = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if _env in {"prod", "production"} and password == "super2026":
+        raise RuntimeError("SUPER_ADMIN_PASSWORD par défaut interdit en production.")
+    if password == "super2026":
+        _log.warning("⚠️  Super-admin utilise le mot de passe PAR DÉFAUT. Changez SUPER_ADMIN_PASSWORD avant la mise en production.")
 
     # Société "plateforme" minimale pour rattacher le super-admin (pas une donnée de démo).
     platform = db.scalar(select(Company).where(Company.name == "KOMPTA Platform"))
@@ -282,6 +289,19 @@ def seed_platform_admin(db: Session) -> None:
         )
         db.add(platform)
         db.flush()
+
+    existing = db.scalar(select(User).where(User.role == "super_admin"))
+    if existing:
+        existing.email = existing.email or email
+        existing.phone = existing.phone or os.getenv("SUPER_ADMIN_PHONE", "+242060000099")
+        existing.full_name = existing.full_name or "Super Admin KOMPTA"
+        existing.department = "KOMPTA Platform"
+        existing.branch = "HQ"
+        existing.company_id = platform.id
+        existing.is_active = True
+        existing.account_status = "active"
+        db.commit()
+        return
     admin = User(
         email=email, phone=os.getenv("SUPER_ADMIN_PHONE", "+242060000099"),
         full_name="Super Admin KOMPTA", role="super_admin",
@@ -294,6 +314,18 @@ def seed_platform_admin(db: Session) -> None:
 
 
 def seed_demo_data(db: Session) -> None:
+    # ── Défense en profondeur : aucun seed de démo en prod/staging ────────────
+    # Même si cette fonction est appelée directement (script, test mal configuré),
+    # elle refuse de créer la société fictive "KOMPTA Demo" hors dev.
+    import logging
+    import os
+    _env = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if _env in {"prod", "production", "staging"}:
+        logging.getLogger("kompta.init_db").warning(
+            "seed_demo_data ignoré : interdit en environnement '%s'.", _env
+        )
+        return
+
     existing_user = db.scalar(select(User).where(User.email == "admin@kompta.local"))
     if existing_user:
         backfill_access_data(db)

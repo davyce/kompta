@@ -18,7 +18,7 @@ import math
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func, union_all, literal
 from sqlalchemy.orm import Session
@@ -80,6 +80,9 @@ def _user_name_for(db: Session, user_id: Optional[int]) -> str:
 
 
 # ── GET /audit-logs — agrège les deux tables ─────────────────────────────────
+_AUDIT_ALLOWED_ROLES = {"admin_entreprise", "manager_entreprise", "comptable", "super_admin"}
+
+
 @router.get("/audit-logs")
 def list_audit_logs(
     page: int = Query(default=1, ge=1),
@@ -90,6 +93,11 @@ def list_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    if current_user.role not in _AUDIT_ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : les journaux d'audit sont réservés aux administrateurs et comptables.",
+        )
     entries: list[AuditEntry] = []
 
     # ── Table 1 : audit_logs ─────────────────────────────────────────────────
@@ -139,6 +147,52 @@ def list_audit_logs(
         "per_page": per_page,
         "pages": math.ceil(total / per_page) if total else 0,
     }
+
+
+# ── GET /me/activity — chaque utilisateur peut consulter SA propre activité ──
+# Conformité RGPD : droit d'accès aux données personnelles + détection d'abus.
+@router.get("/me/activity")
+def my_activity(
+    limit: int = Query(default=30, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Renvoie les 30 dernières actions de l'utilisateur courant : connexions,
+    changements de mot de passe, accès à des documents sensibles, etc."""
+    entries: list[dict] = []
+
+    # Logs où l'utilisateur est ACTEUR
+    rows = db.scalars(
+        select(AccessAuditLog).where(AccessAuditLog.actor_user_id == current_user.id)
+    ).all()
+    for r in rows:
+        entries.append({
+            "id": f"act:{r.id}",
+            "action": r.action,
+            "details": r.details or "",
+            "target_user_id": r.target_user_id,
+            "employee_id": r.employee_id,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+
+    # Logs où l'utilisateur est CIBLE (mot de passe reset par admin, etc.)
+    target_rows = db.scalars(
+        select(AccessAuditLog).where(
+            AccessAuditLog.target_user_id == current_user.id,
+            AccessAuditLog.actor_user_id != current_user.id,
+        )
+    ).all()
+    for r in target_rows:
+        entries.append({
+            "id": f"tgt:{r.id}",
+            "action": f"sur moi: {r.action}",
+            "details": r.details or "",
+            "actor_user_id": r.actor_user_id,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+
+    entries.sort(key=lambda e: e["created_at"] or "", reverse=True)
+    return {"items": entries[:limit], "count": len(entries[:limit])}
 
 
 # ── POST /audit-logs ─────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { api, type ClientDto, type ClientDiscountDto, type ClientStatsDto } from "../services/api";
+import { useConfirm } from "../components/ConfirmProvider";
 import { compactMoney, money, initials, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import type { Invoice } from "../types/domain";
@@ -783,6 +784,7 @@ function ClientDetailPanel({
 export function ClientsPage() {
   useCurrency();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -941,14 +943,14 @@ export function ClientsPage() {
     }
   }
 
-  function confirmDelete(client: ClientDto) {
-    if (
-      window.confirm(
-        `Supprimer le client "${client.name}" ? Cette action est irréversible.`
-      )
-    ) {
-      deleteMutation.mutate(client.id);
-    }
+  async function confirmDelete(client: ClientDto) {
+    const ok = await confirm({
+      title: "Supprimer ce client ?",
+      message: `${client.name}\nCette action est irréversible.`,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deleteMutation.mutate(client.id);
   }
 
   const isMutating =

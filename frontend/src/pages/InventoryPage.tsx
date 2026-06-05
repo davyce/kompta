@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 
 import { api } from "../services/api";
+import { useToast } from "../components/ToastProvider";
+import { useConfirm } from "../components/ConfirmProvider";
 import type { Product } from "../types/domain";
 import { shortDate, money, compactMoney, currencyLabel } from "../utils/format";
 import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
@@ -109,6 +111,8 @@ type ImagePreview = { file: File; url: string };
 const EMPTY_MOVEMENT = { product_id: 0, movement_type: "in" as "in" | "out", quantity: 1, reason: "", reference: "" };
 
 export function InventoryPage() {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
   useCurrency();
   const products = useQuery({ queryKey: ["products"], queryFn: api.products });
@@ -174,7 +178,8 @@ export function InventoryPage() {
     mutationFn: api.importProductsCsv,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      alert(`✅ ${result.imported} produits importés${result.errors.length ? `\n⚠️ ${result.errors.length} erreurs` : ""}`);
+      const suffix = result.errors.length ? `, ${result.errors.length} erreur(s)` : "";
+      toast.success(`${result.imported} produit(s) importé(s)${suffix}`);
     },
   });
   const createMovement = useMutation({
@@ -323,28 +328,30 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#17211f] dark:text-white">Inventaire</h1>
           <p className="mt-0.5 text-sm text-[#717182]">
             {products.data?.length ?? "…"} références · QR codes intégrés pour scan rapide
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setScanOpen(true)} className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
+        {/* Actions — ligne principale sur mobile, alignée à droite sur desktop */}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setScanOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
             <Camera size={15} /> Scanner
           </button>
           <button
             onClick={() => openMovementModal()}
-            className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
+            className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
           >
             <RefreshCcw size={15} /> Mouvement
           </button>
           {selected.length > 0 && (
-            <button onClick={() => setTab("labels")} className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
+            <button onClick={() => setTab("labels")} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
               <QrCode size={15} /> QR ({selected.length})
             </button>
           )}
+          {/* Secondary actions collapsible on mobile */}
           <button
             onClick={() => {
               const csv = "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité";
@@ -354,14 +361,16 @@ export function InventoryPage() {
               a.href = url; a.download = "modele_produits.csv"; a.click();
               URL.revokeObjectURL(url);
             }}
-            className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
+            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
           >
             <FileDown size={15} />
-            Modèle CSV
+            <span className="hidden md:inline">Modèle CSV</span>
+            <span className="md:hidden">Modèle</span>
           </button>
-          <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
+          <label className="hidden sm:flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
             <Upload size={15} />
-            Importer CSV
+            <span className="hidden md:inline">Importer CSV</span>
+            <span className="md:hidden">Importer</span>
             <input type="file" accept=".csv" className="hidden" onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) importCsv.mutate(file);
@@ -370,10 +379,34 @@ export function InventoryPage() {
           </label>
           <button
             onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            <Plus size={15} /> Nouveau produit
+            <Plus size={15} /> <span className="hidden sm:inline">Nouveau produit</span><span className="sm:hidden">Nouveau</span>
           </button>
+        </div>
+        {/* Mobile-only: secondary actions row */}
+        <div className="flex flex-wrap gap-2 sm:hidden">
+          <button
+            onClick={() => {
+              const csv = "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité";
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = "modele_produits.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] dark:bg-white/5 dark:border-white/[0.08]"
+          >
+            <FileDown size={15} /> Modèle CSV
+          </button>
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
+            <Upload size={15} /> Importer CSV
+            <input type="file" accept=".csv" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importCsv.mutate(file);
+              e.target.value = "";
+            }} />
+          </label>
         </div>
       </div>
 
@@ -1086,10 +1119,14 @@ export function InventoryPage() {
               <button
                 type="button"
                 disabled={deleteProduct.isPending}
-                onClick={() => {
-                  if (window.confirm(`Supprimer "${editingProduct.name}" définitivement ?`)) {
-                    deleteProduct.mutate(editingProduct.id);
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Supprimer "${editingProduct.name}" ?`,
+                    message: "Le produit sera retiré du catalogue définitivement. Cette action est irréversible.",
+                    confirmLabel: "Supprimer",
+                    danger: true,
+                  });
+                  if (ok) deleteProduct.mutate(editingProduct.id);
                 }}
                 className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400"
               >

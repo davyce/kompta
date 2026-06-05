@@ -29,9 +29,10 @@ import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
 import { api } from "../services/api";
+import { useAuth } from "../app/AuthContext";
 
 type CommandItem = {
-  type: "page" | "action" | "person" | "invoice" | "product" | "task";
+  type: "page" | "action" | "person" | "invoice" | "product" | "task" | "client";
   label: string;
   hint: string;
   icon: LucideIcon;
@@ -68,14 +69,25 @@ const staticItems: CommandItem[] = [
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [rawQuery, setRawQuery] = useState("");
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Debounce input by 250ms to avoid jitter on fast typing
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(rawQuery), 250);
+    return () => clearTimeout(t);
+  }, [rawQuery]);
+
+  const isMemberGroup = user?.role === "membre_groupe";
+
   /* Live data — fetched lazily once palette opens */
-  const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees, enabled: open, staleTime: 60_000 });
+  const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees, enabled: open && !isMemberGroup, staleTime: 60_000 });
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices, enabled: open, staleTime: 60_000 });
   const products = useQuery({ queryKey: ["products"], queryFn: api.products, enabled: open, staleTime: 60_000 });
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks, enabled: open, staleTime: 60_000 });
+  const clients = useQuery({ queryKey: ["clients"], queryFn: () => api.clients(), enabled: open, staleTime: 60_000 });
 
   /* Build full searchable list from real data */
   const allItems = useMemo<CommandItem[]>(() => {
@@ -110,6 +122,16 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         group: "Produits",
       });
     });
+    clients.data?.forEach((c) => {
+      dynamic.push({
+        type: "client",
+        label: c.name,
+        hint: `Client · ${c.city || c.country || c.email || "—"}`,
+        icon: Users,
+        path: "/clients",
+        group: "Clients",
+      });
+    });
     tasks.data?.forEach((t) => {
       dynamic.push({
         type: "task",
@@ -121,7 +143,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       });
     });
     return [...staticItems, ...dynamic];
-  }, [employees.data, invoices.data, products.data, tasks.data]);
+  }, [employees.data, invoices.data, products.data, tasks.data, clients.data]);
 
   const filtered = useMemo(() => {
     const lowered = query.trim().toLowerCase();
@@ -166,13 +188,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   function select(item: CommandItem) {
     if (item.path) navigate(item.path);
+    setRawQuery("");
     setQuery("");
     onClose();
   }
 
   if (!open) return null;
 
-  const isLoading = employees.isLoading || invoices.isLoading || products.isLoading || tasks.isLoading;
+  const isLoading = employees.isLoading || invoices.isLoading || products.isLoading || tasks.isLoading || clients.isLoading;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/45 px-4 pt-[10vh] backdrop-blur-sm" onClick={onClose}>
@@ -181,8 +204,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <Search size={18} className="text-stone-400" />
           <input
             autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={rawQuery}
+            onChange={(event) => setRawQuery(event.target.value)}
             placeholder="Rechercher pages, factures, produits, employés, tâches…"
             className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-stone-400"
           />

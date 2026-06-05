@@ -8,6 +8,7 @@ import { CompactProvider } from "./contexts/CompactContext";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/ToastProvider";
+import { ConfirmProvider } from "./components/ConfirmProvider";
 import { router } from "./app/routes";
 import "./styles/index.css";
 
@@ -44,7 +45,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <CompactProvider>
             <CurrencyProvider>
               <ToastProvider>
-                <RouterProvider router={router} />
+                <ConfirmProvider>
+                  <RouterProvider router={router} />
+                </ConfirmProvider>
               </ToastProvider>
             </CurrencyProvider>
           </CompactProvider>

@@ -33,10 +33,10 @@ export function GroupLeadershipPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-[#17211f] dark:text-white">Bureau & Mandats</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-black text-[#17211f] dark:text-white">Bureau &amp; Mandats</h2>
         {group?.can_manage && (
-          <button onClick={() => setShowChange(true)} className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700 transition">
+          <button onClick={() => setShowChange(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700 transition">
             <Crown size={15} /> Changer le bureau
           </button>
         )}
@@ -48,11 +48,11 @@ export function GroupLeadershipPage() {
         {current ? (
           <div className="grid grid-cols-2 gap-3">
             {[["Président", current.president_member_id], ["Vice-président", current.vice_president_member_id], ["Secrétaire", current.secretary_member_id], ["Trésorier", current.treasurer_member_id]].map(([role, mid]) => (
-              <div key={role as string} className="flex items-center gap-2.5 rounded-xl bg-[#f6f7fb] dark:bg-[#161920] p-3">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 dark:bg-amber-500/15"><Crown size={14} className="text-amber-600" /></div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase text-[#717182]">{role as string}</p>
-                  <p className="text-sm font-semibold text-[#17211f] dark:text-white">{memberName(mid as number | null)}</p>
+              <div key={role as string} className="flex items-center gap-2.5 rounded-xl bg-[#f6f7fb] dark:bg-[#161920] p-3 min-w-0">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 dark:bg-amber-500/15"><Crown size={14} className="text-amber-600" /></div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase text-[#717182] truncate">{role as string}</p>
+                  <p className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{memberName(mid as number | null)}</p>
                 </div>
               </div>
             ))}

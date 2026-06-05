@@ -60,7 +60,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <Icon className="mb-3 text-violet-300" size={20} />
+      <Icon className="mb-3 text-indigo-300" size={20} />
       <p className="text-xs font-bold uppercase tracking-wider text-white/45">{label}</p>
       <p className="mt-1 text-3xl font-black text-white">{value}</p>
       {hint ? <p className="mt-1 text-xs text-white/45">{hint}</p> : null}
@@ -186,7 +186,7 @@ export function AdminLimulePage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Intelligence Artificielle</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Intelligence Artificielle</p>
           <h1 className="text-3xl font-black">Cockpit Limule Admin</h1>
           <p className="mt-1 max-w-2xl text-sm text-white/60">
             Supervision en temps réel, zone de test libre, diagnostics prédéfinis et historique des requêtes.
@@ -194,7 +194,7 @@ export function AdminLimulePage() {
         </div>
         <button
           onClick={exportDataset}
-          className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-600"
         >
           <Download size={16} /> Exporter JSONL
         </button>
@@ -204,7 +204,7 @@ export function AdminLimulePage() {
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/20 text-violet-300">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600/20 text-indigo-300">
               <BrainCircuit size={20} />
             </span>
             <div>
@@ -222,7 +222,7 @@ export function AdminLimulePage() {
               </div>
             )}
             {health.data?.provider && (
-              <span className="rounded-full bg-fuchsia-500/15 px-2.5 py-1 text-xs font-bold text-fuchsia-200">
+              <span className="rounded-full bg-indigo-600/15 px-2.5 py-1 text-xs font-bold text-fuchsia-200">
                 {health.data.provider}
               </span>
             )}
@@ -242,13 +242,13 @@ export function AdminLimulePage() {
       <div className="grid gap-4 xl:grid-cols-[0.65fr_1.35fr]">
         {/* Diagnostics */}
         <div className="space-y-4">
-          <div className="rounded-xl border border-violet-400/30 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 p-5">
+          <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600/20 to-indigo-600/10 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/30 text-violet-100">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600/30 text-indigo-100">
                 <FlaskConical size={18} />
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-violet-200">Diagnostics prédéfinis</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-200">Diagnostics prédéfinis</p>
                 <h2 className="text-lg font-black">Plateforme</h2>
               </div>
             </div>
@@ -262,7 +262,7 @@ export function AdminLimulePage() {
                     disabled={streaming}
                     className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left hover:bg-white/10 disabled:opacity-50 transition-colors"
                   >
-                    <Icon size={16} className="mt-0.5 shrink-0 text-violet-300" />
+                    <Icon size={16} className="mt-0.5 shrink-0 text-indigo-300" />
                     <div>
                       <p className="text-sm font-bold text-white">{d.label}</p>
                       <p className="text-xs text-white/50">{d.description}</p>
@@ -302,7 +302,7 @@ export function AdminLimulePage() {
         <div className="flex min-h-[36rem] flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
           <div className="border-b border-white/10 px-5 py-3">
             <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-violet-300" />
+              <Sparkles size={16} className="text-indigo-300" />
               <h2 className="font-black">Zone de test libre</h2>
             </div>
             <p className="text-xs text-white/45">Envoyer n'importe quel prompt à Limule et voir la réponse en streaming</p>
@@ -312,7 +312,7 @@ export function AdminLimulePage() {
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   msg.role === "user"
-                    ? "bg-violet-600 text-white"
+                    ? "bg-indigo-600 text-white"
                     : "border border-white/10 bg-black/25 text-white/85"
                 }`}>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -321,14 +321,14 @@ export function AdminLimulePage() {
             ))}
             {streaming && streamText && (
               <div className="flex justify-start">
-                <div className="max-w-[88%] rounded-2xl border border-violet-400/30 bg-black/25 px-4 py-3 text-sm leading-6 text-white/85">
+                <div className="max-w-[88%] rounded-2xl border border-indigo-500/30 bg-black/25 px-4 py-3 text-sm leading-6 text-white/85">
                   <p className="whitespace-pre-wrap">{streamText}</p>
-                  <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-violet-400" />
+                  <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-indigo-500" />
                 </div>
               </div>
             )}
             {streaming && !streamText && (
-              <p className="text-xs font-bold text-violet-300">Limule génère une réponse...</p>
+              <p className="text-xs font-bold text-indigo-300">Limule génère une réponse...</p>
             )}
             <div ref={endRef} />
           </div>
@@ -340,12 +340,12 @@ export function AdminLimulePage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Taper un message pour tester Limule..."
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-400"
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-indigo-500"
             />
             <button
               type="submit"
               disabled={streaming || !prompt.trim()}
-              className="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50"
+              className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-600 disabled:opacity-50"
               aria-label="Envoyer"
             >
               <Send size={16} />
@@ -370,13 +370,13 @@ export function AdminLimulePage() {
             {history.map((item) => (
               <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-bold text-violet-200 line-clamp-1">{item.prompt}</p>
+                  <p className="text-sm font-bold text-indigo-200 line-clamp-1">{item.prompt}</p>
                   <span className="shrink-0 text-xs text-white/35">{shortDate(item.ts)}</span>
                 </div>
                 <p className="line-clamp-3 text-xs leading-5 text-white/55">{item.response}</p>
                 <button
                   onClick={() => sendPrompt(item.prompt)}
-                  className="mt-2 flex items-center gap-1.5 text-xs font-bold text-violet-300 hover:text-white"
+                  className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-300 hover:text-white"
                 >
                   <Database size={11} /> Rejouer
                 </button>

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { LineAreaChart, ScoreRing } from "../components/Charts";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
 import { shortDate } from "../utils/format";
 
@@ -18,6 +19,7 @@ const RECOMMENDATION_TONES = [
 
 export function ReportsTerasPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
   const modules = useQuery({ queryKey: ["modules"], queryFn: api.modules });
@@ -121,7 +123,7 @@ export function ReportsTerasPage() {
                 a.download = `teras_report_${new Date().toISOString().slice(0, 10)}.pdf`;
                 a.click();
                 URL.revokeObjectURL(url);
-              } catch { alert("Erreur export PDF"); }
+              } catch { toast.error("Erreur export PDF"); }
               finally { setExporting(false); }
             }}
             disabled={exporting}

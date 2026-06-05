@@ -29,13 +29,13 @@ type LevelFilter = "all" | "low" | "medium" | "advanced";
 
 function scoreColor(score: number): string {
   if (score >= 80) return "text-emerald-300";
-  if (score >= 50) return "text-amber-300";
+  if (score >= 50) return "text-indigo-300";
   return "text-rose-300";
 }
 
 function scoreBarColor(score: number): string {
   if (score >= 80) return "bg-emerald-500";
-  if (score >= 50) return "bg-amber-400";
+  if (score >= 50) return "bg-indigo-500";
   return "bg-rose-500";
 }
 
@@ -104,7 +104,7 @@ function RappelButton({ company }: { company: OnboardingCompany }) {
   return (
     <button
       onClick={handleClick}
-      className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/20"
+      className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-600/10 px-2.5 py-1 text-xs font-bold text-indigo-200 hover:bg-indigo-600/20"
     >
       <MessageSquare size={11} /> Rappel
     </button>
@@ -142,7 +142,7 @@ export function AdminOnboardingPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Activation</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Activation</p>
         <h1 className="text-3xl font-black">Onboarding entreprises</h1>
         <p className="mt-1 text-sm text-white/60">Suivi du taux d'adoption et des modules activés par entreprise.</p>
       </div>
@@ -162,11 +162,11 @@ export function AdminOnboardingPage() {
               <p className="mt-1 text-xs text-emerald-300/50">{Math.round((advanced / total) * 100)}% du total</p>
             )}
           </div>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-            <p className="text-3xl font-black text-amber-300">{medium}</p>
-            <p className="mt-1 text-xs font-bold uppercase text-amber-200/70">Moyen 50-80%</p>
+          <div className="rounded-xl border border-indigo-600/30 bg-indigo-600/10 p-4">
+            <p className="text-3xl font-black text-indigo-300">{medium}</p>
+            <p className="mt-1 text-xs font-bold uppercase text-indigo-200/70">Moyen 50-80%</p>
             {total > 0 && (
-              <p className="mt-1 text-xs text-amber-300/50">{Math.round((medium / total) * 100)}% du total</p>
+              <p className="mt-1 text-xs text-indigo-300/50">{Math.round((medium / total) * 100)}% du total</p>
             )}
           </div>
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 col-span-2">
@@ -187,7 +187,7 @@ export function AdminOnboardingPage() {
           <h3 className="mb-2 font-black">Répartition par niveau</h3>
           {stats.isLoading ? (
             <div className="flex h-48 items-center justify-center">
-              <div className="h-7 w-7 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+              <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
             </div>
           ) : (
             <ScoreDonut advanced={advanced} medium={medium} low={low} />
@@ -212,7 +212,7 @@ export function AdminOnboardingPage() {
             onClick={() => setLevelFilter(l)}
             className={`rounded-xl border px-4 py-2.5 text-sm font-bold ${
               levelFilter === l
-                ? "border-violet-400 bg-violet-500/20 text-white"
+                ? "border-indigo-500 bg-indigo-600/20 text-white"
                 : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
             }`}
           >
@@ -224,7 +224,7 @@ export function AdminOnboardingPage() {
       {/* Table */}
       {stats.isLoading && (
         <div className="flex h-32 items-center justify-center">
-          <div className="h-7 w-7 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+          <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
         </div>
       )}
 
@@ -248,7 +248,7 @@ export function AdminOnboardingPage() {
                 <tr key={company.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-500/20 text-violet-200">
+                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600/20 text-indigo-200">
                         <Building2 size={13} />
                       </span>
                       <span className="font-bold">{company.name}</span>

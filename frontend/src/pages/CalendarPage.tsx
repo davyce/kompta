@@ -437,7 +437,7 @@ export function CalendarPage() {
         })}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
             <div className="flex items-center gap-2">
@@ -483,7 +483,8 @@ export function CalendarPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 border-b border-black/[0.05] bg-[#fbfbfd] dark:border-white/[0.06] dark:bg-white/[0.03]">
+          {/* Desktop 7-col grid — hidden on mobile */}
+          <div className="hidden sm:grid grid-cols-7 border-b border-black/[0.05] bg-[#fbfbfd] dark:border-white/[0.06] dark:bg-white/[0.03]">
             {WEEKDAYS.map((day) => (
               <div key={day} className="px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[#717182]">
                 {day}
@@ -491,7 +492,7 @@ export function CalendarPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-7">
+          <div className="hidden sm:grid grid-cols-7">
             {monthDays.map((day) => {
               const key = dateKey(day);
               const dayTasks = tasksByDay.get(key) ?? [];
@@ -547,6 +548,64 @@ export function CalendarPage() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Mobile agenda list — visible only below sm */}
+          <div className="sm:hidden divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+            {monthDays
+              .filter((day) => sameMonth(day, visibleMonth))
+              .map((day) => {
+                const key = dateKey(day);
+                const dayTasks = (tasksByDay.get(key) ?? []).filter(showTask);
+                const dayMeetings = showMeeting() ? (meetingsByDay.get(key) ?? []) : [];
+                const total = dayTasks.length + dayMeetings.length;
+                if (total === 0) return null;
+                const isSelected = key === selectedKey;
+                const isToday = sameDay(day, today);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedKey(key)}
+                    className={`w-full text-left px-4 py-3 transition ${
+                      isSelected
+                        ? "bg-violet-50 dark:bg-violet-500/15"
+                        : "bg-white dark:bg-[#1e2229] hover:bg-[#fbfbfd] dark:hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`grid h-7 w-7 place-items-center rounded-full text-sm font-black shrink-0 ${
+                        isToday ? "bg-violet-600 text-white" : "text-[#17211f] dark:text-white"
+                      }`}>
+                        {day.getDate()}
+                      </span>
+                      <span className="text-xs font-semibold text-[#717182] capitalize">
+                        {displayShortDate(day)}
+                      </span>
+                    </div>
+                    <div className="space-y-1 pl-9">
+                      {dayMeetings.slice(0, 3).map((meeting) => (
+                        <div key={`meeting-${meeting.id}`} className={`truncate rounded-md border px-2 py-1 text-[11px] font-bold ${meetingTone(meeting)}`}>
+                          {displayTime(meeting.start_at)} · {meeting.title}
+                        </div>
+                      ))}
+                      {dayTasks.slice(0, 3).map((task) => (
+                        <div key={`task-${task.id}`} className={`truncate rounded-md border px-2 py-1 text-[11px] font-bold ${taskTone(task)}`}>
+                          {task.title}
+                        </div>
+                      ))}
+                      {total > 6 && (
+                        <p className="px-1 text-[11px] font-bold text-violet-600">+{total - 6} autres</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            {monthDays.filter((day) => sameMonth(day, visibleMonth)).every((day) => {
+              const key = dateKey(day);
+              return (tasksByDay.get(key) ?? []).length === 0 && (meetingsByDay.get(key) ?? []).length === 0;
+            }) && (
+              <p className="px-4 py-8 text-center text-sm text-[#717182]">Aucun événement ce mois-ci.</p>
+            )}
           </div>
         </section>
 

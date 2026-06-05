@@ -44,6 +44,18 @@ import type {
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
 const TOKEN_KEY = "kompta_access_token";
 
+/**
+ * Le token de session vit désormais EN MÉMOIRE uniquement (et non dans
+ * localStorage), ce qui supprime le vecteur de vol de session par XSS.
+ * La persistance de session entre rechargements est assurée par le cookie
+ * HttpOnly posé par le backend (inaccessible au JS). Au démarrage, AuthContext
+ * réhydrate ce token mémoire via /auth/refresh (authentifié par le cookie).
+ *
+ * Migration : on purge toute trace d'un ancien token persisté.
+ */
+try { localStorage.removeItem(TOKEN_KEY); } catch { /* SSR / privacy mode */ }
+let _accessToken: string | null = null;
+
 export type LoginResponse = {
   access_token: string;
   token_type: string;
@@ -73,15 +85,15 @@ export class ApiError extends Error {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return _accessToken;
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  _accessToken = token;
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  _accessToken = null;
 }
 
 // 401 auto-logout callback — set by AuthContext so api.ts can trigger logout outside React
@@ -143,7 +155,7 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   }
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers, credentials: "include" });
   } catch {
     throw new ApiError(
       0,
@@ -167,7 +179,7 @@ async function requestBlob(path: string, options: RequestInit = {}): Promise<Blo
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include" });
   if (!response.ok) {
     throw new ApiError(response.status, await readApiError(response));
   }
@@ -190,7 +202,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  registerGroup: (payload: {
+    full_name: string; email: string; phone?: string; password: string;
+    group_name: string; group_type?: string; group_description?: string;
+    country?: string; city?: string; currency?: string;
+  }) =>
+    request<LoginResponse>("/auth/register-group", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   me: () => request<User>("/auth/me"),
+  realtimeTicket: () =>
+    request<{ ticket: string; expires_in: number }>("/auth/realtime-ticket", { method: "POST" }),
   company: () => request<Company>("/company/profile"),
   updateCompany: (payload: Partial<Company>) =>
     request<Company>("/company/profile", {
@@ -339,7 +362,7 @@ export const api = {
     request<{ product: Product; label: Record<string, string | number> }>(`/products/${id}/qr-label`, {
       method: "POST"
     }),
-  createSale: (payload: { payment_method: string; payment_account_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number }) =>
+  createSale: (payload: { payment_method: string; payment_account_id?: number | null; payment_transaction_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number }) =>
     request<{ receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
       "/pos/sales",
       {
@@ -417,6 +440,20 @@ export const api = {
     return request<{ imported: number; errors: string[] }>("/employees/import-csv", { method: "POST", headers, body: form });
   },
   refreshToken: () => request<{ access_token: string; token_type: string; user: User; must_change_password: boolean }>("/auth/refresh", { method: "POST" }),
+  logout: () => request<{ status: string; revoked: boolean }>("/auth/logout", { method: "POST", skipUnauthorizedLogout: true }),
+
+  /* ── Paiements réels (Stripe carte + MTN Mobile Money) ─────── */
+  paymentsConfig: () =>
+    request<{ stripe_enabled: boolean; stripe_publishable_key: string; momo_enabled: boolean }>("/payments/config"),
+  createStripeIntent: (payload: { amount_cents: number; currency?: string; sale_id?: number; invoice_id?: number; description?: string }) =>
+    request<{ transaction_id: number; client_secret: string; publishable_key: string; status: string }>(
+      "/payments/stripe/intent", { method: "POST", body: JSON.stringify(payload) }),
+  createMomoRequest: (payload: { amount_cents: number; currency?: string; payer_phone: string; sale_id?: number; invoice_id?: number; description?: string }) =>
+    request<{ transaction_id: number; reference: string; status: string }>(
+      "/payments/momo/request", { method: "POST", body: JSON.stringify(payload) }),
+  paymentStatus: (txnId: number) =>
+    request<{ id: number; provider: string; status: string; amount_cents: number; currency: string; failure_reason: string }>(
+      `/payments/${txnId}/status`),
   createMovement: (payload: { product_id: number; movement_type: "in" | "out"; quantity: number; reason?: string; reference?: string }) =>
     request<{ id: number; product_id: number; movement_type: string; quantity: number; reason: string; reference: string; created_at: string; new_stock: number }>(
       "/inventory/movements", { method: "POST", body: JSON.stringify(payload) }
@@ -574,6 +611,7 @@ export const api = {
     return request<Array<{
       id: number; email: string; full_name: string; role: string;
       department: string; branch: string; account_status: string;
+      must_change_password: boolean;
       company_id: number; company_name: string;
       last_login_at: string | null; created_at: string | null;
     }>>(`/admin/users${q ? `?${q}` : ""}`);
@@ -701,6 +739,7 @@ export const api = {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
@@ -740,6 +779,22 @@ export const api = {
   },
 
   limuleChatHistory: (limit = 12) => request<LimuleChatHistoryItem[]>(`/limule/chat/history?limit=${limit}`),
+
+  /** Historique compact des Q&A Limule (sidebar « Mes dernières questions »). */
+  limuleHistory: (limit = 30) => request<LimuleHistoryItem[]>(`/limule/history?limit=${limit}`),
+
+  /** Alertes proactives Limule pour le dashboard. */
+  limuleAlerts: () => request<LimuleDashboardAlert[]>("/limule/alerts"),
+
+  /** Conversion de devise via le backend (taux exchangerate.host + fallback). */
+  currencyConvert: (amount: number, from: string, to: string) =>
+    request<CurrencyConvertDto>(
+      `/currency/convert?amount=${encodeURIComponent(amount)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+    ),
+
+  /** Tous les taux courants depuis une base. */
+  currencyRates: (base = "XAF") =>
+    request<CurrencyRatesDto>(`/currency/rates?base=${encodeURIComponent(base)}`),
   limuleFeedback: (interactionId: number, payload: { rating?: number; feedback?: string }) =>
     request<{ id: number; rating: number | null; feedback: string }>(
       `/limule/interactions/${interactionId}/feedback`,
@@ -771,6 +826,7 @@ export const api = {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -888,6 +944,7 @@ export const api = {
   terasExportReport: () =>
     fetch(`${API_URL}/teras/export-report`, {
       headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      credentials: "include",
     }),
 
   /* ── Audit logs ───────────────────────────────────────────── */
@@ -914,6 +971,7 @@ export const api = {
     if (params?.product_id) qs.set("product_id", String(params.product_id));
     return fetch(`${API_URL}/pos/sales/export-csv?${qs.toString()}`, {
       headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      credentials: "include",
     });
   },
 
@@ -979,6 +1037,7 @@ export const api = {
   downloadAnalysisPdf: (invId: number) =>
     fetch(`${API_URL}/investments/${invId}/analysis/pdf`, {
       headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      credentials: "include",
     }),
 
   /* ── Budget ──────────────────────────────────────────────── */
@@ -1039,6 +1098,7 @@ export const api = {
     return fetch(`${API_URL}/transactions/import`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
       body: form,
     }).then(async (res) => {
       if (!res.ok) {
@@ -1051,6 +1111,7 @@ export const api = {
   exportTransactionsCsv: () =>
     fetch(`${API_URL}/transactions/export`, {
       headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      credentials: "include",
     }),
 
   /* ── Safe Mode ────────────────────────────────────────────── */
@@ -1059,6 +1120,7 @@ export const api = {
       const token = getToken() ?? "";
       const res = await fetch(`${API_URL}/safe-mode/export`, {
         headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Erreur lors de la génération du pack");
       const blob = await res.blob();
@@ -1130,14 +1192,7 @@ export const api = {
 
   /* ── Admin System Health ──────────────────────────────────────────── */
   adminSystemHealth: () =>
-    request<{
-      services: Array<{ name: string; status: "healthy" | "degraded" | "down"; latency_ms: number | null; last_check: string | null }>;
-      uptime_seconds?: number;
-      version?: string;
-      environment?: string;
-      database?: string;
-      updated_at?: string;
-    }>("/admin/system/health"),
+    request<AdminSystemHealthDto>("/admin/system/health"),
 
   /* ── Admin Analytics Platform ────────────────────────────────────── */
   adminAnalyticsPlatform: () =>
@@ -1153,7 +1208,7 @@ export const api = {
 
   /* ── Admin Reset Password ─────────────────────────────────────────── */
   adminResetPassword: (userId: number) =>
-    request<{ temp_password: string }>(`/admin/users/${userId}/reset-password`, { method: "POST" }),
+    request<{ temp_password: string; must_change_password: boolean; message: string }>(`/admin/users/${userId}/reset-password`, { method: "POST" }),
 
   /* ── Admin Suspend/Reactivate Company ────────────────────────────── */
   adminSuspendCompany: (companyId: number, status: string) =>
@@ -1218,6 +1273,7 @@ export const api = {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
@@ -1263,10 +1319,43 @@ export const api = {
     request<OrganizationGroup>("/groups", { method: "POST", body: JSON.stringify(payload) }),
   updateGroup: (id: number, payload: Partial<OrganizationGroup>) =>
     request<OrganizationGroup>(`/groups/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  closeGroup: (id: number, reason = "") =>
+    request<OrganizationGroup>(`/groups/${id}/close`, { method: "POST", body: JSON.stringify({ reason }) }),
 
   groupMembers: (groupId: number) => request<GroupMember[]>(`/groups/${groupId}/members`),
   addMember: (groupId: number, payload: { full_name: string; phone?: string; email?: string; date_of_birth?: string; zone?: string; profession?: string }) =>
     request<GroupMember>(`/groups/${groupId}/members`, { method: "POST", body: JSON.stringify(payload) }),
+
+  /** Supprime un membre du groupe (et désactive son compte KOMPTA si lié). */
+  deleteGroupMember: (groupId: number, memberId: number) =>
+    request<void>(`/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
+
+  /** L'utilisateur courant quitte volontairement le groupe. */
+  leaveGroup: (groupId: number) =>
+    request<{ left: boolean; message: string }>(`/groups/${groupId}/leave`, { method: "POST" }),
+
+  /** Relance un membre pour ses cotisations en retard (génère message + canaux). */
+  remindMember: (groupId: number, payload: { member_id: number; plan_id?: number; tone?: string }) =>
+    request<{
+      member_name: string;
+      amount_due: number;
+      currency: string;
+      message: string;
+      channels: { sms?: string; whatsapp?: string; email?: string };
+    }>(`/groups/${groupId}/contributions/remind`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Réinitialise l'accès d'un membre (mot de passe oublié / nouveau mandat). */
+  resetMemberAccess: (groupId: number, memberId: number) =>
+    request<{
+      user_id: number;
+      login_identifier: string;
+      temporary_password: string;
+      must_change_password: boolean;
+      message: string;
+    }>(`/groups/${groupId}/members/${memberId}/reset-access`, { method: "POST" }),
 
   /** Crée un compte utilisateur pour un membre du groupe (interface membre_groupe). */
   provisionMemberAccount: (groupId: number, memberId: number) =>
@@ -1327,10 +1416,24 @@ export const api = {
 
   // G4 — Chat, documents
   groupChatRooms: (groupId: number) => request<GroupChatRoom[]>(`/groups/${groupId}/chat/rooms`),
-  createChatRoom: (groupId: number, name: string, type = "general") => {
-    const fd = new FormData(); fd.append("name", name); fd.append("room_type", type);
-    return request<GroupChatRoom>(`/groups/${groupId}/chat/rooms`, { method: "POST", body: fd, headers: {} });
+  createChatRoom: (groupId: number, name: string, type = "general") =>
+    request<GroupChatRoom>(`/groups/${groupId}/chat/rooms`, {
+      method: "POST",
+      body: JSON.stringify({ name, room_type: type }),
+    }),
+  /** Upload d'un fichier (image/audio/document) dans un salon de chat. */
+  uploadGroupChatMedia: (groupId: number, roomId: number, file: File, opts?: { message_type?: string; reply_to_id?: number }) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (opts?.message_type) fd.append("message_type", opts.message_type);
+    if (opts?.reply_to_id) fd.append("reply_to_id", String(opts.reply_to_id));
+    return request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages/upload`, {
+      method: "POST",
+      body: fd,
+    });
   },
+  /** URL absolue d'un média de chat (gérée par le backend avec auth). */
+  groupChatMediaUrl: (relativeUrl: string) => `${API_URL}${relativeUrl}`,
   groupChatMessages: (groupId: number, roomId: number, limit = 60) => request<GroupChatMessage[]>(`/groups/${groupId}/chat/rooms/${roomId}/messages?limit=${limit}`),
   sendGroupMessage: (groupId: number, roomId: number, content: string, type = "text", reply_to_id?: number) =>
     request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages`, { method: "POST", body: JSON.stringify({ content, message_type: type, reply_to_id }) }),
@@ -1426,6 +1529,36 @@ export type LimuleChatHistoryItem = {
   signals: LimuleSignal[];
   rating: number | null;
   created_at: string | null;
+};
+
+export type LimuleHistoryItem = {
+  id: number;
+  question: string;
+  answer: string;
+  module: string;
+  intent: string;
+  created_at: string | null;
+};
+
+export type LimuleDashboardAlert = {
+  severity: "info" | "warning" | "critical";
+  type: string;
+  message: string;
+  action_url: string;
+};
+
+export type CurrencyConvertDto = {
+  from: string;
+  to: string;
+  amount: number;
+  converted: number | null;
+  rate: number | null;
+  source: "api" | "cache" | "fallback" | "unavailable";
+};
+
+export type CurrencyRatesDto = {
+  base: string;
+  rates: Record<string, number>;
 };
 
 export type DailyNoteDto = {
@@ -1858,9 +1991,7 @@ export interface AdminActivityItemDto {
 
 /* ── Admin System Health ──────────────────────────────────────────── */
 export interface AdminSystemHealthDto {
-  database: { ok: boolean; latency_ms: number | null };
-  limule: { ok: boolean; latency_ms: number | null };
-  storage: { ok: boolean; latency_ms: number | null };
+  status?: string;
   services?: Array<{ name: string; status: "healthy" | "degraded" | "down"; latency_ms: number | null; last_check: string | null }>;
   uptime_seconds?: number;
   version?: string;

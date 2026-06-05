@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, FileText, Search, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, FileText, Search, ShieldCheck } from "lucide-react";
 
 import { api } from "../services/api";
 import type { AuditLogDto } from "../services/api";
@@ -68,93 +68,110 @@ export function AuditLogsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-1 min-w-60 items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-1 items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5">
           <Search size={15} className="shrink-0 text-[#717182]" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="Rechercher par utilisateur, action…"
+            placeholder="Rechercher utilisateur, action…"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white"
           />
         </div>
-        <select
-          value={actionFilter}
-          onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
-          className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none"
-        >
-          <option value="all">Toutes les actions</option>
-          {Object.keys(ACTION_TONE).map((k) => (
-            <option key={k} value={k}>{ACTION_TONE[k].label}</option>
-          ))}
-        </select>
-        <button
-          onClick={exportExcel}
-          disabled={(logs.data?.length ?? 0) === 0}
-          className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition"
-        >
-          <Download size={15} /> Exporter Excel
-        </button>
+        <div className="flex gap-2">
+          <select
+            value={actionFilter}
+            onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+            className="flex-1 sm:flex-none rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none"
+          >
+            <option value="all">Toutes actions</option>
+            {Object.keys(ACTION_TONE).map((k) => (
+              <option key={k} value={k}>{ACTION_TONE[k].label}</option>
+            ))}
+          </select>
+          <button
+            onClick={exportExcel}
+            disabled={(logs.data?.length ?? 0) === 0}
+            className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition whitespace-nowrap"
+          >
+            <Download size={15} />
+            <span className="hidden sm:inline">Excel</span>
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-[160px_140px_140px_140px_1fr] gap-4 border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-[#717182]">
-          <span>Date</span>
-          <span>Utilisateur</span>
-          <span>Action</span>
-          <span>Module</span>
-          <span>Détails</span>
+      {/* Loading */}
+      {logs.isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
         </div>
+      )}
 
-        {logs.isLoading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-          </div>
-        )}
+      {!logs.isLoading && paged.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-16 text-[#717182]">
+          <FileText size={28} className="opacity-30" />
+          <p className="text-sm">Aucun log correspondant.</p>
+        </div>
+      )}
 
-        {!logs.isLoading && paged.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-16 text-[#717182]">
-            <FileText size={28} className="opacity-30" />
-            <p className="text-sm">Aucun log correspondant.</p>
-          </div>
-        )}
-
-        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+      {/* ── Mobile : cartes ── */}
+      {!logs.isLoading && paged.length > 0 && (
+        <div className="sm:hidden space-y-2">
           {paged.map((log: AuditLogDto) => {
             const tone = actionTone(log.action);
             return (
-              <div
-                key={log.id}
-                className="grid grid-cols-[160px_140px_140px_140px_1fr] gap-4 items-start px-5 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition"
-              >
-                <span className="text-xs text-[#717182]">
-                  {new Date(log.created_at).toLocaleDateString("fr-FR", {
-                    day: "2-digit", month: "short", year: "numeric",
-                  })}{" "}
-                  <span className="opacity-60">
+              <div key={log.id} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.className}`}>{tone.label}</span>
+                  <span className="text-[10px] text-[#717182]">
+                    {new Date(log.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}{" "}
                     {new Date(log.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                </span>
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15">
-                    <ShieldCheck size={11} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15">
+                    <ShieldCheck size={10} className="text-emerald-600 dark:text-emerald-400" />
                   </span>
-                  <span className="truncate text-sm font-medium text-[#17211f] dark:text-white">{log.actor ?? "—"}</span>
-                </span>
-                <span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.className}`}>
-                    {tone.label}
-                  </span>
-                </span>
-                <span className="text-xs text-[#717182] truncate">{log.employee ?? "—"}</span>
-                <span className="text-xs text-[#717182] truncate">{log.details ?? "—"}</span>
+                  <span className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{log.actor ?? "—"}</span>
+                  {log.employee && <span className="text-xs text-[#717182] truncate">· {log.employee}</span>}
+                </div>
+                {log.details && <p className="text-xs text-[#717182] leading-snug line-clamp-2">{log.details}</p>}
               </div>
             );
           })}
         </div>
-      </div>
+      )}
+
+      {/* ── Desktop : tableau ── */}
+      {!logs.isLoading && paged.length > 0 && (
+        <div className="hidden sm:block rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
+          <div className="grid grid-cols-[150px_130px_120px_110px_1fr] gap-3 border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-[#717182]">
+            <span>Date</span><span>Utilisateur</span><span>Action</span><span>Module</span><span>Détails</span>
+          </div>
+          <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+            {paged.map((log: AuditLogDto) => {
+              const tone = actionTone(log.action);
+              return (
+                <div key={log.id} className="grid grid-cols-[150px_130px_120px_110px_1fr] gap-3 items-start px-5 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
+                  <span className="text-xs text-[#717182]">
+                    {new Date(log.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}{" "}
+                    <span className="opacity-60">{new Date(log.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15">
+                      <ShieldCheck size={11} className="text-emerald-600 dark:text-emerald-400" />
+                    </span>
+                    <span className="truncate text-sm font-medium text-[#17211f] dark:text-white">{log.actor ?? "—"}</span>
+                  </span>
+                  <span><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.className}`}>{tone.label}</span></span>
+                  <span className="text-xs text-[#717182] truncate">{log.employee ?? "—"}</span>
+                  <span className="text-xs text-[#717182] truncate">{log.details ?? "—"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {pageCount > 1 && (

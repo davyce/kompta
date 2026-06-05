@@ -31,6 +31,26 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     openai_api_key: str = ""
 
+    # ── Paiements : Stripe ────────────────────────────────────────────────────
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+
+    # ── Paiements : Mobile Money (MTN MoMo) ─────────────────────────────────────
+    momo_subscription_key: str = ""
+    momo_subscription_key_secondary: str = ""
+    momo_target_environment: str = "sandbox"
+    momo_base_url: str = "https://sandbox.momodeveloper.mtn.com"
+    momo_api_user: str = ""
+    momo_api_key: str = ""
+    momo_callback_host: str = ""
+
+    # ── Authentification : cookie de session ────────────────────────────────────
+    auth_cookie_name: str = "kompta_session"
+    auth_cookie_secure: bool = False
+    auth_cookie_samesite: str = "lax"
+    auth_cookie_domain: str = ""
+
     # ── Email SMTP ────────────────────────────────────────────────────────────
     smtp_host: str = ""
     smtp_port: int = 587
@@ -49,6 +69,18 @@ class Settings(BaseSettings):
     @property
     def email_enabled(self) -> bool:
         return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
+    @property
+    def stripe_enabled(self) -> bool:
+        return bool(self.stripe_secret_key)
+
+    @property
+    def momo_enabled(self) -> bool:
+        return bool(self.momo_subscription_key and self.momo_api_user and self.momo_api_key)
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in {"production", "prod", "staging"}
 
 
 @lru_cache

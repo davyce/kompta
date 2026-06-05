@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen, Building2, ChevronDown, ChevronRight, Download,
-  Filter, HandCoins, Landmark, Plus, RefreshCcw, WalletCards,
+  Filter, HandCoins, Landmark, Lock, Plus, RefreshCcw, WalletCards,
   TrendingUp, TrendingDown, ArrowUpRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -385,7 +385,14 @@ export function AccountingFinancePage() {
                   {item.amount >= 0 ? <TrendingUp size={20}/> : <TrendingDown size={20}/>}
                 </span>
                 <div>
-                  <p className="font-semibold text-[#17211f] dark:text-white">{item.label}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-[#17211f] dark:text-white">{item.label}</p>
+                    {item.actor === "Encaissé" && (
+                      <span className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        <Lock size={9} /> Verrouillé
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-[#717182]">par {item.actor}</p>
                 </div>
               </div>
@@ -432,7 +439,14 @@ export function AccountingFinancePage() {
                 </span>
               </div>
               <p className="mt-2 font-semibold text-[#17211f] dark:text-white">{j.label}</p>
-              <p className="mt-0.5 text-xs text-[#717182]">{j.count} écriture{j.count > 1 ? "s" : ""}</p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <p className="text-xs text-[#717182]">{j.count} écriture{j.count > 1 ? "s" : ""}</p>
+                {j.status === "ready" && (
+                  <span className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <Lock size={9} /> Verrouillé
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>

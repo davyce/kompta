@@ -14,6 +14,7 @@ import { api } from "../services/api";
 import type { Employee } from "../types/domain";
 import { money, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { useToast } from "../components/ToastProvider";
 
 const formatCurrency = money;
 const formatDate = shortDate;
@@ -59,9 +60,9 @@ function InfoRow({ label, value, icon: Icon }: { label: string; value: React.Rea
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-black/[0.04] last:border-0">
       {Icon && <Icon size={15} className="mt-0.5 shrink-0 text-[#717182]" />}
-      <div className="flex flex-1 items-center justify-between gap-2">
-        <span className="text-sm text-[#717182]">{label}</span>
-        <span className="text-sm font-medium text-[#17211f] text-right">{value ?? "—"}</span>
+      <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+        <span className="shrink-0 text-sm text-[#717182]">{label}</span>
+        <span className="min-w-0 break-words text-right text-sm font-medium text-[#17211f]">{value ?? "—"}</span>
       </div>
     </div>
   );
@@ -82,6 +83,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function EmployeeProfilePage() {
   useCurrency();
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -98,13 +100,8 @@ export function EmployeeProfilePage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      alert(
-        `✅ Accès réinitialisé\n\n` +
-          `Identifiant recommandé : ${result.login_identifier}\n` +
-          `Email : ${result.employee.email}\n` +
-          `Téléphone : ${result.employee.phone || "Non renseigné"}\n` +
-          `Mot de passe temporaire : ${result.temporary_password}\n\n` +
-          "Le téléphone fonctionne avec ou sans espaces/indicatif. Communiquez ces informations à l'employé."
+      toast.success(
+        `Accès réinitialisé. Identifiant : ${result.login_identifier}. Mot de passe temporaire : ${result.temporary_password}`
       );
     },
   });
@@ -119,7 +116,7 @@ export function EmployeeProfilePage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert("Impossible de télécharger le contrat.");
+      toast.error("Impossible de télécharger le contrat.");
     }
   };
 
@@ -152,7 +149,7 @@ export function EmployeeProfilePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-full overflow-x-hidden space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[#717182]">
         <button onClick={() => navigate("/employees")} className="flex items-center gap-1.5 hover:text-emerald-700 transition">
@@ -209,7 +206,7 @@ export function EmployeeProfilePage() {
             <InfoRow label="Prénom" value={employee.first_name} icon={User} />
             <InfoRow label="Nom" value={employee.last_name} />
             <InfoRow label="Email" value={
-              <a href={`mailto:${employee.email}`} className="text-emerald-600 hover:underline flex items-center gap-1">
+              <a href={`mailto:${employee.email}`} className="flex min-w-0 items-center gap-1 break-all text-emerald-600 hover:underline">
                 {employee.email} <ExternalLink size={11} />
               </a>
             } icon={Mail} />

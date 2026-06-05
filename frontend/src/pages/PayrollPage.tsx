@@ -11,6 +11,7 @@ import type { EmployeePayrollOverride, Payslip } from "../types/domain";
 import { money, compactMoney, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import { useToast } from "../components/ToastProvider";
 
 /* ── helpers ───────────────────────────────────────────────────── */
 function openBlob(blob: Blob, filename: string) {
@@ -192,6 +193,7 @@ function BulletinCard({
 /* ══════════════════════════════════════════════════════════════ */
 export function PayrollPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   useCurrency();
 
   /* ── Period state ── */
@@ -296,7 +298,7 @@ export function PayrollPage() {
 
   async function handleDownloadSlip(id: number) {
     try { openBlob(await api.downloadPayslip(id), `bulletin-${id}.pdf`); }
-    catch { alert("Erreur téléchargement PDF"); }
+    catch { toast.error("Erreur téléchargement PDF"); }
   }
 
   /* ── Limule analysis ── */

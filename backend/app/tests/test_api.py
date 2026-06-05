@@ -458,6 +458,7 @@ def test_employee_account_access_and_contract_flow() -> None:
         assert reset.status_code == 200
         assert reset.json()["temporary_password"] != payload["temporary_password"]
 
+
         suspended = client.patch(
             f"/api/employees/{employee_id}/account-status",
             headers=headers,
@@ -493,6 +494,64 @@ def test_employee_account_access_and_contract_flow() -> None:
         teras_document = client.post(f"/api/teras/analyze/document/{upload.json()['id']}", headers=headers)
         assert teras_document.status_code == 201
         assert teras_document.json()["domain"] == "documents"
+
+
+def test_super_admin_password_reset_forces_user_to_create_new_password() -> None:
+    with TestClient(app) as client:
+        suffix = uuid4().hex[:8]
+        old_password = f"OldPass{suffix}!"
+        register = client.post(
+            "/api/auth/register-company",
+            json={
+                "company_name": f"Reset Flow {suffix}",
+                "legal_name": f"Reset Flow {suffix} SARL",
+                "industry": "Services",
+                "organization_type": "PME",
+                "country": "Congo",
+                "admin_full_name": "Reset Target",
+                "admin_email": f"reset.target.{suffix}@test.cg",
+                "admin_phone": f"+24206{str(uuid4().int)[-6:]}",
+                "password": old_password,
+            },
+        )
+        assert register.status_code == 201
+        target = register.json()["user"]
+        old_token = register.json()["access_token"]
+
+        reset = client.post(
+            f"/api/admin/users/{target['id']}/reset-password",
+            headers=super_admin_headers(client),
+        )
+        assert reset.status_code == 200
+        reset_payload = reset.json()
+        assert reset_payload["temp_password"]
+        assert reset_payload["must_change_password"] is True
+
+        revoked = client.get("/api/products", headers={"Authorization": f"Bearer {old_token}"})
+        assert revoked.status_code == 401
+
+        old_login = client.post("/api/auth/login", json={"email": target["email"], "password": old_password})
+        assert old_login.status_code == 401
+
+        temp_login = client.post(
+            "/api/auth/login",
+            json={"email": target["email"], "password": reset_payload["temp_password"]},
+        )
+        assert temp_login.status_code == 200
+        assert temp_login.json()["must_change_password"] is True
+
+        new_password = f"NewPass{suffix}!"
+        activated = client.post(
+            "/api/auth/first-login-change-password",
+            headers={"Authorization": f"Bearer {temp_login.json()['access_token']}"},
+            json={"current_password": reset_payload["temp_password"], "new_password": new_password},
+        )
+        assert activated.status_code == 200
+        assert activated.json()["must_change_password"] is False
+
+        new_login = client.post("/api/auth/login", json={"email": target["email"], "password": new_password})
+        assert new_login.status_code == 200
+        assert new_login.json()["must_change_password"] is False
 
 
 def test_teras_analysis_layer_and_ai_router_flow() -> None:

@@ -24,10 +24,10 @@ const SORT_OPTIONS = ["date", "priority", "company"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
 const KANBAN_COLUMNS: { key: string; label: string; color: string }[] = [
-  { key: "open",        label: "Ouvert",    color: "border-emerald-500/40 bg-emerald-500/10" },
-  { key: "in_progress", label: "En cours",  color: "border-amber-500/40 bg-amber-500/10" },
-  { key: "resolved",    label: "Résolu",    color: "border-violet-500/40 bg-violet-500/10" },
-  { key: "closed",      label: "Fermé",     color: "border-white/20 bg-white/5" },
+  { key: "open",        label: "Ouvert",    color: "border-emerald-200 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10" },
+  { key: "in_progress", label: "En cours",  color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
+  { key: "resolved",    label: "Résolu",    color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
+  { key: "closed",      label: "Fermé",     color: "border-slate-200 bg-slate-50 dark:border-white/20 dark:bg-white/5" },
 ];
 
 const NEXT_STATUS: Record<string, string> = {
@@ -39,39 +39,39 @@ const NEXT_STATUS: Record<string, string> = {
 const PRIORITY_ORDER: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
 
 function priorityClass(priority: string) {
-  if (priority === "critical") return "bg-rose-500/25 text-rose-200";
-  if (priority === "high") return "bg-amber-500/25 text-amber-200";
-  if (priority === "medium") return "bg-violet-500/25 text-violet-200";
-  return "bg-emerald-500/20 text-emerald-200";
+  if (priority === "critical") return "bg-rose-100 text-rose-700 dark:bg-rose-500/25 dark:text-rose-200";
+  if (priority === "high") return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/25 dark:text-indigo-200";
+  if (priority === "medium") return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/25 dark:text-indigo-200";
+  return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200";
 }
 
 function priorityIcon(priority: string) {
   const cls =
     priority === "critical"
-      ? "text-rose-400"
+      ? "text-rose-500 dark:text-rose-400"
       : priority === "high"
-      ? "text-amber-400"
+      ? "text-indigo-500 dark:text-indigo-400"
       : priority === "medium"
-      ? "text-violet-400"
-      : "text-emerald-400";
+      ? "text-indigo-500 dark:text-indigo-400"
+      : "text-emerald-500 dark:text-emerald-400";
   return <Flag size={12} className={cls} />;
 }
 
 function slaInfo(createdAt: string): { label: string; cls: string } {
   const diffMs = Date.now() - new Date(createdAt).getTime();
   const hours = diffMs / 3_600_000;
-  if (hours > 4) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-rose-400" };
-  if (hours > 1) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-amber-400" };
+  if (hours > 4) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-rose-500 dark:text-rose-400" };
+  if (hours > 1) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-indigo-500 dark:text-indigo-400" };
   const mins = Math.round(diffMs / 60_000);
-  return { label: `Il y a ${mins}m`, cls: "text-white/40" };
+  return { label: `Il y a ${mins}m`, cls: "text-slate-400 dark:text-white/40" };
 }
 
 /* ── Metric card ── */
 function MetricCard({ label, value, cls }: { label: string; value: number; cls: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <p className={`text-3xl font-black ${cls}`}>{value}</p>
-      <p className="mt-1 text-xs font-bold uppercase tracking-wider text-white/45">{label}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/45">{label}</p>
     </div>
   );
 }
@@ -89,22 +89,22 @@ function InlineReply({ ticket, onClose }: { ticket: TicketDto; onClose: () => vo
     },
   });
   return (
-    <div className="mt-3 rounded-lg border border-violet-500/30 bg-violet-500/10 p-3" onClick={(e) => e.stopPropagation()}>
+    <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-500/30 dark:bg-indigo-500/10" onClick={(e) => e.stopPropagation()}>
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Votre réponse au ticket..."
         rows={3}
-        className="w-full resize-none rounded-lg bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:ring-1 focus:ring-violet-400"
+        className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-1 focus:ring-indigo-400 dark:border-transparent dark:bg-black/20 dark:text-white dark:placeholder:text-white/35"
       />
       <div className="mt-2 flex items-center justify-end gap-2">
-        <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-xs font-bold text-white/50 hover:text-white">
+        <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white">
           <X size={14} />
         </button>
         <button
           disabled={!body.trim() || reply.isPending}
           onClick={() => reply.mutate(body.trim())}
-          className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50"
         >
           <Send size={12} /> Envoyer
         </button>
@@ -134,7 +134,7 @@ function AssignDropdown({
         if (v) assign.mutate(v);
       }}
       onClick={(e) => e.stopPropagation()}
-      className="rounded-lg border border-white/10 bg-slate-900 px-2 py-1 text-xs font-bold text-white/70"
+      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-white/70"
     >
       <option value="">Non assigné</option>
       {(users.data ?? []).map((u) => (
@@ -158,19 +158,19 @@ function TicketRow({
   const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at) : null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/8 transition-colors">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50 transition-colors dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:hover:bg-white/8">
       <div
         className="flex flex-wrap items-center justify-between gap-4 cursor-pointer"
         onClick={() => onNavigate(ticket.id)}
       >
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/20 text-violet-200">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
             <LifeBuoy size={20} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-black">{ticket.subject}</p>
-            <p className="mt-1 line-clamp-1 text-sm text-white/55">{ticket.body}</p>
-            <p className="mt-1 text-xs font-semibold text-white/40">
+            <p className="truncate font-black text-slate-900 dark:text-white">{ticket.subject}</p>
+            <p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-white/55">{ticket.body}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-400 dark:text-white/40">
               {ticket.company_name || "KOMPTA"} · {ticket.requester_name || "système"}
             </p>
           </div>
@@ -184,19 +184,19 @@ function TicketRow({
           <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold uppercase ${priorityClass(ticket.priority)}`}>
             {priorityIcon(ticket.priority)} {ticket.priority}
           </span>
-          <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold uppercase text-white/60">{ticket.status}</span>
-          <span className="rounded-full bg-fuchsia-500/15 px-2.5 py-1 text-xs font-bold uppercase text-fuchsia-200">{ticket.category}</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600 dark:bg-white/10 dark:text-white/60">{ticket.status}</span>
+          <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold uppercase text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">{ticket.category}</span>
           <AssignDropdown ticket={ticket} />
           <button
             onClick={(e) => {
               e.stopPropagation();
               setReplyOpen((v) => !v);
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-xs font-bold text-violet-200 hover:bg-violet-500/20"
+            className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-400/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20"
           >
             <MessageSquare size={12} /> Répondre
           </button>
-          <ChevronRight size={16} className="text-white/30" />
+          <ChevronRight size={16} className="text-slate-300 dark:text-white/30" />
         </div>
       </div>
       {replyOpen && <InlineReply ticket={ticket} onClose={() => setReplyOpen(false)} />}
@@ -215,10 +215,10 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
   const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at) : null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/25 p-3 space-y-2">
+    <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2 shadow-sm dark:border-white/10 dark:bg-black/25 dark:shadow-none">
       <div className="flex items-start justify-between gap-2">
         <p
-          className="text-sm font-bold leading-snug cursor-pointer hover:text-violet-300"
+          className="text-sm font-bold leading-snug cursor-pointer text-slate-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-300"
           onClick={() => onNavigate(ticket.id)}
         >
           {ticket.subject}
@@ -227,8 +227,8 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
           {priorityIcon(ticket.priority)} {ticket.priority}
         </span>
       </div>
-      <p className="line-clamp-2 text-xs text-white/50">{ticket.body}</p>
-      <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-white/40">
+      <p className="line-clamp-2 text-xs text-slate-500 dark:text-white/50">{ticket.body}</p>
+      <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-400 dark:text-white/40">
         <span className="flex items-center gap-1"><User size={10} /> {ticket.company_name || "KOMPTA"}</span>
         {sla && <span className={`flex items-center gap-1 ${sla.cls}`}><Clock size={10} /> {sla.label}</span>}
       </div>
@@ -236,7 +236,7 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
         <button
           disabled={move.isPending}
           onClick={() => move.mutate(nextStatus)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
         >
           Déplacer vers {KANBAN_COLUMNS.find((c) => c.key === nextStatus)?.label} <ChevronRight size={12} />
         </button>
@@ -304,17 +304,17 @@ export function AdminTicketsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Support</p>
-          <h1 className="text-3xl font-black">Tickets de support</h1>
-          <p className="mt-1 text-sm text-white/60">Priorisation, triage et réponses aux entreprises.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Support</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Tickets de support</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Priorisation, triage et réponses aux entreprises.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView("list")}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-bold ${
               view === "list"
-                ? "border-violet-400 bg-violet-500/20 text-white"
-                : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                ? "border-indigo-400 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
             }`}
           >
             <LayoutList size={15} /> Liste
@@ -323,8 +323,8 @@ export function AdminTicketsPage() {
             onClick={() => setView("kanban")}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-bold ${
               view === "kanban"
-                ? "border-violet-400 bg-violet-500/20 text-white"
-                : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                ? "border-indigo-400 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
             }`}
           >
             <Columns size={15} /> Kanban
@@ -334,27 +334,27 @@ export function AdminTicketsPage() {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Total" value={totalCount} cls="text-white" />
-        <MetricCard label="Ouverts" value={openCount} cls="text-emerald-300" />
-        <MetricCard label="En cours" value={inProgressCount} cls="text-amber-300" />
-        <MetricCard label="Critiques" value={criticalCount} cls="text-rose-300" />
+        <MetricCard label="Total" value={totalCount} cls="text-slate-900 dark:text-white" />
+        <MetricCard label="Ouverts" value={openCount} cls="text-emerald-600 dark:text-emerald-300" />
+        <MetricCard label="En cours" value={inProgressCount} cls="text-indigo-600 dark:text-indigo-300" />
+        <MetricCard label="Critiques" value={criticalCount} cls="text-rose-600 dark:text-rose-300" />
       </div>
 
       {/* Filters */}
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-          <AlertTriangle size={18} className="text-white/40" />
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/5">
+          <AlertTriangle size={18} className="text-slate-400 dark:text-white/40" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher sujet, entreprise, demandeur..."
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
         <select
           value={status}
           onChange={(e) => setFilter("status", e.target.value)}
-          className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           {STATUSES.map((item) => (
             <option key={item} value={item}>{item}</option>
@@ -363,7 +363,7 @@ export function AdminTicketsPage() {
         <select
           value={priority}
           onChange={(e) => setFilter("priority", e.target.value)}
-          className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           {PRIORITIES.map((item) => (
             <option key={item} value={item}>{item}</option>
@@ -372,7 +372,7 @@ export function AdminTicketsPage() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortOption)}
-          className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           <option value="date">Tri: Date</option>
           <option value="priority">Tri: Priorité</option>
@@ -383,7 +383,7 @@ export function AdminTicketsPage() {
       {/* Loading */}
       {tickets.isLoading && (
         <div className="flex h-32 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
         </div>
       )}
 
@@ -398,7 +398,7 @@ export function AdminTicketsPage() {
             />
           ))}
           {filtered.length === 0 && (
-            <p className="py-12 text-center text-sm font-semibold text-white/40">Aucun ticket trouvé.</p>
+            <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">Aucun ticket trouvé.</p>
           )}
         </div>
       )}
@@ -411,8 +411,8 @@ export function AdminTicketsPage() {
             return (
               <div key={col.key} className={`rounded-xl border p-3 space-y-3 ${col.color}`}>
                 <div className="flex items-center justify-between px-1">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-white/80">{col.label}</h3>
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-white/50">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-white/80">{col.label}</h3>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500 dark:bg-white/10 dark:text-white/50">
                     {colTickets.length}
                   </span>
                 </div>
@@ -424,7 +424,7 @@ export function AdminTicketsPage() {
                   />
                 ))}
                 {colTickets.length === 0 && (
-                  <p className="py-6 text-center text-xs font-semibold text-white/25">Vide</p>
+                  <p className="py-6 text-center text-xs font-semibold text-slate-400 dark:text-white/25">Vide</p>
                 )}
               </div>
             );

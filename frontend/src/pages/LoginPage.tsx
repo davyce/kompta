@@ -1,14 +1,16 @@
-import { Building2, KeyRound, ShieldCheck, UserPlus } from "lucide-react";
+import { BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, Sparkles, UserPlus, Users2, Wallet } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { TextInput } from "../components/FormField";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
+import { useToast } from "../components/ToastProvider";
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
 
 export function LoginPage() {
   const { login, registerCompany } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register" | "reset" | "reset_confirm">("login");
   const [resetIdentifier, setResetIdentifier] = useState("");
@@ -16,8 +18,8 @@ export function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [resetResult, setResetResult] = useState<{ message?: string; reset_token?: string; note?: string } | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
-  const [email, setEmail] = useState("admin@kompta.local");
-  const [password, setPassword] = useState("kompta123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [registration, setRegistration] = useState({
     company_name: "",
     legal_name: "",
@@ -37,12 +39,19 @@ export function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await login(email, password);
+      // Trim défensif : iOS et Android peuvent ajouter des espaces invisibles
+      // lors du copier-coller depuis SMS / email (mot de passe temporaire).
+      const response = await login(email.trim(), password.trim());
       if (response.user.role === "super_admin") {
         navigate("/admin");
         return;
       }
-      navigate(response.must_change_password ? "/activation" : "/");
+      if (response.must_change_password) {
+        navigate("/activation");
+        return;
+      }
+      // Workspace selector — l'utilisateur choisit ensuite l'espace
+      navigate("/workspace");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connexion impossible");
     } finally {
@@ -73,7 +82,7 @@ export function LoginPage() {
     try {
       const result = await api.resetPassword(resetToken, newPassword);
       setResetResult(result);
-      alert("✅ " + result.message);
+      toast.success(result.message);
       setMode("login");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
@@ -88,7 +97,7 @@ export function LoginPage() {
     setError("");
     try {
       await registerCompany(registration);
-      navigate("/");
+      navigate("/workspace");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Creation impossible");
     } finally {
@@ -99,7 +108,7 @@ export function LoginPage() {
   return (
     <main className="min-h-dvh bg-canvas">
       <div className="grid min-h-dvh lg:grid-cols-[1.05fr_0.95fr]">
-        {/* ── Colonne gauche : panel marketing ────────────────────────── */}
+        {/* ── DESKTOP — Colonne gauche : panel marketing ─────────────── */}
         <section className="hidden lg:flex flex-col justify-between bg-ink p-10 text-white">
           {/* Header */}
           <div className="flex items-center gap-3">
@@ -150,54 +159,83 @@ export function LoginPage() {
           </div>
         </section>
 
-        {/* ── Colonne droite : formulaire ─────────────────────────────── */}
-        <section className="flex items-center justify-center p-6">
+        {/* ── Colonne droite : header mobile + formulaire + trust ────── */}
+        <section className="flex flex-col lg:items-center lg:justify-center px-4 py-6 sm:px-6">
+          {/* MOBILE — Hero compact (caché sur desktop) */}
+          <header className="lg:hidden mb-5 flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 font-black text-white text-xl shadow-lg shadow-emerald-600/20">
+              K
+            </div>
+            <div className="min-w-0">
+              <p className="text-2xl font-black text-ink leading-tight">KOMPTA</p>
+              <p className="text-xs text-stone-500 leading-tight">ERP IA pour PME · CEMAC · SYSCOHADA</p>
+            </div>
+            <div className="ml-auto flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+              <Sparkles size={10} /> Limule
+            </div>
+          </header>
+
           <form
             onSubmit={mode === "login" ? onSubmit : mode === "reset" ? onRequestReset : mode === "reset_confirm" ? onConfirmReset : onRegister}
-            className="w-full max-w-md rounded-lg border border-stone-200 bg-white p-6 shadow-soft"
+            className="w-full lg:max-w-md rounded-2xl lg:rounded-lg border border-stone-200 bg-white p-5 sm:p-6 shadow-soft"
           >
-            <div className="mb-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                {mode === "login" ? <KeyRound size={22} /> : mode === "reset" || mode === "reset_confirm" ? <ShieldCheck size={22} /> : <UserPlus size={22} />}
+            <div className="mb-5">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                {mode === "login" ? <KeyRound size={20} /> : mode === "reset" || mode === "reset_confirm" ? <ShieldCheck size={20} /> : <UserPlus size={20} />}
               </div>
-              <h2 className="text-2xl font-black text-ink">
+              <h2 className="text-xl sm:text-2xl font-black text-ink">
                 {mode === "login" ? "Connexion" : mode === "reset" ? "Réinitialiser le mot de passe" : mode === "reset_confirm" ? "Nouveau mot de passe" : "Créer une entreprise"}
               </h2>
-              <p className="mt-1 text-sm text-stone-500">
+              <p className="mt-1 text-sm text-stone-500 leading-snug">
                 {mode === "login"
-                  ? "Connectez-vous ou créez votre espace entreprise."
+                  ? "Accédez à votre espace ou créez une nouvelle entreprise."
                   : mode === "reset"
-                  ? "Saisissez votre email ou téléphone pour recevoir un token de réinitialisation."
+                  ? "Saisissez votre email ou téléphone pour recevoir un token."
                   : mode === "reset_confirm"
                   ? "Copiez le token et définissez votre nouveau mot de passe."
-                  : "Crée l'entreprise et le compte admin du PDG/DG en une seule étape."}
+                  : "Crée l'entreprise et le compte admin en une seule étape."}
               </p>
-              <div className="mt-4 grid grid-cols-2 rounded-lg bg-stone-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setMode("login")}
-                  className={`rounded-md px-3 py-2 text-sm font-bold transition ${mode === "login" ? "bg-white text-ink shadow-sm" : "text-stone-500"}`}
-                >
-                  Connexion
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("register")}
-                  className={`rounded-md px-3 py-2 text-sm font-bold transition ${mode === "register" ? "bg-white text-ink shadow-sm" : "text-stone-500"}`}
-                >
-                  Nouvelle entreprise
-                </button>
-              </div>
+              {(mode === "login" || mode === "register") && (
+                <div className="mt-4 grid grid-cols-2 rounded-xl bg-stone-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => { setMode("login"); setError(""); }}
+                    className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${mode === "login" ? "bg-white text-ink shadow-sm" : "text-stone-500 active:bg-stone-200"}`}
+                  >
+                    Connexion
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode("register"); setError(""); }}
+                    className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${mode === "register" ? "bg-white text-ink shadow-sm" : "text-stone-500 active:bg-stone-200"}`}
+                  >
+                    Nouvelle entreprise
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-4">
               {mode === "login" ? (
                 <>
-                  <TextInput label="Email ou téléphone" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <TextInput
+                    label="Email ou téléphone"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    inputMode="email"
+                  />
                   <TextInput
                     label="Mot de passe"
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                   <button
                     type="button"
@@ -293,10 +331,10 @@ export function LoginPage() {
                   />
                 </>
               )}
-              {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+              {error ? <p className="rounded-lg bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700">{error}</p> : null}
               <button
                 disabled={loading || resetLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                className="flex min-h-[52px] sm:min-h-0 w-full items-center justify-center gap-2 rounded-xl sm:rounded-lg bg-emerald-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition active:scale-[0.98] hover:bg-emerald-700 disabled:opacity-60 disabled:active:scale-100"
               >
                 {(loading || resetLoading) ? (
                   <LimuleAvatar state="thinking" size={22} />
@@ -308,11 +346,49 @@ export function LoginPage() {
                 {(loading || resetLoading) ? "Limule vérifie…" : mode === "login" ? "Entrer dans KOMPTA" : mode === "reset" ? "Demander le token" : mode === "reset_confirm" ? "Changer le mot de passe" : "Créer et entrer"}
               </button>
             </div>
-            <div className="mt-5 flex items-center gap-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
-              <Building2 size={18} />
-              Les nouvelles entreprises démarrent vides: à vous de créer employés, produits, documents et ventes.
+            <div className="mt-5 flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-xs sm:text-sm text-stone-600">
+              <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
+              <span>Les nouvelles entreprises démarrent vides : créez vous-même employés, produits, documents et ventes.</span>
             </div>
           </form>
+
+          {/* MOBILE — Trust signals + mini-features (caché sur desktop) */}
+          <div className="lg:hidden mt-6 w-full space-y-4">
+            {/* Mini-features grid */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: Receipt,    label: "Factures",   hint: "TVA + avoirs",      limule: false },
+                { icon: Wallet,     label: "Caisse",     hint: "POS + stock",       limule: false },
+                { icon: Users2,     label: "Groupes",    hint: "Tontines & ONG",    limule: false },
+                { icon: BarChart3,  label: "Compta",     hint: "Partie double",     limule: false },
+                { icon: Sparkles,   label: "IA Limule",  hint: "Analyse + conseil", limule: true  },
+                { icon: Smartphone, label: "Mobile",     hint: "Optimisé iPhone",   limule: false },
+              ].map(({ icon: Icon, label, hint, limule }) => (
+                <div key={label} className="flex flex-col items-center rounded-xl border border-stone-200 bg-white p-3 text-center">
+                  {limule
+                    ? <LimuleIcon size={20} className="mx-auto" />
+                    : <Icon size={18} className="text-emerald-600" />
+                  }
+                  <p className="mt-1.5 text-[11px] font-bold text-ink leading-tight">{label}</p>
+                  <p className="text-[10px] text-stone-500 leading-tight">{hint}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Trust row */}
+            <div className="flex items-center justify-around rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-[10px] text-stone-600">
+              <span className="flex items-center gap-1"><Lock size={11} className="text-emerald-600" /> Chiffré</span>
+              <span className="h-3 w-px bg-stone-300" />
+              <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-emerald-600" /> Multi-tenant</span>
+              <span className="h-3 w-px bg-stone-300" />
+              <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-emerald-600" /> SYSCOHADA</span>
+            </div>
+
+            {/* Footer */}
+            <p className="text-center text-[10px] text-stone-400">
+              KOMPTA · v2.0 · Propulsé par Limule
+            </p>
+          </div>
         </section>
 
       </div>

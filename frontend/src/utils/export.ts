@@ -1,10 +1,12 @@
-import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
+// Imports dynamiques : jspdf / xlsx pèsent ~700 kB combinés. En les chargeant
+// uniquement au moment où l'utilisateur clique sur "Exporter", on évite de
+// gonfler le bundle initial (chunk vendor-export devient lazy).
 
 /**
  * Export an array of objects to a .xlsx file download.
  */
-export function exportToExcel(data: Record<string, unknown>[], filename: string): void {
+export async function exportToExcel(data: Record<string, unknown>[], filename: string): Promise<void> {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data");
@@ -14,11 +16,12 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string)
 /**
  * Export a simple key-value list to a PDF file download.
  */
-export function exportToPDF(
+export async function exportToPDF(
   title: string,
   rows: { label: string; value: string }[],
   filename: string
-): void {
+): Promise<void> {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   // Title
@@ -59,11 +62,12 @@ export function exportToPDF(
 /**
  * Export a table (headers + rows) to a .xlsx file download.
  */
-export function exportTableToExcel(
+export async function exportTableToExcel(
   headers: string[],
   rows: (string | number)[][],
   filename: string
-): void {
+): Promise<void> {
+  const XLSX = await import("xlsx");
   const wsData = [headers, ...rows];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();

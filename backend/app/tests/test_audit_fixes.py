@@ -66,9 +66,18 @@ def test_paid_invoice_is_immutable():
     with TestClient(app) as client:
         h = _auth(client)
         inv = _make_invoice(client, h).json()
-        client.patch(f"/api/invoices/{inv['id']}", headers=h, json={"status": "paid"})
+        payment = client.post(f"/api/invoices/{inv['id']}/pay", headers=h, json={"payment_method": "cash"})
+        assert payment.status_code == 200
         r = client.patch(f"/api/invoices/{inv['id']}", headers=h, json={"customer_name": "HACK"})
         assert r.status_code == 409
+
+
+def test_invoice_cannot_be_marked_paid_with_patch():
+    with TestClient(app) as client:
+        h = _auth(client)
+        inv = _make_invoice(client, h).json()
+        r = client.patch(f"/api/invoices/{inv['id']}", headers=h, json={"status": "paid"})
+        assert r.status_code == 422
 
 
 def test_credit_note_mirrors_negative():
@@ -142,6 +151,56 @@ def test_token_revoked_after_logout():
         assert client.post("/api/auth/refresh", headers=h).status_code == 200
         assert client.post("/api/auth/logout", headers=h).status_code == 200
         assert client.post("/api/auth/refresh", headers=h).status_code == 401
+
+
+def test_realtime_ticket_is_required_for_sse_urls():
+    from app.core.security import decode_access_token
+
+    with TestClient(app) as client:
+        login = client.post("/api/auth/login", json={"email": "admin@kompta.local", "password": "kompta123"})
+        assert login.status_code == 200
+        access_token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        ticket_response = client.post("/api/auth/realtime-ticket", headers=headers)
+        assert ticket_response.status_code == 200
+        data = ticket_response.json()
+        assert data["expires_in"] == 60
+
+        ticket_payload = decode_access_token(data["ticket"])
+        assert ticket_payload is not None
+        assert ticket_payload["purpose"] == "realtime"
+        assert ticket_payload["sub"] == decode_access_token(access_token)["sub"]
+
+        # Les flux temps réel ne doivent plus accepter le JWT long en query string.
+        sse_response = client.get(f"/api/notifications/stream?token={access_token}")
+        assert sse_response.status_code == 401
+
+
+def test_ai_fails_closed_in_production_without_provider():
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from app.core.config import get_settings
+    from app.schemas import WritingRequest
+    from app.services.deepseek import generate_writing
+
+    settings = get_settings()
+    old_env = settings.environment
+    old_key = settings.deepseek_api_key
+    settings.environment = "production"
+    settings.deepseek_api_key = ""
+    try:
+        try:
+            asyncio.run(generate_writing(WritingRequest(notes="Rédige un message"), "Admin"))
+        except HTTPException as exc:
+            assert exc.status_code == 503
+        else:
+            raise AssertionError("L'IA ne doit pas renvoyer de fallback mock en production")
+    finally:
+        settings.environment = old_env
+        settings.deepseek_api_key = old_key
 
 
 # ── #10 Garde-fous IA ──────────────────────────────────────────────────────

@@ -21,8 +21,8 @@ export function GroupReportsPage() {
 
       {/* Rapport cotisations */}
       <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-5">
-        <div className="flex items-center gap-2 mb-4"><CreditCard size={16} className="text-violet-500" /><h3 className="font-bold text-[#17211f] dark:text-white">Cotisations</h3></div>
-        {l1 ? <div className="flex h-20 items-center justify-center"><Loader2 size={20} className="animate-spin text-violet-500" /></div> : (
+        <div className="flex items-center gap-2 mb-4"><CreditCard size={16} className="text-blue-700" /><h3 className="font-bold text-[#17211f] dark:text-white">Cotisations</h3></div>
+        {l1 ? <div className="flex h-20 items-center justify-center"><Loader2 size={20} className="animate-spin text-blue-700" /></div> : (
           <>
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#161920] p-3">
@@ -35,13 +35,13 @@ export function GroupReportsPage() {
               </div>
               <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#161920] p-3">
                 <p className="text-xs text-[#717182]">Taux de recouvrement</p>
-                <p className="text-lg font-black text-violet-600">{payReport?.recovery_rate ?? 0}%</p>
+                <p className="text-lg font-black text-blue-800">{payReport?.recovery_rate ?? 0}%</p>
               </div>
             </div>
             {/* Barre */}
             {(payReport?.total_due ?? 0) > 0 && (
               <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08] mb-4">
-                <div className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-emerald-500" style={{ width: `${Math.min(100, payReport?.recovery_rate ?? 0)}%` }} />
+                <div className="h-2 rounded-full bg-gradient-to-r from-blue-700 to-emerald-500" style={{ width: `${Math.min(100, payReport?.recovery_rate ?? 0)}%` }} />
               </div>
             )}
             {/* Top 5 arriérés */}

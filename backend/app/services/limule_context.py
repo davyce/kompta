@@ -402,6 +402,7 @@ def build_limule_context(
         },
         "memory": memory,
         "modules": {
+            # ── RH : salaires masqués pour les rôles non autorisés ────────────
             "rh": {
                 "active_count": active_employees,
                 "recent_employees": [
@@ -411,24 +412,33 @@ def build_limule_context(
                         "department": employee.department,
                         "branch": employee.branch,
                         "status": employee.status,
-                        "salary": employee.salary,
-                        "payout_method": employee.payout_method,
+                        # Salaire uniquement pour RH / admin / super_admin
+                        **(
+                            {"salary": employee.salary, "payout_method": employee.payout_method}
+                            if user.role in {"admin_entreprise", "manager_entreprise", "rh_entreprise", "super_admin"}
+                            else {}
+                        ),
                         "account_status": employee.account_status,
                     }
                     for employee in employees
                 ],
             },
-            "payroll": {
-                "latest_period": latest_payroll.period if latest_payroll else "",
-                "latest_status": latest_payroll.status if latest_payroll else "",
-                "net_total": latest_payroll.net_total if latest_payroll else 0,
-                "payment_account": latest_payroll.payment_account_label if latest_payroll else "",
-                "payslip_count": len(latest_payroll.payslips) if latest_payroll else 0,
-                "payouts_ready": (
-                    sum(1 for slip in latest_payroll.payslips if slip.payout_status == "ready")
-                    if latest_payroll else 0
-                ),
-            },
+            # ── Paie : chiffres masqués pour les non-autorisés ────────────────
+            "payroll": (
+                {
+                    "latest_period": latest_payroll.period if latest_payroll else "",
+                    "latest_status": latest_payroll.status if latest_payroll else "",
+                    "net_total": latest_payroll.net_total if latest_payroll else 0,
+                    "payment_account": latest_payroll.payment_account_label if latest_payroll else "",
+                    "payslip_count": len(latest_payroll.payslips) if latest_payroll else 0,
+                    "payouts_ready": (
+                        sum(1 for slip in latest_payroll.payslips if slip.payout_status == "ready")
+                        if latest_payroll else 0
+                    ),
+                }
+                if user.role in {"admin_entreprise", "manager_entreprise", "rh_entreprise", "super_admin"}
+                else {"access": "restricted"}
+            ),
             "finance": {
                 "invoices_total": invoices_total,
                 "sales_total": sales_total,
@@ -458,6 +468,7 @@ def build_limule_context(
                     for product in low_stock
                 ],
             },
+            # ── Documents : extracted_data masqué (contient données sensibles)──
             "documents": {
                 "count": documents_count,
                 "recent": [
@@ -470,7 +481,12 @@ def build_limule_context(
                         "summary": _short(doc.ai_summary, 220),
                         "text_length": doc.text_length,
                         "parse_method": doc.parse_method,
-                        "extracted": _safe_json(doc.extracted_data, {}),
+                        # extracted_data (peut contenir salaires, montants, noms) → admin/comptable seulement
+                        **(
+                            {"extracted": _safe_json(doc.extracted_data, {})}
+                            if user.role in {"admin_entreprise", "manager_entreprise", "comptable", "super_admin"}
+                            else {}
+                        ),
                     }
                     for doc in recent_docs
                 ],

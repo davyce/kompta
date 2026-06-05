@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Users, X, Loader2, UserCheck, UserX, UserPlus, Key, Copy, Check } from "lucide-react";
+import { Plus, Search, Users, X, Loader2, UserCheck, UserX, UserPlus, Key, Copy, Check, Trash2, RotateCcw } from "lucide-react";
 import { api } from "../../services/api";
+import { useToast } from "../../components/ToastProvider";
+import { useConfirm } from "../../components/ConfirmProvider";
 
 export function GroupMembersPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -22,10 +24,44 @@ export function GroupMembersPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["group-members", id] }); setShowAdd(false); setForm({ full_name: "", phone: "", email: "", zone: "", profession: "", date_of_birth: "", member_number: "" }); },
   });
 
+  const toast = useToast();
+  const { confirm } = useConfirm();
+
   const provision = useMutation({
     mutationFn: (memberId: number) => api.provisionMemberAccount(id, memberId),
     onSuccess: (data) => setProvisionResult(data),
   });
+
+  const resetAccess = useMutation({
+    mutationFn: (memberId: number) => api.resetMemberAccess(id, memberId),
+    onSuccess: (data) => setProvisionResult({ created: false, login_identifier: data.login_identifier, temporary_password: data.temporary_password, message: data.message }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Réinitialisation impossible"),
+  });
+
+  const removeMember = useMutation({
+    mutationFn: (memberId: number) => api.deleteGroupMember(id, memberId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["group-members", id] }); toast.success("Membre retiré du groupe"); },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+  });
+
+  async function handleRemove(memberId: number, name: string) {
+    const ok = await confirm({
+      title: `Retirer ${name} du groupe ?`,
+      message: "Son compte KOMPTA sera désactivé. Tu pourras le réactiver plus tard via « Générer un accès ».",
+      confirmLabel: "Retirer le membre",
+      danger: true,
+    });
+    if (ok) removeMember.mutate(memberId);
+  }
+
+  async function handleReset(memberId: number, name: string) {
+    const ok = await confirm({
+      title: `Réinitialiser l'accès de ${name} ?`,
+      message: "Un nouveau mot de passe temporaire sera généré. Ses sessions actives seront révoquées.",
+      confirmLabel: "Réinitialiser",
+    });
+    if (ok) resetAccess.mutate(memberId);
+  }
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
@@ -42,7 +78,7 @@ export function GroupMembersPage() {
           <p className="text-sm text-[#717182]">{members.length} membre{members.length > 1 ? "s" : ""} au total</p>
         </div>
         {group?.can_manage && (
-          <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition">
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition">
             <Plus size={15} /> Ajouter
           </button>
         )}
@@ -59,7 +95,7 @@ export function GroupMembersPage() {
       {/* Stats par zone */}
       {zones.length > 0 && (
         <div className="flex gap-2 flex-wrap">
-          {zones.map(z => <span key={z} className="rounded-full bg-violet-50 dark:bg-violet-500/10 px-3 py-1 text-xs font-bold text-violet-700 dark:text-violet-300">{z} ({members.filter(m => m.zone === z).length})</span>)}
+          {zones.map(z => <span key={z} className="rounded-full bg-blue-50 dark:bg-blue-800/10 px-3 py-1 text-xs font-bold text-blue-900 dark:text-blue-400">{z} ({members.filter(m => m.zone === z).length})</span>)}
         </div>
       )}
 
@@ -74,13 +110,13 @@ export function GroupMembersPage() {
               <div key={m.id} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white text-sm font-bold">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-800 text-white text-sm font-bold">
                       {m.full_name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
                     <div>
                       <p className="font-semibold text-[#17211f] dark:text-white">{m.full_name}</p>
                       <p className="text-[11px] text-[#717182]">{m.phone || m.email || "—"}</p>
-                      {m.zone && <p className="text-[11px] text-violet-600 dark:text-violet-300">{m.zone}</p>}
+                      {m.zone && <p className="text-[11px] text-blue-800 dark:text-blue-400">{m.zone}</p>}
                     </div>
                   </div>
                   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${m.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-rose-100 text-rose-700"}`}>
@@ -93,14 +129,33 @@ export function GroupMembersPage() {
                   {m.roles.length === 0 && <span className="text-[#717182] text-xs">Membre</span>}
                 </div>
                 {group?.can_manage && (
-                  <button
-                    onClick={() => provision.mutate(m.id)}
-                    disabled={provision.isPending}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 dark:border-violet-500/30 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition"
-                  >
-                    {provision.isPending ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
-                    Créer compte
-                  </button>
+                  <div className="mt-3 grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => provision.mutate(m.id)}
+                      disabled={provision.isPending}
+                      className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700/30 px-2 py-1.5 text-[11px] font-semibold text-blue-900 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-800/10 transition"
+                    >
+                      {provision.isPending ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
+                      Accès
+                    </button>
+                    <button
+                      onClick={() => handleReset(m.id, m.full_name)}
+                      disabled={resetAccess.isPending}
+                      className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-500/30 px-2 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
+                      title="Réinitialiser le mot de passe"
+                    >
+                      {resetAccess.isPending ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                      Reset
+                    </button>
+                    <button
+                      onClick={() => handleRemove(m.id, m.full_name)}
+                      disabled={removeMember.isPending}
+                      className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 px-2 py-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                    >
+                      {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                      Retirer du groupe
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -123,7 +178,7 @@ export function GroupMembersPage() {
                   <tr key={m.id} className="border-b border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white text-xs font-bold">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-800 text-white text-xs font-bold">
                           {m.full_name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase()}
                         </div>
                         <div>
@@ -147,14 +202,33 @@ export function GroupMembersPage() {
                     </td>
                     {group?.can_manage && (
                       <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => provision.mutate(m.id)}
                           disabled={provision.isPending}
-                          className="flex items-center gap-1.5 rounded-lg border border-violet-200 dark:border-violet-500/30 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition"
+                          className="flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700/30 px-2.5 py-1 text-xs font-semibold text-blue-900 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-800/10 transition"
                         >
                           {provision.isPending ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
-                          Compte
+                          Accès
                         </button>
+                        <button
+                          onClick={() => handleReset(m.id, m.full_name)}
+                          disabled={resetAccess.isPending}
+                          className="flex items-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
+                          title="Réinitialiser le mot de passe"
+                        >
+                          {resetAccess.isPending ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => handleRemove(m.id, m.full_name)}
+                          disabled={removeMember.isPending}
+                          className="flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                          title="Retirer du groupe"
+                        >
+                          {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                        </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -172,7 +246,7 @@ export function GroupMembersPage() {
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-[#17211f] dark:text-white flex items-center gap-2">
-                <Key size={18} className="text-violet-600" />
+                <Key size={18} className="text-blue-800" />
                 {provisionResult.created ? "Compte créé" : "Compte existant"}
               </h3>
               <button onClick={() => setProvisionResult(null)}><X size={16} className="text-[#717182]" /></button>
@@ -180,23 +254,39 @@ export function GroupMembersPage() {
             <p className="text-sm text-[#717182] mb-4">{provisionResult.message}</p>
             <div className="space-y-2">
               <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#252931] px-4 py-3">
-                <p className="text-[11px] font-bold uppercase text-[#717182]">Identifiant de connexion</p>
-                <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white mt-0.5">{provisionResult.login_identifier}</p>
+                <p className="text-[11px] font-bold uppercase text-[#717182] mb-1.5">Identifiant de connexion</p>
+                {/* Input cliquable pour copier l'identifiant sans ambiguïté */}
+                <input
+                  type="text"
+                  readOnly
+                  value={provisionResult.login_identifier}
+                  onClick={(e) => { (e.target as HTMLInputElement).select(); copyToClipboard(provisionResult.login_identifier); }}
+                  style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontVariantLigatures: "none" }}
+                  className="w-full bg-transparent text-base font-bold text-[#17211f] dark:text-white border-0 outline-none cursor-pointer select-all"
+                />
               </div>
               {provisionResult.temporary_password && (
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Mot de passe temporaire</p>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-sm font-mono font-bold text-emerald-800 dark:text-emerald-200">{provisionResult.temporary_password}</p>
-                    <button onClick={() => copyToClipboard(provisionResult.temporary_password!)} className="ml-2 text-emerald-600 hover:text-emerald-700 transition">
-                      {copied ? <Check size={15} /> : <Copy size={15} />}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Mot de passe temporaire</p>
+                    <button onClick={() => copyToClipboard(provisionResult.temporary_password!)} className="text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1 text-xs font-semibold">
+                      {copied ? <><Check size={13} /> Copié</> : <><Copy size={13} /> Copier</>}
                     </button>
                   </div>
+                  {/* Input readonly — copier-coller fiable, pas de transformation typographique */}
+                  <input
+                    type="text"
+                    readOnly
+                    value={provisionResult.temporary_password}
+                    onClick={(e) => { (e.target as HTMLInputElement).select(); copyToClipboard(provisionResult.temporary_password!); }}
+                    style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontVariantLigatures: "none", letterSpacing: "0.5px" }}
+                    className="w-full bg-white dark:bg-[#1e2229] rounded-lg px-3 py-2 text-base font-bold text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500/40 outline-none cursor-pointer select-all"
+                  />
                 </div>
               )}
             </div>
-            <p className="mt-3 text-[11px] text-[#717182]">⚠️ Transmets ce mot de passe de façon sécurisée. Il sera changé à la première connexion.</p>
-            <button onClick={() => setProvisionResult(null)} className="mt-4 w-full rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition">
+            <p className="mt-3 text-[11px] text-[#717182]">⚠️ Transmets ce mot de passe via un canal sécurisé. Il sera changé à la première connexion. Le mot de passe contient des <strong>tirets simples (-)</strong>, pas des tirets longs.</p>
+            <button onClick={() => setProvisionResult(null)} className="mt-4 w-full rounded-xl bg-blue-800 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition">
               Fermer
             </button>
           </div>
@@ -216,7 +306,7 @@ export function GroupMembersPage() {
                 <label key={field} className="block text-xs font-bold uppercase text-[#717182]">
                   {label}
                   <input value={(form as Record<string, string>)[field]} onChange={e => setForm(f => ({...f, [field]: e.target.value}))} placeholder={placeholder}
-                    className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-violet-500" />
+                    className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-blue-700" />
                 </label>
               ))}
               <label className="block text-xs font-bold uppercase text-[#717182]">
@@ -227,7 +317,7 @@ export function GroupMembersPage() {
             </div>
             {add.error && <p className="mt-2 text-sm text-rose-600">{(add.error as Error).message}</p>}
             <button disabled={!form.full_name.trim() || add.isPending} onClick={() => add.mutate()}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-black text-white hover:bg-violet-700 disabled:bg-stone-300 transition">
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-800 py-3 text-sm font-black text-white hover:bg-blue-900 disabled:bg-stone-300 transition">
               {add.isPending ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />} Ajouter
             </button>
           </div>

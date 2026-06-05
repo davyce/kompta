@@ -79,6 +79,9 @@ export function AssistantsPage() {
 
   const variables  = useQuery({ queryKey: ["aiVariables"], queryFn: api.aiVariables });
   const history    = useQuery({ queryKey: ["aiHistory"],   queryFn: () => api.aiHistory(30) });
+  // Historique Q&A Limule (chat) — sidebar « Mes dernières questions »
+  const limuleQA   = useQuery({ queryKey: ["limuleHistory"], queryFn: () => api.limuleHistory(30) });
+  const [selectedQA, setSelectedQA] = useState<{ question: string; answer: string } | null>(null);
 
   const deleteGen = useMutation({
     mutationFn: (id: number) => api.aiDelete(id),
@@ -394,6 +397,79 @@ export function AssistantsPage() {
             </div>
 
           </form>
+        </Panel>
+      </div>
+
+      {/* ── Mes dernières questions Limule (Q&A persistées) ── */}
+      <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr]">
+        <Panel
+          title="Mes dernières questions"
+          action={
+            <span className="text-xs text-[#717182]">
+              {limuleQA.data?.length ?? 0}
+            </span>
+          }
+        >
+          {limuleQA.isLoading && (
+            <p className="py-4 text-sm text-[#717182]">Chargement…</p>
+          )}
+          {!limuleQA.isLoading && (limuleQA.data?.length ?? 0) === 0 && (
+            <p className="py-4 text-sm text-[#717182]">
+              Tes questions à Limule s'enregistrent automatiquement ici.
+            </p>
+          )}
+          <ul className="divide-y divide-black/[0.04] dark:divide-white/[0.04] max-h-96 overflow-y-auto">
+            {(limuleQA.data ?? []).map((q) => (
+              <li key={q.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedQA({ question: q.question, answer: q.answer })}
+                  className="block w-full text-left px-2 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-md transition"
+                >
+                  <p className="text-sm font-semibold text-[#17211f] dark:text-white truncate">
+                    {q.question || "(sans question)"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[#717182]">
+                    {q.module}
+                    {q.created_at
+                      ? " · " +
+                        new Date(q.created_at).toLocaleString("fr-FR", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
+                      : ""}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel title="Réponse Limule">
+          {selectedQA ? (
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                  Question
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#17211f] dark:text-white">
+                  {selectedQA.question}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                  Réponse
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-[#17211f] dark:text-white">
+                  {selectedQA.answer || "(réponse vide)"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="py-4 text-sm text-[#717182]">
+              Sélectionne une question dans la liste pour afficher la réponse.
+            </p>
+          )}
         </Panel>
       </div>
 

@@ -4,9 +4,12 @@ import hmac
 import json
 import secrets
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from app.core.config import get_settings
+
+if TYPE_CHECKING:
+    from fastapi import Response
 
 
 def _b64encode(raw: bytes) -> str:
@@ -67,3 +70,30 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
     if int(payload.get("exp", 0)) < int(time.time()):
         return None
     return payload
+
+
+# ── Cookie de session HttpOnly ────────────────────────────────────────────────
+# Le token de session est posé dans un cookie HttpOnly (inaccessible au JS),
+# ce qui supprime le vecteur de vol de session par XSS via localStorage.
+
+def set_auth_cookie(response: "Response", token: str) -> None:
+    settings = get_settings()
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,  # type: ignore[arg-type]
+        domain=settings.auth_cookie_domain or None,
+        path="/",
+    )
+
+
+def clear_auth_cookie(response: "Response") -> None:
+    settings = get_settings()
+    response.delete_cookie(
+        key=settings.auth_cookie_name,
+        domain=settings.auth_cookie_domain or None,
+        path="/",
+    )

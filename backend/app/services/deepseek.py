@@ -7,6 +7,25 @@ from app.core.config import get_settings
 from app.schemas import DeclarationRequest, WritingRequest
 
 
+# ── Fail-closed IA (zéro simulacre en production) ──────────────────────────────
+def _ai_is_prod() -> bool:
+    """Vrai pour tout environnement client (prod ET staging) : aucune réponse
+    IA simulée ne doit y être renvoyée. Seul `local`/`development` autorise le
+    fallback mock (pour le développement hors-ligne)."""
+    env = (getattr(get_settings(), "environment", "") or "").strip().lower()
+    return env in {"prod", "production", "staging", "preprod", "pre-production"}
+
+
+def _ai_fail_closed():
+    """En production, refuse de renvoyer une réponse simulée si le LLM est indisponible."""
+    from fastapi import HTTPException
+    raise HTTPException(
+        status_code=503,
+        detail="IA indisponible : le fournisseur LLM ne répond pas. "
+               "Aucune réponse simulée n'est renvoyée en production.",
+    )
+
+
 def mock_writing_response(payload: WritingRequest, signer_name: str) -> dict[str, Any]:
     return {
         "draft": (
@@ -17,6 +36,8 @@ def mock_writing_response(payload: WritingRequest, signer_name: str) -> dict[str
         "confidence": 76,
         "sources": ["Contexte utilisateur", "Parametres entreprise", "Historique local mocke"],
         "provider": "mock",
+        "is_demo": True,
+        "human_validation_required": True,
     }
 
 
@@ -33,6 +54,8 @@ def mock_declaration_response(payload: DeclarationRequest) -> dict[str, Any]:
             "Faire relire par un humain avant depot",
         ],
         "provider": "mock",
+        "is_demo": True,
+        "human_validation_required": True,
     }
 
 
@@ -91,6 +114,8 @@ async def generate_writing(payload: WritingRequest, signer_name: str) -> dict[st
         ]
     )
     if not content:
+        if _ai_is_prod():
+            _ai_fail_closed()
         return fallback
     return {
         "draft": content,
@@ -122,6 +147,8 @@ async def generate_declaration(payload: DeclarationRequest) -> dict[str, Any]:
         max_tokens=700,
     )
     if not content:
+        if _ai_is_prod():
+            _ai_fail_closed()
         return fallback
     try:
         parsed = json.loads(content)
@@ -215,6 +242,8 @@ def fallback_document_analysis(title: str, filename: str, content_preview: str =
         "confidence": 68,
         "risks": [],
         "provider": "mock",
+        "is_demo": True,
+        "human_validation_required": True,
     }
 
 
@@ -237,6 +266,8 @@ async def analyze_document(title: str, filename: str, content_preview: str = "")
         max_tokens=600,
     )
     if not content:
+        if _ai_is_prod():
+            _ai_fail_closed()
         return fallback
     parsed = _extract_json(content)
     if not parsed:
@@ -264,6 +295,8 @@ async def generate_contract_clauses(company_name: str, employee_payload: dict[st
             "L'employe devra respecter les procedures internes, les obligations de confidentialite et les regles de securite.",
         ],
         "provider": "mock",
+        "is_demo": True,
+        "human_validation_required": True,
     }
     content = await _deepseek_chat(
         [
@@ -282,6 +315,8 @@ async def generate_contract_clauses(company_name: str, employee_payload: dict[st
         max_tokens=900,
     )
     if not content:
+        if _ai_is_prod():
+            _ai_fail_closed()
         return fallback
     parsed = _extract_json(content)
     if not parsed:

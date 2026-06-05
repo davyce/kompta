@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Upload, Loader2 } from "lucide-react";
 import { useRef } from "react";
-import { api } from "../../services/api";
+import { api, getToken } from "../../services/api";
 
 const MIME_ICONS: Record<string, string> = {
   "application/pdf": "📄",
@@ -26,9 +26,9 @@ export function GroupDocumentsPage() {
       fd.append("title", file.name);
       fd.append("category", "autre");
       fd.append("visibility", "members");
-      const token = localStorage.getItem("kompta_access_token") ?? sessionStorage.getItem("kompta_access_token") ?? "";
+      const token = getToken() ?? "";
       const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
-      const r = await fetch(`${API_URL}/groups/${id}/documents`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const r = await fetch(`${API_URL}/groups/${id}/documents`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, credentials: "include", body: fd });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     },
@@ -46,13 +46,13 @@ export function GroupDocumentsPage() {
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-black text-[#17211f] dark:text-white">Documents</h2><p className="text-sm text-[#717182]">{documents.length} document{documents.length > 1 ? "s" : ""}</p></div>
         <button onClick={() => fileRef.current?.click()} disabled={upload.isPending}
-          className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60 transition">
+          className="flex items-center gap-2 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-60 transition">
           {upload.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Téléverser
         </button>
         <input ref={fileRef} type="file" className="hidden" accept="application/pdf,image/*,.docx,.xlsx" onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f); if (fileRef.current) fileRef.current.value = ""; }} />
       </div>
       {upload.error && <p className="text-sm text-rose-600">{(upload.error as Error).message}</p>}
-      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-violet-500" /></div> :
+      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-blue-700" /></div> :
         documents.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
             <FileText size={40} className="text-[#717182] mb-3" />

@@ -14,8 +14,16 @@ from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import company_scope, get_current_user
-from app.core.security import create_access_token, hash_password, verify_password
-from app.db.session import get_db
+from app.core.rate_limit import limiter as _limiter
+from app.core.security import (
+    clear_auth_cookie,
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    set_auth_cookie,
+    verify_password,
+)
+from app.db.session import SessionLocal, get_db
 from app.models import (
     AccessAuditLog,
     AIGeneration,
@@ -35,6 +43,7 @@ from app.models import (
     Meeting,
     Message,
     PaymentAccount,
+    PaymentTransaction,
     PayrollRun,
     Payslip,
     Product,
@@ -58,6 +67,7 @@ from app.schemas import (
     ChatChannelDetail,
     ChatChannelRead,
     CompanyDocumentRead,
+    CompanyDocumentReadFull,
     CompanyRead,
     CompanyUpdate,
     DeclarationRequest,
@@ -66,6 +76,7 @@ from app.schemas import (
     AccountInfoRead,
     AccountStatusUpdate,
     CompanyRegistrationRequest,
+    GroupRegistrationRequest,
     EmployeeCreate,
     EmployeeCreateWithAccount,
     EmployeePayoutUpdate,
@@ -78,6 +89,7 @@ from app.schemas import (
     InvoiceCreate,
     InvoicePaymentCreate,
     InvoiceRead,
+    InvoiceRejectPayload,
     LoginRequest,
     MessageCreate,
     MessageRead,
@@ -136,12 +148,57 @@ from app.services.email import send_relance_email
 
 router = APIRouter()
 
+# ── RBAC helpers ───────────────────────────────────────────────────────────────
+
+_HR_ROLES = {"admin_entreprise", "manager_entreprise", "rh_entreprise", "super_admin"}
+_FINANCE_ROLES = {"admin_entreprise", "manager_entreprise", "comptable", "super_admin"}
+_ADMIN_ROLES = {"admin_entreprise", "manager_entreprise", "super_admin"}
+
+
+def _require_hr(current_user: User) -> None:
+    """Exige un rôle RH ou admin pour accéder aux données employés/paie."""
+    if current_user.role not in _HR_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : rôle rh_entreprise, manager_entreprise ou admin_entreprise requis.",
+        )
+
+
+def _require_finance(current_user: User) -> None:
+    """Exige un rôle finance/admin pour accéder aux données comptables sensibles."""
+    if current_user.role not in _FINANCE_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : rôle comptable, manager_entreprise ou admin_entreprise requis.",
+        )
+
+
+def _require_admin(current_user: User) -> None:
+    """Exige un rôle admin pour les opérations destructives ou sensibles."""
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : rôle admin_entreprise ou manager_entreprise requis.",
+        )
+
 
 def _login_lookup_conditions(identifier: str):
-    raw_identifier = identifier.strip()
-    email_identifier = raw_identifier.lower()
-    conditions = [func.lower(User.email) == email_identifier]
+    """Construit la condition SQL pour trouver un user par email OU téléphone.
 
+    Discrimination stricte pour éviter les collisions :
+    - Si l'identifiant contient '@' → on cherche UNIQUEMENT par email.
+    - Sinon → on cherche UNIQUEMENT par téléphone (toutes variantes acceptées).
+
+    Sans cette discrimination, un téléphone partagé entre deux comptes
+    (membre de groupe + admin d'entreprise par exemple) pouvait faire
+    matcher le mauvais user et bloquer le login avec 401.
+    """
+    raw_identifier = identifier.strip()
+    if "@" in raw_identifier:
+        # Identifiant = email → match strict insensible à la casse
+        return func.lower(User.email) == raw_identifier.lower()
+
+    # Identifiant = téléphone → toutes les variantes connues
     normalized_phone = normalize_phone(raw_identifier)
     digits = normalized_phone[1:] if normalized_phone.startswith("+") else normalized_phone
     phone_variants = {raw_identifier, normalized_phone}
@@ -152,9 +209,10 @@ def _login_lookup_conditions(identifier: str):
         if digits.startswith("242"):
             phone_variants.add(f"+{digits}")
     phone_variants = {variant for variant in phone_variants if variant}
-    if phone_variants:
-        conditions.append(User.phone.in_(phone_variants))
-    return or_(*conditions)
+    if not phone_variants:
+        # identifiant ni email ni phone valide → renvoyer une condition fausse
+        return User.id == -1
+    return User.phone.in_(phone_variants)
 
 
     # ── Anti-brute-force login (compteur d'échecs en mémoire + verrouillage) ──
@@ -204,7 +262,7 @@ def _next_invoice_number(db: Session, company_id: int) -> str:
         text("UPDATE companies SET invoice_seq = invoice_seq + 1 WHERE id = :cid RETURNING invoice_seq"),
         {"cid": company_id},
     ).scalar_one()
-    return f"INV-{date.today().year}-{seq:04d}"
+    return f"INV-{date.today().year}-C{company_id:04d}-{seq:04d}"
 
 
 def _next_receipt_number(db: Session, company_id: int) -> str:
@@ -213,7 +271,7 @@ def _next_receipt_number(db: Session, company_id: int) -> str:
         text("UPDATE companies SET sale_seq = sale_seq + 1 WHERE id = :cid RETURNING sale_seq"),
         {"cid": company_id},
     ).scalar_one()
-    return f"POS-{date.today().year}-{seq:05d}"
+    return f"POS-{date.today().year}-C{company_id:04d}-{seq:05d}"
 
 
 TASK_MANAGER_ROLES = {"rh_entreprise", "manager_entreprise", "super_admin"}
@@ -361,12 +419,24 @@ def health() -> dict[str, str]:
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+@_limiter.limit("20/minute")
+def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+    # Strip défensif sur identifiant ET mot de passe : iOS/Android ajoutent souvent
+    # un espace par auto-correction, surtout lors du copier-coller depuis un SMS
+    # ou un email contenant le mot de passe temporaire.
     identifier = payload.email.strip()
+    password = payload.password.strip()
     rate_key = _login_rate_key(identifier, request)
     _check_login_rate(rate_key)
-    user = db.scalar(select(User).where(_login_lookup_conditions(identifier)))
-    if not user or not verify_password(payload.password, user.password_hash):
+    # Plusieurs users peuvent partager un numéro (collision historique).
+    # On essaie tous les matchs et on prend celui dont le password matche.
+    candidates = db.scalars(select(User).where(_login_lookup_conditions(identifier))).all()
+    user = None
+    for candidate in candidates:
+        if verify_password(password, candidate.password_hash):
+            user = candidate
+            break
+    if not user:
         _record_login_failure(rate_key)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe invalide")
     if user.account_status in {"suspended", "disabled", "archived"} or not user.is_active:
@@ -389,26 +459,29 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         db.commit()
         db.refresh(user)
     token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id, "ver": user.token_version})
+    set_auth_cookie(response, token)
     return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)
 
 
 @router.post("/auth/refresh", response_model=TokenResponse)
-def refresh_token(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> TokenResponse:
+def refresh_token(response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> TokenResponse:
     """Issue a new token for an authenticated user (silent refresh)."""
     token = create_access_token(str(current_user.id), {"role": current_user.role, "company_id": current_user.company_id, "ver": current_user.token_version})
+    set_auth_cookie(response, token)
     return TokenResponse(access_token=token, user=UserRead.model_validate(current_user), must_change_password=current_user.must_change_password)
 
 
 @router.post("/auth/logout")
-def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def logout(response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     """Révoque tous les jetons actifs de l'utilisateur en incrémentant token_version."""
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
+    clear_auth_cookie(response)
     return {"status": "logged_out", "revoked": True}
 
 
 @router.post("/auth/register-company", response_model=TokenResponse, status_code=201)
-def register_company(payload: CompanyRegistrationRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def register_company(payload: CompanyRegistrationRequest, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     email = payload.admin_email.strip().lower()
     phone = payload.admin_phone.strip()
     duplicate_filter = User.email == email
@@ -449,7 +522,145 @@ def register_company(payload: CompanyRegistrationRequest, db: Session = Depends(
     db.refresh(admin)
 
     token = create_access_token(str(admin.id), {"role": admin.role, "company_id": admin.company_id, "ver": admin.token_version})
+    set_auth_cookie(response, token)
     return TokenResponse(access_token=token, user=UserRead.model_validate(admin), must_change_password=False)
+
+
+@router.post("/auth/register-group", response_model=TokenResponse, status_code=201)
+def register_group(payload: GroupRegistrationRequest, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+    """Crée un compte utilisateur (admin du groupe) + un groupe en une seule étape.
+    L'utilisateur n'a pas besoin d'avoir une entreprise — il est rattaché à la KOMPTA Platform.
+    """
+    email = payload.email.strip().lower()
+    phone = normalize_phone(payload.phone.strip()) if payload.phone.strip() else ""
+
+    # Vérifier doublon
+    dup_filter = User.email == email
+    if phone:
+        dup_filter = or_(dup_filter, User.phone == phone)
+    if db.scalar(select(User).where(dup_filter)):
+        raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet email ou téléphone.")
+
+    # Rattacher à la compagnie KOMPTA Platform (société de référence pour les groupes)
+    platform = db.scalar(select(Company).where(Company.name == "KOMPTA Platform"))
+    if not platform:
+        platform = Company(
+            name="KOMPTA Platform", legal_name="KOMPTA Platform",
+            industry="Plateforme", organization_type="SaaS", country="Congo",
+            completion_score=100, teras_score=0,
+        )
+        db.add(platform)
+        db.flush()
+
+    # Créer le compte utilisateur avec rôle membre_groupe
+    user = User(
+        email=email,
+        phone=phone,
+        full_name=payload.full_name.strip(),
+        role="membre_groupe",
+        department="Groupes & Organisations",
+        branch="Plateforme",
+        password_hash=hash_password(payload.password),
+        company_id=platform.id,
+        account_status="active",
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+
+    # Créer le groupe
+    from app.models.domain import OrganizationGroup, GroupMember, GroupRole, GroupMemberRole, GroupLeadershipHistory
+    from datetime import date as _date
+    group = OrganizationGroup(
+        company_id=platform.id,
+        name=payload.group_name.strip(),
+        type=payload.group_type,
+        description=payload.group_description,
+        country=payload.country,
+        city=payload.city,
+        currency=payload.currency,
+        created_by_user_id=user.id,
+        status="active",
+        is_active=True,
+    )
+    db.add(group)
+    db.flush()
+
+    # Rôles par défaut du groupe
+    DEFAULT_ROLES = ["Président", "Vice-Président", "Secrétaire", "Trésorier", "Membre", "Administrateur"]
+    role_map: dict[str, GroupRole] = {}
+    for role_name in DEFAULT_ROLES:
+        r = GroupRole(group_id=group.id, name=role_name, permissions="[]")
+        db.add(r)
+        db.flush()
+        role_map[role_name] = r
+
+    # Fondateur = Président
+    membre = GroupMember(
+        group_id=group.id, user_id=user.id,
+        full_name=user.full_name, email=user.email, phone=user.phone,
+        joined_at=_date.today(),
+    )
+    db.add(membre)
+    db.flush()
+
+    db.add(GroupMemberRole(
+        group_id=group.id, member_id=membre.id,
+        role_id=role_map["Président"].id, role_name="Président",
+        assigned_by_user_id=user.id, is_current=True,
+    ))
+    db.add(GroupLeadershipHistory(
+        group_id=group.id, president_member_id=membre.id,
+        mandate_start=_date.today(), elected_by="Fondateur", is_current=True,
+    ))
+    # Salon "Général" par défaut
+    from app.api.routes_groups_g4 import seed_default_room
+    seed_default_room(db, group.id, user.id)
+
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token(
+        str(user.id),
+        {"role": user.role, "company_id": user.company_id, "ver": user.token_version, "group_id": group.id}
+    )
+    set_auth_cookie(response, token)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=False)
+
+
+@router.post("/auth/realtime-ticket")
+def create_realtime_ticket(current_user: User = Depends(get_current_user)) -> dict:
+    """Délivre un ticket éphémère (60s, usage temps réel) pour SSE/WebSocket.
+
+    Évite de transmettre le JWT long (8h) dans les URLs (logs/proxies/historique).
+    Le ticket porte purpose="realtime", expire en 60s et ne sert qu'à ouvrir un flux.
+    """
+    import time as _time
+    ticket = create_access_token(
+        str(current_user.id),
+        {
+            "role": current_user.role,
+            "company_id": current_user.company_id,
+            "ver": current_user.token_version,
+            "purpose": "realtime",
+            "exp": int(_time.time()) + 60,
+        },
+    )
+    return {"ticket": ticket, "expires_in": 60}
+
+
+def _user_from_realtime_ticket(db: Session, token: str | None) -> User | None:
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if not payload or payload.get("purpose") != "realtime":
+        return None
+    user = db.get(User, int(payload.get("sub", 0) or 0))
+    if not user or not user.is_active:
+        return None
+    if int(payload.get("ver", 0)) != int(getattr(user, "token_version", 0) or 0):
+        return None
+    return user
 
 
 @router.get("/auth/me", response_model=UserRead)
@@ -488,6 +699,9 @@ def update_company(
         raise HTTPException(status_code=404, detail="Company not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(company, field, value)
+    # Garde-fou : le seuil de trésorerie ne peut pas être négatif.
+    if getattr(company, "cash_low_threshold_cents", 0) and company.cash_low_threshold_cents < 0:
+        company.cash_low_threshold_cents = 0
     db.commit()
     db.refresh(company)
     return company
@@ -498,10 +712,47 @@ def reset_current_workspace(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    """Réinitialise les données de démonstration/test d'un espace.
+
+    ⚠️ PROTECTIONS C5 :
+    - Les logs d'audit (AccessAuditLog) ne sont JAMAIS supprimés — trace légale obligatoire.
+    - Les factures et bulletins de paie VALIDÉS/PAYÉS ne sont pas supprimés.
+    - Interdit en production si des pièces comptables validées existent.
+    - Réservé à l'admin entreprise uniquement.
+    """
     if current_user.role not in {"admin_entreprise", "super_admin"}:
-        raise HTTPException(status_code=403, detail="Seul un administrateur peut remettre l'espace a zero")
+        raise HTTPException(status_code=403, detail="Seul un administrateur peut remettre l'espace à zéro")
 
     company_id = current_user.company_id
+
+    # Bloquer si des factures payées existent (données financières réelles)
+    paid_invoices_count = db.scalar(
+        select(func.count()).select_from(
+            select(Invoice.id).where(
+                Invoice.company_id == company_id,
+                Invoice.status == "paid",
+            ).subquery()
+        )
+    ) or 0
+    validated_payroll_count = db.scalar(
+        select(func.count()).select_from(
+            select(PayrollRun.id).where(
+                PayrollRun.company_id == company_id,
+                PayrollRun.status == "validated",
+            ).subquery()
+        )
+    ) or 0
+
+    if paid_invoices_count > 0 or validated_payroll_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Impossible de réinitialiser : {paid_invoices_count} facture(s) payée(s) et "
+                f"{validated_payroll_count} cycle(s) de paie validé(s) existent. "
+                "Exportez vos données d'abord. Cette opération est réservée aux espaces de test/démo."
+            ),
+        )
+
     removable_user_ids = select(User.id).where(
         User.company_id == company_id,
         User.id != current_user.id,
@@ -527,7 +778,7 @@ def reset_current_workspace(
     db.execute(delete(TerasAnalysisJob).where(TerasAnalysisJob.company_id == company_id))
     db.execute(delete(EmployabilityCheck).where(EmployabilityCheck.company_id == company_id))
     db.execute(delete(CompanyDocument).where(CompanyDocument.company_id == company_id))
-    db.execute(delete(AccessAuditLog).where(AccessAuditLog.company_id == company_id))
+    # ✅ C5 : AccessAuditLog JAMAIS supprimé — trace légale non effaçable
     db.execute(delete(TemporaryCredential).where(TemporaryCredential.company_id == company_id))
     db.execute(delete(Task).where(Task.company_id == company_id))
 
@@ -585,6 +836,7 @@ def list_employees(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _require_hr(current_user)
     per_page = min(per_page, 200)
     stmt = select(Employee).where(Employee.company_id == current_user.company_id).order_by(Employee.created_at.desc())
     if per_page == 0:
@@ -601,6 +853,7 @@ def quick_create_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> EmployeeProvisioningResult:
+    _require_hr(current_user)
     employee, login_identifier, temporary_password = quick_create_employee_with_account(db, payload=payload, current_user=current_user)
     return EmployeeProvisioningResult(
         employee=EmployeeRead.model_validate(employee),
@@ -618,6 +871,7 @@ def create_employee_with_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> EmployeeProvisioningResult:
+    _require_hr(current_user)
     employee, login_identifier, temporary_password = create_complete_employee_with_account(
         db,
         payload=payload,
@@ -639,6 +893,7 @@ def create_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Employee:
+    _require_hr(current_user)
     existing = db.scalar(select(Employee).where(Employee.email == payload.email))
     if existing:
         raise HTTPException(status_code=409, detail="Employee email already exists")
@@ -664,6 +919,10 @@ def _get_current_company(db: Session, current_user: User) -> Company:
 
 
 PAYMENT_PROVIDERS = {"mobile_money", "zola", "bank", "paypal", "card", "cash"}
+POS_PAYMENT_TRANSACTION_PROVIDERS = {
+    "card": "stripe",
+    "mobile_money": "momo",
+}
 
 
 def _normalize_payment_provider(provider: str) -> str:
@@ -1424,6 +1683,21 @@ def create_sale(
     sale.total_amount = total
     sale.total_amount_cents = _accounting.to_cents(total)
 
+    if payload.payment_transaction_id is not None:
+        payment_txn = db.get(PaymentTransaction, payload.payment_transaction_id)
+        if not payment_txn or payment_txn.company_id != current_user.company_id:
+            raise HTTPException(status_code=404, detail="Transaction de paiement introuvable")
+        if payment_txn.status != "succeeded":
+            raise HTTPException(status_code=409, detail="La transaction de paiement n'est pas confirmée")
+        if payment_txn.sale_id is not None or payment_txn.invoice_id is not None:
+            raise HTTPException(status_code=409, detail="Cette transaction est déjà rattachée")
+        expected_provider = POS_PAYMENT_TRANSACTION_PROVIDERS.get(payment_method)
+        if not expected_provider or payment_txn.provider != expected_provider:
+            raise HTTPException(status_code=400, detail="Transaction incompatible avec le mode de paiement")
+        if payment_txn.amount_cents != sale.total_amount_cents:
+            raise HTTPException(status_code=400, detail="Montant de transaction différent du total de vente")
+        payment_txn.sale_id = sale.id
+
     # ── Créer la transaction bancaire correspondante ──────────────────────
     _pref_pos = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
     _currency_pos = (_pref_pos.currency if _pref_pos and _pref_pos.currency else "XAF")
@@ -1560,6 +1834,13 @@ def create_invoice(
     invoice.subtotal_cents = _accounting.to_cents(subtotal)
     invoice.tax_amount_cents = _accounting.to_cents(tax_total)
     invoice.total_amount_cents = _accounting.to_cents(subtotal + tax_total)
+    # ── Workflow d'approbation : seuil entreprise > 0 ET total ≥ seuil → pending
+    company = db.get(Company, current_user.company_id)
+    threshold = int(getattr(company, "invoice_approval_threshold_cents", 0) or 0)
+    if threshold > 0 and invoice.total_amount_cents >= threshold:
+        invoice.approval_status = "pending"
+    else:
+        invoice.approval_status = "not_required"
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
@@ -1583,13 +1864,24 @@ def update_invoice(
             status_code=409,
             detail="Facture payée : non modifiable. Émettez un avoir pour corriger.",
         )
-    allowed_fields = {"status", "customer_name", "customer_email", "due_date"}
+    # C4 — Bloquer toute tentative de marquer une facture payée via PATCH.
+    # Le paiement doit passer par /invoices/{id}/pay (transactionnel + comptable).
+    if "status" in payload and payload["status"] == "paid":
+        raise HTTPException(
+            status_code=422,
+            detail="Impossible de marquer une facture payée via PATCH. "
+                   "Utilisez l'endpoint POST /invoices/{id}/pay avec le montant et la méthode de paiement.",
+        )
+    allowed_fields = {"customer_name", "customer_email", "due_date", "notes"}
     for field, value in payload.items():
         if field in allowed_fields:
             setattr(invoice, field, value)
-    if invoice.status == "paid" and not invoice.paid_at:
-        invoice.payment_method = invoice.payment_method or "cash"
-        invoice.paid_at = datetime.now(timezone.utc)
+    # Une facture rejetée peut être re-soumise après édition → repasse en pending.
+    if invoice.approval_status == "rejected":
+        invoice.approval_status = "pending"
+        invoice.rejection_reason = ""
+        invoice.approved_by_user_id = None
+        invoice.approved_at = None
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -1634,6 +1926,10 @@ def create_credit_note(
     credit.subtotal = round(subtotal, 2)
     credit.tax_amount = round(tax_total, 2)
     credit.total_amount = round(subtotal + tax_total, 2)
+    # Centimes — source de vérité monétaire (symétrique avec create_invoice)
+    credit.subtotal_cents = _accounting.to_cents(subtotal)
+    credit.tax_amount_cents = _accounting.to_cents(tax_total)
+    credit.total_amount_cents = _accounting.to_cents(subtotal + tax_total)
     db.add(credit)
     db.commit()
     db.refresh(credit)
@@ -1652,6 +1948,12 @@ def pay_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
     if invoice.status == "paid":
         return invoice
+    # Workflow d'approbation : pending/rejected → paiement interdit.
+    if invoice.approval_status in {"pending", "rejected"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Facture en attente d'approbation ({invoice.approval_status}) : paiement bloqué.",
+        )
     payment_method, payment_account = _resolve_payment_account(
         db,
         current_user,
@@ -1702,6 +2004,79 @@ def pay_invoice(
         )
     except Exception:
         logging.getLogger("kompta").exception("Échec écriture comptable règlement facture #%s", invoice.id)
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+@router.get("/invoices/pending-approval", response_model=list[InvoiceRead])
+def list_invoices_pending_approval(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Invoice]:
+    """Factures de la société en attente d'approbation N+1."""
+    return db.scalars(
+        select(Invoice)
+        .options(selectinload(Invoice.lines))
+        .where(
+            Invoice.company_id == current_user.company_id,
+            Invoice.approval_status == "pending",
+        )
+        .order_by(Invoice.created_at.desc())
+    ).all()
+
+
+def _can_approve_invoices(user: User) -> bool:
+    """Seuls super_admin et admin_entreprise peuvent approuver/rejeter."""
+    return user.role in {"super_admin", "admin_entreprise"}
+
+
+@router.post("/invoices/{invoice_id}/approve", response_model=InvoiceRead)
+def approve_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Invoice:
+    if not _can_approve_invoices(current_user):
+        raise HTTPException(status_code=403, detail="Seul un admin entreprise peut approuver une facture.")
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice or invoice.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.approval_status not in {"pending", "rejected"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Facture non approuvable dans l'état '{invoice.approval_status}'.",
+        )
+    invoice.approval_status = "approved"
+    invoice.approved_by_user_id = current_user.id
+    invoice.approved_at = datetime.now(timezone.utc)
+    invoice.rejection_reason = ""
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+@router.post("/invoices/{invoice_id}/reject", response_model=InvoiceRead)
+def reject_invoice(
+    invoice_id: int,
+    payload: InvoiceRejectPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Invoice:
+    if not _can_approve_invoices(current_user):
+        raise HTTPException(status_code=403, detail="Seul un admin entreprise peut rejeter une facture.")
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice or invoice.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.approval_status not in {"pending", "approved"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Facture non rejetable dans l'état '{invoice.approval_status}'.",
+        )
+    invoice.approval_status = "rejected"
+    invoice.rejection_reason = payload.reason.strip()
+    invoice.approved_by_user_id = current_user.id
+    invoice.approved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -2201,7 +2576,16 @@ def quick_task_from_message(
 
 
 @router.websocket("/ws/chat/{channel_id}")
-async def chat_websocket(websocket: WebSocket, channel_id: int):
+async def chat_websocket(websocket: WebSocket, channel_id: int, token: str = ""):
+    with SessionLocal() as db:
+        user = _user_from_realtime_ticket(db, token)
+        if not user:
+            await websocket.close(code=4001)
+            return
+        channel = db.get(ChatChannel, channel_id)
+        if not channel or channel.company_id != user.company_id:
+            await websocket.close(code=4003)
+            return
     await manager.connect(channel_id, websocket)
     try:
         while True:
@@ -2212,7 +2596,15 @@ async def chat_websocket(websocket: WebSocket, channel_id: int):
 
 
 @router.websocket("/ws/notifications/{company_id}")
-async def notifications_websocket(websocket: WebSocket, company_id: int):
+async def notifications_websocket(websocket: WebSocket, company_id: int, token: str = ""):
+    with SessionLocal() as db:
+        user = _user_from_realtime_ticket(db, token)
+        if not user:
+            await websocket.close(code=4001)
+            return
+        if user.company_id != company_id:
+            await websocket.close(code=4003)
+            return
     await notifier.connect(company_id, websocket)
     try:
         while True:
@@ -2223,6 +2615,7 @@ async def notifications_websocket(websocket: WebSocket, company_id: int):
 
 @router.get("/payroll/runs", response_model=list[PayrollRunRead])
 def list_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[PayrollRun]:
+    _require_hr(current_user)
     return db.scalars(
         select(PayrollRun)
         .options(selectinload(PayrollRun.payslips))
@@ -2282,6 +2675,7 @@ def create_payroll_run(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PayrollRun:
+    _require_hr(current_user)
     # Idempotence : une seule paie validée par période et par société (évite les doublons / double-paiement).
     existing_run = db.scalar(
         select(PayrollRun).where(
@@ -2366,7 +2760,9 @@ def create_payroll_run(
                 bonus=bonus,
                 bonus_cents=_accounting.to_cents(bonus),
                 overtime_pay=overtime_pay,
+                overtime_pay_cents=_accounting.to_cents(overtime_pay),
                 absence_deduction=absence_deduction,
+                absence_deduction_cents=_accounting.to_cents(absence_deduction),
                 reference=payslip_reference(payload.period, employee, index),
                 payout_method=payout_method,
                 payout_destination=payout_destination,
@@ -2578,6 +2974,7 @@ def update_payroll_run(
     current_user: User = Depends(get_current_user),
 ) -> PayrollRun:
     """Met à jour le statut d'un cycle de paie (draft → validated, etc.)."""
+    _require_hr(current_user)
     run = db.scalar(
         select(PayrollRun)
         .options(selectinload(PayrollRun.payslips))
@@ -2599,6 +2996,7 @@ def update_payslip(
     current_user: User = Depends(get_current_user),
 ) -> Payslip:
     """Met à jour un bulletin de paie individuel (primes, ajustements, statut)."""
+    _require_hr(current_user)
     slip = db.scalar(
         select(Payslip)
         .join(PayrollRun, Payslip.payroll_run_id == PayrollRun.id)
@@ -2641,11 +3039,27 @@ def update_payslip(
 
 @router.get("/documents", response_model=list[CompanyDocumentRead])
 def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[CompanyDocument]:
-    return db.scalars(
+    """Liste les documents avec filtrage RBAC :
+    - admin / manager / RH / comptable : tous les documents de l'entreprise
+    - autres rôles : uniquement les documents non rattachés à un employé (généraux),
+      plus ceux rattachés à leur propre fiche employé.
+    """
+    stmt = (
         select(CompanyDocument)
         .where(CompanyDocument.company_id == current_user.company_id)
         .order_by(CompanyDocument.created_at.desc())
-    ).all()
+    )
+    privileged = {"admin_entreprise", "manager_entreprise", "rh_entreprise", "comptable", "super_admin"}
+    if current_user.role not in privileged:
+        # Documents généraux (sans employee_id) OU rattachés à l'employé courant
+        own_employee_id = current_user.employee_id
+        stmt = stmt.where(
+            or_(
+                CompanyDocument.employee_id.is_(None),
+                CompanyDocument.employee_id == own_employee_id,
+            )
+        )
+    return db.scalars(stmt).all()
 
 
 @router.post("/documents/upload", response_model=CompanyDocumentRead, status_code=201)
@@ -2675,6 +3089,38 @@ async def analyze_company_document(
     if path.exists() and document.mime_type.startswith("text/"):
         preview = path.read_text(encoding="utf-8", errors="ignore")[:5000]
     return await reanalyze_document(db, document=document, content_preview=preview)
+
+
+_DOCUMENT_FULL_ROLES = {"admin_entreprise", "manager_entreprise", "comptable", "super_admin"}
+
+
+@router.get("/documents/{document_id}/full", response_model=CompanyDocumentReadFull)
+def get_document_full(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CompanyDocument:
+    """Retourne un document avec raw_text et extracted_data.
+    Réservé aux rôles admin/comptable — journalise l'accès.
+    """
+    if current_user.role not in _DOCUMENT_FULL_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : le contenu brut des documents est réservé aux administrateurs et comptables.",
+        )
+    document = db.get(CompanyDocument, document_id)
+    if not document or document.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+    # Journalisation de l'accès aux données sensibles
+    db.add(AccessAuditLog(
+        company_id=current_user.company_id,
+        actor_user_id=current_user.id,
+        employee_id=document.employee_id,
+        action="document.full_read",
+        details=f"CompanyDocument#{document_id} contenu brut : {document.title} ({document.filename})",
+    ))
+    db.commit()
+    return document
 
 
 @router.get("/documents/{document_id}/download")
@@ -3433,6 +3879,7 @@ def admin_list_users(
             "department": u.department,
             "branch": u.branch,
             "account_status": u.account_status,
+            "must_change_password": bool(u.must_change_password),
             "company_id": u.company_id,
             "company_name": company_names.get(u.company_id, ""),
             "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,

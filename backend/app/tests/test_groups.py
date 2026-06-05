@@ -79,6 +79,31 @@ def test_member_management_requires_permission():
         assert r.status_code in (403, 404)
 
 
+def test_president_can_close_group_and_remove_it_from_active_list():
+    with TestClient(app) as client:
+        h = _auth(client)
+        gid = _make_group(client, h).json()["id"]
+
+        r = client.post(f"/api/groups/{gid}/close", headers=h, json={"reason": "Activité terminée"})
+        assert r.status_code == 200, r.text
+        payload = r.json()
+        assert payload["status"] == "closed"
+        assert payload["is_active"] is False
+
+        active_ids = {g["id"] for g in client.get("/api/groups", headers=h).json()}
+        assert gid not in active_ids
+
+
+def test_non_president_cannot_close_group():
+    with TestClient(app) as client:
+        admin_h = _auth(client)
+        gid = _make_group(client, admin_h).json()["id"]
+
+        finance_h = _auth(client, "finance@kompta.local", "kompta123")
+        r = client.post(f"/api/groups/{gid}/close", headers=finance_h, json={"reason": "Intrus"})
+        assert r.status_code in (403, 404)
+
+
 def test_tenant_isolation_on_groups():
     with TestClient(app) as client:
         h = _auth(client)

@@ -83,7 +83,7 @@ export function GroupExpensesPage() {
               {[["title","Titre *","Achat chaises"], ["amount","Montant *",""], ["category","Catégorie","matériel"], ["paid_to","Payé à","Fournisseur"]].map(([f, l, p]) => (
                 <label key={f} className="block text-xs font-bold uppercase text-[#717182]">{l}
                   <input type={f === "amount" ? "number" : "text"} value={(form as Record<string, string>)[f]} onChange={e => setForm(fm => ({...fm, [f]: e.target.value}))} placeholder={p}
-                    className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-violet-500" />
+                    className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-blue-700" />
                 </label>
               ))}
               <label className="block text-xs font-bold uppercase text-[#717182]">Méthode<select value={form.payment_method} onChange={e => setForm(f => ({...f, payment_method: e.target.value}))} className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case">{["cash","mobile_money","bank"].map(m => <option key={m}>{m}</option>)}</select></label>

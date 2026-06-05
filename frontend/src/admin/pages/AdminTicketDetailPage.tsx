@@ -45,7 +45,7 @@ export function AdminTicketDetailPage() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => navigate("/admin/tickets")} className="flex items-center gap-2 text-sm font-bold text-violet-300 hover:text-white">
+      <button onClick={() => navigate("/admin/tickets")} className="flex items-center gap-2 text-sm font-bold text-indigo-300 hover:text-white">
         <ArrowLeft size={17} />
         Retour tickets
       </button>
@@ -54,7 +54,7 @@ export function AdminTicketDetailPage() {
         <section className="rounded-xl border border-white/10 bg-white/5 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Ticket #{data?.id ?? "..."}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Ticket #{data?.id ?? "..."}</p>
               <h1 className="mt-1 text-2xl font-black">{data?.subject ?? "Chargement..."}</h1>
               <p className="mt-2 text-sm text-white/60">{data?.company_name} · {data?.requester_name} · {shortDate(data?.created_at ?? null)}</p>
             </div>
@@ -71,7 +71,7 @@ export function AdminTicketDetailPage() {
             </article>
 
             {data?.messages.map((message) => (
-              <article key={message.id} className={`rounded-xl border p-4 ${message.is_staff ? "border-violet-400/20 bg-violet-500/10" : "border-white/10 bg-white/5"}`}>
+              <article key={message.id} className={`rounded-xl border p-4 ${message.is_staff ? "border-indigo-500/20 bg-indigo-600/10" : "border-white/10 bg-white/5"}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-bold">{message.author_name || "Support"}</p>
                   <span className="text-xs text-white/40">{shortDate(message.created_at)}</span>
@@ -87,14 +87,14 @@ export function AdminTicketDetailPage() {
               <textarea
                 value={reply}
                 onChange={(event) => setReply(event.target.value)}
-                className="mt-2 min-h-32 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400"
+                className="mt-2 min-h-32 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-indigo-500"
                 placeholder="Rediger une reponse claire, actionnable, et rassurante..."
               />
             </label>
             <button
               type="submit"
               disabled={replyTicket.isPending || !reply.trim()}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-600 disabled:opacity-50"
             >
               <Send size={17} />
               {replyTicket.isPending ? "Envoi…" : "Envoyer la reponse"}

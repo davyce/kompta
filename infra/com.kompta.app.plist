@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd plist — démarre KOMPTA automatiquement quand tu te connectes à ton Mac.
+
+  Installation :
+    cp infra/com.kompta.app.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.kompta.app.plist
+
+  Démarrage manuel :
+    launchctl start com.kompta.app
+
+  Arrêt :
+    launchctl stop com.kompta.app
+
+  Désactivation au boot :
+    launchctl unload ~/Library/LaunchAgents/com.kompta.app.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kompta.app</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/davyokemba/Documents/kompta/infra/start-kompta.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/davyokemba/Documents/kompta</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/davyokemba/Documents/kompta/infra/logs/launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/davyokemba/Documents/kompta/infra/logs/launchd.err.log</string>
+
+    <!-- Variables d'environnement pour les binaires Homebrew -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

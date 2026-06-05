@@ -9,6 +9,8 @@ import {
 import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
+import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
 import { shortDateTime } from "../utils/format";
 import type { Task } from "../types/domain";
@@ -54,7 +56,9 @@ function fileIsVideo(url: string) {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export function WorkPage() {
+  const toast = useToast();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const channels = useQuery({ queryKey: ["channels"], queryFn: api.channels });
   const channelId = channels.data?.[0]?.id;
@@ -104,6 +108,17 @@ export function WorkPage() {
     },
   });
 
+  async function handleDeleteSelectedTask() {
+    if (!selectedTask) return;
+    const ok = await confirm({
+      title: "Supprimer cette tâche ?",
+      message: selectedTask.title,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deleteTask.mutate(selectedTask.id);
+  }
+
   const send = useMutation({
     mutationFn: (body: string) => api.sendMessage(channelId!, body),
     onSuccess: () => { setMessage(""); queryClient.invalidateQueries({ queryKey: ["messages", channelId] }); },
@@ -148,7 +163,7 @@ export function WorkPage() {
       setProofFile(null);
       setProofPreview(null);
     } catch {
-      alert("Erreur lors de l'envoi de la preuve.");
+      toast.error("Erreur lors de l'envoi de la preuve.");
     } finally {
       setProofUploading(false);
     }
@@ -223,7 +238,7 @@ export function WorkPage() {
               <div className="flex items-center gap-1 shrink-0">
                 {selectedTask.can_delete && (
                   <button
-                    onClick={() => { if (confirm("Supprimer cette tâche ?")) deleteTask.mutate(selectedTask.id); }}
+                    onClick={handleDeleteSelectedTask}
                     className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-500 transition"
                     title="Supprimer"
                   >

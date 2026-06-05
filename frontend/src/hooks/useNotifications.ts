@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getToken } from "../services/api";
+import { api, getToken } from "../services/api";
 
 export type SSENotification = {
   type: "alert" | "connected";
@@ -15,43 +15,65 @@ export function useNotifications(enabled = true) {
   const [notifications, setNotifications] = useState<SSENotification[]>([]);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
+    if (!getToken()) return;
+    let cancelled = false;
 
-    const token = getToken();
-    if (!token) return;
+    function scheduleReconnect() {
+      if (cancelled) return;
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      reconnectRef.current = setTimeout(openStream, 8000);
+    }
 
-    // EventSource doesn't support custom headers — pass token as query param
-    const url = `${API_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
+    function openStream() {
+      // Ticket éphémère (60s) au lieu du JWT long (8h) dans l'URL.
+      // EventSource ne peut pas envoyer d'en-tête Authorization — on passe donc
+      // un ticket à usage temps réel, qui ne fuit pas le jeton de session.
+      api.realtimeTicket()
+        .then(({ ticket }) => {
+          if (cancelled) return;
+          const url = `${API_URL}/notifications/stream?token=${encodeURIComponent(ticket)}`;
+          const es = new EventSource(url);
+          esRef.current = es;
 
-    const es = new EventSource(url);
-    esRef.current = es;
+          es.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data) as SSENotification;
+              if (data.type === "connected") {
+                setConnected(true);
+                return;
+              }
+              if (data.type === "alert") {
+                setNotifications((prev) => {
+                  if (prev.some((n) => n.id === data.id)) return prev;
+                  return [data, ...prev].slice(0, 20);
+                });
+              }
+            } catch { /* ignore parse errors */ }
+          };
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as SSENotification;
-        if (data.type === "connected") {
-          setConnected(true);
-          return;
-        }
-        if (data.type === "alert") {
-          setNotifications((prev) => {
-            // Avoid duplicates
-            if (prev.some((n) => n.id === data.id)) return prev;
-            return [data, ...prev].slice(0, 20);
-          });
-        }
-      } catch { /* ignore parse errors */ }
-    };
+          es.onerror = () => {
+            setConnected(false);
+            es.close();
+            esRef.current = null;
+            scheduleReconnect();
+          };
+        })
+        .catch(() => {
+          setConnected(false);
+          scheduleReconnect();
+        });
+    }
 
-    es.onerror = () => {
-      setConnected(false);
-      // Auto-reconnect is handled by EventSource natively
-    };
+    openStream();
 
     return () => {
-      es.close();
+      cancelled = true;
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      esRef.current?.close();
       esRef.current = null;
       setConnected(false);
     };

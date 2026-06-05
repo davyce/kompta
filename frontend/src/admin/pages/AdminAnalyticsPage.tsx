@@ -19,18 +19,46 @@ import {
 import { api } from "../../services/api";
 import { compactMoney } from "../../utils/format";
 
-const PIE_COLORS = ["#7c3aed", "#a21caf", "#0891b2", "#059669", "#d97706", "#dc2626", "#6d28d9"];
+const PIE_COLORS = ["#6366f1", "#8b5cf6", "#0891b2", "#059669", "#d97706", "#dc2626", "#4f46e5"];
+const CHART_GRID = "rgba(100,116,139,0.18)";
+const CHART_TICK = "#64748b";
+const TOOLTIP_STYLE = {
+  background: "#ffffff",
+  border: "1px solid rgba(15,23,42,0.12)",
+  borderRadius: 8,
+  color: "#0f172a",
+  boxShadow: "0 14px 40px rgba(15,23,42,0.12)",
+};
+const KPI_TONES: Record<string, { card: string; icon: string }> = {
+  emerald: {
+    card: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+    icon: "text-emerald-600 dark:text-emerald-300",
+  },
+  violet: {
+    card: "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300",
+    icon: "text-violet-600 dark:text-violet-300",
+  },
+  sky: {
+    card: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+    icon: "text-sky-600 dark:text-sky-300",
+  },
+  fuchsia: {
+    card: "border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300",
+    icon: "text-indigo-600 dark:text-indigo-300",
+  },
+};
 
 function KpiCard({ label, value, sub, icon: Icon, color = "violet" }: {
   label: string; value: string | number; sub?: string;
   icon: React.ElementType; color?: string;
 }) {
+  const tone = KPI_TONES[color] ?? KPI_TONES.violet;
   return (
-    <div className={`rounded-xl border border-white/10 bg-gradient-to-br from-${color}-500/15 to-${color}-500/5 p-5`}>
-      <Icon size={20} className={`mb-3 text-${color}-300 opacity-80`} />
-      <p className="text-[11px] font-bold uppercase tracking-wider text-white/50">{label}</p>
-      <p className="mt-1 text-3xl font-black text-white">{value}</p>
-      {sub && <p className="mt-1 text-xs text-white/50">{sub}</p>}
+    <div className={`rounded-xl border p-5 ${tone.card}`}>
+      <Icon size={20} className={`mb-3 opacity-80 ${tone.icon}`} />
+      <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">{label}</p>
+      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
+      {sub && <p className="mt-1 text-xs opacity-70">{sub}</p>}
     </div>
   );
 }
@@ -102,14 +130,14 @@ export function AdminAnalyticsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-violet-400">Insights</p>
-          <h1 className="text-3xl font-black">Analytics plateforme</h1>
-          <p className="mt-1 text-sm text-white/60">Croissance, répartition sectorielle et métriques clés.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Insights</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Analytics plateforme</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Croissance, répartition sectorielle et métriques clés.</p>
         </div>
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 outline-none"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           {[2024, 2025, 2026].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
@@ -124,33 +152,33 @@ export function AdminAnalyticsPage() {
       </div>
 
       {/* Growth chart */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-        <h2 className="mb-4 font-black">Croissance mensuelle</h2>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+        <h2 className="mb-4 font-black text-slate-900 dark:text-white">Croissance mensuelle</h2>
         {growthData.length > 0 ? (
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={growthData} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#0891b2" stopOpacity={0.4} />
                   <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff" }}
+                contentStyle={TOOLTIP_STYLE}
               />
-              <Area type="monotone" dataKey="Entreprises" stroke="#7c3aed" fill="url(#gE)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="Entreprises" stroke="#6366f1" fill="url(#gE)" strokeWidth={2} dot={false} />
               <Area type="monotone" dataKey="Utilisateurs" stroke="#0891b2" fill="url(#gU)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-[260px] items-center justify-center text-white/30">
+          <div className="flex h-[260px] items-center justify-center text-slate-400 dark:text-white/30">
             {platform.isLoading ? "Chargement…" : "Données non disponibles"}
           </div>
         )}
@@ -159,8 +187,8 @@ export function AdminAnalyticsPage() {
       {/* Sector + country + teras */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Sector pie */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <h2 className="mb-4 font-black">Répartition sectorielle</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Répartition sectorielle</h2>
           {sectorData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -170,7 +198,7 @@ export function AdminAnalyticsPage() {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff" }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-3 space-y-1.5">
@@ -178,44 +206,44 @@ export function AdminAnalyticsPage() {
                   <div key={d.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                      <span className="text-white/70 truncate">{d.name}</span>
+                      <span className="text-slate-600 dark:text-white/70 truncate">{d.name}</span>
                     </div>
-                    <span className="font-bold">{d.value}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{d.value}</span>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <div className="h-[200px] flex items-center justify-center text-white/30 text-sm">Non disponible</div>
+            <div className="h-[200px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">Non disponible</div>
           )}
         </div>
 
         {/* Country bar */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <h2 className="mb-4 font-black">Distribution par pays</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Distribution par pays</h2>
           {countryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={countryData} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 0 }}>
-                <XAxis type="number" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip contentStyle={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff" }} />
-                <Bar dataKey="value" fill="#7c3aed" radius={[0, 4, 4, 0]} />
+                <XAxis type="number" tick={{ fill: CHART_TICK, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[220px] flex items-center justify-center text-white/30 text-sm">Non disponible</div>
+            <div className="h-[220px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">Non disponible</div>
           )}
         </div>
 
         {/* TERAS distribution */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <h2 className="mb-4 font-black">Distribution TERAS</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Distribution TERAS</h2>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={terasData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: CHART_TICK, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {terasData.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Bar>
@@ -226,9 +254,9 @@ export function AdminAnalyticsPage() {
               <div key={d.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: d.fill }} />
-                  <span className="text-white/60">Score {d.name}</span>
+                  <span className="text-slate-500 dark:text-white/60">Score {d.name}</span>
                 </div>
-                <span className="font-bold">{d.value} entreprises</span>
+                <span className="font-bold text-slate-900 dark:text-white">{d.value} entreprises</span>
               </div>
             ))}
           </div>

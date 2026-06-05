@@ -224,7 +224,7 @@ export function BillingPage() {
         <KpiCard label="Total factures" value={String(kpis.totalInvoices)} hint="émises ce cycle" icon={ReceiptText} tone="amber" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_0.7fr]">
         {/* Liste factures */}
         <Panel title="Factures" action={
           <div className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export function BillingPage() {
                         : `Échéance ${invoice.due_date ? shortDate(invoice.due_date) : "—"}`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-bold text-ink dark:text-white">{money(invoice.total_amount)}</p>
                     <button
                       onClick={() => exportInvoice(invoice.id, invoice.number)}
@@ -328,7 +328,7 @@ export function BillingPage() {
                       </button>
                     )}
                     {invoice.status !== "paid" && invoice.status !== "draft" && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         <label className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2 py-1 text-xs font-bold text-[#17211f] dark:bg-white/5 dark:text-white">
                           <CreditCard size={13} />
                           <select
@@ -426,7 +426,7 @@ export function BillingPage() {
                     placeholder="Description du service / produit"
                     className="mb-2 w-full rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
                   />
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto] items-center">
                     <div>
                       <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">Qté</p>
                       <input
@@ -449,7 +449,7 @@ export function BillingPage() {
                       type="button"
                       onClick={() => removeLine(i)}
                       disabled={lines.length === 1}
-                      className="mt-5 grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] text-rose-500 hover:bg-rose-50 disabled:text-stone-300"
+                      className="col-span-2 sm:col-span-1 sm:mt-5 flex items-center justify-center h-8 w-full sm:w-8 rounded-lg border border-black/[0.06] text-rose-500 hover:bg-rose-50 disabled:text-stone-300"
                     >
                       <Trash2 size={14} />
                     </button>

@@ -17,6 +17,20 @@ IDENTIFIANTS.md
 *.sqlite3
 kompta.db
 backend/kompta.db
+# Backups de base (contiennent de VRAIES données — JAMAIS committer)
+*.db.bak*
+*.db.backup*
+*.db-backup*
+
+# ── Env de production backend (contient des secrets réels) ──
+backend/.env.production
+.env.production
+# Exception : le .env.production du frontend ne contient AUCUN secret (juste VITE_API_URL=/api)
+!frontend/.env.production
+
+# ── Storage produits/uploads (données utilisateur locales) ──
+storage/products/
+backend/storage/products/
 
 # ── Python ──────────────────────────────────────────────
 __pycache__/
@@ -104,3 +118,4 @@ backend/storage/documents/*
 
 backend/storage/products/*
 !backend/storage/products/.gitkeep
+infra/.tunnel-token

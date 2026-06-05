@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.api.routes_groups import (
     FINANCE_ROLE_NAMES,
-    MANAGER_ROLE_NAMES,
     _get_group,
     _user_group_roles,
     _company_admin,
@@ -79,6 +78,16 @@ def _can_ask_finance(db: Session, group: OrganizationGroup, user: User) -> bool:
     return _company_admin(user) or bool(_user_group_roles(db, group, user) & FINANCE_ROLE_NAMES)
 
 
+def _is_group_member(db: Session, group: OrganizationGroup, user: User) -> bool:
+    return db.scalar(
+        select(GroupMember.id).where(
+            GroupMember.group_id == group.id,
+            GroupMember.user_id == user.id,
+            GroupMember.is_active == True,  # noqa: E712
+        )
+    ) is not None
+
+
 # ── Contexte groupe pour Limule ─────────────────────────────────────────────
 def _build_group_context(db: Session, group: OrganizationGroup, include_finance: bool) -> str:
     """Construit le contexte structuré à envoyer à Limule."""
@@ -124,6 +133,8 @@ def _build_group_context(db: Session, group: OrganizationGroup, include_finance:
 async def ask_ai(group_id: int, payload: AIAsk, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)) -> dict:
     group = _get_group(db, group_id, current_user)
+    if not (_company_admin(current_user) or _is_group_member(db, group, current_user)):
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas membre de ce groupe")
     include_finance = _can_ask_finance(db, group, current_user)
     if _question_is_financial(payload.question) and not include_finance:
         raise HTTPException(status_code=403, detail="Votre rôle ne vous autorise pas à accéder aux informations financières du groupe.")
@@ -147,8 +158,8 @@ async def ask_ai(group_id: int, payload: AIAsk, db: Session = Depends(get_db),
 async def summarize_chat(group_id: int, payload: SummarizeChat, db: Session = Depends(get_db),
                          current_user: User = Depends(get_current_user)) -> dict:
     group = _get_group(db, group_id, current_user)
-    if not (_company_admin(current_user) or _user_group_roles(db, group, current_user) & (MANAGER_ROLE_NAMES | {"Secrétaire"})):
-        raise HTTPException(status_code=403, detail="Permission insuffisante")
+    if not (_company_admin(current_user) or _is_group_member(db, group, current_user)):
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas membre de ce groupe")
     if not payload.messages:
         raise HTTPException(status_code=400, detail="Aucun message fourni")
     chat_text = "\n".join(payload.messages[:200])  # limite 200 messages
@@ -214,6 +225,91 @@ async def payment_analysis(group_id: int, db: Session = Depends(get_db),
         except Exception as exc:
             analysis = f"Analyse IA indisponible ({exc})."
     return {"analysis": analysis}
+
+
+# ── Rappel cotisation : génère + retourne canaux SMS/email/WhatsApp ─────────
+class RemindMemberRequest(BaseModel):
+    member_id: int
+    plan_id: int | None = None
+    tone: str = "poli"
+
+
+@router.post("/{group_id}/contributions/remind")
+async def remind_member(group_id: int, payload: RemindMemberRequest,
+                        db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)) -> dict:
+    """Relance un membre pour ses cotisations en retard.
+
+    Génère un message IA personnalisé + retourne les liens SMS/WhatsApp/email
+    pré-remplis pour envoi via les canaux du téléphone du président.
+    """
+    group = _get_group(db, group_id, current_user)
+    if not _can_ask_finance(db, group, current_user):
+        raise HTTPException(status_code=403, detail="Accès finances requis")
+
+    member = db.get(GroupMember, payload.member_id)
+    if not member or member.group_id != group.id:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    # Calcul des arriérés du membre
+    payments = db.scalars(
+        select(ContributionPayment).where(
+            ContributionPayment.group_id == group.id,
+            ContributionPayment.member_id == member.id,
+        )
+    ).all()
+    plans = db.scalars(select(ContributionPlan).where(ContributionPlan.group_id == group.id)).all()
+    plan_map = {p.id: p for p in plans}
+
+    if payload.plan_id and payload.plan_id in plan_map:
+        plan = plan_map[payload.plan_id]
+        amount_due = _to_f(plan.amount)
+        plan_title = plan.title
+    else:
+        # Total des arriérés (paiements pending/late)
+        amount_due = sum(_to_f(p.amount_paid) for p in payments if p.status in {"pending", "late"})
+        plan_title = "Cotisations en retard"
+        plan = plans[0] if plans else None
+
+    # Génération IA du message
+    date_str = "dès que possible"
+    prompt = (f"Rédige un message de rappel de cotisation {payload.tone} en français pour le membre « {member.full_name} » "
+              f"du groupe « {group.name} ». Montant dû : {amount_due:.0f} {group.currency} "
+              f"(plan : {plan_title}, échéance : {date_str}). "
+              f"Message court (3-4 phrases max), respectueux, clair. Ne signe pas — la signature sera ajoutée automatiquement.")
+    try:
+        from app.services.deepseek import _deepseek_chat
+        msgs = [
+            {"role": "system", "content": "Tu génères des messages de rappel polis pour des groupes africains. Sois chaleureux et clair."},
+            {"role": "user", "content": prompt},
+        ]
+        message = await _deepseek_chat(msgs) or ""
+    except Exception:
+        message = ""
+    # Fallback déterministe si l'IA n'est pas disponible
+    if not message.strip():
+        message = (f"Bonjour {member.full_name}, nous vous rappelons que votre cotisation "
+                   f"de {amount_due:.0f} {group.currency} ({plan_title}) est attendue dès que possible. "
+                   f"Merci de régulariser votre situation auprès du trésorier.")
+
+    full_message = f"{message}\n\n— Le bureau de {group.name}"
+
+    # Canaux disponibles
+    phone_clean = (member.phone or "").lstrip("+").replace(" ", "")
+    encoded = full_message.replace("\n", "%0A").replace(" ", "%20")
+    channels = {
+        "sms": f"sms:{member.phone}?body={encoded}" if member.phone else None,
+        "whatsapp": f"https://wa.me/{phone_clean}?text={encoded}" if phone_clean else None,
+        "email": f"mailto:{member.email}?subject=Rappel%20cotisation%20{group.name}&body={encoded}" if member.email else None,
+    }
+
+    return {
+        "member_name": member.full_name,
+        "amount_due": amount_due,
+        "currency": group.currency,
+        "message": full_message,
+        "channels": {k: v for k, v in channels.items() if v},
+    }
 
 
 # ── IA : générer un message de rappel ─────────────────────────────────────────

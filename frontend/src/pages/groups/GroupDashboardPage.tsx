@@ -12,7 +12,7 @@ function StatCard({ label, value, sub, icon: Icon, color }: { label: string; val
           <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
           {sub && <p className="text-[11px] text-[#717182] mt-0.5">{sub}</p>}
         </div>
-        <div className={`grid h-10 w-10 place-items-center rounded-xl ${color.includes("violet") ? "bg-violet-50 dark:bg-violet-500/10" : color.includes("emerald") ? "bg-emerald-50 dark:bg-emerald-500/10" : color.includes("rose") ? "bg-rose-50 dark:bg-rose-500/10" : color.includes("amber") ? "bg-amber-50 dark:bg-amber-500/10" : "bg-sky-50 dark:bg-sky-500/10"}`}>
+        <div className={`grid h-10 w-10 place-items-center rounded-xl ${color.includes("violet") ? "bg-blue-50 dark:bg-blue-800/10" : color.includes("emerald") ? "bg-emerald-50 dark:bg-emerald-500/10" : color.includes("rose") ? "bg-rose-50 dark:bg-rose-500/10" : color.includes("amber") ? "bg-amber-50 dark:bg-amber-500/10" : "bg-sky-50 dark:bg-sky-500/10"}`}>
           <Icon size={18} className={color} />
         </div>
       </div>
@@ -39,7 +39,7 @@ export function GroupDashboardPage() {
 
   if (isLoading) return (
     <div className="flex h-64 items-center justify-center">
-      <Loader2 size={28} className="animate-spin text-violet-500" />
+      <Loader2 size={28} className="animate-spin text-blue-700" />
     </div>
   );
 
@@ -52,7 +52,7 @@ export function GroupDashboardPage() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Solde caisse" value={fmtAmount(dash?.balance ?? 0, currency)} icon={Wallet} color="text-violet-600" />
+        <StatCard label="Solde caisse" value={fmtAmount(dash?.balance ?? 0, currency)} icon={Wallet} color="text-blue-800" />
         <StatCard label="Membres actifs" value={dash?.members_count ?? 0} sub={`${dash?.members_up_to_date ?? 0} à jour`} icon={Users} color="text-sky-600" />
         <StatCard label="Membres en retard" value={dash?.members_late ?? 0} icon={Clock} color="text-rose-600" />
         <StatCard label="Dépenses en attente" value={dash?.pending_expenses ?? 0} icon={TrendingDown} color="text-amber-600" />
@@ -63,12 +63,12 @@ export function GroupDashboardPage() {
         <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-bold text-[#17211f] dark:text-white">Taux de recouvrement cotisations</p>
-            <p className="text-sm font-black text-violet-600">
+            <p className="text-sm font-black text-blue-800">
               {Math.round(100 * (dash?.total_contributions_received ?? 0) / (dash?.total_contributions_expected ?? 1))}%
             </p>
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
-            <div className="h-2.5 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all"
+            <div className="h-2.5 rounded-full bg-gradient-to-r from-blue-700 to-blue-800 transition-all"
               style={{ width: `${Math.min(100, Math.round(100 * (dash?.total_contributions_received ?? 0) / (dash?.total_contributions_expected ?? 1)))}%` }} />
           </div>
           <div className="flex justify-between mt-1.5 text-xs text-[#717182]">

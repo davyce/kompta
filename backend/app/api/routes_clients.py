@@ -16,7 +16,7 @@ Endpoints :
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import math
 
@@ -100,7 +100,7 @@ def update_client(
         raise HTTPException(404, "Client introuvable")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(client, k, v)
-    client.updated_at = datetime.utcnow()
+    client.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(client)
     return client
@@ -214,7 +214,7 @@ def update_discount(
         raise HTTPException(404, "Remise introuvable")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(discount, k, v)
-    discount.updated_at = datetime.utcnow()
+    discount.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(discount)
     return discount
@@ -274,7 +274,7 @@ def update_loyalty(
     if payload.global_discount_percent is not None:
         client.global_discount_percent = max(0.0, min(100.0, payload.global_discount_percent))
 
-    client.updated_at = datetime.utcnow()
+    client.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(client)
     return client

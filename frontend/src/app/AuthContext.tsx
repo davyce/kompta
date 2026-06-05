@@ -22,6 +22,7 @@ function isUnauthorized(error: unknown): boolean {
 type AuthContextValue = {
   user: User | null;
   token: string | null;
+  bootstrapping: boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
   registerCompany: (payload: CompanyRegistrationPayload) => Promise<LoginResponse>;
   logout: () => void;
@@ -33,25 +34,27 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, updateToken] = useState<string | null>(() => getToken());
   const [user, setUser] = useState<User | null>(null);
+  // Le token n'est plus persisté dans localStorage : au démarrage on tente de
+  // restaurer la session via le cookie HttpOnly (endpoint /auth/refresh).
+  // `bootstrapping` évite de flasher l'écran de login pendant cette restauration.
+  const [bootstrapping, setBootstrapping] = useState(true);
 
   useEffect(() => {
-    if (!token || user) return;
     let cancelled = false;
-    api.me()
-      .then((currentUser) => {
-        if (!cancelled) setUser(currentUser);
+    api.refreshToken()
+      .then((resp) => {
+        if (cancelled) return;
+        setToken(resp.access_token);
+        updateToken(resp.access_token);
+        if (resp.user) setUser(resp.user);
       })
-      .catch((error) => {
-        if (!cancelled && isUnauthorized(error)) {
-          clearToken();
-          updateToken(null);
-          setUser(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [token, user]);
+      .catch(() => {
+        // Pas de session valide (aucun cookie / expiré) — on reste déconnecté.
+        if (!cancelled) { clearToken(); updateToken(null); setUser(null); }
+      })
+      .finally(() => { if (!cancelled) setBootstrapping(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Register the 401 auto-logout callback so api.ts can trigger logout from outside React
   useEffect(() => {
@@ -102,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       token,
+      bootstrapping,
       setUser,
       login: async (email: string, password: string) => {
         const response = await api.login(email, password);
@@ -118,12 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return response;
       },
       logout: () => {
+        // Révoque côté serveur (token_version++) et supprime le cookie HttpOnly.
+        api.logout().catch(() => { /* best-effort : on déconnecte quand même */ });
         clearToken();
         updateToken(null);
         setUser(null);
       }
     }),
-    [token, user]
+    [token, user, bootstrapping]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

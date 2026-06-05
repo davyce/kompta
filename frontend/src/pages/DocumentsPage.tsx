@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../services/api";
+import { useToast } from "../components/ToastProvider";
 import type { CompanyDocument } from "../types/domain";
 import { shortDate } from "../utils/format";
 import { LimuleIcon } from "../components/LimuleAvatar";
@@ -382,6 +383,7 @@ const DOC_TYPE_FILTERS = [
 ];
 
 export function DocumentsPage() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -445,7 +447,7 @@ export function DocumentsPage() {
       a.href = url; a.download = filename; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (err) {
-      alert(`Impossible de télécharger le fichier : ${(err as Error).message}`);
+      toast.error(`Impossible de télécharger le fichier : ${(err as Error).message}`);
     }
   }
 
@@ -514,7 +516,7 @@ export function DocumentsPage() {
       </div>
 
       {/* Main grid: upload + library */}
-      <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr]">
         {/* Left: Upload panel */}
         <div className="space-y-4">
           <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
@@ -608,8 +610,8 @@ export function DocumentsPage() {
         {/* Right: Document library */}
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 basis-[180px] max-w-sm">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aaa]" />
               <input
                 className="w-full rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] dark:text-white py-2 pl-9 pr-3 text-sm placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none"

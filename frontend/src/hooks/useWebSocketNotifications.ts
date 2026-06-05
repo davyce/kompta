@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../services/api";
 
 export type AppToast = {
   id: number;
@@ -23,9 +24,12 @@ type WSNotification = {
   count?: number;
 };
 
-const WS_BASE = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api")
-  .replace(/^http/, "ws")
-  .replace(/\/api$/, "");
+// WS_BASE doit être ABSOLU (ws://|wss://). Si l'API est en chemin relatif (/api),
+// on dérive de l'origine courante → fonctionne en local ET derrière un tunnel https (wss).
+const _API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
+const WS_BASE = /^https?:/i.test(_API_URL)
+  ? _API_URL.replace(/^http/i, "ws").replace(/\/api\/?$/, "")
+  : `${window.location.origin.replace(/^http/i, "ws")}`;
 
 const STORE_KEY = "kompta_notifications";
 const MAX_HISTORY = 50;
@@ -100,33 +104,42 @@ export function useWebSocketNotifications(companyId: number | undefined) {
 
   useEffect(() => {
     if (!companyId) return;
+    let cancelled = false;
 
-    function connect() {
+    async function connect() {
+      if (cancelled) return;
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
-      const ws = new WebSocket(`${WS_BASE}/api/ws/notifications/${companyId}`);
-      wsRef.current = ws;
+      try {
+        const { ticket } = await api.realtimeTicket();
+        if (cancelled) return;
+        const ws = new WebSocket(`${WS_BASE}/api/ws/notifications/${companyId}?token=${encodeURIComponent(ticket)}`);
+        wsRef.current = ws;
 
-      ws.onmessage = (e) => {
-        try {
-          const data: WSNotification = JSON.parse(e.data);
-          if (data.type === "teras_alert") {
-            setLiveAlertCount((n) => n + (data.count ?? 1));
-            push(data.title, data.detail, "warning");
-          } else if (data.type === "sync") {
-            push(data.title, data.detail, "success");
-          } else {
-            push(data.title, data.detail, "info");
-          }
-        } catch { /* ignore */ }
-      };
+        ws.onmessage = (e) => {
+          try {
+            const data: WSNotification = JSON.parse(e.data);
+            if (data.type === "teras_alert") {
+              setLiveAlertCount((n) => n + (data.count ?? 1));
+              push(data.title, data.detail, "warning");
+            } else if (data.type === "sync") {
+              push(data.title, data.detail, "success");
+            } else {
+              push(data.title, data.detail, "info");
+            }
+          } catch { /* ignore */ }
+        };
 
-      ws.onclose = () => {
-        reconnectTimer.current = setTimeout(connect, 8000);
-      };
+        ws.onclose = () => {
+          if (!cancelled) reconnectTimer.current = setTimeout(connect, 8000);
+        };
+      } catch {
+        if (!cancelled) reconnectTimer.current = setTimeout(connect, 8000);
+      }
     }
 
     connect();
     return () => {
+      cancelled = true;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
     };

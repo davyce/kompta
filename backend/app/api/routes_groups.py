@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -64,6 +64,10 @@ class GroupUpdate(BaseModel):
     city: str | None = None
     address: str | None = None
     status: str | None = None
+
+
+class GroupClose(BaseModel):
+    reason: str = ""
 
 
 class MemberCreate(BaseModel):
@@ -128,6 +132,12 @@ def _can_manage(db: Session, group: OrganizationGroup, user: User) -> bool:
     return _company_admin(user) or bool(_user_group_roles(db, group, user) & MANAGER_ROLE_NAMES)
 
 
+def _can_close_group(db: Session, group: OrganizationGroup, user: User) -> bool:
+    # La fermeture est plus sensible que la gestion courante : seul le Président
+    # du groupe ou un admin société peut l'exécuter.
+    return _company_admin(user) or "Président" in _user_group_roles(db, group, user)
+
+
 def _require_manage(db: Session, group: OrganizationGroup, user: User) -> None:
     if not _can_manage(db, group, user):
         raise HTTPException(status_code=403, detail="Permission insuffisante sur ce groupe")
@@ -188,6 +198,9 @@ def create_group(payload: GroupCreate, request: Request, db: Session = Depends(g
                            role_name="Président", assigned_by_user_id=current_user.id, is_current=True))
     db.add(GroupLeadershipHistory(group_id=group.id, president_member_id=creator.id,
                                   mandate_start=date.today(), elected_by="Fondateur", is_current=True))
+    # Salon "Général" par défaut — créé à chaque nouveau groupe
+    from app.api.routes_groups_g4 import seed_default_room
+    seed_default_room(db, group.id, current_user.id)
     _group_audit(db, group.id, current_user, "group_created", target_type="group", target_id=group.id, request=request)
     db.commit()
     db.refresh(group)
@@ -229,20 +242,95 @@ def update_group(group_id: int, payload: GroupUpdate, request: Request, db: Sess
     return _serialize_group(group)
 
 
+@router.post("/{group_id}/close")
+def close_group(group_id: int, payload: GroupClose, request: Request, db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_user)) -> dict:
+    group = _get_group(db, group_id, current_user)
+    if not _can_close_group(db, group, current_user):
+        raise HTTPException(status_code=403, detail="Seul le Président du groupe peut le fermer")
+    if group.status == "closed" and not group.is_active:
+        return _serialize_group(group)
+
+    old_value = json.dumps({"status": group.status, "is_active": group.is_active}, ensure_ascii=False)
+    group.status = "closed"
+    group.is_active = False
+    new_value = json.dumps(
+        {
+            "status": group.status,
+            "is_active": group.is_active,
+            "reason": payload.reason.strip()[:500],
+        },
+        ensure_ascii=False,
+    )
+    _group_audit(
+        db,
+        group.id,
+        current_user,
+        "group_closed",
+        target_type="group",
+        target_id=group.id,
+        old=old_value,
+        new=new_value,
+        request=request,
+    )
+    db.commit()
+    db.refresh(group)
+    return _serialize_group(group)
+
+
 # ── Membres ─────────────────────────────────────────────────────────────────
 @router.post("/{group_id}/members", status_code=201)
 def add_member(group_id: int, payload: MemberCreate, request: Request, db: Session = Depends(get_db),
                current_user: User = Depends(get_current_user)) -> dict:
     group = _get_group(db, group_id, current_user)
     _require_manage(db, group, current_user)
-    member = GroupMember(group_id=group.id, joined_at=date.today(), **payload.model_dump())
+
+    # ── Détection de compte KOMPTA existant (par email ou téléphone) ─────────
+    # Si la personne a déjà un compte, on lie le membre à ce compte sans recréer.
+    # Le membre apparaît directement dans la liste avec son compte associé.
+    data = payload.model_dump()
+    member = GroupMember(group_id=group.id, joined_at=date.today(), **data)
+
+    # ── Détection prudente d'un compte existant ─────────────────────────────
+    # On lie UNIQUEMENT si le compte trouvé a un rôle compatible avec un membre
+    # de groupe (membre_groupe ou employé sans accès entreprise sensible). Sinon
+    # on AJOUTE le membre comme nouveau et on laisse le président cliquer sur
+    # "Générer un accès" pour créer un compte dédié. Ça évite d'écraser l'admin
+    # d'une entreprise ou le compte d'un autre groupe.
+    existing_user = None
+    email_lookup = (data.get("email") or "").strip().lower()
+    phone_lookup = normalize_phone(data.get("phone") or "")
+    if email_lookup:
+        existing_user = db.scalar(select(User).where(func.lower(User.email) == email_lookup))
+    if not existing_user and phone_lookup:
+        existing_user = db.scalar(select(User).where(User.phone == phone_lookup))
+
+    SAFE_LINK_ROLES = {"membre_groupe"}
+    if existing_user and existing_user.role in SAFE_LINK_ROLES:
+        member.user_id = existing_user.id
+        if not member.full_name and existing_user.full_name:
+            member.full_name = existing_user.full_name
+        if not member.email and existing_user.email:
+            member.email = existing_user.email
+        if not member.phone and existing_user.phone:
+            member.phone = existing_user.phone
+    elif existing_user:
+        # Compte existant mais d'un autre type (admin entreprise, employé, etc.)
+        # → on N'ÉCRASE PAS. Le président devra utiliser "Générer un accès" pour
+        # créer un compte de groupe dédié si nécessaire.
+        existing_user = None  # Ne pas signaler la liaison dans la réponse
+
     db.add(member)
     db.flush()
     _group_audit(db, group.id, current_user, "member_added", target_type="member", target_id=member.id,
                  new=member.full_name, request=request)
     db.commit()
     db.refresh(member)
-    return _serialize_member(member)
+    result = _serialize_member(member)
+    if existing_user:
+        result["linked_account"] = True
+        result["message"] = f"{member.full_name} a déjà un compte KOMPTA — automatiquement lié au groupe"
+    return result
 
 
 @router.post("/{group_id}/members/{member_id}/provision-account", status_code=201)
@@ -285,16 +373,32 @@ def provision_member_account(
     if not email:
         raise HTTPException(status_code=400, detail="Email ou téléphone requis pour créer un compte")
 
-    # Vérifier doublon
+    # Vérifier doublon par email ET par téléphone (les deux sont des identifiants
+    # de connexion possibles, on ne peut PAS avoir 2 users avec le même).
     existing_user = db.scalar(select(User).where(User.email == email))
+    if not existing_user and phone:
+        existing_user = db.scalar(select(User).where(User.phone == phone))
     if existing_user:
-        # Associer ce compte existant au membre
+        # SÉCURITÉ : on ne lie que si le compte existant est un membre_groupe.
+        # Sinon (admin, employé…), on refuse pour ne pas écraser un compte
+        # sensible avec un mot de passe temporaire.
+        if existing_user.role != "membre_groupe":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Un compte KOMPTA existe déjà avec cet email/téléphone "
+                    f"(rôle: {existing_user.role}). Pour éviter d'écraser ce compte, "
+                    f"demandez à ce membre de se connecter avec son compte existant — "
+                    f"il sera automatiquement reconnu comme membre du groupe."
+                ),
+            )
+        # Compte membre_groupe existant → liaison sûre
         member.user_id = existing_user.id
         db.commit()
         return {
             "created": False,
             "user_id": existing_user.id,
-            "login_identifier": phone or email,
+            "login_identifier": existing_user.phone or existing_user.email,
             "account_status": existing_user.account_status,
             "message": "Compte existant associé au membre",
         }
@@ -333,6 +437,162 @@ def provision_member_account(
         "account_status": new_user.account_status,
         "must_change_password": True,
         "message": f"Compte créé — transmets le mot de passe temporaire à {member.full_name}",
+    }
+
+
+@router.post("/{group_id}/leave", status_code=200)
+def leave_group(
+    group_id: int, request: Request,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+) -> dict:
+    """L'utilisateur courant quitte volontairement le groupe.
+
+    Refusé si le membre est le SEUL président (élire un successeur d'abord).
+    Le compte KOMPTA n'est PAS désactivé — l'utilisateur garde l'accès à ses
+    autres groupes (et entreprise si applicable).
+    """
+    group = _get_group(db, group_id, current_user)
+    member = db.scalar(
+        select(GroupMember).where(
+            GroupMember.group_id == group.id,
+            GroupMember.user_id == current_user.id,
+        )
+    )
+    if not member:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas membre de ce groupe")
+
+    # Vérifier qu'il n'est pas le dernier président
+    from app.models.domain import GroupLeadershipHistory
+    is_current_president = db.scalar(
+        select(GroupLeadershipHistory).where(
+            GroupLeadershipHistory.group_id == group.id,
+            GroupLeadershipHistory.president_member_id == member.id,
+            GroupLeadershipHistory.is_current == True,  # noqa: E712
+        )
+    )
+    if is_current_president:
+        raise HTTPException(
+            status_code=409,
+            detail="Vous êtes président de ce groupe — désignez un successeur avant de quitter.",
+        )
+
+    # Retirer rôles + membre (sans toucher au compte KOMPTA)
+    db.execute(
+        delete(GroupMemberRole).where(
+            GroupMemberRole.group_id == group.id,
+            GroupMemberRole.member_id == member.id,
+        )
+    )
+    _group_audit(db, group.id, current_user, "member_left", target_type="member",
+                 target_id=member.id, new=member.full_name, request=request)
+    db.delete(member)
+    db.commit()
+    return {"left": True, "message": f"Vous avez quitté {group.name}."}
+
+
+@router.delete("/{group_id}/members/{member_id}", status_code=204)
+def delete_member(
+    group_id: int, member_id: int, request: Request,
+    also_delete_account: bool = True,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+) -> None:
+    """Retire un membre du groupe.
+
+    Si `also_delete_account=true` (défaut) et que le membre possède un compte
+    KOMPTA (user_id non null), le compte est **désactivé** (pas supprimé : les
+    données comptables restent) et marqué `account_status='archived'` pour
+    permettre une réactivation ultérieure.
+
+    Le président peut ensuite utiliser `provision-account` pour recréer un
+    accès avec un nouveau mot de passe temporaire.
+    """
+    group = _get_group(db, group_id, current_user)
+    _require_manage(db, group, current_user)
+    member = db.get(GroupMember, member_id)
+    if not member or member.group_id != group.id:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    # Désactiver le compte KOMPTA lié (non-destructif — permet réactivation)
+    if also_delete_account and member.user_id:
+        linked_user = db.get(User, member.user_id)
+        if linked_user:
+            linked_user.is_active = False
+            linked_user.account_status = "archived"
+            # Révoquer toutes les sessions en cours
+            linked_user.token_version = (linked_user.token_version or 0) + 1
+
+    # Supprimer les rôles du membre
+    db.execute(
+        delete(GroupMemberRole).where(
+            GroupMemberRole.group_id == group.id,
+            GroupMemberRole.member_id == member.id,
+        )
+    )
+    _group_audit(db, group.id, current_user, "member_removed",
+                 target_type="member", target_id=member.id,
+                 new=member.full_name, request=request)
+    db.delete(member)
+    db.commit()
+
+
+@router.post("/{group_id}/members/{member_id}/reset-access", status_code=201)
+def reset_member_access(
+    group_id: int, member_id: int, request: Request,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+) -> dict:
+    """Réinitialise l'accès d'un membre (mot de passe oublié / compte bloqué).
+
+    Génère un nouveau mot de passe temporaire, réactive le compte si archivé,
+    et force le changement au prochain login. Utiliser quand le membre a oublié
+    son mot de passe ou que le compte a été désactivé par erreur.
+    """
+    group = _get_group(db, group_id, current_user)
+    _require_manage(db, group, current_user)
+    member = db.get(GroupMember, member_id)
+    if not member or member.group_id != group.id:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    if not member.user_id:
+        raise HTTPException(status_code=400, detail="Ce membre n'a pas encore de compte KOMPTA. Utilisez 'Générer un accès'.")
+
+    linked_user = db.get(User, member.user_id)
+    if not linked_user:
+        raise HTTPException(status_code=404, detail="Compte KOMPTA introuvable")
+
+    # Garde-fou : un président ne peut RÉINITIALISER que les comptes de type
+    # 'membre_groupe' (créés via Générer un accès). Refuser pour tout autre rôle
+    # (admin entreprise, employé, super_admin…) — l'admin doit passer par la
+    # procédure entreprise/admin pour ces comptes.
+    if linked_user.role != "membre_groupe":
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Ce membre est lié à un compte d'un autre type (entreprise/admin). "
+                "Réinitialisation refusée pour protéger ce compte. Demandez à "
+                "l'administrateur de l'entreprise de réinitialiser son mot de passe."
+            ),
+        )
+
+    from app.core.security import hash_password
+    temp_password = generate_temporary_password()
+    linked_user.password_hash = hash_password(temp_password)
+    linked_user.must_change_password = True
+    linked_user.account_status = "pending_first_login"
+    linked_user.is_active = True
+    # Révoquer les sessions existantes (force reconnexion avec nouveau mdp)
+    linked_user.token_version = (linked_user.token_version or 0) + 1
+
+    _group_audit(db, group.id, current_user, "member_access_reset",
+                 target_type="member", target_id=member.id,
+                 new=f"user_id={linked_user.id}", request=request)
+    db.commit()
+
+    return {
+        "user_id": linked_user.id,
+        "login_identifier": linked_user.phone or linked_user.email,
+        "temporary_password": temp_password,
+        "must_change_password": True,
+        "message": f"Accès réinitialisé pour {member.full_name} — nouveau mot de passe temporaire généré",
     }
 
 

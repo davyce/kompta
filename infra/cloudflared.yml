@@ -1,0 +1,55 @@
+# Cloudflare Tunnel — KOMPTA production (Option A : Mac local)
+#
+# Ce fichier est utilisé par `cloudflared tunnel run kompta`.
+# Il route le trafic kompta0.com / api.kompta0.com vers les services locaux.
+#
+# Setup initial (à faire UNE fois) :
+#   1. cloudflared tunnel login                       # ouvre le navigateur, choisit kompta0.com
+#   2. cloudflared tunnel create kompta               # crée le tunnel, écrit ~/.cloudflared/<UUID>.json
+#   3. Copier l'UUID dans `tunnel:` ci-dessous
+#   4. cloudflared tunnel route dns kompta kompta0.com
+#   5. cloudflared tunnel route dns kompta www.kompta0.com
+#   6. cloudflared tunnel route dns kompta api.kompta0.com
+#
+# Démarrage quotidien :
+#   cloudflared tunnel --config /Users/davyokemba/Documents/kompta/infra/cloudflared.yml run kompta
+# Ou via le service launchd (voir start-kompta.sh).
+
+tunnel: REMPLACE_PAR_UUID_DU_TUNNEL
+credentials-file: /Users/davyokemba/.cloudflared/REMPLACE_PAR_UUID_DU_TUNNEL.json
+
+# Mises à jour auto (Cloudflare push des updates de l'agent)
+no-autoupdate: false
+
+# Buffers raisonnables pour POS/chat WebSocket
+originRequest:
+  connectTimeout: 10s
+  tlsTimeout: 10s
+  keepAliveConnections: 100
+  keepAliveTimeout: 90s
+
+# Règles de routage (ordre important : la 1re qui match gagne)
+ingress:
+  # ── API backend : api.kompta0.com → uvicorn :8010 ───────────────────────
+  - hostname: api.kompta0.com
+    service: http://127.0.0.1:8010
+    originRequest:
+      # WebSockets pour le chat groupes et notifications
+      noTLSVerify: true
+      httpHostHeader: api.kompta0.com
+
+  # ── Frontend : kompta0.com et www → Vite preview :3000 ────────────────────
+  - hostname: kompta0.com
+    service: http://127.0.0.1:3000
+    originRequest:
+      noTLSVerify: true
+      httpHostHeader: kompta0.com
+
+  - hostname: www.kompta0.com
+    service: http://127.0.0.1:3000
+    originRequest:
+      noTLSVerify: true
+      httpHostHeader: kompta0.com
+
+  # ── Catch-all (obligatoire en dernier) ────────────────────────────────────
+  - service: http_status:404

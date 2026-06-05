@@ -28,6 +28,22 @@ class CompanyRegistrationRequest(BaseModel):
     password: str = Field(min_length=8)
 
 
+class GroupRegistrationRequest(BaseModel):
+    """Inscription groupe : crée un compte utilisateur + un groupe en une seule étape."""
+    # Compte utilisateur
+    full_name: str = Field(min_length=2, max_length=160)
+    email: str
+    phone: str = ""
+    password: str = Field(min_length=8)
+    # Groupe
+    group_name: str = Field(min_length=2, max_length=160)
+    group_type: str = "association"
+    group_description: str = ""
+    country: str = "Congo"
+    city: str = ""
+    currency: str = "XAF"
+
+
 class FirstLoginChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
@@ -46,6 +62,7 @@ class CompanyRead(BaseModel):
     accent_color: str
     completion_score: int
     teras_score: int
+    cash_low_threshold_cents: int = 5_000_000
 
 
 class CompanyUpdate(BaseModel):
@@ -56,6 +73,7 @@ class CompanyUpdate(BaseModel):
     country: str | None = None
     primary_color: str | None = None
     accent_color: str | None = None
+    cash_low_threshold_cents: int | None = None
 
 
 class UserRead(BaseModel):
@@ -189,6 +207,10 @@ class SecurityAuditRead(BaseModel):
 
 
 class CompanyDocumentRead(BaseModel):
+    """Lecture publique — NE contient PAS raw_text ni extracted_data.
+    Ces champs peuvent contenir des données sensibles (salaires, montants, noms)
+    et sont réservés à l'endpoint /documents/{id}/full (admin/comptable seulement).
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -202,12 +224,18 @@ class CompanyDocumentRead(BaseModel):
     ai_summary: str
     ai_tags: str
     confidence: int
-    raw_text: str = ""
-    extracted_data: str = "{}"
     text_length: int = 0
     parse_method: str = ""
     employee_id: int | None = None
     created_at: datetime
+
+
+class CompanyDocumentReadFull(CompanyDocumentRead):
+    """Lecture complète (admin/comptable) — inclut raw_text et extracted_data.
+    Accès réservé via GET /documents/{id}/full avec rôle autorisé.
+    """
+    raw_text: str = ""
+    extracted_data: str = "{}"
 
 
 class DocumentAnalyzeRequest(BaseModel):
@@ -355,12 +383,20 @@ class InvoiceRead(BaseModel):
     payment_account_label: str = ""
     paid_at: datetime | None = None
     created_at: datetime
+    approval_status: str = "not_required"
+    approved_by_user_id: int | None = None
+    approved_at: datetime | None = None
+    rejection_reason: str = ""
     lines: list[InvoiceLineRead] = []
 
 
 class InvoicePaymentCreate(BaseModel):
     payment_method: str = "cash"
     payment_account_id: int | None = None
+
+
+class InvoiceRejectPayload(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class SaleItemCreate(BaseModel):
@@ -371,6 +407,7 @@ class SaleItemCreate(BaseModel):
 class SaleCreate(BaseModel):
     payment_method: str = "cash"
     payment_account_id: int | None = None
+    payment_transaction_id: int | None = None
     items: list[SaleItemCreate]
 
 

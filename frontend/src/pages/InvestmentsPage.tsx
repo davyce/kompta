@@ -18,6 +18,8 @@ import type {
 } from "../services/api";
 import { money, compactMoney } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { useConfirm } from "../components/ConfirmProvider";
+import { CurrencyConverter } from "../components/CurrencyConverter";
 
 /* ── Palette for pie chart ─────────────────────────────────────── */
 const PALETTE = [
@@ -89,6 +91,7 @@ function ChartTooltip({ active, payload, label, currency }: {
 export function InvestmentsPage() {
   useCurrency();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
 
   /* ── View state ── */
   const [view, setView]                   = useState<"detail" | "portfolio">("detail");
@@ -248,6 +251,16 @@ export function InvestmentsPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["investments"] }); setSelectedId(null); },
   });
 
+  async function handleDeleteInvestment(investment: InvestmentDto) {
+    const ok = await confirm({
+      title: `Supprimer ${investment.ticker} ?`,
+      message: "Cette ligne sera retirée du portefeuille.",
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deleteMut.mutate(investment.id);
+  }
+
   const createMut = useMutation({
     mutationFn: (payload: InvestmentCreateDto) => api.createInvestment(payload),
     onSuccess: (newInv) => {
@@ -399,27 +412,27 @@ export function InvestmentsPage() {
 
   /* ══════════════ RENDER ══════════════════════════════════════ */
   return (
-    <div className="flex h-[calc(100vh-80px)] flex-col overflow-hidden">
+    <div className="flex flex-col min-h-0">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-black/[0.05] dark:border-white/[0.05]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 shrink-0 border-b border-black/[0.05] dark:border-white/[0.05]">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">Finance</p>
-          <h1 className="text-2xl font-extrabold text-[#17211f] dark:text-white">Investissements boursiers</h1>
+          <p className="text-xs font-semibold text-emerald-600">Finance</p>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#17211f] dark:text-white">Investissements boursiers</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* View toggle */}
           {(investmentsQ.data?.length ?? 0) > 0 && (
             <div className="flex rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
               <button
                 onClick={() => setView("detail")}
-                className={`px-4 py-2 text-xs font-bold transition ${view === "detail" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
+                className={`px-3 py-2 text-xs font-bold transition ${view === "detail" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
               >
                 Détail
               </button>
               <button
                 onClick={() => setView("portfolio")}
-                className={`px-4 py-2 text-xs font-bold transition ${view === "portfolio" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
+                className={`px-3 py-2 text-xs font-bold transition ${view === "portfolio" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
               >
                 Portefeuille
               </button>
@@ -434,9 +447,9 @@ export function InvestmentsPage() {
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition"
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 sm:px-4 py-2 text-sm font-bold text-white shadow-sm transition"
           >
-            <Plus size={15} /> Ajouter
+            <Plus size={15} /> <span className="hidden sm:inline">Ajouter</span><span className="sm:hidden">+</span>
           </button>
         </div>
       </div>
@@ -648,10 +661,10 @@ export function InvestmentsPage() {
         </div>
       ) : (
         /* ══ DETAIL VIEW ══════════════════════════════════════ */
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
 
-          {/* LEFT SIDEBAR */}
-          <div className="w-64 shrink-0 flex flex-col border-r border-black/[0.06] dark:border-white/[0.06] overflow-y-auto">
+          {/* LEFT SIDEBAR — en bas sur mobile, à gauche sur desktop */}
+          <div className="lg:w-64 shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-black/[0.06] dark:border-white/[0.06] overflow-y-auto max-h-60 lg:max-h-none">
 
             {/* Portfolio summary bar */}
             <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.015]">
@@ -710,7 +723,7 @@ export function InvestmentsPage() {
           {/* RIGHT DETAIL */}
           {selected && (
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-6 py-5 space-y-6">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6">
 
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
@@ -765,7 +778,7 @@ export function InvestmentsPage() {
                       Alerte
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Supprimer ${selected.ticker} ?`)) deleteMut.mutate(selected.id); }}
+                      onClick={() => handleDeleteInvestment(selected)}
                       className="rounded-lg border border-red-200 dark:border-red-900/40 p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                     >
                       <Trash2 size={14} />
@@ -907,6 +920,20 @@ export function InvestmentsPage() {
                       </div>
                     )}
                   </div>
+                  {/* Convertisseur de devise : si l'action n'est pas en XAF, montrer l'équivalent */}
+                  {invPnl && (selected.currency_stock || "USD") !== "XAF" && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-500/20">
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#717182]">
+                        Conversion locale
+                      </p>
+                      <CurrencyConverter
+                        defaultAmount={Math.round(invPnl.current * 100) / 100}
+                        defaultFrom={selected.currency_stock || quote?.currency || "USD"}
+                        defaultTo="XAF"
+                        compact
+                      />
+                    </div>
+                  )}
                   {selected.purchase_date && (
                     <p className="mt-2 text-xs text-[#717182] flex items-center gap-1">
                       <Calendar size={11} /> Acheté le {selected.purchase_date}

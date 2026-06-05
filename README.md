@@ -1,9 +1,13 @@
 # KOMPTA — Plateforme de gestion d'entreprise intelligente
 
-> Solution de gestion tout-en-un pour PME de la zone CEMAC (XAF) avec référentiel SYSCEMAC.
-> Stack : **FastAPI** + **SQLite** · **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**.
-> IA intégrée via **Limule** (DeepSeek `deepseek-chat`) avec streaming SSE temps réel.
-> Conformité réglementaire via **TERAS Connect** (moteur local + connecteur API).
+> ERP IA tout-en-un pour PME, ONG, tontines, mutuelles et collectifs de la zone CEMAC.
+> **Comptabilité partie double SYSCOHADA** · **POS** · **Facturation TVA** · **Paie CNSS + IRPP** ·
+> **Module Groupes & Organisations** · **Assistant IA Limule** · **Mode offline-first léger**.
+>
+> Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind**.
+> Argent en **centimes entiers** (BigInt) · **paiements réels** Stripe (carte) + MTN Mobile Money.
+> Déploiement production **gratuit** via **Cloudflare Tunnel** (domaine `kompta0.com`, un seul hostname).
+> 98 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
 
 ---
 
@@ -15,16 +19,21 @@
 4. [Installation rapide](#installation-rapide)
 5. [Variables d'environnement](#variables-denvironnement)
 6. [Lancement en développement](#lancement-en-développement)
-7. [Modules applicatifs](#modules-applicatifs)
-8. [API — Endpoints clés](#api--endpoints-clés)
-9. [RBAC — Rôles et accès](#rbac--rôles-et-accès)
-10. [TERAS Connect](#teras-connect)
-11. [Limule — IA intégrée](#limule--ia-intégrée)
-12. [Onboarding](#onboarding)
-13. [Déploiement](#déploiement)
-14. [Comptes de test](#comptes-de-test)
-15. [Changelog](#changelog)
-16. [Licence](#licence)
+7. [Test à distance / iPhone — tunnel Cloudflare](#test-à-distance--iphone--tunnel-cloudflare)
+8. [Production zéro-démo](#production-zéro-démo)
+9. [Modules applicatifs](#modules-applicatifs)
+10. [Module Groupes & Organisations](#module-groupes--organisations)
+11. [Moteur comptable SYSCOHADA partie double](#moteur-comptable-syscohada-partie-double)
+12. [API — Endpoints clés](#api--endpoints-clés)
+13. [RBAC — Rôles et accès](#rbac--rôles-et-accès)
+14. [Sécurité](#sécurité)
+15. [TERAS Connect](#teras-connect)
+16. [Limule — IA intégrée](#limule--ia-intégrée)
+17. [Tests & CI/CD](#tests--cicd)
+18. [Déploiement](#déploiement)
+19. [Comptes de test](#comptes-de-test)
+20. [Changelog](#changelog)
+21. [Licence](#licence)
 
 ---
 
@@ -32,23 +41,25 @@
 
 | Domaine | Détail |
 |---|---|
-| **Tableau de bord** | KPIs temps réel, graphiques, rafraîchissement auto 30 s, résumé IA |
-| **RH & Employés** | Fiches, contrats IA, organigramme, présences, congés, profil détaillé |
-| **Paie** | Bulletins de salaire, calcul net/brut, anomalies, export PDF |
-| **Facturation** | Devis, factures, avoirs, paiement espèces/mobile/virement, BankTransaction automatique, export PDF |
-| **Inventaire** | Produits, stock temps réel, alertes seuil bas, mouvements |
-| **POS / Caisse** | Caisse enregistreuse, reçu détaillé par article, BankTransaction automatique, export CSV |
-| **Transactions** | Relevé comptable unifié (factures + POS + imports), filtres par source, Limule analyse |
-| **Documents** | Upload, classification IA, analyse, rattachement employé |
-| **Agenda** | Réunions, ordre du jour, participants, liens visio, intégration Journal |
-| **Tâches** | Kanban board, filtres, recherche, upload de preuves (image/vidéo/PDF) |
-| **Déclarations** | Génération complète par Limule (TVA, IS, CNPS, fiscal…), PDF téléchargeable, checklist conformité |
-| **Journal** | Notes quotidiennes IA connectées aux réunions et tâches du jour |
-| **TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA, module activable |
-| **Limule (IA)** | Assistant conversationnel streaming, analyses narratives 5 parties + Regard CEMAC, création de tâches, historique multi-tour |
-| **Rédaction IA** | Emails, courriers, contrats, clauses assistés par Limule |
-| **Rapports** | Hub analytique centralisé, KPI Encaissé/Facturé/En attente, export PDF/CSV |
-| **Paramètres** | Profil entreprise, devise multi-devises, utilisateurs, RBAC, modules, journal d'audit |
+| **🏠 Tableau de bord** | KPIs temps réel, graphiques, rafraîchissement auto 30 s, résumé IA |
+| **👥 RH & Employés** | Fiches, contrats IA, organigramme, présences, congés, profil détaillé |
+| **💰 Paie** | Bulletins, **CNSS 4 % salarié + 8 % patronal**, **IRPP progressif**, idempotence période, export PDF |
+| **🧾 Facturation** | Factures **HT/TVA/TTC**, **numérotation atomique anti-collision**, immutabilité facture payée, avoirs, export PDF |
+| **📦 Inventaire** | Produits, stock temps réel, **décrément atomique anti-TOCTOU**, alertes seuil bas, mouvements |
+| **🛒 POS / Caisse** | Caisse enregistreuse, reçu détaillé, écriture comptable auto Dr Trésorerie / Cr 70, export CSV |
+| **🏛️ Comptabilité partie double** | **SYSCOHADA-lite** (18 comptes), `JournalEntry` équilibrées garanties (Σdébit=Σcrédit), grand livre, balance, contre-passation immuable |
+| **💳 Transactions** | Relevé comptable unifié (factures + POS + imports), filtres, analyse Limule |
+| **🏢 Groupes & Organisations** | Tontines, mutuelles, ONG, clubs, asso : membres, **bureau & mandats**, cotisations, caisse, **chat temps réel WS**, calendrier, anniversaires, votes, IA dédiée |
+| **📄 Documents** | Upload, classification IA, analyse, rattachement employé/groupe |
+| **📅 Agenda** | Réunions, ordre du jour, participants, liens visio, intégration Journal |
+| **✅ Tâches** | Kanban board, filtres, recherche, upload de preuves (image/vidéo/PDF) |
+| **🇨🇲 Déclarations fiscales** | Génération complète Limule (TVA, IS, CNPS, fiscal), PDF, checklist conformité |
+| **📔 Journal** | Notes quotidiennes IA connectées aux réunions et tâches du jour |
+| **🛡️ TERAS Connect** | Scoring conformité, alertes réglementaires, recommandations IA, module activable |
+| **🤖 Limule (IA)** | Assistant streaming, garde-fous anti-injection, **lecture seule**, citations sources, analyses narratives + Regard CEMAC |
+| **✍️ Rédaction IA** | Emails, courriers, contrats, clauses assistés par Limule |
+| **📊 Rapports** | Hub analytique, KPI Encaissé/Facturé/En attente, export PDF/CSV/Excel |
+| **⚙️ Paramètres** | Profil entreprise, devise multi-devises, utilisateurs, RBAC, modules, journal d'audit |
 
 ---
 
@@ -233,6 +244,53 @@ npm run preview        # serveur preview local
 
 ---
 
+## Test à distance / iPhone — tunnel Cloudflare
+
+Pour tester l'app depuis un iPhone, une démo client ou n'importe quel appareil distant,
+sans déploiement, lance le tunnel inclus :
+
+```bash
+# Pré-requis (Mac/Linux) :
+brew install cloudflared
+
+# Terminal 3 — un SEUL tunnel : le frontend appelle /api en relatif,
+# proxifié par Vite vers le backend local. Pas besoin de 2e tunnel.
+./tunnel.sh
+```
+
+Le script affiche une URL `https://*.trycloudflare.com` à ouvrir dans Safari iOS.
+Créez ou utilisez une vraie entreprise depuis l'écran de connexion. Le tunnel ne
+crée plus de société ou d'identifiants démo automatiquement.
+
+Le tunnel utilise `--http-host-header localhost` pour contourner le contrôle
+`allowedHosts` de Vite 8 (sinon Vite renvoie 403 sur les hôtes externes).
+
+---
+
+## Production zéro-démo
+
+Pour un déploiement **sans aucune donnée fictive** (zéro simulacre) :
+
+```bash
+SECRET_KEY="<clé-forte-aléatoire>" \
+SUPER_ADMIN_PASSWORD="<mot-de-passe-fort>" \
+SUPER_ADMIN_EMAIL="admin@masociete.com" \
+DATABASE_URL="postgresql://user:pwd@host/db" \
+./start-production.sh
+```
+
+Le démarrage en mode production :
+
+- **N'exécute PAS** `seed_demo_data` (pas de société/employé/facture fictifs)
+- **Garantit** la création d'un super-admin plateforme (configurable via env)
+- **Active HSTS** (`Strict-Transport-Security`) et les en-têtes CSP/XFO/XCTO/Referrer-Policy
+- **Refuse de démarrer** si `SECRET_KEY=dev-kompta-secret` (clé par défaut bloquée)
+
+Le super-admin se connecte ensuite via `/admin` et enregistre les vraies entreprises
+via `POST /api/auth/register-company` — aucune donnée fictive n'est insérée.
+
+---
+
 ## Modules applicatifs
 
 ### Tableau de bord
@@ -346,7 +404,8 @@ npm run preview        # serveur preview local
 - Quick replies contextuels par intention
 - Branchement de conversation (reprendre à un point précis)
 - Mémoire de la semaine (résumé automatique des échanges récents)
-- Fallback mock si DeepSeek est indisponible
+- Mode IA fail-closed hors environnement local : si le fournisseur IA est absent
+  ou indisponible, les réponses sensibles ne sont pas simulées.
 
 ### Paramètres
 
@@ -356,6 +415,80 @@ npm run preview        # serveur preview local
 - **Journal d'audit** : toutes les actions tracées par utilisateur/IP/module
 - Changement de mot de passe
 - Accès direct depuis les bannières de désactivation de module
+
+---
+
+## Module Groupes & Organisations
+
+Ce module dédié couvre les **tontines**, **mutuelles**, **ONG**, **associations**,
+**églises**, **clubs sportifs**, **coopératives**, **groupes d'épargne** et tout
+collectif gérant cotisations, paiements et activités. Il réutilise l'authentification,
+le multi-tenant, et le moteur comptable de KOMPTA.
+
+**6 phases livrées (G1 → G6, 17 pages React, 36 endpoints backend) :**
+
+| Phase | Contenu |
+|---|---|
+| **G1 — Fondation** | Modèles `OrganizationGroup`, `GroupMember`, `GroupRole`, **historique des mandats** (`GroupLeadershipHistory`), permissions internes (Président, Trésorier, Secrétaire…), audit log dédié |
+| **G2 — Finance** | Plans de cotisation, paiements complets/partiels/en retard, validation trésorier, dépenses approuvées, dashboard caisse. **Chaque validation génère automatiquement une écriture comptable équilibrée** (Dr Trésorerie / Cr 75 ou Dr 62 / Cr Trésorerie) |
+| **G3 — Activités** | Réunions avec PV, activités, **calendrier agrégé** (réunions + activités + anniversaires + votes + échéances), détection auto des anniversaires, rappels multi-canaux, votes avec dépouillement |
+| **G4 — Chat & médias** | Salons général/bureau/finance/événement (visibilité par rôle), messages text/image/vidéo/audio/document/GIF, réactions emoji, soft-delete, upload sécurisé (50 Mo max, MIME validé), WebSocket temps réel |
+| **G5 — IA & rapports** | Assistant IA par groupe (Limule scopé), **permissions financières par rôle** (un membre simple ne peut pas demander le solde), résumés de chat, génération de rapports texte/PDF, analyse de paiements |
+| **G6 — Frontend** | 17 pages React (`/groups`, dashboard, membres, leadership, cotisations, transactions, dépenses, calendrier, réunions, anniversaires, chat, documents, votes, rapports, IA, paramètres) |
+
+Les comptes par défaut générés à la création d'un groupe :
+- 11 rôles internes (Président, Vice-président, Secrétaire, Trésorier, Commissaire,
+  Administrateur, Modérateur, Membre simple, Auditeur, Responsable événement,
+  Responsable communication)
+- Le créateur du groupe devient automatiquement **membre + Président**
+- Un mandat initial est ouvert dans `GroupLeadershipHistory`
+
+---
+
+## Moteur comptable SYSCOHADA partie double
+
+KOMPTA inclut un vrai moteur comptable en **partie double** avec un plan SYSCOHADA-lite
+(18 comptes des classes 1 à 7). **Montants en centimes entiers** (BigInteger) — pas
+de Float, pas de dérive d'arrondi.
+
+### Garanties
+
+- **Σdébit = Σcrédit** vérifié à chaque écriture (rejet HTTP 400 sinon, testé)
+- **Immutabilité** : aucune écriture posted ne peut être modifiée → correction par
+  **contre-passation** (`POST /accounting/entries/{id}/reverse`)
+- **Numérotation séquentielle atomique** (compteur persistant sur `Company`, pas
+  dérivée de `COUNT(*)`) → ni collision concurrente, ni réutilisation après suppression
+- **Auto-posting** : chaque vente POS, règlement de facture, cotisation de groupe et
+  dépense de groupe génère son écriture équilibrée automatiquement
+- **2 modes par société** : `simple` (petit commerce, écritures cachées) ou `full`
+  (journal + balance SYSCOHADA visibles, écritures manuelles autorisées)
+
+### Plan SYSCOHADA-lite (extrait)
+
+| Classe | Compte | Libellé |
+|---|---|---|
+| 1 | 101 | Capital |
+| 1 | 12 | Résultat de l'exercice |
+| 4 | 411 | Clients |
+| 4 | 443 | État — TVA collectée |
+| 4 | 445 | État — TVA déductible |
+| 5 | 521 | Banque |
+| 5 | 531 | Mobile Money |
+| 5 | 571 | Caisse espèces |
+| 6 | 60 / 62 / 64 / 66 | Achats / Services / Impôts / Charges personnel |
+| 7 | 70 / 75 | Ventes / Autres produits (cotisations, dons) |
+
+### Endpoints
+
+| Méthode | Endpoint | Rôle |
+|---|---|---|
+| GET | `/accounting/mode` | mode comptable (simple/full) |
+| PATCH | `/accounting/mode` | bascule simple ⇄ full |
+| GET | `/accounting/accounts` | plan comptable de la société |
+| GET | `/accounting/journal` | journal (en-têtes + lignes) |
+| GET | `/accounting/balance` | balance générale équilibrée |
+| POST | `/accounting/entries` | écriture manuelle (équilibre exigé) |
+| POST | `/accounting/entries/{id}/reverse` | contre-passation |
 
 ---
 
@@ -454,6 +587,60 @@ npm run preview        # serveur preview local
 
 ---
 
+## Sécurité
+
+| Couche | Mesure |
+|---|---|
+| **Mots de passe** | PBKDF2-HMAC-SHA256, **200 000 itérations**, sel unique, comparaison à temps constant (`hmac.compare_digest`) |
+| **2FA** | TOTP (pyotp) **réellement appliqué au login** (pas seulement décoratif) |
+| **Anti-brute-force** | Rate-limit login : **429 après 5 échecs** dans une fenêtre de 5 min, lockout 15 min |
+| **Tokens** | HMAC-SHA256 avec expiration 8 h + **`token_version`** sur User → logout/changement de mot de passe invalide tous les tokens existants |
+| **Multi-tenancy** | **71 contrôles `company_id`** dans routes.py, isolation vérifiée (404 inter-entreprise) y compris pour les groupes et le contexte IA |
+| **Upload** | Validation MIME (10 types), taille max 50 Mo, stockage par groupe |
+| **En-têtes HTTP** | CSP, X-Frame-Options=DENY, X-Content-Type-Options=nosniff, Referrer-Policy, Permissions-Policy, **HSTS en prod** |
+| **Audit** | `AuditLog` + `AccessAuditLog` unifiés dans `GET /audit-logs` (paginé, filtrable) |
+| **Garde-fous IA** | Limule en **lecture seule**, anti-prompt-injection, citations sources obligatoires, scoping `company_id`, permissions financières par rôle |
+| **Secrets** | `.env` gitignoré et non suivi par git, `SECRET_KEY=dev-kompta-secret` refuse de démarrer en production |
+
+---
+
+## Tests & CI/CD
+
+```bash
+# Backend (pytest)
+cd backend && .venv/bin/python -m pytest -q
+# → 98 passed
+
+# Frontend (Vitest)
+cd frontend && npm run test
+# → 21 tests passed
+```
+
+> Les tests E2E Playwright ont été retirés du dépôt (le frontend est validé par
+> type-check + Vitest + build). La CI ne lance plus de job `e2e`.
+
+### Couverture des tests backend (42 tests)
+
+- `test_api.py` — flux historiques (produits, factures, RH, contrats…)
+- `test_audit_fixes.py` — numérotation factures, TVA, immutabilité, avoirs, stock atomique POS, IRPP, idempotence paie, anti-brute-force login, révocation tokens, garde-fous IA
+- `test_accounting.py` — équilibre Σdébit=Σcrédit, exactitude centimes, plan SYSCOHADA, écritures POS/factures, rejet écritures déséquilibrées
+- `test_groups.py` — création groupe, membres, rôles, **changement de bureau avec historique**, isolation inter-entreprise
+- `test_groups_g2_g5.py` — cotisations + validation comptable auto, dépenses + écriture auto, calendrier, anniversaires, votes, chat, IA permissions
+
+### Tests E2E mobile (Playwright viewport iPhone 14)
+
+- `smoke.spec.ts` — login admin, accès Groupes, accès non authentifié, super-admin → `/admin`, 404
+- `mobile.spec.ts` — bottom-nav visible + FAB ne la cache pas, AdminShell avec hamburger, **pas de scroll horizontal sur `/groups`**
+
+### CI/CD GitHub Actions
+
+`.github/workflows/ci.yml` à 2 jobs déclenchés sur push + PR :
+
+- **backend** : pytest sur SQLite frais (98 tests)
+- **frontend** : `tsc --noEmit` + Vitest + build production
+
+---
+
 ## TERAS Connect
 
 TERAS est le moteur de conformité réglementaire intégré à KOMPTA.
@@ -509,10 +696,11 @@ Limule est l'assistant IA de KOMPTA, propulsé par **DeepSeek** (`deepseek-chat`
 Le backend utilise `StreamingResponse` (FastAPI) + `text/event-stream`.
 Le frontend lit le flux via `ReadableStream` et affiche les tokens en temps réel.
 
-### Fallback
+### Garde-fou IA
 
-Si `DEEPSEEK_API_KEY` est absent ou l'API indisponible, Limule répond avec des
-messages mock cohérents — l'application reste pleinement fonctionnelle.
+Si `DEEPSEEK_API_KEY` est absent ou l'API indisponible, Limule échoue de façon
+explicite hors environnement local. Les réponses sensibles ne sont pas remplacées
+par du faux conseil généré.
 
 ---
 
@@ -537,6 +725,35 @@ Il guide l'utilisateur en **8 étapes interactives** :
 ---
 
 ## Déploiement
+
+### Option 0 — Production gratuite via Cloudflare Tunnel (`kompta0.com`)
+
+Déploiement réel **sans serveur ni port ouvert** : un tunnel Cloudflare nommé expose
+le Mac local sur le domaine `kompta0.com`. Tout est scripté dans `infra/`.
+
+```bash
+# Lance backend (:8010) + frontend build (:3000) + tunnel Cloudflare, d'un coup
+bash infra/start-kompta.sh
+# Pour tourner en fond (terminal fermable) :
+nohup bash infra/start-kompta.sh > infra/logs/launch.out 2>&1 &
+```
+
+**Principe clé — un seul hostname** : le frontend appelle l'API en **URL relative
+`/api`**, proxifiée par `vite preview` vers le backend `:8010`. Inutile de configurer
+un sous-domaine `api.` séparé — tout passe par `www.kompta0.com`.
+
+| Élément | Détail |
+|---|---|
+| **Tunnel** | Cloudflare Tunnel nommé `kompta` (token Zero Trust dans `infra/.tunnel-token`, gitignored) |
+| **Frontend** | `vite preview` du build `dist/` sur `:3000`, `allowedHosts` = `.kompta0.com` |
+| **Backend** | `uvicorn --env-file backend/.env` sur `:8010` (le `--env-file` est **obligatoire**) |
+| **API** | `https://www.kompta0.com/api` (proxy `/api` → `:8010`, WebSockets inclus) |
+| **Auto-restart** | optionnel : `infra/com.kompta.app.plist` (launchd `KeepAlive`) |
+
+Détails complets, dépannage et configuration Cloudflare/Stripe/MoMo : **`infra/README.md`**.
+
+> ⚠️ Le backend en mode `production` **refuse de démarrer** si `SECRET_KEY` ou
+> `SUPER_ADMIN_PASSWORD` sont laissés à leur valeur par défaut.
 
 ### Option 1 — Serveur Linux simple
 
@@ -568,20 +785,31 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 
 ---
 
-## Comptes de test
+## Comptes et données
 
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Admin | `admin@kompta.local` | `kompta123` |
-| RH | `rh@kompta.local` | `kompta123` |
-| Comptable | `compta@kompta.local` | `kompta123` |
-| Employé | `employe@kompta.local` | `kompta123` |
+KOMPTA ne crée plus de société démo par défaut. Le super-admin plateforme est
+créé via `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD`; les entreprises réelles
+sont ensuite enregistrées depuis l'application ou via `POST /api/auth/register-company`.
 
-> ⚠️ Changer tous les mots de passe avant toute mise en production.
+Les données fictives ne doivent être utilisées que dans une base locale isolée
+pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
+`backend/scripts/seed.py --yes-demo`).
 
 ---
 
 ## Changelog
+
+### v1.5.0 — Juin 2026
+
+- ✅ **Déploiement production `kompta0.com`** : Cloudflare Tunnel nommé, scripts `infra/` (`start-kompta.sh`, plist launchd, README dédié)
+- ✅ **Architecture mono-domaine** : API en URL relative `/api` proxifiée par `vite preview` → plus besoin de sous-domaine `api.` séparé (HTTP + WebSockets)
+- ✅ **Paiements réels** : Stripe (carte, webhook signé HMAC) + MTN Mobile Money (request-to-pay + polling de statut), idempotence et anti-double-paiement
+- ✅ **POS — encaissement carte/MoMo** : modals Stripe/MoMo branchés sur la caisse, confirmation serveur avant enregistrement de la vente
+- ✅ **Seuil d'alerte trésorerie configurable** : par entreprise via Paramètres → Général (`cash_low_threshold_cents`, 0 = désactivé)
+- ✅ **Onboarding — icône Limule** : la mascotte + thème bleu Limule remplacent l'icône étoiles à l'étape IA
+- ✅ **Header — badge de synchro cliquable** : le nuage de statut ouvre la caisse (déclenche la synchro hors-ligne)
+- ✅ **Sécurité `.gitignore`** : exclusion des backups de base (`*.db.bak*`, `*.db.backup*`) et de `backend/.env.production`
+- ✅ **Tests E2E Playwright retirés** : CI réduite à backend (98 tests) + frontend (type-check, Vitest, build)
 
 ### v1.4.0 — Mai 2026
 
@@ -642,8 +870,8 @@ ALLOWED_ORIGINS=https://votre-domaine.com
 - Backend FastAPI complet (auth JWT, 10 modules, SSE streaming)
 - Frontend React 18 (17 pages, Tailwind CSS, TanStack Query)
 - TERAS Connect moteur local
-- Limule IA avec fallback mock
-- Seed automatique base de données
+- Limule IA avec garde-fou fail-closed hors local
+- Seed de test explicite, désactivé par défaut
 
 ---
 

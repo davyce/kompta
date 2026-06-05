@@ -8,16 +8,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
-  Heart,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
   Megaphone,
-  Plus,
-  RefreshCw,
+  Moon,
   Search,
-  Settings2,
   ShieldAlert,
+  Sun,
   UserCog,
   Users,
   Zap,
@@ -29,6 +27,7 @@ import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
 import { initials } from "../utils/format";
 import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "../hooks/useTheme";
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -68,56 +67,32 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-// ── Breadcrumb mapping ────────────────────────────────────────────────────────
+// ── Breadcrumb ────────────────────────────────────────────────────────────────
 
 function useBreadcrumb() {
   const location = useLocation();
   const path = location.pathname;
   const segments: { label: string; to?: string }[] = [{ label: "Admin", to: "/admin" }];
-
   if (path === "/admin") return [{ label: "Dashboard" }];
-
   const map: Record<string, string> = {
-    companies: "Entreprises",
-    users: "Utilisateurs",
-    tickets: "Tickets",
-    limule: "Grand Sage Limule",
-    logs: "Audit & Logs",
-    analytics: "Analytics",
-    broadcast: "Broadcast",
-    system: "Flags & Santé",
-    onboarding: "Onboarding",
+    companies: "Entreprises", users: "Utilisateurs", tickets: "Tickets",
+    limule: "Grand Sage Limule", logs: "Audit & Logs", analytics: "Analytics",
+    broadcast: "Broadcast", system: "Flags & Santé", onboarding: "Onboarding",
   };
-
   const parts = path.replace("/admin/", "").split("/");
   const first = parts[0];
-  if (map[first]) {
-    segments.push({ label: map[first], to: `/admin/${first}` });
-  }
-  if (parts[1]) {
-    segments.push({ label: `#${parts[1]}` });
-  }
+  if (map[first]) segments.push({ label: map[first], to: `/admin/${first}` });
+  if (parts[1]) segments.push({ label: `#${parts[1]}` });
   return segments;
 }
 
-// ── Sidebar NavLink ───────────────────────────────────────────────────────────
+// ── SideNavLink ───────────────────────────────────────────────────────────────
 
 function SideNavLink({
-  to,
-  label,
-  icon: Icon,
-  end,
-  collapsed,
-  criticalCount,
-  hasBadge,
+  to, label, icon: Icon, end, collapsed, criticalCount, hasBadge,
 }: {
-  to: string;
-  label: string;
-  icon: React.ElementType;
-  end?: boolean;
-  collapsed: boolean;
-  criticalCount?: number;
-  hasBadge?: boolean;
+  to: string; label: string; icon: React.ElementType;
+  end?: boolean; collapsed: boolean; criticalCount?: number; hasBadge?: boolean;
 }) {
   return (
     <NavLink
@@ -125,21 +100,19 @@ function SideNavLink({
       end={end}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `relative flex items-center rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-150 ${
+        `relative flex items-center rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 ${
           collapsed ? "justify-center" : "gap-3"
         } ${
           isActive
-            ? "bg-gradient-to-r from-violet-600/40 to-fuchsia-600/30 text-white shadow"
-            : "text-white/70 hover:bg-white/10 hover:text-white"
+            ? "bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
         }`
       }
     >
       <Icon size={17} className="shrink-0" />
       {!collapsed && <span className="truncate flex-1">{label}</span>}
       {hasBadge && (criticalCount ?? 0) > 0 && (
-        <span
-          className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ${collapsed ? "absolute -top-1 -right-1" : ""}`}
-        >
+        <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ${collapsed ? "absolute -top-1 -right-1" : ""}`}>
           {criticalCount}
         </span>
       )}
@@ -147,7 +120,7 @@ function SideNavLink({
   );
 }
 
-// ── Quick Actions dropdown ────────────────────────────────────────────────────
+// ── Quick Actions ─────────────────────────────────────────────────────────────
 
 function QuickActionsMenu() {
   const [open, setOpen] = useState(false);
@@ -163,32 +136,32 @@ function QuickActionsMenu() {
   }, []);
 
   const actions = [
-    { label: "Créer une entreprise", icon: Building2, onClick: () => navigate("/admin/companies") },
+    { label: "Voir les entreprises", icon: Building2, onClick: () => navigate("/admin/companies") },
     { label: "Envoyer un broadcast", icon: Megaphone, onClick: () => navigate("/admin/broadcast") },
-    { label: "Réinitialiser un mot de passe", icon: RefreshCw, onClick: () => navigate("/admin/users") },
+    { label: "Gérer les utilisateurs", icon: Users, onClick: () => navigate("/admin/users") },
   ];
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 transition"
+        className="flex items-center gap-1.5 rounded-xl bg-blue-700 px-3 py-2 text-xs font-bold text-white hover:bg-blue-800 transition shadow-sm shadow-blue-700/20 dark:bg-blue-500 dark:hover:bg-blue-400"
       >
         <Zap size={13} />
         Actions
         <ChevronDown size={11} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-2xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50">
           {actions.map((a) => {
             const Icon = a.icon;
             return (
               <button
                 key={a.label}
                 onClick={() => { a.onClick(); setOpen(false); }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white transition"
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
               >
-                <Icon size={15} className="text-violet-300" />
+                <Icon size={15} className="text-blue-700 dark:text-blue-400" />
                 {a.label}
               </button>
             );
@@ -199,7 +172,7 @@ function QuickActionsMenu() {
   );
 }
 
-// ── User menu ─────────────────────────────────────────────────────────────────
+// ── User Menu ─────────────────────────────────────────────────────────────────
 
 function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
@@ -217,26 +190,26 @@ function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogo
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 transition"
+        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 hover:bg-slate-50 transition dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
       >
-        <div className="grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-black">
+        <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-blue-600 to-emerald-600 text-xs font-black text-white">
           {initials(name)}
         </div>
         <div className="hidden md:block text-left">
-          <p className="text-xs font-bold leading-tight">{name}</p>
-          <p className="text-[9px] font-bold uppercase text-violet-300">{role}</p>
+          <p className="text-xs font-bold text-slate-900 leading-tight dark:text-white">{name}</p>
+          <p className="text-[9px] font-bold uppercase text-blue-700 leading-tight dark:text-blue-400">Super Admin</p>
         </div>
-        <ChevronDown size={11} className={`text-white/40 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={11} className={`text-slate-500 transition dark:text-slate-400 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-2xl">
-          <div className="px-4 py-3 border-b border-white/10">
-            <p className="text-xs font-bold text-white">{name}</p>
-            <p className="text-[10px] text-white/50">{role}</p>
+        <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50">
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-900 dark:text-white">{name}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">{role}</p>
           </div>
           <button
             onClick={() => { setOpen(false); onLogout(); }}
-            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-rose-300 hover:bg-white/10 transition"
+            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition dark:text-red-400 dark:hover:bg-red-500/10"
           >
             <LogOut size={14} />
             Déconnexion
@@ -252,13 +225,17 @@ function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogo
 export function AdminShell() {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem("kompta_admin_collapsed") === "true"
-  );
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      return true;
+    }
+    return localStorage.getItem("kompta_admin_collapsed") === "true";
+  });
   const [now, setNow] = useState(new Date());
   const [searchValue, setSearchValue] = useState("");
 
-  // Fetch critical tickets count for badge (polling every 30s)
+  const { theme, toggle: toggleTheme } = useTheme();
+
   const overview = useQuery({
     queryKey: ["adminOverview"],
     queryFn: api.adminOverview,
@@ -266,34 +243,18 @@ export function AdminShell() {
   });
 
   const criticalCount = overview.data?.tickets_critical ?? 0;
-  const limuleStatus = "online"; // could be fetched from health endpoint
-
   const breadcrumb = useBreadcrumb();
 
   useEffect(() => {
     if (!user) {
-      api.me().then(setUser).catch(() => {
-        logout();
-        navigate("/login", { replace: true });
-      });
+      api.me().then(setUser).catch(() => { logout(); navigate("/login", { replace: true }); });
     }
   }, [logout, navigate, setUser, user]);
 
   useEffect(() => {
-    if (user && user.role !== "super_admin") {
-      navigate("/", { replace: true });
-    }
+    if (user && user.role !== "super_admin") navigate("/", { replace: true });
   }, [user, navigate]);
 
-  // Sur mobile : ferme automatiquement le drawer après navigation (sinon il masque
-  // le contenu de la page que l'utilisateur vient d'ouvrir).
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
-      setCollapsed(true);
-    }
-  }, [location.pathname]);
-
-  // Live clock
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
@@ -310,78 +271,75 @@ export function AdminShell() {
   const dateStr = now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
   const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  return (
-    <div className="min-h-dvh bg-gradient-to-br from-violet-950 via-indigo-950 to-slate-950 text-white">
-      {/* Animated gradient overlay */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-20 bg-[radial-gradient(ellipse_at_20%_20%,_#7c3aed_0%,_transparent_60%),radial-gradient(ellipse_at_80%_80%,_#4f46e5_0%,_transparent_60%)]" />
+  const isDark = theme === "dark";
 
-      {/* Mobile sidebar overlay (clic pour fermer) */}
+  return (
+    <div className="admin-shell min-h-dvh overflow-x-hidden bg-[#f6f8fb] text-slate-900 dark:bg-slate-950 dark:text-white">
+
+      {/* Mobile drawer overlay */}
       {!collapsed && (
         <button
           aria-label="Fermer le menu"
           onClick={() => setCollapsed(true)}
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm md:hidden dark:bg-black/70"
         />
       )}
 
-      {/* Sidebar : drawer mobile (caché par défaut), fixe sur desktop */}
+      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-white/10 bg-black/80 md:bg-black/40 backdrop-blur-xl transition-all duration-200
-          ${collapsed
-            ? "-translate-x-full w-64 md:translate-x-0 md:w-16"
-            : "translate-x-0 w-64 md:w-64"
-          }`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r transition-all duration-200
+          border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900
+          ${collapsed ? "-translate-x-full w-64 md:translate-x-0 md:w-16" : "translate-x-0 w-64"}`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-4">
-          {!collapsed && (
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 font-black shadow-lg shadow-violet-500/30">
-                <ShieldAlert size={16} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black">KOMPTA</p>
-                <div className="flex items-center gap-1">
-                  <span className="rounded bg-fuchsia-500/30 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-fuchsia-200">
-                    SUPER ADMIN v2.0
+        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-4 dark:border-slate-800">
+          {!collapsed ? (
+            <>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-700 to-emerald-600 shadow-sm shadow-blue-700/20">
+                  <ShieldAlert size={17} className="text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-slate-900 leading-tight dark:text-white">KOMPTA</p>
+                  <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-800 ring-1 ring-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:ring-blue-500/20">
+                    Super Admin
                   </span>
                 </div>
               </div>
+              <button
+                onClick={toggleCollapsed}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </>
+          ) : (
+            <div className="mx-auto flex flex-col items-center gap-2">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-700 to-emerald-600">
+                <ShieldAlert size={17} className="text-white" />
+              </div>
+              <button onClick={toggleCollapsed} className="grid h-6 w-6 place-items-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                <ChevronRight size={13} />
+              </button>
             </div>
           )}
-          {collapsed && (
-            <div className="mx-auto grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 font-black">
-              <ShieldAlert size={16} />
-            </div>
-          )}
-          <button
-            onClick={toggleCollapsed}
-            className={`grid h-8 w-8 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white ${collapsed ? "absolute -right-4 top-5 border border-white/10 bg-slate-900" : ""}`}
-          >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
           {NAV_SECTIONS.map((section) => (
             <div key={section.label}>
               {!collapsed && (
-                <p className="mb-1 px-3 text-[9px] font-black uppercase tracking-widest text-white/30">
+                <p className="mb-1.5 px-3 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   {section.label}
                 </p>
               )}
               <div className="space-y-0.5">
                 {section.items.map((item) => (
                   <SideNavLink
-                    key={item.to}
-                    to={item.to}
-                    label={item.label}
-                    icon={item.icon}
-                    end={item.end}
-                    collapsed={collapsed}
-                    hasBadge={item.badge}
-                    criticalCount={item.badge ? criticalCount : 0}
+                    key={item.to} to={item.to} label={item.label}
+                    icon={item.icon} end={item.end} collapsed={collapsed}
+                    hasBadge={item.badge} criticalCount={item.badge ? criticalCount : 0}
                   />
                 ))}
               </div>
@@ -389,110 +347,108 @@ export function AdminShell() {
           ))}
         </nav>
 
-        {/* Footer: Limule status */}
-        <div className="border-t border-white/10 p-3 space-y-2">
+        {/* Footer */}
+        <div className="border-t border-slate-200 p-2 space-y-1 dark:border-slate-800">
           {!collapsed && (
-            <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
-              <span className={`h-2 w-2 rounded-full ${limuleStatus === "online" ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-              <span className="text-[10px] font-bold text-white/60">
-                Limule {limuleStatus === "online" ? "en ligne" : "hors ligne"}
-              </span>
+            <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 mb-2 border border-slate-200 dark:bg-slate-800 dark:border-transparent">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse dark:bg-emerald-400" />
+              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Système opérationnel</span>
             </div>
           )}
           <button
             onClick={() => { logout(); navigate("/login"); }}
             title={collapsed ? "Déconnexion" : undefined}
-            className={`flex w-full items-center rounded-lg px-3 py-2 text-sm font-semibold text-white/60 hover:bg-white/10 hover:text-white transition ${
-              collapsed ? "justify-center" : "gap-3"
-            }`}
+            className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 transition border border-transparent hover:border-red-200 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-500/20 ${collapsed ? "justify-center" : "gap-3"}`}
           >
-            <LogOut size={17} />
+            <LogOut size={16} />
             {!collapsed && <span>Déconnexion</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      {/* Sur mobile : pas de padding-left (sidebar en drawer). Sur md+ : padding adapté au collapse */}
-      <div className={`relative z-10 transition-all duration-200 ${collapsed ? "md:pl-16" : "md:pl-64"}`}>
-        {/* Sticky header */}
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-black/50 px-4 md:px-6 py-3 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3 md:gap-4">
-            {/* Hamburger : ouvre le drawer mobile (caché sur md+) */}
-            <button
-              onClick={() => setCollapsed(false)}
-              className="md:hidden grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white hover:bg-white/10 shrink-0"
-              aria-label="Ouvrir le menu"
-            >
-              <ChevronRight size={16} />
-            </button>
-            {/* Breadcrumb (caché sur très petit écran pour économiser la place) */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold min-w-0">
-              {breadcrumb.map((seg, i) => (
-                <span key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <span className="text-white/30">/</span>}
-                  {seg.to ? (
-                    <button
-                      onClick={() => navigate(seg.to!)}
-                      className="text-violet-300 hover:text-white transition"
-                    >
-                      {seg.label}
-                    </button>
-                  ) : (
-                    <span className="text-white">{seg.label}</span>
-                  )}
-                </span>
-              ))}
-            </div>
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <div className={`relative min-w-0 overflow-x-hidden transition-all duration-200 ${collapsed ? "md:pl-16" : "md:pl-64"}`}>
 
-            {/* Search */}
-            <div className="hidden md:flex flex-1 max-w-md items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-              <Search size={14} className="text-white/40 shrink-0" />
-              <input
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Rechercher entreprise, utilisateur…"
-                className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
-              />
-            </div>
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b px-4 md:px-6 py-3 backdrop-blur-xl border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90">
+          {/* Hamburger mobile */}
+          <button
+            onClick={() => setCollapsed(false)}
+            aria-label="Ouvrir le menu"
+            className="md:hidden grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+          >
+            <ChevronRight size={16} />
+          </button>
 
-            {/* Right side */}
-            <div className="flex items-center gap-3">
-              {/* Live clock */}
-              <div className="hidden lg:block text-right">
-                <p className="text-xs font-black text-white">{timeStr}</p>
-                <p className="text-[10px] text-white/40">{dateStr}</p>
-              </div>
-
-              {/* Notifications bell */}
-              <button
-                onClick={() => navigate("/admin/tickets")}
-                title="Tickets critiques"
-                className="relative grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 transition"
-              >
-                <Bell size={16} />
-                {criticalCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-black text-white">
-                    {criticalCount}
-                  </span>
+          {/* Breadcrumb */}
+          <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold min-w-0">
+            {breadcrumb.map((seg, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-slate-300 dark:text-slate-600">/</span>}
+                {seg.to ? (
+                  <button onClick={() => navigate(seg.to!)} className="text-blue-700 hover:text-blue-800 transition dark:text-blue-400 dark:hover:text-blue-300">
+                    {seg.label}
+                  </button>
+                ) : (
+                  <span className="text-slate-900 dark:text-white">{seg.label}</span>
                 )}
-              </button>
+              </span>
+            ))}
+          </div>
 
-              {/* Quick actions */}
-              <QuickActionsMenu />
+          {/* Search */}
+          <div className="hidden md:flex flex-1 max-w-sm items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+            <Search size={14} className="text-slate-400 shrink-0 dark:text-slate-500" />
+            <input
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Rechercher entreprise, utilisateur…"
+              className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+            />
+          </div>
 
-              {/* User */}
-              <UserMenu
-                name={user?.full_name ?? "Super Admin"}
-                role={user?.role ?? "super_admin"}
-                onLogout={() => { logout(); navigate("/login"); }}
-              />
+          {/* Right */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Clock */}
+            <div className="hidden lg:block text-right">
+              <p className="text-xs font-black text-blue-700 tabular-nums dark:text-blue-400">{timeStr}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">{dateStr}</p>
             </div>
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+              className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-blue-400"
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
+            {/* Alerts bell */}
+            <button
+              onClick={() => navigate("/admin/tickets")}
+              className="relative grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+            >
+              <Bell size={16} />
+              {criticalCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-black text-white">
+                  {criticalCount}
+                </span>
+              )}
+            </button>
+
+            <QuickActionsMenu />
+
+            <UserMenu
+              name={user?.full_name ?? "Super Admin"}
+              role={user?.role ?? "super_admin"}
+              onLogout={() => { logout(); navigate("/login"); }}
+            />
           </div>
         </header>
 
-        {/* Page */}
-        <main className="mx-auto w-full max-w-7xl px-4 md:px-6 py-4 md:py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        {/* Page content */}
+        <main className="mx-auto w-full max-w-7xl px-4 md:px-6 py-5 md:py-7 pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <Outlet />
         </main>
       </div>

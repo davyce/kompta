@@ -16,10 +16,12 @@ from app.api.routes_fiscal import router as fiscal_router
 from app.api.routes_pos import router as pos_router
 from app.api.routes_safe_mode import router as safe_mode_router
 from app.api.routes_investments import router as investments_router
+from app.api.routes_payments import router as payments_router
 from app.api.routes_transactions import router as transactions_router
 from app.api.routes_legislation import router as legislation_router
 from app.api.routes_admin_analytics import router as admin_analytics_router
 from app.api.routes_accounting import router as accounting_router
+from app.api.routes_accounting_reports import router as accounting_reports_router
 from app.api.routes_groups import router as groups_router
 from app.api.routes_groups_g2 import router as groups_g2_router
 from app.api.routes_groups_g3 import router as groups_g3_router
@@ -51,16 +53,34 @@ def _env_flag(name: str) -> bool | None:
 
 def _should_seed_demo() -> bool:
     explicit = _env_flag("SEED_DEMO")
-    if explicit is not None:
-        return explicit
-    return settings.environment.strip().lower() not in {"prod", "production"}
+    if explicit is True:
+        return settings.environment.strip().lower() not in {"prod", "production", "staging"}
+    return False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
-    if settings.environment.strip().lower() in {"prod", "production"} and settings.secret_key == "dev-kompta-secret":
-        raise RuntimeError("SECRET_KEY must be configured before running KOMPTA in production.")
+
+    # ── Blocage sécurité au démarrage ──────────────────────────────────────
+    _env = settings.environment.strip().lower()
+    _is_prod = _env in {"prod", "production", "staging"}
+    _PLACEHOLDER_SECRETS = {"dev-kompta-secret", "change-me-in-production", "secret", "changeme", ""}
+    if _is_prod and settings.secret_key in _PLACEHOLDER_SECRETS:
+        raise RuntimeError(
+            "KOMPTA refuse de démarrer en production avec un SECRET_KEY par défaut. "
+            "Définissez une valeur aléatoire forte (≥ 32 caractères) dans votre fichier .env."
+        )
+    if _is_prod and os.getenv("SUPER_ADMIN_PASSWORD", "super2026") == "super2026":
+        raise RuntimeError(
+            "KOMPTA refuse de démarrer en production avec le mot de passe super-admin par défaut. "
+            "Définissez SUPER_ADMIN_PASSWORD dans votre fichier .env."
+        )
+    if _is_prod and _env_flag("SEED_DEMO") is True:
+        raise RuntimeError(
+            "KOMPTA refuse de démarrer en production avec SEED_DEMO=true. "
+            "Retirez ou désactivez cette variable en production."
+        )
     # Super-admin plateforme : TOUJOURS garanti (même en production sur base vierge).
     try:
         from app.db.init_db import seed_platform_admin
@@ -69,7 +89,8 @@ async def lifespan(app: FastAPI):
         logger.info("Super-admin plateforme : OK")
     except Exception:
         logger.exception("Seed super-admin échoué")
-    # Données de DÉMO (société fictive) : dev/staging uniquement. Jamais en production.
+    # Données de DÉMO (société fictive) : jamais automatiques.
+    # Activer explicitement avec SEED_DEMO=true dans un environnement local isolé.
     if _should_seed_demo():
         with SessionLocal() as db:
             seed_demo_data(db)
@@ -108,6 +129,64 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Rate limiting global (slowapi) ────────────────────────────────────────────
+# Sécurité : limite par utilisateur (ou IP) — protège contre brute-force, spam,
+# scraping. Décorer les routes sensibles avec @limiter.limit("Xspeed").
+from app.core.rate_limit import limiter as _limiter  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+from slowapi.middleware import SlowAPIMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+
+app.state.limiter = _limiter
+app.add_middleware(SlowAPIMiddleware)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):  # noqa: ARG001
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Trop de requêtes. Réessayez dans quelques secondes."},
+    )
+
+
+# ── Garde de cloisonnement : membre_groupe → routes entreprise interdites ─────
+# Les utilisateurs avec le rôle membre_groupe n'ont accès qu'aux routes
+# /groups/*, /auth/* et /payments/config. Toutes les autres routes entreprise
+# (produits, factures, employés, comptabilité…) leur sont interdites.
+@app.middleware("http")
+async def groupe_member_scope_guard(request: Request, call_next):
+    path = request.url.path
+    # Laisser passer les routes publiques et groupe
+    _ALLOWED_PREFIXES = (
+        f"{settings.api_prefix}/auth/",
+        f"{settings.api_prefix}/auth",
+        f"{settings.api_prefix}/groups",   # /groups et /groups/* (membres, chat, cotisations…)
+        f"{settings.api_prefix}/health",
+        f"{settings.api_prefix}/payments/config",
+    )
+    if any(path.startswith(p) for p in _ALLOWED_PREFIXES):
+        return await call_next(request)
+
+    # Vérifier si c'est un membre_groupe
+    from app.core.security import decode_access_token as _dec
+    # Extraire le token (header Bearer ou cookie)
+    token: str | None = None
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1]
+    if not token:
+        token = request.cookies.get(settings.auth_cookie_name)
+    if token:
+        payload = _dec(token)
+        if payload and payload.get("role") == "membre_groupe":
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Accès réservé aux membres de l'entreprise"},
+            )
+
+    return await call_next(request)
 
 
 _IS_PROD = settings.environment.strip().lower() in {"prod", "production"}
@@ -160,10 +239,12 @@ app.include_router(fiscal_router, prefix=settings.api_prefix)
 app.include_router(pos_router, prefix=settings.api_prefix)
 app.include_router(safe_mode_router, prefix=settings.api_prefix)
 app.include_router(investments_router, prefix=settings.api_prefix)
+app.include_router(payments_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)
 app.include_router(legislation_router, prefix=settings.api_prefix)
 app.include_router(admin_analytics_router, prefix=settings.api_prefix)
 app.include_router(accounting_router, prefix=settings.api_prefix)
+app.include_router(accounting_reports_router, prefix=settings.api_prefix)
 app.include_router(groups_router, prefix=settings.api_prefix)
 app.include_router(groups_g2_router, prefix=settings.api_prefix)
 app.include_router(groups_g3_router, prefix=settings.api_prefix)

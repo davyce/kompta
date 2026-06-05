@@ -6,7 +6,7 @@ import type { GroupCalendarEvent } from "../../types/domain";
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   meeting:  { icon: Calendar, color: "text-sky-600", bg: "bg-sky-100 dark:bg-sky-500/15" },
-  activity: { icon: Users,    color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-500/15" },
+  activity: { icon: Users,    color: "text-blue-800", bg: "bg-blue-100 dark:bg-blue-800/12" },
   vote:     { icon: Vote,     color: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-500/15" },
   birthday: { icon: Gift,     color: "text-rose-600", bg: "bg-rose-100 dark:bg-rose-500/15" },
 };
@@ -37,7 +37,7 @@ export function GroupCalendarPage() {
           </div>
         ))}
       </div>
-      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-violet-500" /></div> :
+      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-blue-700" /></div> :
         events.length === 0 ? <p className="text-center text-sm text-[#717182] py-12">Aucun événement à venir.</p> :
         <div className="space-y-4">
           {Object.entries(byDate).sort().map(([date, evs]) => (

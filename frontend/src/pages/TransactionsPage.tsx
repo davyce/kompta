@@ -12,6 +12,7 @@ import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/form
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { exportTableToExcel } from "../utils/export";
+import { useConfirm } from "../components/ConfirmProvider";
 
 // ── Catégories ────────────────────────────────────────────────────────────────
 const CATEGORIES: { key: string; label: string; color: string }[] = [
@@ -341,6 +342,7 @@ function formatTxAmount(amount: number, txCurrency: string): string {
 export function TransactionsPage() {
   useCurrency();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
 
   // ── State
   const [search, setSearch] = useState("");
@@ -379,6 +381,16 @@ export function TransactionsPage() {
     mutationFn: api.deleteTransaction,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); queryClient.invalidateQueries({ queryKey: ["transactionStats"] }); },
   });
+
+  async function handleDeleteTransaction(t: BankTransactionDto) {
+    const ok = await confirm({
+      title: "Supprimer cette transaction ?",
+      message: `${t.label}\nMontant : ${money(t.amount)}`,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deleteMut.mutate(t.id);
+  }
 
   // ── Import handler
   async function handleImport(file: File) {
@@ -668,7 +680,7 @@ export function TransactionsPage() {
                             <Pencil size={13} />
                           </button>
                           <button
-                            onClick={() => { if (window.confirm("Supprimer cette transaction ?")) deleteMut.mutate(t.id); }}
+                            onClick={() => handleDeleteTransaction(t)}
                             className="grid h-7 w-7 place-items-center rounded-lg text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                           >
                             <Trash2 size={13} />

@@ -24,6 +24,7 @@ import { api } from "../services/api";
 import type { BudgetCategoryCreateDto, BudgetSummaryDto } from "../services/api";
 import { money, compactMoney } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { useConfirm } from "../components/ConfirmProvider";
 
 /* ── Types ────────────────────────────────────────────────────── */
 type Period = "monthly" | "quarterly" | "yearly";
@@ -106,7 +107,7 @@ function CategoryRow({
 }: {
   item: BudgetSummaryDto;
   onEdit: (item: BudgetSummaryDto) => void;
-  onDelete: (id: number) => void;
+  onDelete: (item: BudgetSummaryDto) => void;
 }) {
   const pct = Math.min(item.progress_pct, 100);
   const barColor = progressColor(item.progress_pct, item.category_type as CategoryType);
@@ -136,7 +137,7 @@ function CategoryRow({
             <Pencil size={13} />
           </button>
           <button
-            onClick={() => onDelete(item.id)}
+            onClick={() => onDelete(item)}
             className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition"
           >
             <Trash2 size={13} />
@@ -389,6 +390,7 @@ function CategoryModal({
 export function BudgetPage() {
   useCurrency(); // subscribe so re-renders on currency change
   const qc = useQueryClient();
+  const { confirm } = useConfirm();
   const [activePeriod, setActivePeriod] = useState<Period>("monthly");
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<(BudgetSummaryDto & { _editId?: number }) | null>(null);
@@ -448,10 +450,14 @@ export function BudgetPage() {
     setModalOpen(true);
   }
 
-  function handleDelete(id: number) {
-    if (window.confirm("Supprimer cette catégorie ?")) {
-      deleteMut.mutate(id);
-    }
+  async function handleDelete(item: BudgetSummaryDto) {
+    const ok = await confirm({
+      title: "Supprimer cette catégorie ?",
+      message: item.name,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (ok) deleteMut.mutate(item.id);
   }
 
   function handleSave(data: BudgetCategoryCreateDto) {

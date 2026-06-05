@@ -1,13 +1,13 @@
 /**
  * OnboardingWizard — Tutoriel novice complet KOMPTA
- * 8 étapes interactives avec exemples concrets, démo Limule, et guide pratique
+ * 8 étapes interactives avec exemples concrets, assistant Limule réel, et guide pratique
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState } from "react";
 import {
   ArrowRight, ArrowLeft, Building2, CheckCircle2, Sparkles, UserPlus, X,
   BookOpen, CreditCard, ShoppingCart, Bot, Shield, Zap, ChevronRight,
-  FileText, HandCoins, BarChart3, Play, Info, Star
+  FileText, HandCoins, BarChart3, Info, Star
 } from "lucide-react";
 import { api } from "../services/api";
 import { currencyLabel } from "../utils/format";
@@ -19,7 +19,7 @@ const STEPS = [
   "company",
   "team",
   "modules",
-  "limule_demo",
+  "limule",
   "teras",
   "done",
 ] as const;
@@ -83,63 +83,29 @@ const MODULES = [
   { key: "assistants", icon: Bot, label: "Rédaction IA", desc: "Emails, contrats, courriers", color: "emerald" },
 ];
 
-// ── Limule Demo prompts ─────────────────────────────────────────────────────────
+// ── Exemples Limule reliés au vrai backend ──────────────────────────────────────
 
-const DEMO_PROMPTS = [
+const LIMULE_EXAMPLES = [
   {
-    label: "📧 Email professionnel",
+    label: "Email professionnel",
+    content_type: "email",
+    tone: "professionnel",
+    audience: "nouvel employé",
     prompt: "Rédige un email de bienvenue pour un nouvel employé qui rejoint mon équipe.",
-    sampleResponse: `Objet : Bienvenue dans l'équipe !
-
-Bonjour [Prénom],
-
-Nous sommes ravis de vous accueillir au sein de notre équipe. Votre arrivée représente une vraie valeur ajoutée pour notre organisation.
-
-Vous trouverez ci-joint les informations pratiques pour vos premiers jours :
-• Vos identifiants d'accès au système KOMPTA
-• Le règlement intérieur de l'entreprise
-• Le planning d'intégration de la semaine
-
-N'hésitez pas à nous contacter pour toute question.
-
-Cordialement,
-La Direction`,
   },
   {
-    label: "📋 Rapport hebdo",
+    label: "Rapport hebdo",
+    content_type: "rapport",
+    tone: "clair et opérationnel",
+    audience: "manager",
     prompt: "Génère un modèle de rapport d'activité hebdomadaire simple.",
-    sampleResponse: `RAPPORT D'ACTIVITÉ — Semaine du [date]
-
-**Réalisations de la semaine :**
-• [Tâche 1 complétée]
-• [Projet X avancé à 80%]
-• [Réunion client effectuée]
-
-**En cours :**
-• [Tâche en attente de validation]
-• [Devis à envoyer avant vendredi]
-
-**Blocages identifiés :**
-• [Problème X → solution envisagée]
-
-**Objectifs semaine prochaine :**
-1. [Objectif prioritaire]
-2. [Objectif secondaire]`,
   },
   {
-    label: "⚖️ Clause contrat",
+    label: "Clause contrat",
+    content_type: "clause contractuelle",
+    tone: "juridique prudent",
+    audience: "salarié",
     prompt: "Rédige une clause de confidentialité simple pour un contrat de travail.",
-    sampleResponse: `**CLAUSE DE CONFIDENTIALITÉ**
-
-L'employé s'engage à maintenir strictement confidentielle toute information relative aux activités, clients, partenaires, procédés et données financières de l'entreprise, tant pendant la durée du contrat qu'après sa cessation.
-
-Cette obligation s'étend notamment à :
-- Les données clients et prospects
-- Les informations financières et comptables
-- Les méthodes et processus internes
-- Les informations techniques ou commerciales
-
-Toute violation de cette clause pourrait entraîner des poursuites judiciaires et engage la responsabilité personnelle du signataire.`,
   },
 ];
 
@@ -151,11 +117,9 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>("welcome");
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set(["rh", "facturation"]));
-  const [demoPromptIdx, setDemoPromptIdx] = useState(0);
-  const [demoExpanded, setDemoExpanded] = useState(false);
-  const [demoTyping, setDemoTyping] = useState(false);
-  const [demoText, setDemoText] = useState("");
-  const [animFrame, setAnimFrame] = useState(0);
+  const [limulePromptIdx, setLimulePromptIdx] = useState(0);
+  const [limuleResult, setLimuleResult] = useState<{ draft: string; confidence: number; sources: string[] } | null>(null);
+  const [limuleError, setLimuleError] = useState("");
 
   const [companyForm, setCompanyForm] = useState({
     legal_name: "",
@@ -196,33 +160,24 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // Simulated typewriter effect for Limule demo
-  useEffect(() => {
-    if (!demoTyping) return;
-    const target = DEMO_PROMPTS[demoPromptIdx].sampleResponse;
-    let i = demoText.length;
-    if (i >= target.length) {
-      setDemoTyping(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setDemoText(target.slice(0, i + Math.min(8, target.length - i)));
-    }, 20);
-    return () => clearTimeout(timer);
-  }, [demoTyping, demoText, demoPromptIdx]);
-
-  // Blinking cursor
-  useEffect(() => {
-    const t = setInterval(() => setAnimFrame((f) => f + 1), 500);
-    return () => clearInterval(t);
-  }, []);
-
-  function startDemo(idx: number) {
-    setDemoPromptIdx(idx);
-    setDemoText("");
-    setDemoTyping(true);
-    setDemoExpanded(true);
-  }
+  const runLimuleExample = useMutation({
+    mutationFn: (idx: number) => {
+      const example = LIMULE_EXAMPLES[idx];
+      return api.writing({
+        content_type: example.content_type,
+        tone: example.tone,
+        audience: example.audience,
+        notes: example.prompt,
+      });
+    },
+    onMutate: (idx) => {
+      setLimulePromptIdx(idx);
+      setLimuleResult(null);
+      setLimuleError("");
+    },
+    onSuccess: (data) => setLimuleResult(data),
+    onError: (err) => setLimuleError(err instanceof Error ? err.message : "Limule est indisponible."),
+  });
 
   function submitCompany(e: FormEvent) {
     e.preventDefault();
@@ -251,7 +206,7 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
     company: "Entreprise",
     team: "Équipe",
     modules: "Modules",
-    limule_demo: "Limule IA",
+    limule: "Limule IA",
     teras: "TERAS",
     done: "Prêt !",
   };
@@ -634,8 +589,8 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* ── STEP 6: Limule Demo ── */}
-          {step === "limule_demo" && (
+          {/* ── STEP 6: Limule réel ── */}
+          {step === "limule" && (
             <div className="space-y-4">
               <StepIcon icon={Bot} color="violet" />
               <div className="text-center">
@@ -648,55 +603,60 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
 
               {/* Prompt selector */}
               <div className="flex flex-wrap gap-2">
-                {DEMO_PROMPTS.map((p, i) => (
+                {LIMULE_EXAMPLES.map((p, i) => (
                   <button
                     key={i}
-                    onClick={() => startDemo(i)}
+                    onClick={() => runLimuleExample.mutate(i)}
+                    disabled={runLimuleExample.isPending}
                     className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                      demoPromptIdx === i && demoExpanded
+                      limulePromptIdx === i && (limuleResult || runLimuleExample.isPending)
                         ? "border-violet-400 bg-violet-50 text-violet-800"
                         : "border-black/[0.08] text-[#17211f] hover:bg-black/[0.03]"
                     }`}
                   >
-                    <Play size={12} />
+                    <Sparkles size={12} />
                     {p.label}
                   </button>
                 ))}
               </div>
 
-              {/* Demo prompt display */}
-              {demoExpanded && (
+              {(runLimuleExample.isPending || limuleResult || limuleError) && (
                 <div className="space-y-3">
                   <div className="rounded-xl bg-violet-50 p-3">
                     <p className="text-xs font-bold uppercase tracking-wide text-violet-600 mb-1">Votre demande</p>
-                    <p className="text-sm text-violet-900 italic">"{DEMO_PROMPTS[demoPromptIdx].prompt}"</p>
+                    <p className="text-sm text-violet-900 italic">"{LIMULE_EXAMPLES[limulePromptIdx].prompt}"</p>
                   </div>
 
                   <div className="rounded-xl border border-black/[0.06] bg-white p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[10px] font-black text-white">L</div>
-                      <p className="text-xs font-bold text-[#17211f]">Limule — réponse IA</p>
-                      {demoTyping && (
+                      <p className="text-xs font-bold text-[#17211f]">Limule — réponse du backend</p>
+                      {runLimuleExample.isPending && (
                         <span className="flex items-center gap-1 text-xs text-emerald-600">
                           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                           Génération en cours…
                         </span>
                       )}
                     </div>
-                    <pre className="whitespace-pre-wrap font-sans text-sm text-[#17211f] leading-relaxed">
-                      {demoText}
-                      {demoTyping && <span className={`inline-block w-0.5 h-4 bg-emerald-600 ${animFrame % 2 === 0 ? "opacity-100" : "opacity-0"}`} />}
-                    </pre>
-                    {!demoTyping && demoText && (
+                    {runLimuleExample.isPending ? (
+                      <p className="text-sm text-[#717182]">Connexion au service IA réel de KOMPTA…</p>
+                    ) : limuleError ? (
+                      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{limuleError}</p>
+                    ) : limuleResult ? (
+                      <pre className="whitespace-pre-wrap font-sans text-sm text-[#17211f] leading-relaxed">
+                        {limuleResult.draft}
+                      </pre>
+                    ) : null}
+                    {limuleResult && (
                       <p className="mt-3 text-xs text-[#717182] border-t border-black/[0.04] pt-2">
-                        ✓ Texte généré par Limule · Accessible depuis <strong>Rédaction IA</strong> dans le menu
+                        Texte généré par l'API Limule · Confiance {limuleResult.confidence}% · Sources : {limuleResult.sources.join(", ") || "non précisées"}
                       </p>
                     )}
                   </div>
                 </div>
               )}
 
-              {!demoExpanded && (
+              {!runLimuleExample.isPending && !limuleResult && !limuleError && (
                 <div className="rounded-xl border-2 border-dashed border-violet-200 p-6 text-center">
                   <Bot size={24} className="mx-auto mb-2 text-violet-400" />
                   <p className="text-sm text-[#717182]">Cliquez sur l'un des exemples ci-dessus pour voir Limule en action</p>
@@ -866,13 +826,13 @@ export function OnboardingWizard({ onClose }: { onClose: () => void }) {
             )}
             {step === "modules" && (
               <button
-                onClick={() => setStep("limule_demo")}
+                onClick={() => setStep("limule")}
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700 transition"
               >
                 Découvrir Limule <ArrowRight size={14} />
               </button>
             )}
-            {step === "limule_demo" && (
+            {step === "limule" && (
               <button
                 onClick={() => setStep("teras")}
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700 transition"

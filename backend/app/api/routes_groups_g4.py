@@ -19,8 +19,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import get_current_user, decode_access_token
+from app.api.deps import get_current_user
 from app.api.routes_groups import _get_group, _user_group_roles, _company_admin, MANAGER_ROLE_NAMES
+from app.core.security import decode_access_token
 from app.db.session import SessionLocal, get_db
 from app.models import GroupChatMessage, GroupChatRoom, GroupDocument, GroupMember, OrganizationGroup, User
 
@@ -52,18 +53,42 @@ class ReactionUpdate(BaseModel):
     emoji: str
 
 
+class RoomCreate(BaseModel):
+    name: str
+    room_type: str = "general"
+
+
 # ── Salons de chat ───────────────────────────────────────────────────────────
 @router.post("/{group_id}/chat/rooms", status_code=201)
-def create_room(group_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-                name: str = Form(...), room_type: str = Form("general")) -> dict:
+def create_room(group_id: int, payload: RoomCreate, db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_user)) -> dict:
     group = _get_group(db, group_id, current_user)
-    if not (_company_admin(current_user) or _user_group_roles(db, group, current_user) & MANAGER_ROLE_NAMES):
+    # Le président / bureau / admin entreprise peuvent créer des salons.
+    user_roles = _user_group_roles(db, group, current_user)
+    ALLOWED = MANAGER_ROLE_NAMES | {"Président", "Secrétaire", "Trésorier"}
+    if not (_company_admin(current_user) or user_roles & ALLOWED):
         raise HTTPException(status_code=403, detail="Permission insuffisante")
-    room = GroupChatRoom(group_id=group.id, name=name, type=room_type, created_by_user_id=current_user.id)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Le nom du salon est requis")
+    room = GroupChatRoom(group_id=group.id, name=name, type=payload.room_type,
+                         created_by_user_id=current_user.id)
     db.add(room)
     db.commit()
     db.refresh(room)
     return _ser_room(room)
+
+
+def seed_default_room(db: Session, group_id: int, creator_user_id: int) -> GroupChatRoom:
+    """Crée le salon 'Général' par défaut pour un nouveau groupe."""
+    existing = db.scalar(select(GroupChatRoom).where(GroupChatRoom.group_id == group_id))
+    if existing:
+        return existing
+    room = GroupChatRoom(group_id=group_id, name="Général", type="general",
+                         created_by_user_id=creator_user_id)
+    db.add(room)
+    db.flush()
+    return room
 
 
 @router.get("/{group_id}/chat/rooms")
@@ -271,9 +296,12 @@ _group_ws_manager = GroupWSManager()
 
 @router.websocket("/{group_id}/chat/rooms/{room_id}/ws")
 async def group_chat_ws(group_id: int, room_id: int, websocket: WebSocket, token: str = ""):
-    """WebSocket temps réel du chat de groupe. Authentification par query-param `token`."""
+    """WebSocket temps réel du chat de groupe.
+
+    Authentification par ticket temps réel court-vécu, pas par JWT de session long.
+    """
     payload = decode_access_token(token) if token else None
-    if not payload:
+    if not payload or payload.get("purpose") != "realtime":
         await websocket.close(code=4001)
         return
     with SessionLocal() as db:
@@ -281,10 +309,21 @@ async def group_chat_ws(group_id: int, room_id: int, websocket: WebSocket, token
         if not user or not user.is_active:
             await websocket.close(code=4001)
             return
+        if int(payload.get("ver", 0)) != int(getattr(user, "token_version", 0) or 0):
+            await websocket.close(code=4001)
+            return
         group = db.scalar(select(OrganizationGroup).where(
             OrganizationGroup.id == group_id, OrganizationGroup.company_id == user.company_id
         ))
         if not group:
+            await websocket.close(code=4003)
+            return
+        is_member = db.scalar(select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user.id))
+        if not is_member and not _company_admin(user):
+            await websocket.close(code=4003)
+            return
+        room = db.get(GroupChatRoom, room_id)
+        if not room or room.group_id != group_id:
             await websocket.close(code=4003)
             return
     await _group_ws_manager.connect(room_id, websocket)
@@ -310,3 +349,40 @@ def _assert_is_member(db: Session, group: OrganizationGroup, user: User) -> None
     member = db.scalar(select(GroupMember).where(GroupMember.group_id == group.id, GroupMember.user_id == user.id))
     if not member or not member.is_active:
         raise HTTPException(status_code=403, detail="Vous n'êtes pas membre de ce groupe")
+
+
+# ── Serveur de médias chat (accès restreint aux membres du groupe) ───────────
+import mimetypes
+from fastapi.responses import FileResponse
+
+
+@router.get("/{group_id}/media/{filename}")
+def serve_group_media(
+    group_id: int,
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    """Sert un fichier média uploadé dans un salon de chat de groupe.
+
+    Sécurité : seul un membre actif du groupe (ou un admin entreprise) peut
+    récupérer un média — l'URL n'est pas devinable mais on vérifie quand même
+    l'appartenance pour les liens partagés inter-membres."""
+    group = _get_group(db, group_id, current_user)
+    _assert_is_member(db, group, current_user)
+
+    # Refus traversal "../"
+    safe_name = Path(filename).name
+    if safe_name != filename or not safe_name:
+        raise HTTPException(status_code=400, detail="Nom de fichier invalide")
+
+    fpath = STORAGE_ROOT / str(group.id) / safe_name
+    if not fpath.exists():
+        raise HTTPException(status_code=404, detail="Média introuvable")
+
+    media_type, _ = mimetypes.guess_type(str(fpath))
+    return FileResponse(
+        path=str(fpath),
+        media_type=media_type or "application/octet-stream",
+        filename=safe_name,
+    )

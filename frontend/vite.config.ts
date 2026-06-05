@@ -22,6 +22,34 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    // `vite preview` sert le build dist/ en production locale (via tunnel Cloudflare).
+    // On autorise explicitement le domaine kompta0.com + sous-domaines pour la prod,
+    // ainsi que les tunnels temporaires pour le dev/staging.
+    host: true,
+    port: 3000,
+    strictPort: true,
+    allowedHosts: [
+      "kompta0.com",
+      ".kompta0.com",
+      ".trycloudflare.com",
+      ".ngrok.io",
+      ".ngrok-free.app",
+      ".loca.lt",
+      "localhost",
+      "127.0.0.1",
+    ],
+    // Proxy /api (HTTP + WebSocket) → backend FastAPI. Permet de tout servir
+    // depuis UN SEUL domaine (www.kompta0.com) sans avoir besoin d'un sous-domaine
+    // api.kompta0.com séparé : le frontend appelle des URL relatives /api.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8010",
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
   resolve: {
     // Single React instance across every dependency
     dedupe: ["react", "react-dom"],
@@ -58,7 +86,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    // Les specs Playwright (e2e/) sont lancées par `playwright test`, pas Vitest.
-    exclude: ["e2e/**", "node_modules/**", "dist/**"],
+    exclude: ["node_modules/**", "dist/**"],
   },
 });

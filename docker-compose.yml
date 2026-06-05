@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./kompta.db}
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set — never use default in production}
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
@@ -18,7 +18,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@kompta.app}
       - SMTP_FROM_NAME=${SMTP_FROM_NAME:-KOMPTA}
-      - SEED_DEMO=${SEED_DEMO:-true}
+      - SEED_DEMO=${SEED_DEMO:-false}
     volumes:
       - kompta_storage:/app/storage
       - kompta_db:/app  # pour SQLite en mode simple

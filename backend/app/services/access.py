@@ -302,13 +302,15 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     department = html.escape(employee.department)
     employment_type = html.escape(employee.employment_type)
     salary = f"{employee.salary:,.2f}".replace(",", " ")
+    # Devise issue de l'entreprise (défaut régional XAF — CEMAC/SYSCOHADA), jamais USD codé en dur
+    currency = html.escape(getattr(company, "currency", None) or getattr(company, "default_currency", None) or "XAF")
     today = datetime.now(timezone.utc).strftime("%d/%m/%Y")
     phone = html.escape(employee.phone or "Non renseigne")
     email = html.escape(employee.email)
     clauses = ai_clauses or [
         f"L'employe exercera la fonction de {job_title} au sein du service {department}.",
         f"Le lieu principal d'affectation est {branch}.",
-        f"La remuneration de reference est de {salary} USD.",
+        f"La remuneration de reference est de {salary} {currency}.",
         "L'employe s'engage a proteger les informations de l'entreprise et a utiliser ses acces KOMPTA de maniere personnelle.",
     ]
     rendered_clauses = "\n".join(
@@ -345,7 +347,7 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     <div><div class="label">Service / Agence</div>{department} / {branch}</div>
     <div><div class="label">Telephone</div>{phone}</div>
     <div><div class="label">Email / identifiant</div>{email}</div>
-    <div><div class="label">Remuneration mensuelle indicatrice</div>{salary} USD</div>
+    <div><div class="label">Remuneration mensuelle indicatrice</div>{salary} {currency}</div>
     <div><div class="label">Statut compte</div>{html.escape(employee.account_status)}</div>
   </div>
   <p><em>Clauses generees par {html.escape(provider)} et a valider par un responsable habilite avant signature.</em></p>

@@ -410,7 +410,10 @@ def limule_context(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Retourne le contexte multi-pages que Limule peut utiliser pour raisonner."""
+    """Retourne le contexte multi-pages que Limule peut utiliser pour raisonner.
+    Le contexte est filtré selon le rôle : les données RH/paie/documents extraits
+    ne sont visibles que pour les rôles autorisés.
+    """
     from app.services.ai_context import LIMULE_CONTEXT_VERSION, render_limule_context_pack
     from app.services.limule_context import build_limule_context
 
@@ -433,6 +436,79 @@ def limule_context(
         "sources": context["sources"],
         "modules": context["modules"],
     }
+
+
+@router.get("/limule/history")
+def limule_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 30,
+) -> list[dict]:
+    """Historique compact des Q&A Limule pour l'utilisateur courant.
+
+    Retourne les `limit` dernières interactions ordonnées par date décroissante.
+    Format compact (id, question, answer, module, intent, created_at) destiné à
+    la sidebar « Mes dernières questions ».
+    """
+    safe_limit = max(1, min(int(limit or 30), 100))
+    rows = db.scalars(
+        select(LimuleInteraction)
+        .where(LimuleInteraction.company_id == current_user.company_id)
+        .where(LimuleInteraction.user_id == current_user.id)
+        .order_by(LimuleInteraction.created_at.desc())
+        .limit(safe_limit)
+    ).all()
+    return [
+        {
+            "id": row.id,
+            "question": row.prompt,
+            "answer": row.response,
+            "module": row.module_key,
+            "intent": row.intent,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/limule/alerts")
+def limule_alerts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Alertes proactives Limule pour le dashboard.
+
+    Retourne une liste d'alertes structurées (factures en retard, stock bas,
+    trésorerie faible, anniversaires de membres, cotisations en retard).
+    """
+    from app.services.limule_alerts import compute_dashboard_alerts
+
+    return compute_dashboard_alerts(db=db, company_id=current_user.company_id, user=current_user)
+
+
+@router.get("/currency/convert")
+def currency_convert(
+    amount: float = 1.0,
+    from_currency: str = Query("XAF", alias="from"),
+    to_currency: str = Query("EUR", alias="to"),
+) -> dict:
+    """Convertit un montant d'une devise vers une autre via exchangerate.host.
+
+    Fallback déterministe si l'API est indisponible (pas besoin de réseau).
+    """
+    from app.services.exchange_rates import convert as _convert
+
+    return _convert(amount=amount, from_currency=from_currency, to_currency=to_currency)
+
+
+@router.get("/currency/rates")
+def currency_rates(
+    base: str = "XAF",
+) -> dict:
+    """Retourne les taux courants pour quelques devises majeures depuis `base`."""
+    from app.services.exchange_rates import rates_for_base
+
+    return rates_for_base(base=base)
 
 
 @router.get("/limule/chat/history")
@@ -1932,7 +2008,7 @@ async def limule_document_chat_stream(
 @router.get("/notifications/stream")
 async def notifications_stream(request: Request, token: str | None = Query(default=None), db: Session = Depends(get_db)):
     """SSE endpoint — pushes pending alerts and low-stock events.
-    Accepts token via query param because EventSource cannot send custom headers.
+    Accepts a short-lived realtime ticket via query param because EventSource cannot send custom headers.
     """
     # Resolve user from query-param token (EventSource) or Authorization header
     from fastapi import Header as _Header
@@ -1944,13 +2020,16 @@ async def notifications_stream(request: Request, token: str | None = Query(defau
         from fastapi.responses import Response as _R
         return _R(status_code=401, content="Unauthorized")
     payload = decode_access_token(raw_token)
-    if not payload:
+    if not payload or payload.get("purpose") != "realtime":
         from fastapi.responses import Response as _R
         return _R(status_code=401, content="Invalid token")
     current_user = db.get(User, int(payload["sub"]))
     if not current_user or not current_user.is_active:
         from fastapi.responses import Response as _R
         return _R(status_code=401, content="Inactive user")
+    if int(payload.get("ver", 0)) != int(getattr(current_user, "token_version", 0) or 0):
+        from fastapi.responses import Response as _R
+        return _R(status_code=401, content="Revoked token")
     async def event_generator():
         # Send initial ping
         yield f"data: {json.dumps({'type': 'connected', 'user_id': current_user.id})}\n\n"

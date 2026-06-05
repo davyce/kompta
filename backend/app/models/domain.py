@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -9,8 +9,8 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Company(TimestampMixin, Base):
@@ -33,6 +33,10 @@ class Company(TimestampMixin, Base):
     # Moteur comptable : "simple" (petit commerce, écritures auto invisibles) | "full" (SYSCOHADA visible)
     accounting_mode: Mapped[str] = mapped_column(String(20), default="simple")
     accounting_seq: Mapped[int] = mapped_column(Integer, default=0)  # n° séquentiel des écritures
+    # Workflow d'approbation factures : si > 0, toute facture ≥ seuil exige approbation N+1.
+    invoice_approval_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    # Seuil d'alerte trésorerie (Limule) : alerte si solde < seuil. Défaut 50 000 (en centimes).
+    cash_low_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
 
@@ -313,6 +317,11 @@ class Invoice(TimestampMixin, Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_relance_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     relance_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Workflow d'approbation : not_required (défaut) | pending | approved | rejected.
+    approval_status: Mapped[str] = mapped_column(String(20), default="not_required")
+    approved_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    rejection_reason: Mapped[str] = mapped_column(String(500), default="")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     lines: Mapped[list["InvoiceLine"]] = relationship(cascade="all, delete-orphan", back_populates="invoice")
@@ -364,6 +373,38 @@ class SaleItem(Base):
     line_total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
 
     sale: Mapped[Sale] = relationship(back_populates="items")
+
+
+class PaymentTransaction(TimestampMixin, Base):
+    """Transaction de paiement via un prestataire réel (Stripe carte, MTN MoMo).
+
+    Source de vérité pour l'encaissement : statut transactionnel, idempotence,
+    et lien optionnel vers une vente POS ou une facture. Empêche les doubles
+    paiements via `idempotency_key` unique et le contrôle d'unicité métier."""
+    __tablename__ = "payment_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+
+    provider: Mapped[str] = mapped_column(String(20))            # stripe | momo
+    provider_ref: Mapped[str] = mapped_column(String(120), default="", index=True)  # PaymentIntent id / MoMo referenceId
+    idempotency_key: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    currency: Mapped[str] = mapped_column(String(8), default="XAF")
+    # pending | processing | succeeded | failed | cancelled
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+
+    sale_id: Mapped[int | None] = mapped_column(ForeignKey("sales.id"), nullable=True)
+    invoice_id: Mapped[int | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
+
+    customer_phone: Mapped[str] = mapped_column(String(40), default="")   # MoMo payer
+    description: Mapped[str] = mapped_column(String(255), default="")
+    failure_reason: Mapped[str] = mapped_column(String(255), default="")
+
+    raw_request: Mapped[str] = mapped_column(Text, default="")
+    raw_response: Mapped[str] = mapped_column(Text, default="")
+    last_event: Mapped[str] = mapped_column(Text, default="")
 
 
 class Task(TimestampMixin, Base):
@@ -451,7 +492,9 @@ class Payslip(TimestampMixin, Base):
     bonus: Mapped[float] = mapped_column(Float, default=0)
     bonus_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     overtime_pay: Mapped[float] = mapped_column(Float, default=0)
+    overtime_pay_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     absence_deduction: Mapped[float] = mapped_column(Float, default=0)
+    absence_deduction_cents: Mapped[int] = mapped_column(BigInteger, default=0)
 
     payroll_run: Mapped[PayrollRun] = relationship(back_populates="payslips")
 
@@ -774,7 +817,7 @@ class PosSession(TimestampMixin, Base):
     __tablename__ = "pos_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    opened_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    opened_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     opened_by: Mapped[str] = mapped_column(String(160), default="")
     opened_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -928,7 +971,7 @@ class GroupMemberRole(TimestampMixin, Base):
     member_id: Mapped[int] = mapped_column(ForeignKey("group_members.id"), index=True)
     role_id: Mapped[int] = mapped_column(ForeignKey("group_roles.id"))
     role_name: Mapped[str] = mapped_column(String(80), default="")
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     assigned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     reason: Mapped[str] = mapped_column(String(255), default="")
@@ -1196,3 +1239,19 @@ class GroupDocument(TimestampMixin, Base):
     visibility: Mapped[str] = mapped_column(String(40), default="members")  # members|bureau|public
     size_bytes: Mapped[int] = mapped_column(Integer, default=0)
     mime_type: Mapped[str] = mapped_column(String(120), default="")
+
+
+class PasswordResetToken(TimestampMixin, Base):
+    """Jeton de réinitialisation de mot de passe — persisté en DB.
+
+    Le token est stocké HASHÉ (sha256) : même un accès lecture à la base ne
+    permet pas de réutiliser un jeton. Usage unique, expiration, traçabilité IP.
+    """
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    request_ip: Mapped[str] = mapped_column(String(64), default="")

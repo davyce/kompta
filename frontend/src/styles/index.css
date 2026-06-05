@@ -74,3 +74,95 @@ textarea {
   background: #d1d5db;
   border-radius: 999px;
 }
+
+/* Super-admin light mode bridge
+   Several admin pages were authored with dark-only utility classes. These scoped
+   overrides keep the same JSX functional while making light mode readable and
+   visually coherent. */
+html:not(.dark) .admin-shell .bg-white\/5,
+html:not(.dark) .admin-shell .bg-white\/8,
+html:not(.dark) .admin-shell .bg-white\/10,
+html:not(.dark) .admin-shell .bg-black\/20,
+html:not(.dark) .admin-shell .bg-black\/25,
+html:not(.dark) .admin-shell .bg-slate-900,
+html:not(.dark) .admin-shell .bg-slate-950 {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .admin-shell .bg-slate-800 {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .admin-shell .border-white\/5,
+html:not(.dark) .admin-shell .border-white\/10,
+html:not(.dark) .admin-shell .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html:not(.dark) .admin-shell .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html:not(.dark) .admin-shell .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .admin-shell .text-white\/80,
+html:not(.dark) .admin-shell .text-white\/70,
+html:not(.dark) .admin-shell .text-white\/60,
+html:not(.dark) .admin-shell .text-white\/55,
+html:not(.dark) .admin-shell .text-white\/50 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .admin-shell .text-white\/45,
+html:not(.dark) .admin-shell .text-white\/40,
+html:not(.dark) .admin-shell .text-white\/35,
+html:not(.dark) .admin-shell .text-white\/30,
+html:not(.dark) .admin-shell .text-white\/25 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-shell .placeholder\:text-white\/35::placeholder,
+html:not(.dark) .admin-shell .placeholder\:text-white\/30::placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .admin-shell .bg-gradient-to-br.text-white,
+html:not(.dark) .admin-shell .bg-gradient-to-r.text-white,
+html:not(.dark) .admin-shell .bg-gradient-to-br .text-white,
+html:not(.dark) .admin-shell .bg-gradient-to-r .text-white,
+html:not(.dark) .admin-shell .bg-blue-700.text-white,
+html:not(.dark) .admin-shell .bg-blue-800.text-white,
+html:not(.dark) .admin-shell .bg-amber-600.text-white,
+html:not(.dark) .admin-shell .bg-emerald-600.text-white,
+html:not(.dark) .admin-shell .bg-rose-600.text-white,
+html:not(.dark) .admin-shell .bg-red-500.text-white,
+html:not(.dark) .admin-shell .bg-sky-600.text-white,
+html:not(.dark) .admin-shell .bg-violet-600.text-white,
+html:not(.dark) .admin-shell .bg-blue-700 .text-white,
+html:not(.dark) .admin-shell .bg-blue-800 .text-white,
+html:not(.dark) .admin-shell .bg-amber-600 .text-white,
+html:not(.dark) .admin-shell .bg-emerald-600 .text-white,
+html:not(.dark) .admin-shell .bg-rose-600 .text-white,
+html:not(.dark) .admin-shell .bg-red-500 .text-white,
+html:not(.dark) .admin-shell .bg-sky-600 .text-white,
+html:not(.dark) .admin-shell .bg-violet-600 .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .admin-shell .text-amber-200,
+html:not(.dark) .admin-shell .text-amber-300,
+html:not(.dark) .admin-shell .text-amber-400 {
+  color: #b45309 !important;
+}
+
+html:not(.dark) .admin-shell .text-emerald-200,
+html:not(.dark) .admin-shell .text-emerald-300 {
+  color: #047857 !important;
+}
+
+html:not(.dark) .admin-shell .text-rose-200,
+html:not(.dark) .admin-shell .text-rose-300 {
+  color: #be123c !important;
+}

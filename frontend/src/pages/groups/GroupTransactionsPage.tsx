@@ -28,7 +28,7 @@ export function GroupTransactionsPage() {
           <p className="text-xl font-black text-rose-600">{fmt(data?.total_out ?? 0)}</p>
         </div>
       </div>
-      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-violet-500" /></div> : (
+      {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-blue-700" /></div> : (
         <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
           <table className="w-full text-sm">
             <thead><tr className="bg-[#f6f7fb] dark:bg-[#161920] border-b border-black/[0.06] dark:border-white/[0.06]">

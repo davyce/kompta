@@ -23,6 +23,8 @@ export type Company = {
   accent_color: string;
   completion_score: number;
   teras_score: number;
+  /** Seuil d'alerte trésorerie (Limule), en centimes. Défaut 5 000 000 (= 50 000). */
+  cash_low_threshold_cents?: number;
 };
 
 export type Employee = {
@@ -620,6 +622,7 @@ export type GroupChatMessage = {
   reactions: Record<string, number>;
   pinned: boolean;
   created_at: string;
+  edited_at?: string | null;
   deleted_at: string | null;
 };
 
