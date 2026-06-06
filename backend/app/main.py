@@ -17,6 +17,7 @@ from app.api.routes_pos import router as pos_router
 from app.api.routes_safe_mode import router as safe_mode_router
 from app.api.routes_investments import router as investments_router
 from app.api.routes_payments import router as payments_router
+from app.api.routes_subscriptions import router as subscriptions_router
 from app.api.routes_transactions import router as transactions_router
 from app.api.routes_legislation import router as legislation_router
 from app.api.routes_admin_analytics import router as admin_analytics_router
@@ -89,6 +90,14 @@ async def lifespan(app: FastAPI):
         logger.info("Super-admin plateforme : OK")
     except Exception:
         logger.exception("Seed super-admin échoué")
+    # Plans d'abonnement par défaut (idempotent : seulement si la table est vide).
+    try:
+        from app.services.subscriptions import seed_default_plans
+        with SessionLocal() as db:
+            seed_default_plans(db)
+        logger.info("Plans d'abonnement : OK")
+    except Exception:
+        logger.exception("Seed plans d'abonnement échoué")
     # Données de DÉMO (société fictive) : jamais automatiques.
     # Activer explicitement avec SEED_DEMO=true dans un environnement local isolé.
     if _should_seed_demo():
@@ -189,6 +198,56 @@ async def groupe_member_scope_guard(request: Request, call_next):
     return await call_next(request)
 
 
+# ── Enforcement d'abonnement : une entreprise SUSPENDUE est bloquée ──────────
+# Si Company.status == "suspended" (décidé par le super-admin pour non-paiement),
+# toutes les routes métier renvoient 402 Payment Required. Restent accessibles :
+# l'auth, l'abonnement (pour payer et se réactiver), l'admin, les paiements, et
+# le profil entreprise (pour voir son propre statut).
+@app.middleware("http")
+async def subscription_suspension_guard(request: Request, call_next):
+    path = request.url.path
+    _EXEMPT_PREFIXES = (
+        f"{settings.api_prefix}/auth",
+        f"{settings.api_prefix}/health",
+        f"{settings.api_prefix}/subscription",   # voir les plans, payer, confirmer
+        f"{settings.api_prefix}/admin",          # super-admin gère
+        f"{settings.api_prefix}/payments",        # traitement paiement + webhooks
+        f"{settings.api_prefix}/company/profile",  # voir son propre statut
+    )
+    # On ne garde que les routes API métier ; tout le reste passe.
+    if not path.startswith(settings.api_prefix) or any(path.startswith(p) for p in _EXEMPT_PREFIXES):
+        return await call_next(request)
+
+    from app.core.security import decode_access_token as _dec
+    token: str | None = None
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1]
+    if not token:
+        token = request.cookies.get(settings.auth_cookie_name)
+    if token:
+        payload = _dec(token)
+        # Le super-admin n'est jamais bloqué.
+        if payload and payload.get("role") != "super_admin":
+            company_id = payload.get("company_id")
+            if company_id:
+                from sqlalchemy import select as _select
+                from app.models import Company as _Company
+                with SessionLocal() as _db:
+                    status_val = _db.scalar(_select(_Company.status).where(_Company.id == int(company_id)))
+                if status_val == "suspended":
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse(
+                        status_code=402,
+                        content={
+                            "detail": "Abonnement suspendu : l'accès est bloqué jusqu'au règlement. "
+                                      "Rendez-vous dans Paramètres → Abonnement pour régulariser.",
+                            "code": "subscription_suspended",
+                        },
+                    )
+    return await call_next(request)
+
+
 _IS_PROD = settings.environment.strip().lower() in {"prod", "production"}
 # CSP : 'unsafe-inline' toléré pour les pages HTML internes (contrats, reçus) qui
 # embarquent du style/script inline ; l'API JSON n'est pas impactée.
@@ -240,6 +299,7 @@ app.include_router(pos_router, prefix=settings.api_prefix)
 app.include_router(safe_mode_router, prefix=settings.api_prefix)
 app.include_router(investments_router, prefix=settings.api_prefix)
 app.include_router(payments_router, prefix=settings.api_prefix)
+app.include_router(subscriptions_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)
 app.include_router(legislation_router, prefix=settings.api_prefix)
 app.include_router(admin_analytics_router, prefix=settings.api_prefix)

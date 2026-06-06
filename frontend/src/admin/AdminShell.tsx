@@ -4,6 +4,7 @@ import {
   Bell,
   BrainCircuit,
   Building2,
+  CreditCard,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -46,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Gestion",
     items: [
       { to: "/admin/companies", label: "Entreprises", icon: Building2 },
+      { to: "/admin/subscriptions", label: "Abonnements", icon: CreditCard },
       { to: "/admin/users", label: "Utilisateurs", icon: Users },
       { to: "/admin/onboarding", label: "Onboarding", icon: UserCog },
     ],

@@ -7,7 +7,7 @@
 > Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind**.
 > Argent en **centimes entiers** (BigInt) · **paiements réels** Stripe (carte) + MTN Mobile Money.
 > Déploiement production **gratuit** via **Cloudflare Tunnel** (domaine `kompta0.com`, un seul hostname).
-> 101 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
+> 106 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
 
 ---
 
@@ -609,7 +609,7 @@ de Float, pas de dérive d'arrondi.
 ```bash
 # Backend (pytest)
 cd backend && .venv/bin/python -m pytest -q
-# → 101 passed
+# → 106 passed
 
 # Frontend (Vitest)
 cd frontend && npm run test
@@ -642,7 +642,7 @@ cd frontend && BASE_URL=http://127.0.0.1:3000 npx playwright test
 
 `.github/workflows/ci.yml` à 3 jobs déclenchés sur push + PR :
 
-- **backend** : pytest sur SQLite frais (101 tests)
+- **backend** : pytest sur SQLite frais (106 tests)
 - **frontend** : `tsc --noEmit` + Vitest + build production
 - **e2e** : Playwright smoke (Chromium) contre une base éphémère seedée — login, routes clés, erreurs console
 
@@ -805,6 +805,16 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.6.0 — Juin 2026 (abonnements & facturation plateforme)
+
+- ✅ **Système d'abonnement complet** : plans tarifaires (Starter/Pro/Business), période mensuelle/annuelle
+- ✅ **Paiement abonnement** : carte (Stripe), Mobile Money (MoMo), Zola (QR) — branché sur l'infra paiement existante
+- ✅ **Codes promo** : réduction %, ciblage par plan, limite d'utilisation, validité — gérés par le super-admin
+- ✅ **Suspension des non-payeurs** : middleware backend → routes métier bloquées en **402** ; barrière UX plein écran avec paiement pour réactiver
+- ✅ **Console super-admin /admin/subscriptions** : gérer plans & prix EN DIRECT, promotions, et statut de chaque entreprise (suspendre / réactiver / offrir une période)
+- ✅ **Onglet Paramètres → Abonnement** côté entreprise (plans, promo, paiement)
+- ✅ **5 tests** dédiés (plans, promo, checkout gratuit, suspension 402 + réactivation, grant) — 106 tests backend au total
 
 ### v1.5.2 — Juin 2026 (zéro-simulacre strict)
 

@@ -79,6 +79,7 @@ const AdminAnalyticsPage    = lazy(() => import("../admin/pages/AdminAnalyticsPa
 const AdminBroadcastPage    = lazy(() => import("../admin/pages/AdminBroadcastPage").then(m => ({ default: m.AdminBroadcastPage })));
 const AdminSystemPage       = lazy(() => import("../admin/pages/AdminSystemPage").then(m => ({ default: m.AdminSystemPage })));
 const AdminOnboardingPage   = lazy(() => import("../admin/pages/AdminOnboardingPage").then(m => ({ default: m.AdminOnboardingPage })));
+const AdminSubscriptionsPage = lazy(() => import("../admin/pages/AdminSubscriptionsPage").then(m => ({ default: m.AdminSubscriptionsPage })));
 
 // ── Route error boundary (replaces React Router's ugly default) ───────────
 function RouteErrorElement() {
@@ -204,6 +205,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true,                   element: <LazyRoute page={AdminDashboardPage} /> },
       { path: "companies",             element: <LazyRoute page={AdminCompaniesPage} /> },
+      { path: "subscriptions",         element: <LazyRoute page={AdminSubscriptionsPage} /> },
       { path: "companies/:companyId",  element: <LazyRoute page={AdminCompanyDetailPage} /> },
       { path: "users",                 element: <LazyRoute page={AdminUsersPage} /> },
       { path: "tickets",               element: <LazyRoute page={AdminTicketsPage} /> },

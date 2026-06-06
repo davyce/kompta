@@ -44,6 +44,7 @@ import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { OnboardingWizard } from "../components/OnboardingWizard";
 import { OnboardingTour } from "../components/OnboardingTour";
+import { SubscriptionGate } from "../components/SubscriptionGate";
 import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import { ToastStack } from "../components/Toast";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
@@ -753,6 +754,7 @@ export function Shell() {
       />
       {showOnboarding && <OnboardingWizard onClose={dismissOnboarding} />}
       <OnboardingTour />
+      <SubscriptionGate />
       <Copilot />
       <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>

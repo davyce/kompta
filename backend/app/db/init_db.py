@@ -205,6 +205,14 @@ def ensure_sqlite_migrations() -> None:
         "messages": {
             "ai_action_json": "TEXT DEFAULT ''",
         },
+        # Abonnements plateforme : nouvelles colonnes + tables (create_all crée les tables)
+        "payment_transactions": {
+            "purpose": "VARCHAR(20) DEFAULT 'sale'",
+            "subscription_plan_code": "VARCHAR(40) DEFAULT ''",
+        },
+        "subscription_plans": {},
+        "promotions": {},
+        "company_subscriptions": {},
     }
     with engine.begin() as connection:
         for table, columns in additions.items():

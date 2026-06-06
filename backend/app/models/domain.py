@@ -400,6 +400,9 @@ class PaymentTransaction(TimestampMixin, Base):
 
     customer_phone: Mapped[str] = mapped_column(String(40), default="")   # MoMo payer
     description: Mapped[str] = mapped_column(String(255), default="")
+    # But du paiement : "sale" (POS) | "invoice" | "subscription" (abonnement plateforme)
+    purpose: Mapped[str] = mapped_column(String(20), default="sale", index=True)
+    subscription_plan_code: Mapped[str] = mapped_column(String(40), default="")
     failure_reason: Mapped[str] = mapped_column(String(255), default="")
 
     raw_request: Mapped[str] = mapped_column(Text, default="")
@@ -1255,3 +1258,53 @@ class PasswordResetToken(TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     request_ip: Mapped[str] = mapped_column(String(64), default="")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ABONNEMENTS — plans, promotions, abonnement par entreprise
+# (gérés par le super-admin ; payés par chaque entreprise)
+# ══════════════════════════════════════════════════════════════════════════════
+class SubscriptionPlan(TimestampMixin, Base):
+    __tablename__ = "subscription_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True, index=True)   # starter | pro | business
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(String(400), default="")
+    price_cents: Mapped[int] = mapped_column(BigInteger, default=0)          # prix période, en centimes
+    currency: Mapped[str] = mapped_column(String(8), default="XAF")
+    period: Mapped[str] = mapped_column(String(10), default="month")         # month | year
+    features: Mapped[str] = mapped_column(Text, default="[]")                # JSON : liste de fonctionnalités
+    trial_days: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Promotion(TimestampMixin, Base):
+    __tablename__ = "promotions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True, index=True)   # code promo (MAJUSCULES)
+    description: Mapped[str] = mapped_column(String(300), default="")
+    percent_off: Mapped[int] = mapped_column(Integer, default=0)             # 0..100
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    plan_code: Mapped[str] = mapped_column(String(40), default="")           # "" = tous les plans
+    max_redemptions: Mapped[int] = mapped_column(Integer, default=0)         # 0 = illimité
+    times_redeemed: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CompanySubscription(TimestampMixin, Base):
+    __tablename__ = "company_subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), unique=True, index=True)
+    plan_code: Mapped[str] = mapped_column(String(40), default="")
+    # none | trialing | active | past_due | suspended | cancelled
+    status: Mapped[str] = mapped_column(String(20), default="none", index=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_payment_id: Mapped[int | None] = mapped_column(ForeignKey("payment_transactions.id"), nullable=True)
+    applied_promo_code: Mapped[str] = mapped_column(String(40), default="")

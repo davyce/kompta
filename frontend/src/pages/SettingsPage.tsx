@@ -4,10 +4,11 @@ import { useLocation } from "react-router-dom";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
-  Save, Search, ShieldCheck, Smartphone, Sun, Trash2, User, Wallet, X, Zap,
+  Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, User, Wallet, X, Zap,
 } from "lucide-react";
 
 import { api } from "../services/api";
+import { SubscriptionPanel } from "../components/SubscriptionPanel";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
 import { useConfirm } from "../components/ConfirmProvider";
@@ -17,7 +18,7 @@ import type { CurrencyCode } from "../utils/format";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ── Types ────────────────────────────────────────────────────────── */
-type Tab = "general" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
+type Tab = "general" | "subscription" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
 
 const PROVIDERS = [
   { key: "zola", label: "Zola / QR", icon: Wallet },
@@ -356,6 +357,7 @@ export function SettingsPage() {
 
   const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "general",       label: "Général",       icon: Building2   },
+    { key: "subscription",  label: "Abonnement",    icon: Sparkles    },
     { key: "modules",       label: "Modules",       icon: Zap         },
     { key: "payments",      label: "Paiements",     icon: Wallet      },
     { key: "security",      label: "Sécurité",      icon: Lock        },
@@ -564,6 +566,15 @@ export function SettingsPage() {
                   </button>
                 </SettingRow>
               </div>
+            </div>
+          )}
+
+          {/* ── ABONNEMENT ── */}
+          {tab === "subscription" && (
+            <div>
+              <h2 className="mb-1 text-lg font-black text-[#17211f] dark:text-white">Abonnement KOMPTA</h2>
+              <p className="mb-4 text-sm text-[#717182]">Choisissez votre formule et payez par carte, Mobile Money ou Zola.</p>
+              <SubscriptionPanel />
             </div>
           )}
 

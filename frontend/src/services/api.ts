@@ -454,6 +454,46 @@ export const api = {
   paymentStatus: (txnId: number) =>
     request<{ id: number; provider: string; status: string; amount_cents: number; currency: string; failure_reason: string }>(
       `/payments/${txnId}/status`),
+
+  /* ── Abonnement plateforme (entreprise) ───────────────────── */
+  subscriptionPlans: () => request<SubscriptionPlanDto[]>("/subscription/plans"),
+  mySubscription: () => request<MySubscriptionDto>("/subscription/me"),
+  validatePromo: (code: string, plan_code: string) =>
+    request<{ valid: boolean; percent_off: number; discount_cents: number; final_cents: number; code?: string; description?: string }>(
+      "/subscription/promo/validate", { method: "POST", body: JSON.stringify({ code, plan_code }) }),
+  subscriptionCheckout: (payload: { plan_code: string; method: "card" | "momo" | "zola"; promo_code?: string; payer_phone?: string }) =>
+    request<{
+      method?: string; transaction_id?: number; status?: string; free?: boolean;
+      client_secret?: string; publishable_key?: string; reference?: string;
+      qr_payload?: string; instructions?: string; current_period_end?: string;
+    }>("/subscription/checkout", { method: "POST", body: JSON.stringify(payload) }),
+  confirmSubscription: (txnId: number) =>
+    request<{ status: string; pending?: boolean; current_period_end?: string }>(
+      `/subscription/confirm/${txnId}`, { method: "POST" }),
+
+  /* ── Abonnement : gestion super-admin ─────────────────────── */
+  adminPlans: () => request<SubscriptionPlanDto[]>("/admin/subscription/plans"),
+  adminCreatePlan: (payload: Partial<SubscriptionPlanDto> & { code: string; name: string }) =>
+    request<SubscriptionPlanDto>("/admin/subscription/plans", { method: "POST", body: JSON.stringify(payload) }),
+  adminUpdatePlan: (id: number, payload: Partial<SubscriptionPlanDto>) =>
+    request<SubscriptionPlanDto>(`/admin/subscription/plans/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminDeletePlan: (id: number) =>
+    request<{ deleted: boolean; deactivated?: boolean }>(`/admin/subscription/plans/${id}`, { method: "DELETE" }),
+  adminPromotions: () => request<PromotionDto[]>("/admin/subscription/promotions"),
+  adminCreatePromo: (payload: Partial<PromotionDto> & { code: string }) =>
+    request<PromotionDto>("/admin/subscription/promotions", { method: "POST", body: JSON.stringify(payload) }),
+  adminUpdatePromo: (id: number, payload: Partial<PromotionDto>) =>
+    request<PromotionDto>(`/admin/subscription/promotions/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminDeletePromo: (id: number) =>
+    request<{ deleted: boolean }>(`/admin/subscription/promotions/${id}`, { method: "DELETE" }),
+  adminCompanySubs: () => request<CompanySubRow[]>("/admin/subscription/companies"),
+  adminSubSuspend: (companyId: number) =>
+    request<{ company_id: number; company_status: string }>(`/admin/subscription/companies/${companyId}/suspend`, { method: "POST" }),
+  adminSubReactivate: (companyId: number) =>
+    request<{ company_id: number; company_status: string }>(`/admin/subscription/companies/${companyId}/reactivate`, { method: "POST" }),
+  adminGrantCompany: (companyId: number, plan_code: string, days: number) =>
+    request<{ company_id: number; status: string; current_period_end: string }>(
+      `/admin/subscription/companies/${companyId}/grant`, { method: "POST", body: JSON.stringify({ plan_code, days }) }),
   createMovement: (payload: { product_id: number; movement_type: "in" | "out"; quantity: number; reason?: string; reference?: string }) =>
     request<{ id: number; product_id: number; movement_type: string; quantity: number; reason: string; reference: string; created_at: string; new_stock: number }>(
       "/inventory/movements", { method: "POST", body: JSON.stringify(payload) }
@@ -1545,6 +1585,52 @@ export type LimuleDashboardAlert = {
   type: string;
   message: string;
   action_url: string;
+};
+
+export type SubscriptionPlanDto = {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  price_cents: number;
+  currency: string;
+  period: "month" | "year";
+  features: string[];
+  trial_days: number;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type PromotionDto = {
+  id: number;
+  code: string;
+  description: string;
+  percent_off: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  plan_code: string;
+  max_redemptions: number;
+  times_redeemed: number;
+};
+
+export type MySubscriptionDto = {
+  status: "none" | "trialing" | "active" | "past_due" | "suspended" | "cancelled";
+  company_status: string;
+  plan: SubscriptionPlanDto | null;
+  plan_code: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  applied_promo_code: string;
+};
+
+export type CompanySubRow = {
+  company_id: number;
+  company_name: string;
+  company_status: string;
+  status: string;
+  plan_code: string;
+  current_period_end: string | null;
 };
 
 export type CurrencyConvertDto = {

@@ -172,7 +172,23 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
         txn.status = "cancelled"
     txn.last_event = event_type
     db.commit()
+    _activate_subscription_if_paid(db, txn)
     return {"received": True, "status": txn.status}
+
+
+def _activate_subscription_if_paid(db: Session, txn: PaymentTransaction) -> None:
+    """Si un paiement d'ABONNEMENT vient de réussir, active/prolonge l'abonnement.
+    Idempotent : ne fait rien si déjà à la bonne période."""
+    if getattr(txn, "purpose", "") != "subscription" or txn.status != "succeeded":
+        return
+    try:
+        from app.models import SubscriptionPlan
+        from app.services import subscriptions as _subs
+        plan = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == txn.subscription_plan_code))
+        if plan:
+            _subs.activate_after_payment(db, txn.company_id, plan, "", txn.id)
+    except Exception:
+        logger.exception("Activation abonnement post-paiement échouée (txn %s)", txn.id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -247,6 +263,7 @@ async def momo_callback(request: Request, db: Session = Depends(get_db)) -> dict
     if txn.status == "failed":
         txn.failure_reason = body.get("reason", "")[:255]
     db.commit()
+    _activate_subscription_if_paid(db, txn)
     return {"received": True, "status": txn.status}
 
 
@@ -290,4 +307,5 @@ async def payment_status(
         except pay.PaymentError:
             pass  # garder le statut courant si le prestataire est momentanément indisponible
 
+    _activate_subscription_if_paid(db, txn)
     return _serialize(txn)
