@@ -7,7 +7,7 @@
 > Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind**.
 > Argent en **centimes entiers** (BigInt) · **paiements réels** Stripe (carte) + MTN Mobile Money.
 > Déploiement production **gratuit** via **Cloudflare Tunnel** (domaine `kompta0.com`, un seul hostname).
-> 98 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
+> 100 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
 
 ---
 
@@ -609,7 +609,7 @@ de Float, pas de dérive d'arrondi.
 ```bash
 # Backend (pytest)
 cd backend && .venv/bin/python -m pytest -q
-# → 98 passed
+# → 100 passed
 
 # Frontend (Vitest)
 cd frontend && npm run test
@@ -636,7 +636,7 @@ cd frontend && npm run test
 
 `.github/workflows/ci.yml` à 2 jobs déclenchés sur push + PR :
 
-- **backend** : pytest sur SQLite frais (98 tests)
+- **backend** : pytest sur SQLite frais (100 tests)
 - **frontend** : `tsc --noEmit` + Vitest + build production
 
 ---
@@ -798,6 +798,17 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.5.1 — Juin 2026 (remédiation audit zéro-simulacre)
+
+- ✅ **Cookie de session par environnement** : host-only + non-secure hors production (QA navigateur local fiable), `.kompta0.com` + Secure conservés en prod
+- ✅ **Zéro-simulacre IA renforcé** : `limule_generate` fail-close 503 en prod ; `limule_stream` émet un état d'indisponibilité explicite ; IA groupes (4 endpoints) laissent remonter le 503 ; extraction documentaire → `provider='unavailable'` (plus de faux résumé) ; **2 tests** de non-régression
+- ✅ **Taux de change** : flag `certified` + badge UI « ⚠ taux estimé » quand le taux vient du fallback hors-ligne
+- ✅ **Doublon API supprimé** : `GET /audit-logs` n'est plus déclaré qu'une fois (version canonique agrégée)
+- ✅ **Pages orphelines retirées** : `InventoryPosPage`, `ModuleBoardPage`
+- ✅ **Tokens Admin Limule** : étiquetés « estimation » (non mesurés)
+- ✅ **Warnings Python 3.16** : `datetime.utcnow()` → `datetime.now(timezone.utc)`
+- ✅ **100 tests backend** (98 → 100)
 
 ### v1.5.0 — Juin 2026
 
