@@ -39,6 +39,26 @@ def test_fallback_when_api_fails(monkeypatch) -> None:
     assert exchange_rates.get_rate("EUR", "EUR") == 1.0
 
 
+def test_no_estimated_rate_in_production(monkeypatch) -> None:
+    """Zéro simulacre : en production, source temps réel KO → 'unavailable'
+    (aucun taux estimé n'est renvoyé), au lieu du fallback déterministe."""
+    from app.core.config import get_settings
+
+    exchange_rates.clear_cache()
+    monkeypatch.setattr(exchange_rates, "_fetch_remote", lambda frm, to: None)
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    get_settings.cache_clear()
+    try:
+        assert exchange_rates.get_rate("XAF", "EUR") is None
+        payload = exchange_rates.convert(amount=1_000, from_currency="XAF", to_currency="EUR")
+        assert payload["source"] == "unavailable"
+        assert payload["converted"] is None
+        assert payload["certified"] is False
+    finally:
+        get_settings.cache_clear()
+        exchange_rates.clear_cache()
+
+
 def test_currency_convert_endpoint(monkeypatch) -> None:
     """Endpoint /currency/convert : doit répondre même sans réseau."""
     exchange_rates.clear_cache()

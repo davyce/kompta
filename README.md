@@ -7,7 +7,7 @@
 > Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind**.
 > Argent en **centimes entiers** (BigInt) · **paiements réels** Stripe (carte) + MTN Mobile Money.
 > Déploiement production **gratuit** via **Cloudflare Tunnel** (domaine `kompta0.com`, un seul hostname).
-> 100 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
+> 101 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
 
 ---
 
@@ -609,7 +609,7 @@ de Float, pas de dérive d'arrondi.
 ```bash
 # Backend (pytest)
 cd backend && .venv/bin/python -m pytest -q
-# → 100 passed
+# → 101 passed
 
 # Frontend (Vitest)
 cd frontend && npm run test
@@ -636,7 +636,7 @@ cd frontend && npm run test
 
 `.github/workflows/ci.yml` à 2 jobs déclenchés sur push + PR :
 
-- **backend** : pytest sur SQLite frais (100 tests)
+- **backend** : pytest sur SQLite frais (101 tests)
 - **frontend** : `tsc --noEmit` + Vitest + build production
 
 ---
@@ -798,6 +798,16 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.5.2 — Juin 2026 (zéro-simulacre strict)
+
+- ✅ **Devises** : en production, plus aucun taux estimé — source temps réel KO → `unavailable` (au lieu du fallback figé)
+- ✅ **Extraction documents** : texte trop court → `insufficient_text` explicite (fini « Document analysé localement »)
+- ✅ **Contrats** : suppression du libellé « mock » dans le PDF légal → « modèle standard KOMPTA (sans IA) » / « assistant IA Limule »
+- ✅ **Rappels de cotisation (groupes)** : champ `source` (`ai`/`template`) — l'origine du message est explicite
+- ✅ **Copilot export** : échec PDF rendu explicite (extension `.txt` correcte + alerte, plus de `.pdf` trompeur)
+- ✅ **Script de nettoyage audit** : `backend/scripts/cleanup_audit_data.py` (dry-run + `--apply`, backup auto)
+- ✅ **101 tests backend** (+ test « pas de taux estimé en production »)
 
 ### v1.5.1 — Juin 2026 (remédiation audit zéro-simulacre)
 

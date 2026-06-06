@@ -294,7 +294,16 @@ def change_first_login_password(db: Session, *, user: User, current_password: st
     return user
 
 
-def render_contract_html(company: Company, employee: Employee, ai_clauses: list[str] | None = None, provider: str = "mock") -> str:
+def _provider_label(provider: str) -> str:
+    """Libellé lisible et honnête de l'origine des clauses (jamais « mock »)."""
+    p = (provider or "").lower()
+    if p in {"deepseek", "openai", "ollama"}:
+        return "l'assistant IA Limule"
+    # local_template / mock / inconnu → modèle standard sans IA
+    return "un modèle standard KOMPTA (sans IA)"
+
+
+def render_contract_html(company: Company, employee: Employee, ai_clauses: list[str] | None = None, provider: str = "local_template") -> str:
     employee_name = html.escape(f"{employee.first_name} {employee.last_name}")
     company_name = html.escape(company.legal_name or company.name)
     job_title = html.escape(employee.job_title)
@@ -350,7 +359,7 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     <div><div class="label">Remuneration mensuelle indicatrice</div>{salary} {currency}</div>
     <div><div class="label">Statut compte</div>{html.escape(employee.account_status)}</div>
   </div>
-  <p><em>Clauses generees par {html.escape(provider)} et a valider par un responsable habilite avant signature.</em></p>
+  <p><em>Clauses generees par {html.escape(_provider_label(provider))} et a valider par un responsable habilite avant signature.</em></p>
   {rendered_clauses}
   <div class="signature">
     <div>Signature entreprise<br /><br />________________________</div>

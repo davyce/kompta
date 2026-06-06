@@ -11,6 +11,15 @@ from typing import Any
 
 import httpx
 
+from app.core.config import get_settings
+
+
+def _allow_fallback_rates() -> bool:
+    """En production/staging on n'utilise PAS de taux estimés (zéro simulacre) :
+    si la source temps réel est indisponible, on renvoie « indisponible ».
+    En local/dev, le fallback déterministe reste autorisé (travail hors-ligne)."""
+    return not get_settings().is_production
+
 
 # ── Taux figés de secours (≈ valeurs réalistes 2026) ─────────────────────
 # Source : ordre de grandeur stable XAF/EUR/USD.
@@ -101,6 +110,9 @@ def get_rate(from_currency: str, to_currency: str) -> float | None:
         _cache_set(frm, to, remote)
         return remote
 
+    # Production : pas de taux estimé → on renvoie None (indisponible).
+    if not _allow_fallback_rates():
+        return None
     fb = _fallback_rate(frm, to)
     if fb is not None:
         # Ne pas cacher le fallback : on retentera l'API à la prochaine requête.
@@ -145,19 +157,21 @@ def convert(amount: float, from_currency: str, to_currency: str) -> dict[str, An
             "rate": remote, "source": "api", "certified": True,
         }
 
-    # 3. Fallback déterministe — taux estimé, NON certifié (affiché comme tel)
-    fb = _fallback_rate(frm, to)
-    if fb is not None:
-        return {
-            "from": frm, "to": to, "amount": amt,
-            "converted": round(amt * fb, 4),
-            "rate": fb, "source": "fallback", "certified": False,
-            "notice": "Taux estimé (hors-ligne) — non certifié temps réel.",
-        }
+    # 3. Fallback déterministe — UNIQUEMENT hors production (taux estimé, non certifié)
+    if _allow_fallback_rates():
+        fb = _fallback_rate(frm, to)
+        if fb is not None:
+            return {
+                "from": frm, "to": to, "amount": amt,
+                "converted": round(amt * fb, 4),
+                "rate": fb, "source": "fallback", "certified": False,
+                "notice": "Taux estimé (hors-ligne) — non certifié temps réel.",
+            }
+    # Production sans source temps réel, ou aucune table : indisponible explicite.
     return {
         "from": frm, "to": to, "amount": amt,
         "converted": None, "rate": None, "source": "unavailable", "certified": False,
-        "notice": "Taux indisponible — réessayez plus tard.",
+        "notice": "Taux temps réel indisponible — aucune conversion estimée n'est fournie.",
     }
 
 

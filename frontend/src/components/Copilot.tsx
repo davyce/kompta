@@ -244,14 +244,21 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
         return;
-      } catch { /* fallback */ }
+      } catch { /* on tente le PDF client-side ci-dessous */ }
     }
     // Fallback : PDF client-side via service
     const blob = await _buildClientPdf(msg.text, msg.intent ?? "rapport");
+    const isPdf = blob.type === "application/pdf";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `limule_rapport_${Date.now()}.pdf`; a.click();
+    a.href = url;
+    a.download = `limule_rapport_${Date.now()}.${isPdf ? "pdf" : "txt"}`;
+    a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+    if (!isPdf) {
+      // Échec EXPLICITE : la génération PDF a échoué, on exporte le texte brut.
+      window.alert("Génération PDF indisponible — le rapport a été exporté en texte (.txt).");
+    }
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -700,14 +707,20 @@ export function Copilot() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
         return;
-      } catch { /* fallback */ }
+      } catch { /* on tente le PDF client-side ci-dessous */ }
     }
     // Fallback : PDF client-side
     const blob = await _buildClientPdf(msg.text, msg.intent ?? "analyse");
+    const isPdf = blob.type === "application/pdf";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `limule_${Date.now()}.pdf`; a.click();
+    a.href = url;
+    a.download = `limule_${Date.now()}.${isPdf ? "pdf" : "txt"}`;
+    a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+    if (!isPdf) {
+      window.alert("Génération PDF indisponible — le rapport a été exporté en texte (.txt).");
+    }
   }
 
   /* ── Rating ─────────────────────────────────────────────────────────────── */

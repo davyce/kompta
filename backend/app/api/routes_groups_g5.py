@@ -285,6 +285,7 @@ async def remind_member(group_id: int, payload: RemindMemberRequest,
               f"du groupe « {group.name} ». Montant dû : {amount_due:.0f} {group.currency} "
               f"(plan : {plan_title}, échéance : {date_str}). "
               f"Message court (3-4 phrases max), respectueux, clair. Ne signe pas — la signature sera ajoutée automatiquement.")
+    source = "ai"
     try:
         from app.services.deepseek import _deepseek_chat
         msgs = [
@@ -294,8 +295,9 @@ async def remind_member(group_id: int, payload: RemindMemberRequest,
         message = await _deepseek_chat(msgs) or ""
     except Exception:
         message = ""
-    # Fallback déterministe si l'IA n'est pas disponible
+    # Modèle standard si l'IA n'est pas disponible — origine signalée via `source`.
     if not message.strip():
+        source = "template"
         message = (f"Bonjour {member.full_name}, nous vous rappelons que votre cotisation "
                    f"de {amount_due:.0f} {group.currency} ({plan_title}) est attendue dès que possible. "
                    f"Merci de régulariser votre situation auprès du trésorier.")
@@ -316,6 +318,7 @@ async def remind_member(group_id: int, payload: RemindMemberRequest,
         "amount_due": amount_due,
         "currency": group.currency,
         "message": full_message,
+        "source": source,  # "ai" = rédigé par Limule ; "template" = modèle standard (IA indisponible)
         "channels": {k: v for k, v in channels.items() if v},
     }
 
@@ -332,15 +335,19 @@ async def generate_reminder_message(group_id: int, payload: ReminderGen, db: Ses
               f"du groupe « {group.name} ». Montant dû : {payload.amount_due} {group.currency} "
               f"(plan : {payload.plan_title}, échéance : {date_str}). "
               f"Message court, respectueux, clair, avec coordonnées pour payer.")
+    source = "ai"
     try:
         from app.services.deepseek import _deepseek_chat
         msgs9 = [{"role": "system", "content": "Tu génères des messages de rappel polis pour des groupes. Sois chaleureux et clair."}, {"role": "user", "content": prompt}]
         message = await _deepseek_chat(msgs9) or ""
-    except Exception as exc:
+    except Exception:
+        message = ""
+    if not message.strip():
+        source = "template"
         message = (f"Cher(e) {payload.member_name}, nous vous rappelons que votre cotisation "
                    f"de {payload.amount_due} {group.currency} ({payload.plan_title}) est attendue avant le {date_str}. "
                    f"Merci de régulariser votre situation. — Le bureau de {group.name}")
-    return {"message": message, "member_name": payload.member_name}
+    return {"message": message, "member_name": payload.member_name, "source": source}
 
 
 # ── Rapports export JSON (base PDF) ─────────────────────────────────────────

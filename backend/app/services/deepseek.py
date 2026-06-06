@@ -35,7 +35,7 @@ def mock_writing_response(payload: WritingRequest, signer_name: str) -> dict[str
         ),
         "confidence": 76,
         "sources": ["Contexte utilisateur", "Parametres entreprise", "Historique local mocke"],
-        "provider": "mock",
+        "provider": "local_template",
         "is_demo": True,
         "human_validation_required": True,
     }
@@ -53,7 +53,7 @@ def mock_declaration_response(payload: DeclarationRequest) -> dict[str, Any]:
             "Valider la paie de la periode",
             "Faire relire par un humain avant depot",
         ],
-        "provider": "mock",
+        "provider": "local_template",
         "is_demo": True,
         "human_validation_required": True,
     }
@@ -241,7 +241,7 @@ def fallback_document_analysis(title: str, filename: str, content_preview: str =
         "tags": tags,
         "confidence": 68,
         "risks": [],
-        "provider": "mock",
+        "provider": "local_template",
         "is_demo": True,
         "human_validation_required": True,
     }
@@ -294,7 +294,7 @@ async def generate_contract_clauses(company_name: str, employee_payload: dict[st
             "Les acces numeriques, documents et informations professionnelles sont personnels, confidentiels et auditables.",
             "L'employe devra respecter les procedures internes, les obligations de confidentialite et les regles de securite.",
         ],
-        "provider": "mock",
+        "provider": "local_template",
         "is_demo": True,
         "human_validation_required": True,
     }

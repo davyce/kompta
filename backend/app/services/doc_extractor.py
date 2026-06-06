@@ -101,7 +101,15 @@ async def extract_structured_data(
     from app.services.deepseek import _deepseek_chat, _extract_json
 
     if not text or len(text.strip()) < 20:
-        return _fallback_extraction(title, doc_type)
+        # Texte insuffisant pour une extraction : état EXPLICITE (pas de faux résumé).
+        return {
+            "document_type": doc_type,
+            "resume": "Texte insuffisant pour l'analyse automatique "
+                      "(document scanné/illisible ou contenu trop court).",
+            "tags": [doc_type],
+            "confidence": 0,
+            "provider": "insufficient_text",
+        }
 
     # On tronque à 12 000 caractères (≈ 3 000 tokens) pour rester dans les limites
     truncated = text[:12_000]
