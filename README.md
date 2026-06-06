@@ -614,10 +614,16 @@ cd backend && .venv/bin/python -m pytest -q
 # Frontend (Vitest)
 cd frontend && npm run test
 # → 21 tests passed
+
+# E2E smoke (Playwright) — nécessite backend+frontend lancés
+cd frontend && BASE_URL=http://127.0.0.1:3000 npx playwright test
+# → 6 passed (desktop + mobile : login, dashboard, pas d'overflow, 0 erreur console)
 ```
 
-> Les tests E2E Playwright ont été retirés du dépôt (le frontend est validé par
-> type-check + Vitest + build). La CI ne lance plus de job `e2e`.
+> Le **smoke E2E** (Playwright, Chromium desktop + viewport mobile) tourne en CI
+> contre une **base éphémère jetable** (`SEED_DEMO=true`, `e2e.db`) — il ne touche
+> jamais de données réelles. Volontairement minimal (login + routes clés + détection
+> d'erreurs console) pour rester rapide et non-flaky.
 
 ### Couverture des tests backend (42 tests)
 
@@ -634,10 +640,11 @@ cd frontend && npm run test
 
 ### CI/CD GitHub Actions
 
-`.github/workflows/ci.yml` à 2 jobs déclenchés sur push + PR :
+`.github/workflows/ci.yml` à 3 jobs déclenchés sur push + PR :
 
 - **backend** : pytest sur SQLite frais (101 tests)
 - **frontend** : `tsc --noEmit` + Vitest + build production
+- **e2e** : Playwright smoke (Chromium) contre une base éphémère seedée — login, routes clés, erreurs console
 
 ---
 

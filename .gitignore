@@ -60,6 +60,13 @@ nosetests.xml
 pip-log.txt
 pip-delete-this-directory.txt
 
+# ── Playwright (artefacts E2E) ──────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
+frontend/test-results/
+frontend/playwright-report/
+
 # ── Node / Frontend ─────────────────────────────────────
 node_modules/
 frontend/node_modules/
