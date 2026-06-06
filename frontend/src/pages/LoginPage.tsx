@@ -3,6 +3,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { TextInput } from "../components/FormField";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useToast } from "../components/ToastProvider";
 import { useAuth } from "../app/AuthContext";
@@ -346,6 +347,18 @@ export function LoginPage() {
                 {(loading || resetLoading) ? "Limule vérifie…" : mode === "login" ? "Entrer dans KOMPTA" : mode === "reset" ? "Demander le token" : mode === "reset_confirm" ? "Changer le mot de passe" : "Créer et entrer"}
               </button>
             </div>
+
+            {mode === "login" && (
+              <GoogleSignInButton
+                onSuccess={(response) => {
+                  if (response.user.role === "super_admin") { navigate("/admin"); return; }
+                  if (response.must_change_password) { navigate("/activation"); return; }
+                  navigate("/workspace");
+                }}
+                onError={(msg) => setError(msg)}
+              />
+            )}
+
             <div className="mt-5 flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-xs sm:text-sm text-stone-600">
               <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
               <span>Les nouvelles entreprises démarrent vides : créez vous-même employés, produits, documents et ventes.</span>

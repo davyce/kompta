@@ -10,10 +10,12 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import company_scope, get_current_user
+from app.core.config import get_settings
 from app.core.rate_limit import limiter as _limiter
 from app.core.security import (
     clear_auth_cookie,
@@ -458,6 +460,60 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
                 employee.last_login_at = user.last_login_at
         db.commit()
         db.refresh(user)
+    token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id, "ver": user.token_version})
+    set_auth_cookie(response, token)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)
+
+
+@router.get("/auth/config")
+def auth_config() -> dict:
+    """Config publique pour la page de connexion (ex. activation Google)."""
+    s = get_settings()
+    return {"google_enabled": s.google_oauth_enabled, "google_client_id": s.google_client_id}
+
+
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
+@router.post("/auth/google", response_model=TokenResponse)
+@_limiter.limit("20/minute")
+def google_login(payload: GoogleLoginRequest, request: Request, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+    """Connexion via Google : vérifie le jeton ID Google, retrouve l'utilisateur
+    par email (déjà invité dans KOMPTA), et ouvre une session. Ne crée jamais de
+    compte/entreprise automatiquement (sécurité multi-tenant)."""
+    settings = get_settings()
+    if not settings.google_client_id:
+        raise HTTPException(status_code=503, detail="Connexion Google non configurée.")
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
+        info = google_id_token.verify_oauth2_token(
+            payload.credential, google_requests.Request(), settings.google_client_id
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Jeton Google invalide ou expiré.")
+    if not info.get("email_verified"):
+        raise HTTPException(status_code=401, detail="Email Google non vérifié.")
+    email = (info.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=401, detail="Email Google absent du jeton.")
+    user = db.scalar(select(User).where(func.lower(User.email) == email))
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Aucun compte KOMPTA n'est associé à cet email Google. "
+                   "Demandez une invitation à votre administrateur ou créez une entreprise.",
+        )
+    if user.account_status in {"suspended", "disabled", "archived"} or not user.is_active:
+        raise HTTPException(status_code=403, detail="Compte suspendu ou désactivé.")
+    user.last_login_at = datetime.now(timezone.utc)
+    if user.employee_id:
+        employee = db.get(Employee, user.employee_id)
+        if employee:
+            employee.last_login_at = user.last_login_at
+    db.commit()
+    db.refresh(user)
     token = create_access_token(str(user.id), {"role": user.role, "company_id": user.company_id, "ver": user.token_version})
     set_auth_cookie(response, token)
     return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)

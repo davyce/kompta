@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     auth_cookie_samesite: str = "lax"
     auth_cookie_domain: str = ""
 
+    # ── Connexion Google (OAuth « Se connecter avec Google ») ─────────────────
+    google_client_id: str = ""
+
     # ── Email SMTP ────────────────────────────────────────────────────────────
     smtp_host: str = ""
     smtp_port: int = 587
@@ -69,6 +72,10 @@ class Settings(BaseSettings):
     @property
     def email_enabled(self) -> bool:
         return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
+    @property
+    def google_oauth_enabled(self) -> bool:
+        return bool(self.google_client_id)
 
     @property
     def stripe_enabled(self) -> bool:

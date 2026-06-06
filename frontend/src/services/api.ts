@@ -192,6 +192,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password })
     }),
+  authConfig: () =>
+    request<{ google_enabled: boolean; google_client_id: string }>("/auth/config"),
+  googleLogin: (credential: string) =>
+    request<LoginResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential })
+    }),
   firstLoginChangePassword: (payload: { current_password: string; new_password: string }) =>
     request<User>("/auth/first-login-change-password", {
       method: "POST",
