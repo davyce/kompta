@@ -51,13 +51,19 @@ def compute_dashboard_alerts(
     alerts: list[dict[str, Any]] = []
     today = date.today()
 
-    # Seuil de trésorerie : configurable par entreprise (sinon valeur par défaut).
+    # Seuil de trésorerie : configurable par entreprise.
+    #   - non configuré (None) → valeur par défaut
+    #   - 0 → alerte DÉSACTIVÉE explicitement
+    #   - > 0 → seuil personnalisé
     company = db.get(Company, company_id)
     cash_threshold = CASH_LOW_THRESHOLD
+    cash_alert_enabled = True
     if company is not None:
         cents = getattr(company, "cash_low_threshold_cents", None)
-        if cents is not None and cents > 0:
+        if cents is not None:
             cash_threshold = cents / 100.0
+            if cents <= 0:
+                cash_alert_enabled = False
 
     # ── 1. Factures en retard ────────────────────────────────────────────
     overdue_invoices = db.scalars(
@@ -108,7 +114,7 @@ def compute_dashboard_alerts(
     tx_rows = db.scalars(
         select(BankTransaction).where(BankTransaction.company_id == company_id)
     ).all()
-    if tx_rows:
+    if cash_alert_enabled and tx_rows:
         credits = sum(
             (r.credit if r.credit is not None else max(r.amount or 0, 0))
             for r in tx_rows

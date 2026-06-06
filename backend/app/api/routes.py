@@ -1680,8 +1680,23 @@ def create_sale(
         sale_item.line_total_cents = _accounting.to_cents(line_total)
         db.add_all([sale_item, movement])
         response_items.append({"product_id": product.id, "name": product.name, "quantity": item.quantity, "total": line_total})
-    sale.total_amount = total
-    sale.total_amount_cents = _accounting.to_cents(total)
+    # ── Remise + TVA : recalcul EXACT, identique au POS ───────────────────────
+    # Le client (caisse) charge : (sous-total − remise) + TVA. Le serveur doit
+    # obtenir le MÊME montant au centime près, sinon le paiement carte/MoMo est
+    # rejeté (montant ≠ total). Arrondi "half-up" pour matcher JS Math.round.
+    import math as _math
+
+    def _round_half_up(x: float) -> int:
+        return int(_math.floor(float(x) + 0.5))
+
+    subtotal = total
+    discount_amount = _round_half_up(subtotal * (payload.discount_percent / 100.0)) if payload.discount_percent else 0
+    after_discount = subtotal - discount_amount
+    tax = _round_half_up(after_discount * (payload.tax_rate / 100.0)) if payload.tva_enabled else 0
+    grand_total = after_discount + tax
+    sale.total_amount = grand_total
+    sale.total_amount_cents = _round_half_up(grand_total * 100)
+    total = grand_total  # le reste de la fonction (transaction bancaire, réponse) utilise le total final
 
     if payload.payment_transaction_id is not None:
         payment_txn = db.get(PaymentTransaction, payload.payment_transaction_id)

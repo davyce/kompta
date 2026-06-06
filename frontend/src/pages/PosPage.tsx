@@ -424,7 +424,11 @@ export function PosPage() {
       payment_method: paymentMethod,
       payment_account_id: paymentAccountId,
       items: cart.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
-      ...(discountPercent > 0 ? { discount_percent: discountPercent } : {}),
+      // Remise + TVA envoyées pour que le serveur calcule le MÊME total que la caisse
+      // (sinon le paiement carte/MoMo est rejeté : montant ≠ total).
+      discount_percent: discountPercent,
+      tva_enabled: tvaEnabled,
+      tax_rate: tvaRate,
       ...(paymentTransactionId ? { payment_transaction_id: paymentTransactionId } : {}),
     };
   }

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.db.session import SessionLocal
-from app.models import Invoice, Product, User
+from app.models import BankTransaction, Company, Invoice, Product, User
 
 
 def _login(client: TestClient, email: str = "admin@kompta.local", password: str = "kompta123") -> dict:
@@ -67,3 +67,35 @@ def test_limule_alerts_overdue_and_low_stock() -> None:
             assert "message" in alert
             assert "action_url" in alert
             assert alert["severity"] in ("info", "warning", "critical")
+
+
+def test_cash_threshold_zero_disables_alert() -> None:
+    """Seuil de trésorerie = 0 → l'alerte 'cash_low' est désactivée (pas de repli sur 50 000)."""
+    with TestClient(app) as client:
+        headers = _login(client)
+        db = SessionLocal()
+        try:
+            admin = db.query(User).filter(User.email == "admin@kompta.local").first()
+            company = db.get(Company, admin.company_id)
+            # Au moins une transaction bancaire pour que la règle s'évalue
+            db.add(BankTransaction(company_id=admin.company_id, date=date.today(), label="Test", debit=1000.0, credit=0.0, currency="XAF"))
+            # Seuil volontairement TRÈS haut → trésorerie < seuil → alerte présente
+            company.cash_low_threshold_cents = 10_000_000_000  # 100 M
+            db.commit()
+        finally:
+            db.close()
+
+        alerts = client.get("/api/limule/alerts", headers=headers).json()
+        assert "cash_low" in [a["type"] for a in alerts], "L'alerte devrait apparaître avec un seuil > 0"
+
+        # Mettre le seuil à 0 → alerte désactivée
+        db = SessionLocal()
+        try:
+            admin = db.query(User).filter(User.email == "admin@kompta.local").first()
+            db.get(Company, admin.company_id).cash_low_threshold_cents = 0
+            db.commit()
+        finally:
+            db.close()
+
+        alerts = client.get("/api/limule/alerts", headers=headers).json()
+        assert "cash_low" not in [a["type"] for a in alerts], "Seuil 0 doit désactiver l'alerte"

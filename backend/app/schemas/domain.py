@@ -409,6 +409,11 @@ class SaleCreate(BaseModel):
     payment_account_id: int | None = None
     payment_transaction_id: int | None = None
     items: list[SaleItemCreate]
+    # Remise et TVA appliquées par la caisse (le serveur recalcule le total EXACT
+    # de la même façon que le POS, pour que le montant encaissé corresponde).
+    discount_percent: float = 0.0
+    tva_enabled: bool = False
+    tax_rate: float = 18.0
 
 
 class PaymentAccountBase(BaseModel):

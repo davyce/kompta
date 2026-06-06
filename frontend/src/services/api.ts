@@ -362,7 +362,7 @@ export const api = {
     request<{ product: Product; label: Record<string, string | number> }>(`/products/${id}/qr-label`, {
       method: "POST"
     }),
-  createSale: (payload: { payment_method: string; payment_account_id?: number | null; payment_transaction_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number }) =>
+  createSale: (payload: { payment_method: string; payment_account_id?: number | null; payment_transaction_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number; tva_enabled?: boolean; tax_rate?: number }) =>
     request<{ receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
       "/pos/sales",
       {

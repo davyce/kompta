@@ -153,6 +153,36 @@ def test_pos_card_sale_links_confirmed_payment_transaction() -> None:
             assert refreshed.sale_id == sale.json()["id"]
 
 
+def test_pos_card_sale_with_tva_matches_transaction_amount() -> None:
+    """Vente carte AVEC TVA 18% : le serveur calcule le total TTC et il doit
+    correspondre au montant de la transaction (sinon 'montant différent')."""
+    with TestClient(app) as client:
+        headers = _auth(client)
+        suffix = uuid4().hex[:8]
+        product = client.post("/api/products", headers=headers, json={
+            "name": f"Produit TVA {suffix}", "sku": f"TVA-{suffix}", "category": "Tests",
+            "price": 1000, "stock_quantity": 5,
+        })
+        assert product.status_code == 201
+
+        # 1000 HT + 18% TVA = 1180 TTC → 118000 cents
+        with SessionLocal() as db:
+            admin = db.scalar(select(User).where(User.email == "admin@kompta.local"))
+            txn = PaymentTransaction(
+                company_id=admin.company_id, provider="stripe", provider_ref=f"pi_tva_{suffix}",
+                idempotency_key=f"idem-tva-{suffix}", amount_cents=118000, currency="XAF", status="succeeded",
+            )
+            db.add(txn); db.commit(); txn_id = txn.id
+
+        sale = client.post("/api/pos/sales", headers=headers, json={
+            "payment_method": "card", "payment_transaction_id": txn_id,
+            "items": [{"product_id": product.json()["id"], "quantity": 1}],
+            "tva_enabled": True, "tax_rate": 18,
+        })
+        assert sale.status_code == 201, sale.text
+        assert sale.json()["total_amount"] == 1180  # TTC
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # STRIPE WEBHOOK — tests de signature HMAC (sans appel réseau)
 # ═══════════════════════════════════════════════════════════════════════════

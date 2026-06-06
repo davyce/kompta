@@ -20,7 +20,8 @@ import type { LucideIcon } from "lucide-react";
 import { api } from "../services/api";
 import { exportToPDF } from "../utils/export";
 
-const EMERALD_PALETTE = ["#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5", "#0d9488", "#0891b2"];
+// Palette variée et harmonieuse (plus de « vert sur vert »).
+const EMERALD_PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#0ea5e9", "#8b5cf6", "#ec4899", "#14b8a6", "#ef4444"];
 
 function fmt(n: number, currency = true): string {
   if (currency) return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(n);
@@ -213,8 +214,8 @@ export function AnalyticsPage() {
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
               <Legend />
-              <Bar dataKey="Revenus" fill="#059669" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Marge" fill="#34d399" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Marge" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -230,7 +231,7 @@ export function AnalyticsPage() {
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
-              <Bar dataKey="CA" fill="#059669" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="CA" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
