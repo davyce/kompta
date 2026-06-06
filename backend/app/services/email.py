@@ -6,14 +6,20 @@ Utilise aiosmtplib + templates HTML inline.
 """
 
 import logging
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+import certifi
 
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Contexte TLS basé sur le bundle de CA `certifi` (à jour) — évite les erreurs
+# « CERTIFICATE_VERIFY_FAILED » du Python framework macOS et fonctionne sur Linux.
+_TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,6 +46,7 @@ async def send_email(to: str, subject: str, html_body: str) -> bool:
             username=settings.smtp_user,
             password=settings.smtp_password,
             start_tls=settings.smtp_tls,
+            tls_context=_TLS_CONTEXT,
         )
         logger.info(f"[EMAIL SENT] To: {to} | Subject: {subject}")
         return True
