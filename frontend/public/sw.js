@@ -18,49 +18,71 @@ if (IS_DEV) {
   });
 
 } else {
-  /* ── PRODUCTION : Cache-first pour assets, network-first pour API ── */
-  const CACHE_NAME = "kompta-v3";
-  const PRECACHE_URLS = ["/", "/index.html"];
+  /* ── PRODUCTION ──────────────────────────────────────────────────────────
+   * - HTML / navigation : NETWORK-FIRST → on sert toujours le dernier index.html,
+   *   donc les bons hash d'assets après un redéploiement (fini l'écran blanc).
+   * - Assets hashés (/assets/*) : cache-first (immuables, nom unique par build).
+   * - API : network-first avec repli cache hors-ligne.
+   * Bump du nom de cache à chaque changement de stratégie → purge l'ancien.
+   */
+  const CACHE_NAME = "kompta-v4";
+  const PRECACHE_URLS = ["/index.html"];
 
   self.addEventListener("install", (event) => {
     event.waitUntil(
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
     );
     self.skipWaiting();
   });
 
   self.addEventListener("activate", (event) => {
     event.waitUntil(
-      caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-      )
+      caches.keys()
+        .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+        .then(() => self.clients.claim())
     );
-    self.clients.claim();
   });
 
   self.addEventListener("fetch", (event) => {
-    const url = new URL(event.request.url);
+    const { request } = event;
+    if (request.method !== "GET") return;
+    const url = new URL(request.url);
+
+    // API → network-first
     if (url.pathname.startsWith("/api")) {
-      if (event.request.method !== "GET") return;
       event.respondWith(
-        fetch(event.request)
+        fetch(request)
           .then((r) => {
-            if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(event.request, r.clone()));
+            if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(request, r.clone()));
             return r;
           })
-          .catch(() => caches.match(event.request))
+          .catch(() => caches.match(request))
       );
       return;
     }
-    if (event.request.method === "GET") {
+
+    // Navigation / HTML → network-first (toujours le dernier index.html)
+    const isHtml = request.mode === "navigate" || url.pathname === "/" || url.pathname.endsWith(".html");
+    if (isHtml) {
       event.respondWith(
-        caches.match(event.request).then((cached) =>
-          cached || fetch(event.request).then((r) => {
-            if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(event.request, r.clone()));
+        fetch(request)
+          .then((r) => {
+            if (r.ok) caches.open(CACHE_NAME).then((c) => c.put("/index.html", r.clone()));
             return r;
           })
-        )
+          .catch(() => caches.match(request).then((c) => c || caches.match("/index.html")))
       );
+      return;
     }
+
+    // Assets hashés → cache-first
+    event.respondWith(
+      caches.match(request).then((cached) =>
+        cached || fetch(request).then((r) => {
+          if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(request, r.clone()));
+          return r;
+        })
+      )
+    );
   });
 }
