@@ -1553,7 +1553,11 @@ export type CurrencyConvertDto = {
   amount: number;
   converted: number | null;
   rate: number | null;
-  source: "api" | "cache" | "fallback" | "unavailable";
+  source: "api" | "cache" | "fallback" | "unavailable" | "identity";
+  /** true uniquement si le taux vient d'une source temps réel (api/cache). */
+  certified?: boolean;
+  /** message d'avertissement quand le taux n'est pas certifié. */
+  notice?: string;
 };
 
 export type CurrencyRatesDto = {

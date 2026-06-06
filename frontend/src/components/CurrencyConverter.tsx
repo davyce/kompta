@@ -31,6 +31,7 @@ export function CurrencyConverter({
   const [converted, setConverted] = useState<number | null>(null);
   const [rate, setRate] = useState<number | null>(null);
   const [source, setSource] = useState<string>("");
+  const [certified, setCertified] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,8 @@ export function CurrencyConverter({
         setConverted(data.converted);
         setRate(data.rate);
         setSource(data.source);
+        // `certified` absent (anciens backends) → on déduit de la source.
+        setCertified(data.certified ?? (data.source === "api" || data.source === "cache" || data.source === "identity"));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -132,6 +135,14 @@ export function CurrencyConverter({
             {source && (
               <span className="text-[10px] uppercase tracking-wider text-[#717182] opacity-70">
                 {source}
+              </span>
+            )}
+            {!certified && (
+              <span
+                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                title="Taux estimé hors-ligne — non certifié temps réel"
+              >
+                ⚠ taux estimé
               </span>
             )}
           </>

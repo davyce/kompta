@@ -127,8 +127,11 @@ export function AdminLimulePage() {
     ? Math.round(insights.data.last_7_days / 7)
     : "–";
   const avgLatency = health.data?.latency_ms != null ? `${health.data.latency_ms}ms` : "–";
+  // Estimation explicite : aucun comptage réel de tokens n'est instrumenté côté
+  // fournisseur LLM. On affiche une borne indicative (≈420 tokens/req), jamais
+  // présentée comme une mesure exacte.
   const tokensConsumed = insights.data?.total_interactions
-    ? `~${(insights.data.total_interactions * 420).toLocaleString("fr-FR")}`
+    ? `≈ ${(insights.data.total_interactions * 420).toLocaleString("fr-FR")}`
     : "–";
 
   useEffect(() => {
@@ -234,7 +237,7 @@ export function AdminLimulePage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metric icon={BrainCircuit} label="Requêtes aujourd'hui" value={todayRequests} hint="estimé sur 7j" />
         <Metric icon={Clock} label="Latence moyenne" value={avgLatency} hint="depuis health check" />
-        <Metric icon={Tags} label="Tokens consommés" value={tokensConsumed} hint="estimé ~420 tokens/req" />
+        <Metric icon={Tags} label="Tokens (estimation)" value={tokensConsumed} hint="≈420 tokens/req — non mesuré" />
         <Metric icon={Activity} label="Total interactions" value={data?.total_interactions ?? "…"} hint={`${data?.last_7_days ?? 0} sur 7 jours`} />
       </div>
 
