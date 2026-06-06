@@ -677,6 +677,19 @@ def first_login_change_password(
     return change_first_login_password(db, user=current_user, current_password=payload.current_password, new_password=payload.new_password)
 
 
+_COMPLETION_FIELDS = (
+    "name", "legal_name", "legal_form", "industry", "country", "city", "address",
+    "rccm", "niu", "cnss_number", "tax_regime", "share_capital", "founded_date",
+    "phone", "email", "manager_name", "bank_name", "bank_account",
+)
+
+
+def _compute_company_completion(company: Company) -> int:
+    """% de complétion du profil = champs clés (identité + légal + contact) renseignés."""
+    filled = sum(1 for f in _COMPLETION_FIELDS if str(getattr(company, f, "") or "").strip())
+    return round(filled * 100 / len(_COMPLETION_FIELDS))
+
+
 @router.get("/company/profile", response_model=CompanyRead)
 def company_profile(
     db: Session = Depends(get_db),
@@ -702,6 +715,8 @@ def update_company(
     # Garde-fou : le seuil de trésorerie ne peut pas être négatif.
     if getattr(company, "cash_low_threshold_cents", 0) and company.cash_low_threshold_cents < 0:
         company.cash_low_threshold_cents = 0
+    # Complétion du profil : % de champs clés (identité + légal + contact) remplis.
+    company.completion_score = _compute_company_completion(company)
     db.commit()
     db.refresh(company)
     return company

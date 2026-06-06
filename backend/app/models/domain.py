@@ -38,6 +38,27 @@ class Company(TimestampMixin, Base):
     # Seuil d'alerte trésorerie (Limule) : alerte si solde < seuil. Défaut 50 000 (en centimes).
     cash_low_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
 
+    # ── Mentions légales (entreprise réelle — zone CEMAC / OHADA) ─────────────
+    legal_form: Mapped[str] = mapped_column(String(40), default="")          # SARL | SA | SAS | SUARL | EI | GIE | Association | Coopérative
+    rccm: Mapped[str] = mapped_column(String(80), default="")                # Registre du Commerce et du Crédit Mobilier
+    niu: Mapped[str] = mapped_column(String(60), default="")                 # Numéro d'Identification Unique (fiscal / NIF)
+    cnss_number: Mapped[str] = mapped_column(String(60), default="")         # N° employeur CNSS
+    patente_number: Mapped[str] = mapped_column(String(60), default="")      # N° de patente / licence
+    tax_regime: Mapped[str] = mapped_column(String(40), default="")          # reel | simplifie | forfait
+    share_capital: Mapped[str] = mapped_column(String(60), default="")       # Capital social (texte : "1 000 000 XAF")
+    founded_date: Mapped[str] = mapped_column(String(20), default="")        # Date de création (ISO)
+    # ── Coordonnées ───────────────────────────────────────────────────────────
+    address: Mapped[str] = mapped_column(String(255), default="")
+    city: Mapped[str] = mapped_column(String(120), default="")
+    phone: Mapped[str] = mapped_column(String(60), default="")
+    email: Mapped[str] = mapped_column(String(160), default="")
+    website: Mapped[str] = mapped_column(String(160), default="")
+    # ── Représentant légal + banque ──────────────────────────────────────────
+    manager_name: Mapped[str] = mapped_column(String(160), default="")       # Gérant / représentant légal
+    manager_title: Mapped[str] = mapped_column(String(80), default="")       # Gérant | Directeur Général | Président
+    bank_name: Mapped[str] = mapped_column(String(120), default="")
+    bank_account: Mapped[str] = mapped_column(String(80), default="")        # RIB / IBAN
+
     users: Mapped[list["User"]] = relationship(back_populates="company")
 
 

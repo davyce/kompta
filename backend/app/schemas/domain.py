@@ -63,6 +63,24 @@ class CompanyRead(BaseModel):
     completion_score: int
     teras_score: int
     cash_low_threshold_cents: int = 5_000_000
+    # Mentions légales (entreprise réelle CEMAC / OHADA)
+    legal_form: str = ""
+    rccm: str = ""
+    niu: str = ""
+    cnss_number: str = ""
+    patente_number: str = ""
+    tax_regime: str = ""
+    share_capital: str = ""
+    founded_date: str = ""
+    address: str = ""
+    city: str = ""
+    phone: str = ""
+    email: str = ""
+    website: str = ""
+    manager_name: str = ""
+    manager_title: str = ""
+    bank_name: str = ""
+    bank_account: str = ""
 
 
 class CompanyUpdate(BaseModel):
@@ -74,6 +92,23 @@ class CompanyUpdate(BaseModel):
     primary_color: str | None = None
     accent_color: str | None = None
     cash_low_threshold_cents: int | None = None
+    legal_form: str | None = None
+    rccm: str | None = None
+    niu: str | None = None
+    cnss_number: str | None = None
+    patente_number: str | None = None
+    tax_regime: str | None = None
+    share_capital: str | None = None
+    founded_date: str | None = None
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    manager_name: str | None = None
+    manager_title: str | None = None
+    bank_name: str | None = None
+    bank_account: str | None = None
 
 
 class UserRead(BaseModel):

@@ -143,6 +143,24 @@ export function SettingsPage() {
     primary_color: "#0f766e",
     accent_color: "#f59e0b",
     cash_low_threshold_cents: 5_000_000,
+    // Mentions légales
+    legal_form: "",
+    rccm: "",
+    niu: "",
+    cnss_number: "",
+    patente_number: "",
+    tax_regime: "",
+    share_capital: "",
+    founded_date: "",
+    address: "",
+    city: "",
+    phone: "",
+    email: "",
+    website: "",
+    manager_name: "",
+    manager_title: "",
+    bank_name: "",
+    bank_account: "",
   });
   const [myPayoutForm, setMyPayoutForm] = useState({
     payout_method: "mobile_money",
@@ -193,15 +211,33 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!company.data) return;
+    const d = company.data;
     setCompanyForm({
-      name: company.data.name || "",
-      legal_name: company.data.legal_name || "",
-      industry: company.data.industry || "",
-      organization_type: company.data.organization_type || "PME",
-      country: company.data.country || "République du Congo",
-      primary_color: company.data.primary_color || "#0f766e",
-      accent_color: company.data.accent_color || "#f59e0b",
-      cash_low_threshold_cents: company.data.cash_low_threshold_cents ?? 5_000_000,
+      name: d.name || "",
+      legal_name: d.legal_name || "",
+      industry: d.industry || "",
+      organization_type: d.organization_type || "PME",
+      country: d.country || "République du Congo",
+      primary_color: d.primary_color || "#0f766e",
+      accent_color: d.accent_color || "#f59e0b",
+      cash_low_threshold_cents: d.cash_low_threshold_cents ?? 5_000_000,
+      legal_form: d.legal_form || "",
+      rccm: d.rccm || "",
+      niu: d.niu || "",
+      cnss_number: d.cnss_number || "",
+      patente_number: d.patente_number || "",
+      tax_regime: d.tax_regime || "",
+      share_capital: d.share_capital || "",
+      founded_date: d.founded_date || "",
+      address: d.address || "",
+      city: d.city || "",
+      phone: d.phone || "",
+      email: d.email || "",
+      website: d.website || "",
+      manager_name: d.manager_name || "",
+      manager_title: d.manager_title || "",
+      bank_name: d.bank_name || "",
+      bank_account: d.bank_account || "",
     });
   }, [company.data]);
 
@@ -523,6 +559,105 @@ export function SettingsPage() {
                       </label>
                     </div>
                   </div>
+
+                  {/* ── Mentions légales & fiscales (OHADA / CEMAC) ── */}
+                  <div className="mt-5 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                    <p className="mb-1 text-sm font-black text-[#17211f] dark:text-white">⚖️ Mentions légales & fiscales</p>
+                    <p className="mb-3 text-xs text-[#717182]">Ces informations attestent que l'entreprise est immatriculée et en règle. Elles apparaissent sur les factures et contrats.</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <label className="block text-xs font-bold uppercase text-[#717182]">Forme juridique
+                        <select value={companyForm.legal_form} onChange={(e) => setCompanyForm({ ...companyForm, legal_form: e.target.value })} disabled={isEmployeeSelfService}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
+                          <option value="">— Choisir —</option>
+                          <option value="EI">Entreprise individuelle (EI)</option>
+                          <option value="SARL">SARL</option>
+                          <option value="SUARL">SARL unipersonnelle (SUARL)</option>
+                          <option value="SA">Société Anonyme (SA)</option>
+                          <option value="SAS">SAS</option>
+                          <option value="SNC">SNC</option>
+                          <option value="GIE">GIE</option>
+                          <option value="Coopérative">Coopérative</option>
+                          <option value="Association">Association / ONG</option>
+                        </select>
+                      </label>
+                      {[
+                        { label: "RCCM", key: "rccm", ph: "Ex : CG-BZV-01-2024-B12-00123" },
+                        { label: "NIU / NIF (fiscal)", key: "niu", ph: "Identifiant fiscal unique" },
+                        { label: "N° CNSS employeur", key: "cnss_number", ph: "N° d'affiliation CNSS" },
+                        { label: "N° de patente", key: "patente_number", ph: "N° de patente / licence" },
+                        { label: "Capital social", key: "share_capital", ph: "Ex : 1 000 000 XAF" },
+                      ].map((f) => (
+                        <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
+                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                            className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                        </label>
+                      ))}
+                      <label className="block text-xs font-bold uppercase text-[#717182]">Régime fiscal
+                        <select value={companyForm.tax_regime} onChange={(e) => setCompanyForm({ ...companyForm, tax_regime: e.target.value })} disabled={isEmployeeSelfService}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
+                          <option value="">— Choisir —</option>
+                          <option value="reel">Réel normal</option>
+                          <option value="simplifie">Réel simplifié</option>
+                          <option value="forfait">Forfait / micro</option>
+                        </select>
+                      </label>
+                      <label className="block text-xs font-bold uppercase text-[#717182]">Date de création
+                        <input type="date" value={companyForm.founded_date} onChange={(e) => setCompanyForm({ ...companyForm, founded_date: e.target.value })} disabled={isEmployeeSelfService}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* ── Coordonnées ── */}
+                  <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">📍 Coordonnées</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {[
+                        { label: "Adresse (siège social)", key: "address", ph: "Ex : 12 av. de la Paix" },
+                        { label: "Ville", key: "city", ph: "Ex : Brazzaville" },
+                        { label: "Téléphone", key: "phone", ph: "+242 06 000 0000" },
+                        { label: "Email", key: "email", ph: "contact@entreprise.cg" },
+                        { label: "Site web", key: "website", ph: "https://…" },
+                      ].map((f) => (
+                        <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
+                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                            className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Représentant légal & banque ── */}
+                  <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">👤 Représentant légal & banque</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <label className="block text-xs font-bold uppercase text-[#717182]">Nom du dirigeant
+                        <input value={companyForm.manager_name} onChange={(e) => setCompanyForm({ ...companyForm, manager_name: e.target.value })} placeholder="Ex : Davy Okemba" disabled={isEmployeeSelfService}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                      </label>
+                      <label className="block text-xs font-bold uppercase text-[#717182]">Fonction
+                        <select value={companyForm.manager_title} onChange={(e) => setCompanyForm({ ...companyForm, manager_title: e.target.value })} disabled={isEmployeeSelfService}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
+                          <option value="">— Choisir —</option>
+                          <option value="Gérant">Gérant</option>
+                          <option value="Directeur Général">Directeur Général</option>
+                          <option value="Président">Président</option>
+                          <option value="PDG">PDG</option>
+                          <option value="Promoteur">Promoteur</option>
+                        </select>
+                      </label>
+                      {[
+                        { label: "Banque", key: "bank_name", ph: "Ex : BGFIBank Congo" },
+                        { label: "RIB / IBAN", key: "bank_account", ph: "Numéro de compte" },
+                      ].map((f) => (
+                        <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
+                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                            className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                   {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">Profil entreprise enregistré.</p>}
                   {updateCompany.error && <p className="mt-3 text-xs font-bold text-red-600">{updateCompany.error.message}</p>}
                 </form>

@@ -25,6 +25,24 @@ export type Company = {
   teras_score: number;
   /** Seuil d'alerte trésorerie (Limule), en centimes. Défaut 5 000 000 (= 50 000). */
   cash_low_threshold_cents?: number;
+  // Mentions légales (entreprise réelle CEMAC / OHADA)
+  legal_form?: string;
+  rccm?: string;
+  niu?: string;
+  cnss_number?: string;
+  patente_number?: string;
+  tax_regime?: string;
+  share_capital?: string;
+  founded_date?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  manager_name?: string;
+  manager_title?: string;
+  bank_name?: string;
+  bank_account?: string;
 };
 
 export type Employee = {
