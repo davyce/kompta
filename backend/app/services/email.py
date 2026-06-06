@@ -65,33 +65,38 @@ def _wrap_email(header_color: str, header_content: str, body_content: str) -> st
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light only" />
   <title>KOMPTA</title>
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 16px;">
+<body style="margin:0;padding:0;background:#eef2f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f6;padding:32px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;box-shadow:0 8px 32px rgba(15,23,42,0.10);overflow:hidden;">
 
           <!-- Header -->
           <tr>
-            <td style="background:{header_color};padding:32px 40px;text-align:center;">
+            <td style="background:{header_color};background-image:linear-gradient(135deg,{header_color},rgba(0,0,0,0.18));padding:34px 40px 30px;text-align:center;">
               {header_content}
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="padding:36px 40px 32px;color:#1f2937;font-size:15px;line-height:1.6;">
+            <td style="padding:34px 40px 30px;color:#334155;font-size:15px;line-height:1.65;">
               {body_content}
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;color:#9ca3af;font-size:12px;">
-              © 2026 KOMPTA · Tous droits réservés<br />
-              <span style="font-size:11px;">Cet email a été généré automatiquement, merci de ne pas y répondre.</span>
+            <td style="background:#f8fafc;border-top:1px solid #e7ecf2;padding:24px 40px;text-align:center;">
+              <div style="font-size:15px;font-weight:800;letter-spacing:1px;color:#0f766e;">KOMPTA</div>
+              <div style="margin:4px 0 12px;font-size:11px;color:#94a3b8;">ERP IA pour PME · CEMAC · SYSCOHADA</div>
+              <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
+                © 2026 KOMPTA · Tous droits réservés<br />
+                Email automatique — merci de ne pas y répondre.
+              </div>
             </td>
           </tr>
 
@@ -104,13 +109,29 @@ def _wrap_email(header_color: str, header_content: str, body_content: str) -> st
 
 
 def _logo_header(title: str, subtitle: str = "") -> str:
-    sub_html = f'<p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">{subtitle}</p>' if subtitle else ""
+    """En-tête avec le logo Limule (mascotte) + le wordmark KOMPTA, sur fond coloré.
+    Le logo est servi depuis l'app ; si l'image est bloquée, le texte 'KOMPTA' reste lisible."""
+    logo_url = f"{get_settings().public_url.rstrip('/')}/assets/limule-avatar-40.png"
+    sub_html = (
+        f'<p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;font-weight:500;">{subtitle}</p>'
+        if subtitle else ""
+    )
     return f"""
-      <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;line-height:44px;text-align:center;">K</div>
-        <span style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:1px;">KOMPTA</span>
-      </div>
-      <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">{title}</h1>
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 18px;">
+        <tr>
+          <td style="vertical-align:middle;padding-right:12px;">
+            <div style="width:52px;height:52px;background:#ffffff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);text-align:center;line-height:52px;">
+              <img src="{logo_url}" width="34" height="34" alt="KOMPTA"
+                   style="vertical-align:middle;border:0;outline:none;display:inline-block;" />
+            </div>
+          </td>
+          <td style="vertical-align:middle;text-align:left;">
+            <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:2px;line-height:1;">KOMPTA</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:0.5px;margin-top:3px;">ERP IA pour PME</div>
+          </td>
+        </tr>
+      </table>
+      <h1 style="margin:0;font-size:21px;font-weight:700;color:#ffffff;line-height:1.3;">{title}</h1>
       {sub_html}
     """
 
@@ -164,7 +185,7 @@ async def send_relance_email(
       <p style="margin:0 0 24px;color:#374151;">Nous vous invitons à régulariser votre situation dans les meilleurs délais. En cas de paiement déjà effectué, veuillez ignorer ce message.</p>
 
       <div style="text-align:center;margin-bottom:28px;">
-        <a href="#" style="display:inline-block;background:#059669;color:#ffffff;font-weight:600;font-size:15px;padding:14px 32px;border-radius:8px;text-decoration:none;">Régulariser ma situation</a>
+        <a href="{get_settings().public_url}" style="display:inline-block;background:#059669;color:#ffffff;font-weight:700;font-size:15px;padding:14px 34px;border-radius:10px;text-decoration:none;box-shadow:0 2px 8px rgba(5,150,105,0.3);">Régulariser ma situation</a>
       </div>
 
       <p style="margin:0;color:#6b7280;font-size:13px;">Pour toute question, contactez votre responsable chez <strong>{company_name}</strong>.</p>

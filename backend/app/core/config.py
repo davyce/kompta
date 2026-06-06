@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     auth_cookie_samesite: str = "lax"
     auth_cookie_domain: str = ""
 
+    # ── URL publique de l'app (liens & logo dans les emails) ──────────────────
+    public_url: str = "https://www.kompta0.com"
+
     # ── Connexion Google (OAuth « Se connecter avec Google ») ─────────────────
     google_client_id: str = ""
 
