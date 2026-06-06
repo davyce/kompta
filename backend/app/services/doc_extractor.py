@@ -143,10 +143,14 @@ async def extract_structured_data(
 
     parsed = _extract_json(raw)
     if not parsed:
+        # L'IA a répondu mais PAS en JSON structuré : on conserve son texte (réel,
+        # non simulé) mais on le SIGNALE explicitement comme non structuré.
         return {
             **_fallback_extraction(title, doc_type),
             "resume": raw[:500],
-            "provider": "deepseek",
+            "provider": "deepseek_unstructured",
+            "structured": False,
+            "parse_warning": "Réponse IA non structurée — données non extraites, résumé brut conservé.",
         }
 
     return _normalize_extracted(parsed, doc_type)

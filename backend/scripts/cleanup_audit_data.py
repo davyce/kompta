@@ -48,9 +48,11 @@ def main() -> int:
     con.execute("PRAGMA busy_timeout=15000")
     cur = con.cursor()
 
-    audit_users = cur.execute("SELECT id, email FROM users WHERE email LIKE 'audit-%@kompta.test'").fetchall()
+    audit_users = cur.execute(
+        "SELECT id, email FROM users WHERE email LIKE 'audit-%@kompta.test' OR email LIKE 'probe-cookie-%@kompta.test'"
+    ).fetchall()
     audit_companies = cur.execute(
-        "SELECT id, name FROM companies WHERE name LIKE 'Audit %' OR name LIKE '%Audit Kompta%'"
+        "SELECT id, name FROM companies WHERE name LIKE 'Audit %' OR name LIKE '%Audit Kompta%' OR name LIKE 'Probe %'"
     ).fetchall()
     audit_groups = cur.execute("SELECT id, name FROM organization_groups WHERE name LIKE 'Groupe Audit%'").fetchall()
 
@@ -79,7 +81,7 @@ def main() -> int:
         cur.execute("DELETE FROM companies WHERE id = ?", (cid,))
     for gid, _ in audit_groups:
         cur.execute("DELETE FROM organization_groups WHERE id = ?", (gid,))
-    cur.execute("DELETE FROM users WHERE email LIKE 'audit-%@kompta.test'")
+    cur.execute("DELETE FROM users WHERE email LIKE 'audit-%@kompta.test' OR email LIKE 'probe-cookie-%@kompta.test'")
 
     # Cascade orphelins (fixpoint)
     tables = [r[0] for r in cur.execute(
