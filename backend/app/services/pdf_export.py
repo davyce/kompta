@@ -117,7 +117,13 @@ def render_invoice_pdf(invoice, company) -> bytes:
             s["badge"],
         ))
 
-    story.append(Spacer(1, 1.5 * cm))
+    # ── Mentions légales de l'entreprise (rend la facture officiellement valable) ──
+    from app.services.legal import legal_mention_lines
+    legal_lines = legal_mention_lines(company)
+    story.append(Spacer(1, 1.2 * cm))
+    if legal_lines:
+        story.append(Paragraph("<br/>".join(legal_lines), s["footer"]))
+        story.append(Spacer(1, 0.2 * cm))
     story.append(Paragraph(
         "KOMPTA · Référentiel SYSCEMAC Révisé · Document généré automatiquement",
         s["footer"],

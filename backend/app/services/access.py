@@ -325,6 +325,10 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     rendered_clauses = "\n".join(
         f"<h2>Article {index}</h2><p>{html.escape(str(clause))}</p>" for index, clause in enumerate(clauses, start=1)
     )
+    # Mentions légales de l'entreprise (rend le contrat officiellement valable au Congo)
+    from app.services.legal import legal_mention_html
+    _legal = legal_mention_html(company)
+    legal_footer = f'<div class="legal-footer">{_legal}</div>' if _legal else ""
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -338,6 +342,7 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
     .label {{ color: #65736d; font-size: 12px; text-transform: uppercase; font-weight: bold; }}
     .signature {{ margin-top: 70px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }}
+    .legal-footer {{ margin-top: 48px; padding-top: 12px; border-top: 1px solid #d7ddda; color: #65736d; font-size: 10px; line-height: 1.5; text-align: center; }}
     @media print {{ body {{ margin: 18mm; }} button {{ display: none; }} }}
   </style>
 </head>
@@ -365,5 +370,6 @@ def render_contract_html(company: Company, employee: Employee, ai_clauses: list[
     <div>Signature entreprise<br /><br />________________________</div>
     <div>Signature employe<br /><br />________________________</div>
   </div>
+  {legal_footer}
 </body>
 </html>"""
