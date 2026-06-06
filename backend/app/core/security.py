@@ -83,9 +83,9 @@ def set_auth_cookie(response: "Response", token: str) -> None:
         value=token,
         max_age=settings.access_token_expire_minutes * 60,
         httponly=True,
-        secure=settings.auth_cookie_secure,
+        secure=settings.effective_cookie_secure,
         samesite=settings.auth_cookie_samesite,  # type: ignore[arg-type]
-        domain=settings.auth_cookie_domain or None,
+        domain=settings.effective_cookie_domain or None,
         path="/",
     )
 
@@ -94,6 +94,6 @@ def clear_auth_cookie(response: "Response") -> None:
     settings = get_settings()
     response.delete_cookie(
         key=settings.auth_cookie_name,
-        domain=settings.auth_cookie_domain or None,
+        domain=settings.effective_cookie_domain or None,
         path="/",
     )

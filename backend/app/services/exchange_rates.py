@@ -117,10 +117,13 @@ def convert(amount: float, from_currency: str, to_currency: str) -> dict[str, An
     except (TypeError, ValueError):
         amt = 0.0
 
+    # `certified` = taux issu d'une vraie source temps réel (API ou cache récent).
+    # Les taux "fallback" (figés) ne sont PAS certifiés : le frontend doit l'afficher.
     if frm == to:
         return {
             "from": frm, "to": to, "amount": amt,
-            "converted": round(amt, 4), "rate": 1.0, "source": "cache",
+            "converted": round(amt, 4), "rate": 1.0, "source": "identity",
+            "certified": True,
         }
 
     # 1. Cache hit ?
@@ -129,7 +132,7 @@ def convert(amount: float, from_currency: str, to_currency: str) -> dict[str, An
         return {
             "from": frm, "to": to, "amount": amt,
             "converted": round(amt * pre_cached, 4),
-            "rate": pre_cached, "source": "cache",
+            "rate": pre_cached, "source": "cache", "certified": True,
         }
 
     # 2. Pas en cache : appel API distant
@@ -139,20 +142,22 @@ def convert(amount: float, from_currency: str, to_currency: str) -> dict[str, An
         return {
             "from": frm, "to": to, "amount": amt,
             "converted": round(amt * remote, 4),
-            "rate": remote, "source": "api",
+            "rate": remote, "source": "api", "certified": True,
         }
 
-    # 3. Fallback déterministe
+    # 3. Fallback déterministe — taux estimé, NON certifié (affiché comme tel)
     fb = _fallback_rate(frm, to)
     if fb is not None:
         return {
             "from": frm, "to": to, "amount": amt,
             "converted": round(amt * fb, 4),
-            "rate": fb, "source": "fallback",
+            "rate": fb, "source": "fallback", "certified": False,
+            "notice": "Taux estimé (hors-ligne) — non certifié temps réel.",
         }
     return {
         "from": frm, "to": to, "amount": amt,
-        "converted": None, "rate": None, "source": "unavailable",
+        "converted": None, "rate": None, "source": "unavailable", "certified": False,
+        "notice": "Taux indisponible — réessayez plus tard.",
     }
 
 

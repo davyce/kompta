@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -183,7 +183,7 @@ def general_ledger(
         "account_filter": account,
         "lines": out,
         "count": len(out),
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     if format == "json":
@@ -257,7 +257,7 @@ def trial_balance_report(
         "total_debit": acc.from_cents(total_debit),
         "total_credit": acc.from_cents(total_credit),
         "balanced": total_debit == total_credit,
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     if format == "json":
@@ -386,7 +386,7 @@ def balance_sheet(
         },
         "resultat_exercice": acc.from_cents(resultat),
         "balanced": total_actif == total_passif,
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     if format == "json":
@@ -508,7 +508,7 @@ def income_statement(
         "total_charges": acc.from_cents(total_charges),
         "total_produits": acc.from_cents(total_produits),
         "resultat": acc.from_cents(resultat),
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     if format == "json":

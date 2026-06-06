@@ -34,7 +34,6 @@ from app.db.session import get_db
 from app.models import (
     AccessAuditLog,
     Company,
-    Employee,
     Meeting,
     Payslip,
     PayrollRun,
@@ -422,46 +421,10 @@ BT /F1 9 Tf 40 800 Td 12 TL
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Audit Logs (company-scoped)
+# Audit Logs : voir `routes_audit.py` (GET /audit-logs canonique — agrège les deux
+# tables audit_logs + access_audit_logs, RBAC, pagination). Le doublon plus pauvre
+# qui existait ici a été retiré (il était shadowé par le router audit de toute façon).
 # ──────────────────────────────────────────────────────────────────────────────
-
-@router.get("/audit-logs")
-def list_audit_logs(
-    limit: int = Query(50, le=200),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """Retourne le journal d'audit de la société (dernières actions)."""
-    logs = db.scalars(
-        select(AccessAuditLog)
-        .where(AccessAuditLog.company_id == current_user.company_id)
-        .order_by(AccessAuditLog.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    ).all()
-
-    result = []
-    for log in logs:
-        actor = None
-        if log.actor_user_id:
-            u = db.get(User, log.actor_user_id)
-            actor = u.full_name if u else f"User#{log.actor_user_id}"
-
-        emp_name = None
-        if log.employee_id:
-            e = db.get(Employee, log.employee_id)
-            emp_name = f"{e.first_name} {e.last_name}" if e else f"Emp#{log.employee_id}"
-
-        result.append({
-            "id": log.id,
-            "action": log.action,
-            "details": log.details,
-            "actor": actor,
-            "employee": emp_name,
-            "created_at": log.created_at,
-        })
-    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

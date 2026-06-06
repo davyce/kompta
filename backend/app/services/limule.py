@@ -604,6 +604,15 @@ async def limule_generate(
     content = await _call_llm(messages=messages, max_tokens=max_tokens, temperature=temperature)
 
     if not content:
+        # Zéro simulacre : en production/staging, on NE renvoie PAS de réponse
+        # simulée. Le LLM indisponible → erreur explicite 503.
+        if get_settings().is_production:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=503,
+                detail="IA indisponible : le fournisseur LLM ne répond pas. "
+                       "Aucune réponse simulée n'est renvoyée en production.",
+            )
         content = build_limule_fallback_answer(
             kind=kind,
             prompt=resolved_prompt,
@@ -709,7 +718,15 @@ async def limule_stream(
         yield chunk
 
     if not got_any:
-        if structured_context:
+        # Zéro simulacre : en production/staging, pas de réponse métier simulée.
+        # On émet un état explicite d'indisponibilité (le flux SSE est déjà ouvert,
+        # on ne peut pas renvoyer un code 503 propre — on signale donc clairement).
+        if get_settings().is_production:
+            yield (
+                "⚠️ **IA indisponible** — le fournisseur LLM (Limule) ne répond pas "
+                "actuellement. Aucune réponse simulée n'est générée. Réessaie dans un moment."
+            )
+        elif structured_context:
             yield build_limule_fallback_answer(
                 kind=kind,
                 prompt=resolved_prompt,

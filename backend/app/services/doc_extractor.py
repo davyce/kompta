@@ -122,7 +122,16 @@ async def extract_structured_data(
     )
 
     if not raw:
-        return _fallback_extraction(title, doc_type)
+        # LLM réellement sollicité mais indisponible : état EXPLICITE (zéro simulacre).
+        # On ne fabrique pas de résumé : le document est enregistré comme « non analysé ».
+        return {
+            "document_type": doc_type,
+            "resume": "IA indisponible — extraction automatique non effectuée. "
+                      "Le document est enregistré ; relancez l'analyse plus tard.",
+            "tags": [doc_type],
+            "confidence": 0,
+            "provider": "unavailable",
+        }
 
     parsed = _extract_json(raw)
     if not parsed:

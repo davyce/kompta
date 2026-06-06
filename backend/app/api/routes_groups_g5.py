@@ -143,6 +143,8 @@ async def ask_ai(group_id: int, payload: AIAsk, db: Session = Depends(get_db),
     try:
         from app.services.limule import limule_generate
         answer, _ = await limule_generate(kind="group_assistant", prompt=prompt, context=context_text)
+    except HTTPException:
+        raise  # fail-close : 503 « IA indisponible » remonte tel quel en production
     except Exception as exc:
         try:
             from app.services.deepseek import _deepseek_chat
@@ -168,6 +170,8 @@ async def summarize_chat(group_id: int, payload: SummarizeChat, db: Session = De
     try:
         from app.services.limule import limule_generate
         summary, _ = await limule_generate(kind="chat_summary", prompt=prompt)
+    except HTTPException:
+        raise  # fail-close production
     except Exception:
         try:
             from app.services.deepseek import _deepseek_chat
@@ -195,6 +199,8 @@ async def generate_report(group_id: int, payload: GenerateReport, db: Session = 
     try:
         from app.services.limule import limule_generate
         content, _ = await limule_generate(kind="report", prompt=prompt, context=context_text)
+    except HTTPException:
+        raise  # fail-close production
     except Exception:
         try:
             from app.services.deepseek import _deepseek_chat
@@ -217,6 +223,8 @@ async def payment_analysis(group_id: int, db: Session = Depends(get_db),
     try:
         from app.services.limule import limule_generate
         analysis, _ = await limule_generate(kind="analysis", prompt=prompt, context=context_text)
+    except HTTPException:
+        raise  # fail-close production
     except Exception:
         try:
             from app.services.deepseek import _deepseek_chat

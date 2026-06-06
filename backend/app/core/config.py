@@ -80,7 +80,24 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.environment.lower() in {"production", "prod", "staging"}
+        return self.environment.lower() in {"production", "prod", "staging", "preprod", "pre-production"}
+
+    @property
+    def effective_cookie_domain(self) -> str:
+        """Domaine du cookie de session.
+
+        En production on respecte `auth_cookie_domain` (ex. `.kompta0.com` pour
+        partager la session entre sous-domaines). Hors production (local/preview),
+        on force un cookie **host-only** (domaine vide) : sinon le navigateur
+        rejette un cookie `Domain=.kompta0.com` servi depuis `127.0.0.1`.
+        """
+        return self.auth_cookie_domain if self.is_production else ""
+
+    @property
+    def effective_cookie_secure(self) -> bool:
+        """En local (HTTP simple), `Secure` empêcherait l'envoi du cookie.
+        Forcé à False hors production ; en production le TLS Cloudflare le permet."""
+        return self.auth_cookie_secure if self.is_production else False
 
 
 @lru_cache
