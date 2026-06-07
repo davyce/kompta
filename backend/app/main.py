@@ -254,8 +254,11 @@ _IS_PROD = settings.environment.strip().lower() in {"prod", "production"}
 _CSP = (
     "default-src 'self'; "
     "img-src 'self' data: blob: https:; "
-    "style-src 'self' 'unsafe-inline'; "
-    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com; "
+    # Stripe.js (paiement carte) + Google Identity (connexion Google)
+    "script-src 'self' 'unsafe-inline' https://js.stripe.com https://accounts.google.com https://accounts.google.com/gsi/client; "
+    # iframes Stripe Elements + bouton/One-Tap Google
+    "frame-src https://js.stripe.com https://hooks.stripe.com https://accounts.google.com; "
     "connect-src 'self' https: wss: ws:; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "

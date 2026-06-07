@@ -185,9 +185,9 @@ export function AssistantsPage() {
       {/* En-tête */}
       <div>
         <p className="text-sm font-semibold text-emerald-600">Rédaction IA</p>
-        <h1 className="text-3xl font-black text-ink">Studio Limule</h1>
+        <h1 className="text-2xl sm:text-3xl font-black text-ink">Studio Limule</h1>
         <p className="mt-1 text-sm font-medium text-[#717182]">
-          Emails, notes, courriers et clauses générés avec variables dynamiques et contexte CEMACE.
+          Emails, notes, courriers et clauses générés avec variables dynamiques et contexte CEMAC.
         </p>
       </div>
 
@@ -325,7 +325,7 @@ export function AssistantsPage() {
               </div>
 
               {hasContent ? (
-                <pre className="whitespace-pre-wrap text-sm leading-7 text-ink dark:text-white/90">
+                <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-ink dark:text-white/90">
                   {streamedDraft}
                   {isStreaming && (
                     <span className="inline-block w-0.5 h-4 bg-emerald-500 animate-pulse ml-0.5 align-middle" />

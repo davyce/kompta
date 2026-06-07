@@ -10,6 +10,7 @@ export type User = {
   employee_id: number | null;
   must_change_password: boolean;
   account_status: string;
+  onboarding_done?: boolean;
 };
 
 export type Company = {

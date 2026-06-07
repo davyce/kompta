@@ -125,6 +125,7 @@ class UserRead(BaseModel):
     employee_id: int | None = None
     must_change_password: bool = False
     account_status: str = "active"
+    onboarding_done: bool = False
 
 
 class EmployeeBase(BaseModel):

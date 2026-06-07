@@ -86,6 +86,8 @@ class User(TimestampMixin, Base):
     # Révocation de jetons : tout token porte cette version ; l'incrémenter
     # (logout, suspension, changement de mot de passe) invalide tous les jetons émis avant.
     token_version: Mapped[int] = mapped_column(Integer, default=0)
+    # Visite guidée : vraie une seule fois (1ʳᵉ connexion de cet utilisateur).
+    onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
 
     company: Mapped[Company] = relationship(back_populates="users")
     messages: Mapped[list["Message"]] = relationship(back_populates="author")

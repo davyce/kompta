@@ -42,7 +42,6 @@ import type { LucideIcon } from "lucide-react";
 import { CommandPalette } from "../components/CommandPalette";
 import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
-import { OnboardingWizard } from "../components/OnboardingWizard";
 import { OnboardingTour } from "../components/OnboardingTour";
 import { SubscriptionGate } from "../components/SubscriptionGate";
 import { SyncStatusBadge } from "../components/SyncStatusBadge";
@@ -255,23 +254,6 @@ export function Shell() {
   const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
   const { theme, toggle: toggleTheme } = useTheme();
   const { compact, toggleCompact } = useCompact();
-  const [onboardingDismissed, setOnboardingDismissed] = useState(
-    () => sessionStorage.getItem("kompta_onboarding_dismissed") === "true"
-  );
-  const onboarding = useQuery({
-    queryKey: ["onboarding"],
-    queryFn: api.onboarding,
-    enabled: Boolean(user) && user?.role === "admin_entreprise",
-  });
-  const showOnboarding =
-    !onboardingDismissed
-    && user?.role === "admin_entreprise"
-    && (onboarding.data?.completion_score ?? 100) < 30;
-  function dismissOnboarding() {
-    sessionStorage.setItem("kompta_onboarding_dismissed", "true");
-    setOnboardingDismissed(true);
-  }
-
   function toggleCollapsed() {
     setCollapsed((v) => {
       const next = !v;
@@ -752,7 +734,6 @@ export function Shell() {
         onMarkAllRead={markAllRead}
         onClear={clearHistory}
       />
-      {showOnboarding && <OnboardingWizard onClose={dismissOnboarding} />}
       <OnboardingTour />
       <SubscriptionGate />
       <Copilot />

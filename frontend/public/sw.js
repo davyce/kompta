@@ -25,7 +25,7 @@ if (IS_DEV) {
    * - API : network-first avec repli cache hors-ligne.
    * Bump du nom de cache à chaque changement de stratégie → purge l'ancien.
    */
-  const CACHE_NAME = "kompta-v4";
+  const CACHE_NAME = "kompta-v5";
   const PRECACHE_URLS = ["/index.html"];
 
   self.addEventListener("install", (event) => {

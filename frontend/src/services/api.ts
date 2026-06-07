@@ -194,6 +194,8 @@ export const api = {
     }),
   authConfig: () =>
     request<{ google_enabled: boolean; google_client_id: string }>("/auth/config"),
+  markOnboardingDone: () =>
+    request<User>("/auth/onboarding-done", { method: "POST" }),
   googleLogin: (credential: string) =>
     request<LoginResponse>("/auth/google", {
       method: "POST",

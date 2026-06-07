@@ -465,6 +465,15 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     return TokenResponse(access_token=token, user=UserRead.model_validate(user), must_change_password=user.must_change_password)
 
 
+@router.post("/auth/onboarding-done", response_model=UserRead)
+def mark_onboarding_done(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> User:
+    """Marque la visite guidée comme terminée pour cet utilisateur (définitif)."""
+    current_user.onboarding_done = True
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 @router.get("/auth/config")
 def auth_config() -> dict:
     """Config publique pour la page de connexion (ex. activation Google)."""

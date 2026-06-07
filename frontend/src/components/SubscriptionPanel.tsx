@@ -3,8 +3,16 @@ import { Check, CreditCard, Loader2, QrCode, Smartphone, Sparkles, X } from "luc
 import { useEffect, useRef, useState } from "react";
 
 import { api, type SubscriptionPlanDto } from "../services/api";
+import { useCurrency } from "../contexts/CurrencyContext";
+import type { CurrencyCode } from "../utils/format";
 
-const money = (cents: number, cur = "XAF") => `${(cents / 100).toLocaleString("fr-FR")} ${cur}`;
+/** Affiche un prix (en centimes, dans la devise du plan) converti dans la devise
+ * de l'utilisateur. Ex. 1 000 000 XAF → « 1 524 € » si l'utilisateur est en EUR. */
+function usePriceFormatter() {
+  const { convert, formatInCurrency } = useCurrency();
+  return (cents: number, planCurrency: string) =>
+    formatInCurrency(convert(cents / 100, (planCurrency || "XAF") as CurrencyCode, "XAF"));
+}
 
 /* Stripe.js minimal (réutilisé du modal carte) */
 interface StripeCardElement { mount(el: HTMLElement): void; destroy(): void; on(e: string, h: (ev: { error?: { message: string } }) => void): void; }
@@ -24,6 +32,7 @@ function loadStripe(): Promise<void> {
 
 export function SubscriptionPanel({ compact = false }: { compact?: boolean }) {
   const qc = useQueryClient();
+  const money = usePriceFormatter();
   const me = useQuery({ queryKey: ["mySubscription"], queryFn: api.mySubscription });
   const plans = useQuery({ queryKey: ["subscriptionPlans"], queryFn: api.subscriptionPlans });
   const [checkout, setCheckout] = useState<SubscriptionPlanDto | null>(null);
@@ -105,6 +114,10 @@ type Method = "card" | "momo" | "zola";
 type Phase = "choose" | "card_form" | "processing" | "zola" | "success" | "failed";
 
 function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; onClose: () => void; onDone: () => void }) {
+  const money = usePriceFormatter();
+  const { currency } = useCurrency();
+  const billedNote = currency !== (plan.currency || "XAF")
+    ? ` (facturé en ${plan.currency})` : "";
   const [method, setMethod] = useState<Method>("card");
   const [promo, setPromo] = useState("");
   const [phone, setPhone] = useState("");
@@ -188,7 +201,7 @@ function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; o
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#1e2229]">
         <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/10">
-          <h3 className="font-bold text-[#17211f] dark:text-white">{plan.name} — {money(finalCents, plan.currency)}</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{plan.name} — {money(finalCents, plan.currency)}<span className="text-xs font-normal text-[#717182]">{billedNote}</span></h3>
           <button onClick={onClose} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white"><X size={18} /></button>
         </div>
         <div className="space-y-4 px-5 py-5">

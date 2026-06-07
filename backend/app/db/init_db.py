@@ -55,6 +55,7 @@ def ensure_sqlite_migrations() -> None:
             "totp_secret": "VARCHAR(64)",
             "totp_enabled": "BOOLEAN DEFAULT 0",
             "token_version": "INTEGER DEFAULT 0",
+            "onboarding_done": "BOOLEAN DEFAULT 0",
         },
         "employees": {
             "phone": "VARCHAR(40) DEFAULT ''",
