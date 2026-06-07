@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, CreditCard, Download, Minus, Percent, Plus, Printer,
@@ -62,6 +63,7 @@ type TicketData = {
 };
 
 function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClose: () => void; onNewSale: () => void }) {
+  const { t: tr } = useTranslation();
   return (
     <>
       <style>{`@media print { body > *:not(#ticket-print-root) { display: none !important; } #ticket-print-root { display: block !important; } }`}</style>
@@ -69,7 +71,7 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
         <div id="ticket-print-root" className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#1e2229]">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Ticket de caisse</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("pos.ticketTitle")}</h3>
             <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.08]">
               <X size={16} />
             </button>
@@ -82,7 +84,7 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
               <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-xl font-black text-white">K</div>
               <p className="font-bold text-[#17211f] dark:text-white">KOMPTA</p>
               <p className="text-xs text-[#717182]">{ticket.date}</p>
-              <p className="text-xs text-[#717182]">Reçu : {ticket.receipt_number}</p>
+              <p className="text-xs text-[#717182]">{tr("pos.receiptLabel", { num: ticket.receipt_number })}</p>
             </div>
 
             <div className="border-t border-dashed border-black/[0.15] dark:border-white/[0.15] pt-3">
@@ -102,32 +104,32 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
 
               <div className="mt-3 border-t border-dashed border-black/[0.15] dark:border-white/[0.15] pt-3 space-y-1 text-xs">
                 <div className="flex justify-between text-[#717182]">
-                  <span>Sous-total</span>
+                  <span>{tr("pos.subtotal")}</span>
                   <span>{ticket.subtotal_before_discount.toLocaleString("fr-FR")} F</span>
                 </div>
                 {ticket.discount_percent > 0 && (
                   <div className="flex justify-between text-red-600">
-                    <span>Remise ({ticket.discount_percent}%)</span>
+                    <span>{tr("pos.discount", { pct: ticket.discount_percent })}</span>
                     <span>-{Math.round(ticket.subtotal_before_discount * ticket.discount_percent / 100).toLocaleString("fr-FR")} F</span>
                   </div>
                 )}
                 {ticket.tax > 0 && (
                   <div className="flex justify-between text-[#717182]">
-                    <span>TVA</span>
+                    <span>{tr("pos.tva")}</span>
                     <span>{ticket.tax.toLocaleString("fr-FR")} F</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-black/[0.10] dark:border-white/[0.10] pt-2 text-base font-bold text-[#17211f] dark:text-white">
-                  <span>TOTAL TTC</span>
+                  <span>{tr("pos.totalTtc")}</span>
                   <span className="text-emerald-700 dark:text-emerald-400">{ticket.total_amount.toLocaleString("fr-FR")} F</span>
                 </div>
                 <div className="flex justify-between text-[#717182]">
-                  <span>Paiement</span>
+                  <span>{tr("pos.payment")}</span>
                   <span className="font-semibold capitalize">{ticket.payment_account_label || ticket.payment_method}</span>
                 </div>
               </div>
 
-              <p className="mt-4 text-center text-[10px] text-[#717182]">Merci pour votre achat · KOMPTA</p>
+              <p className="mt-4 text-center text-[10px] text-[#717182]">{tr("pos.thanks")}</p>
             </div>
           </div>
 
@@ -137,13 +139,13 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
               onClick={() => window.print()}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:border-white/[0.08] dark:bg-white/5 dark:text-white"
             >
-              <Printer size={15} /> Imprimer
+              <Printer size={15} /> {tr("pos.print")}
             </button>
             <button
               onClick={onNewSale}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
             >
-              <ShoppingCart size={15} /> Nouvelle vente
+              <ShoppingCart size={15} /> {tr("pos.newSale")}
             </button>
           </div>
         </div>
@@ -154,6 +156,7 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
 
 /* ════════════════════════════════════════════════════════════════════════ */
 export function PosPage() {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -272,15 +275,15 @@ export function PosPage() {
 
     // Espèces : toujours disponible (sauf si déjà présent via un compte cash)
     if (!posAccounts.some((a) => a.provider === "cash")) {
-      options.push({ key: "cash", method: "cash", accountId: null, label: "Espèces", icon: Wallet });
+      options.push({ key: "cash", method: "cash", accountId: null, label: tr("pos.methodCash"), icon: Wallet });
     }
     // Carte bancaire : toujours affichée (Stripe activé OU non, le modal explique)
     if (!options.some((o) => o.method === "card")) {
-      options.push({ key: "card", method: "card", accountId: null, label: "Carte", icon: CreditCard });
+      options.push({ key: "card", method: "card", accountId: null, label: tr("pos.methodCard"), icon: CreditCard });
     }
     // Mobile Money : disponible dès que MoMo est configuré
     if (payConfig.data?.momo_enabled && !options.some((o) => MOMO_METHODS.has(o.method))) {
-      options.push({ key: "mobile_money", method: "mobile_money", accountId: null, label: "Mobile Money", icon: Smartphone });
+      options.push({ key: "mobile_money", method: "mobile_money", accountId: null, label: tr("pos.methodMobileMoney"), icon: Smartphone });
     }
     return options;
   }, [posAccounts, payConfig.data?.momo_enabled]);
@@ -346,7 +349,7 @@ export function PosPage() {
         tax: tvaEnabled ? Math.round(cart.reduce((s, i) => s + i.price * i.quantity, 0) * (1 - discountPercent / 100) * (tvaRate / 100)) : 0,
         date: new Date().toLocaleString("fr-FR"),
       });
-      toast.success(`Vente encaissée : ${data.receipt_number}`);
+      toast.success(tr("pos.saleCashed", { num: data.receipt_number }));
       setCart([]);
       setDiscountPercent(0);
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -356,8 +359,8 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
     },
     onError: (err) => {
-      const message = err instanceof Error ? err.message : "Erreur d'encaissement";
-      toast.error(`Encaissement refusé : ${message}`);
+      const message = err instanceof Error ? err.message : tr("pos.cashError");
+      toast.error(tr("pos.cashRefused", { msg: message }));
     },
   });
 
@@ -412,11 +415,11 @@ export function PosPage() {
     );
     if (match) {
       addToCart(match);
-      toast.success(`"${match.name}" ajouté au panier`);
+      toast.success(tr("pos.productAdded", { name: match.name }));
     } else {
       setSearch(value);
       searchRef.current?.focus();
-      toast.error("Produit non trouvé — SKU affiché dans la recherche");
+      toast.error(tr("pos.productNotFound"));
     }
   }
 
@@ -440,7 +443,7 @@ export function PosPage() {
       await enqueue(payload);
       const rows = await listPending();
       setPendingCount(rows.length);
-      setOfflineToast(`Vente de ${money(Math.round(total))} mise en file hors-ligne.`);
+      setOfflineToast(tr("pos.offlineQueued", { amount: money(Math.round(total)) }));
       setCart([]);
       setTimeout(() => setOfflineToast(null), 6000);
     } else {
@@ -450,7 +453,7 @@ export function PosPage() {
 
   async function handleCheckout() {
     if (!cart.length) {
-      toast.error("Le panier est vide.");
+      toast.error(tr("pos.cartEmpty"));
       return;
     }
     // Paiement carte — ouvre le modal Stripe réel et exige une confirmation serveur.
@@ -479,7 +482,7 @@ export function PosPage() {
       a.click();
       URL.revokeObjectURL(url);
 
-    } catch { toast.error("Erreur lors de l'export CSV"); }
+    } catch { toast.error(tr("pos.exportError")); }
     finally { setExportLoading(false); }
   }
 
@@ -499,7 +502,7 @@ export function PosPage() {
             className="flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-emerald-700"
           >
             <ShoppingCart size={16} />
-            Panier · {cart.length} article{cart.length > 1 ? "s" : ""} · {money(cartTotal)}
+            {tr("pos.cartFloating", { count: cart.length, amount: money(cartTotal) })}
           </button>
         </div>
       )}
@@ -510,7 +513,7 @@ export function PosPage() {
         {/* Barre export CSV */}
         <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-[#f8f8fc] px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.02]">
           <Download size={13} className="shrink-0 text-[#717182]" />
-          <span className="text-xs font-semibold text-[#717182]">Export ventes</span>
+          <span className="text-xs font-semibold text-[#717182]">{tr("pos.exportSales")}</span>
           <input
             type="date"
             value={exportFrom}
@@ -530,7 +533,7 @@ export function PosPage() {
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
           >
             <Download size={12} />
-            {exportLoading ? "Export…" : "Télécharger CSV"}
+            {exportLoading ? tr("pos.exporting") : tr("pos.exportCsv")}
           </button>
         </div>
 
@@ -543,7 +546,7 @@ export function PosPage() {
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher un produit, un code-barres…"
+                placeholder={tr("pos.searchPlaceholder")}
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
               />
               {search && (
@@ -554,7 +557,7 @@ export function PosPage() {
             </div>
             <button
               onClick={() => setScannerOpen(true)}
-              title="Scanner un QR / code-barres produit"
+              title={tr("pos.scanTitleAttr")}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
             >
               <Scan size={17} />
@@ -563,7 +566,7 @@ export function PosPage() {
 
           {/* Filtres rapides par icône */}
           <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#717182]">Filtres rapides</span>
+            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#717182]">{tr("pos.quickFilters")}</span>
             {productIconSuggestions(search, 14).map((entry) => (
               <button
                 key={entry.key}
@@ -588,16 +591,16 @@ export function PosPage() {
         {!isOnline && (
           <div className="mx-3 mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             <WifiOff size={13} className="shrink-0" />
-            <span className="font-semibold">Mode hors-ligne</span> — les ventes sont sauvegardées localement.
+            <span className="font-semibold">{tr("pos.offlineModeBold")}</span>{tr("pos.offlineModeRest")}
           </div>
         )}
         {isOnline && pendingCount > 0 && (
           <div className="mx-3 mt-2 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             <RefreshCcw size={13} className={syncing ? "animate-spin" : ""} />
-            <span className="flex-1">{syncing ? "Synchronisation des ventes hors-ligne…" : `${pendingCount} vente(s) en attente de sync`}</span>
+            <span className="flex-1">{syncing ? tr("pos.syncing") : tr("pos.pendingSync", { count: pendingCount })}</span>
             {!syncing && (
               <button onClick={syncPending} className="rounded-md bg-blue-600 px-2.5 py-0.5 text-white font-semibold hover:bg-blue-700 transition">
-                Sync
+                {tr("pos.sync")}
               </button>
             )}
           </div>
@@ -620,7 +623,7 @@ export function PosPage() {
                   : "bg-[#ececf0] text-[#717182] hover:bg-[#e0e0ea] dark:bg-white/10 dark:text-white/60 dark:hover:bg-white/15"
               }`}
             >
-              {cat}
+              {cat === "Tous" ? tr("common.all") : cat}
             </button>
           ))}
         </div>
@@ -630,7 +633,7 @@ export function PosPage() {
           {products.isLoading ? (
             <div className="flex flex-col items-center gap-3 py-16 text-[#717182]">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
-              <p className="text-sm">Chargement du catalogue…</p>
+              <p className="text-sm">{tr("pos.loadingCatalogue")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -659,7 +662,7 @@ export function PosPage() {
                           ? "bg-amber-100 text-amber-700"
                           : "bg-emerald-50 text-emerald-600"
                       }`}>
-                        {p.stock_quantity <= 0 ? "Épuisé" : `×${p.stock_quantity}`}
+                        {p.stock_quantity <= 0 ? tr("pos.soldOut") : `×${p.stock_quantity}`}
                       </span>
                     </div>
                   </button>
@@ -668,7 +671,7 @@ export function PosPage() {
               {!filteredProducts.length && !products.isLoading && (
                 <div className="col-span-full flex flex-col items-center gap-2 py-14 text-[#717182]">
                   <Search size={28} className="opacity-30" />
-                  <p className="text-sm">Aucun produit trouvé.</p>
+                  <p className="text-sm">{tr("pos.noProductFound")}</p>
                 </div>
               )}
             </div>
@@ -685,10 +688,10 @@ export function PosPage() {
             <ShoppingCart size={16} className="text-emerald-600" />
             <div>
               <p className="text-sm font-semibold text-[#17211f] dark:text-white">
-                Panier en cours
+                {tr("pos.cartInProgress")}
                 <span className="ml-1.5 font-normal text-[10px] text-[#aaaabc]">#{cartId}</span>
               </p>
-              <p className="text-[11px] text-[#717182]">{cart.length} article{cart.length !== 1 ? "s" : ""}</p>
+              <p className="text-[11px] text-[#717182]">{tr("pos.cartArticles", { count: cart.length })}</p>
             </div>
           </div>
           {cart.length > 0 && (
@@ -696,7 +699,7 @@ export function PosPage() {
               onClick={() => setCart([])}
               className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
             >
-              <X size={12} /> Vider
+              <X size={12} /> {tr("pos.clear")}
             </button>
           )}
         </div>
@@ -706,7 +709,7 @@ export function PosPage() {
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <ShoppingCart size={36} className="text-emerald-200" />
-              <p className="text-sm text-[#717182]">Cliquez sur un produit pour l'ajouter</p>
+              <p className="text-sm text-[#717182]">{tr("pos.clickToAdd")}</p>
             </div>
           ) : (
             cart.map((item) => (
@@ -751,12 +754,12 @@ export function PosPage() {
           {/* Totaux */}
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-[#717182]">
-              <span>Sous-total</span>
+              <span>{tr("pos.subtotal")}</span>
               <span>{money(subtotal)}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-red-600 dark:text-red-400">
-                <span>Remise ({discountPercent}%)</span>
+                <span>{tr("pos.discount", { pct: discountPercent })}</span>
                 <span>-{money(discountAmount)}</span>
               </div>
             )}
@@ -767,12 +770,12 @@ export function PosPage() {
                 <button
                   onClick={() => setTvaEnabled((v) => !v)}
                   className={`flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${tvaEnabled ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600"}`}
-                  title={tvaEnabled ? "Désactiver TVA" : "Activer TVA"}
+                  title={tvaEnabled ? tr("pos.disableTva") : tr("pos.enableTva")}
                 >
                   <span className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${tvaEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                 </button>
                 <Percent size={11} className="text-[#717182]" />
-                <span className="text-[#717182]">TVA</span>
+                <span className="text-[#717182]">{tr("pos.tva")}</span>
                 {tvaEnabled && (
                   <div className="flex items-center gap-0.5">
                     <input
@@ -793,7 +796,7 @@ export function PosPage() {
             </div>
 
             <div className="flex justify-between border-t border-black/[0.06] pt-2 text-base font-bold text-[#17211f] dark:border-white/[0.06] dark:text-white">
-              <span>Total</span>
+              <span>{tr("pos.total")}</span>
               <span className="text-emerald-700 dark:text-emerald-400">{money(total)}</span>
             </div>
           </div>
@@ -801,7 +804,7 @@ export function PosPage() {
           {/* Remise */}
           <div className="flex items-center gap-2">
             <Percent size={13} className="shrink-0 text-[#717182]" />
-            <span className="text-xs font-semibold text-[#717182]">Remise</span>
+            <span className="text-xs font-semibold text-[#717182]">{tr("pos.discountLabel")}</span>
             <input
               type="number"
               min={0}
@@ -820,7 +823,7 @@ export function PosPage() {
 
           {/* Modes de paiement */}
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#717182]">Mode de paiement</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#717182]">{tr("pos.paymentMode")}</p>
             <div className="grid grid-cols-3 gap-1.5">
               {paymentOptions.map((m) => {
                 const Icon     = m.icon;
@@ -849,12 +852,12 @@ export function PosPage() {
             </div>
             {posAccounts.length === 0 && (
               <p className="mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                Ajoutez vos modes de paiement dans{" "}
+                {tr("pos.addMethodsIn")}{" "}
                 <button
                   onClick={() => navigate("/settings?tab=payments")}
                   className="font-semibold underline underline-offset-2 hover:text-amber-900 transition"
                 >
-                  Paramètres → Paiements
+                  {tr("pos.settingsPayments")}
                 </button>.
               </p>
             )}
@@ -866,7 +869,7 @@ export function PosPage() {
               onClick={() => setZolaQrOpen(true)}
               className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400 bg-emerald-50 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/40 dark:text-emerald-300 transition"
             >
-              <QrCode size={16} /> Afficher le QR Zola au client
+              <QrCode size={16} /> {tr("pos.showZolaQr")}
             </button>
           )}
 
@@ -882,22 +885,22 @@ export function PosPage() {
             }`}
           >
             {sale.isPending
-              ? "Traitement…"
+              ? tr("pos.processing")
               : !isOnline
-              ? `Sauvegarder hors-ligne${total ? " · " + money(total) : ""}`
-              : `Encaisser${total ? " · " + money(total) : ""}`}
+              ? `${tr("pos.saveOffline")}${total ? " · " + money(total) : ""}`
+              : `${tr("pos.checkout")}${total ? " · " + money(total) : ""}`}
           </button>
 
           {/* Hint raccourcis clavier */}
           <p className="text-[10px] text-center text-[#aaaabc] mt-1">
-            <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">↵ Enter</kbd> pour encaisser · <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">/</kbd> pour rechercher
+            <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">↵ Enter</kbd> {tr("pos.kbdCheckout")} · <kbd className="rounded border border-black/[0.08] px-1 py-0.5 text-[9px]">/</kbd> {tr("pos.kbdSearch")}
           </p>
 
           {/* Erreur */}
           {sale.isError && (
             <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
               <X size={13} className="mt-0.5 shrink-0" />
-              {sale.error?.message ?? "Erreur lors de l'encaissement"}
+              {sale.error?.message ?? tr("pos.errorCheckout")}
             </div>
           )}
 
@@ -906,17 +909,17 @@ export function PosPage() {
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 p-3 space-y-2">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-sm">
                 <CheckCircle2 size={16} className="shrink-0" />
-                <span>Vente enregistrée — {sale.data.receipt_number}</span>
+                <span>{tr("pos.saleRecorded", { num: sale.data.receipt_number })}</span>
               </div>
               <div className="grid grid-cols-2 gap-1 text-xs text-emerald-800 dark:text-emerald-200">
-                <span className="text-[#717182]">Montant</span>
+                <span className="text-[#717182]">{tr("pos.amount")}</span>
                 <span className="font-bold text-right">{money(sale.data.total_amount)}</span>
-                <span className="text-[#717182]">Mode</span>
+                <span className="text-[#717182]">{tr("pos.mode")}</span>
                 <span className="font-semibold text-right capitalize">
                   {sale.data.payment_account_label || sale.data.payment_method}
                 </span>
-                <span className="text-[#717182]">Articles</span>
-                <span className="font-semibold text-right">{sale.data.items?.length ?? 0} ligne(s)</span>
+                <span className="text-[#717182]">{tr("pos.articles")}</span>
+                <span className="font-semibold text-right">{tr("pos.linesCount", { count: sale.data.items?.length ?? 0 })}</span>
               </div>
               {sale.data.items && sale.data.items.length > 0 && (
                 <div className="border-t border-emerald-200 dark:border-emerald-500/30 pt-2 space-y-0.5">
@@ -929,7 +932,7 @@ export function PosPage() {
                 </div>
               )}
               <p className="text-[10px] text-emerald-600 dark:text-emerald-400 pt-1">
-                ✓ Transaction enregistrée · Impact comptabilité et trésorerie mis à jour
+                {tr("pos.txRecorded")}
               </p>
             </div>
           )}
@@ -949,7 +952,7 @@ export function PosPage() {
     {/* Scanner QR / code-barres produit */}
     {scannerOpen && (
       <QrScannerModal
-        title="Scanner un produit"
+        title={tr("pos.scanProduct")}
         onScan={handleQrScan}
         onClose={() => setScannerOpen(false)}
       />
@@ -960,7 +963,7 @@ export function PosPage() {
       <MoMoPaymentModal
         amountCents={Math.round(total * 100)}
         currency="XAF"
-        description={`Vente POS #${cartId}`}
+        description={tr("pos.salePosDesc", { id: cartId })}
         onSuccess={(transactionId) => { setMomoOpen(false); recordSale(transactionId); }}
         onClose={() => setMomoOpen(false)}
       />
@@ -971,7 +974,7 @@ export function PosPage() {
       <StripeCardPaymentModal
         amountCents={Math.round(total * 100)}
         currency="XAF"
-        description={`Vente POS #${cartId}`}
+        description={tr("pos.salePosDesc", { id: cartId })}
         onSuccess={(transactionId) => { setStripeOpen(false); recordSale(transactionId); }}
         onClose={() => setStripeOpen(false)}
       />
@@ -984,7 +987,7 @@ export function PosPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div className="flex items-center gap-2">
               <QrCode size={16} className="text-emerald-600" />
-              <h3 className="font-bold text-[#17211f] dark:text-white">Paiement QR Zola</h3>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("pos.zolaPayTitle")}</h3>
             </div>
             <button onClick={() => setZolaQrOpen(false)} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white transition">
               <X size={18} />
@@ -1001,17 +1004,17 @@ export function PosPage() {
             </div>
             <div className="text-center space-y-1">
               <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{money(total)}</p>
-              <p className="text-sm text-[#717182]">Montant à payer via Zola</p>
-              <p className="text-xs font-mono text-[#aaaabc]">Réf. #{cartId}</p>
+              <p className="text-sm text-[#717182]">{tr("pos.amountToPayZola")}</p>
+              <p className="text-xs font-mono text-[#aaaabc]">{tr("pos.refShort", { id: cartId })}</p>
             </div>
             <p className="text-xs text-[#717182] text-center max-w-56">
-              Le client scanne ce QR avec son application Zola pour confirmer le paiement.
+              {tr("pos.clientScansZola")}
             </p>
             <button
               onClick={() => { setZolaQrOpen(false); handleCheckout(); }}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white transition"
             >
-              <CheckCircle2 size={15} /> Confirmer le paiement
+              <CheckCircle2 size={15} /> {tr("pos.confirmPayment")}
             </button>
           </div>
         </div>
