@@ -420,6 +420,109 @@
       "empty": "Aucun élément en attente sans date."
     }
   },
+  "work": {
+    "status": {
+      "todo": "À faire",
+      "doing": "En cours",
+      "done": "Terminé"
+    },
+    "priority": {
+      "high": "Haute",
+      "normal": "Normale",
+      "low": "Basse"
+    },
+    "confirmDelete": {
+      "title": "Supprimer cette tâche ?"
+    },
+    "toast": {
+      "proofUploadError": "Erreur lors de l'envoi de la preuve."
+    },
+    "badges": {
+      "assignedToMe": "À traiter par moi",
+      "me": "Moi",
+      "overdue": "En retard",
+      "proofRequired": "Justif. requis",
+      "proof": "Preuve ✓"
+    },
+    "taskDetail": {
+      "assignee": "Responsable",
+      "unassigned": "Non assigné",
+      "createdAt": "Créée le",
+      "due": "Échéance",
+      "source": "Source",
+      "instructions": "Consignes & description",
+      "noDescription": "Aucune description fournie.",
+      "readOnly": "Lecture seule"
+    },
+    "proof": {
+      "title": "Justificatif",
+      "deposited": "Preuve déposée ✓",
+      "required": "Obligatoire — veuillez joindre une preuve",
+      "depositedTitle": "Preuve déposée",
+      "viewPdf": "Voir le document PDF →",
+      "imageAlt": "Preuve",
+      "replace": "Remplacer la preuve",
+      "attachRequired": "Joindre une preuve (obligatoire)",
+      "attach": "Joindre une preuve",
+      "previewAlt": "Prévisualisation",
+      "photoImage": "Photo / Image",
+      "video": "Vidéo",
+      "uploading": "Envoi…",
+      "send": "Envoyer",
+      "acceptedFormats": "Formats acceptés : image (JPG, PNG, GIF), vidéo (MP4, MOV, WebM) ou PDF · max 50 Mo"
+    },
+    "actions": {
+      "markDone": "Marquer terminé",
+      "done": "Terminé",
+      "start": "Démarrer"
+    },
+    "header": {
+      "eyebrow": "Travail, chat et orchestration",
+      "title": "Actions et conversations"
+    },
+    "search": {
+      "placeholder": "Rechercher une tâche…"
+    },
+    "filters": {
+      "title": "Filtres",
+      "priority": "Priorité",
+      "reset": "Réinitialiser"
+    },
+    "counter": {
+      "todo": "{{count}} à faire",
+      "todo_one": "{{count}} à faire",
+      "todo_other": "{{count}} à faire",
+      "doing": "{{count}} en cours",
+      "doing_one": "{{count}} en cours",
+      "doing_other": "{{count}} en cours",
+      "done": "{{count}} terminé",
+      "done_one": "{{count}} terminé",
+      "done_other": "{{count}} terminés"
+    },
+    "board": {
+      "title": "Board opérations",
+      "emptyColumn": "Aucune tâche",
+      "showMore": "Voir {{count}} de plus…",
+      "showMore_one": "Voir {{count}} de plus…",
+      "showMore_other": "Voir {{count}} de plus…",
+      "collapse": "Réduire"
+    },
+    "newTask": {
+      "title": "Nouvelle tâche",
+      "taskTitle": "Titre",
+      "time": "Heure",
+      "adding": "Ajout…",
+      "add": "Ajouter la tâche"
+    },
+    "chat": {
+      "title": "Chat · {{channel}}",
+      "defaultChannel": "Opérations",
+      "empty": "Aucun message.",
+      "message": "Message",
+      "sending": "Envoi…",
+      "send": "Envoyer"
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

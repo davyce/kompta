@@ -420,6 +420,109 @@
       "empty": "No pending item without a date."
     }
   },
+  "work": {
+    "status": {
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done"
+    },
+    "priority": {
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "confirmDelete": {
+      "title": "Delete this task?"
+    },
+    "toast": {
+      "proofUploadError": "Error while sending the proof."
+    },
+    "badges": {
+      "assignedToMe": "Assigned to me",
+      "me": "Me",
+      "overdue": "Overdue",
+      "proofRequired": "Proof required",
+      "proof": "Proof ✓"
+    },
+    "taskDetail": {
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "createdAt": "Created on",
+      "due": "Due date",
+      "source": "Source",
+      "instructions": "Instructions & description",
+      "noDescription": "No description provided.",
+      "readOnly": "Read only"
+    },
+    "proof": {
+      "title": "Proof",
+      "deposited": "Proof submitted ✓",
+      "required": "Required — please attach proof",
+      "depositedTitle": "Submitted proof",
+      "viewPdf": "View PDF document →",
+      "imageAlt": "Proof",
+      "replace": "Replace proof",
+      "attachRequired": "Attach proof (required)",
+      "attach": "Attach proof",
+      "previewAlt": "Preview",
+      "photoImage": "Photo / Image",
+      "video": "Video",
+      "uploading": "Sending…",
+      "send": "Send",
+      "acceptedFormats": "Accepted formats: image (JPG, PNG, GIF), video (MP4, MOV, WebM), or PDF · max 50 MB"
+    },
+    "actions": {
+      "markDone": "Mark done",
+      "done": "Done",
+      "start": "Start"
+    },
+    "header": {
+      "eyebrow": "Work, chat, and orchestration",
+      "title": "Actions and conversations"
+    },
+    "search": {
+      "placeholder": "Search a task…"
+    },
+    "filters": {
+      "title": "Filters",
+      "priority": "Priority",
+      "reset": "Reset"
+    },
+    "counter": {
+      "todo": "{{count}} to do",
+      "todo_one": "{{count}} to do",
+      "todo_other": "{{count}} to do",
+      "doing": "{{count}} in progress",
+      "doing_one": "{{count}} in progress",
+      "doing_other": "{{count}} in progress",
+      "done": "{{count}} done",
+      "done_one": "{{count}} done",
+      "done_other": "{{count}} done"
+    },
+    "board": {
+      "title": "Operations board",
+      "emptyColumn": "No task",
+      "showMore": "Show {{count}} more…",
+      "showMore_one": "Show {{count}} more…",
+      "showMore_other": "Show {{count}} more…",
+      "collapse": "Collapse"
+    },
+    "newTask": {
+      "title": "New task",
+      "taskTitle": "Title",
+      "time": "Time",
+      "adding": "Adding…",
+      "add": "Add task"
+    },
+    "chat": {
+      "title": "Chat · {{channel}}",
+      "defaultChannel": "Operations",
+      "empty": "No message.",
+      "message": "Message",
+      "sending": "Sending…",
+      "send": "Send"
+    }
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",

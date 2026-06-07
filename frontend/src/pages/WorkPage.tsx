@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { FormEvent, useRef, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ChevronRight,
   Clock3, FileText, Filter, Image, Lock, MessageSquarePlus, PlusCircle,
@@ -12,18 +14,26 @@ import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
-import { shortDateTime } from "../utils/format";
+import i18n from "../i18n";
 import type { Task } from "../types/domain";
 
 /* ── Constantes ─────────────────────────────────────────────────────────── */
 const STATUS_FLOW: Record<string, string> = { todo: "doing", doing: "done" };
-const STATUS_LABEL: Record<string, string> = { todo: "À faire", doing: "En cours", done: "Terminé" };
+const STATUS_LABEL: Record<string, string> = {
+  todo: "work.status.todo",
+  doing: "work.status.doing",
+  done: "work.status.done",
+};
 const STATUS_COLOR: Record<string, string> = {
   todo: "bg-stone-100 text-stone-600",
   doing: "bg-blue-50 text-blue-700",
   done: "bg-emerald-50 text-emerald-700",
 };
-const PRIORITY_LABEL: Record<string, string> = { high: "Haute", normal: "Normal", low: "Basse" };
+const PRIORITY_LABEL: Record<string, string> = {
+  high: "work.priority.high",
+  normal: "work.priority.normal",
+  low: "work.priority.low",
+};
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -32,8 +42,27 @@ function isOverdue(due: string | null, status: string) {
   return new Date(due) < new Date();
 }
 
-function renderDescription(text: string) {
-  if (!text?.trim()) return <p className="text-sm italic text-stone-400">Aucune description fournie.</p>;
+function labelFromMap(map: Record<string, string>, value: string, tr: TFunction) {
+  return map[value] ? tr(map[value]) : value;
+}
+
+function priorityLabel(priority: string, tr: TFunction) {
+  return labelFromMap(PRIORITY_LABEL, priority, tr);
+}
+
+function workDateTime(date: string | null, time?: string | null): string {
+  if (!date) return "—";
+  const datePart = new Intl.DateTimeFormat(i18n.language, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
+  if (!time) return datePart;
+  return `${datePart} · ${time.slice(0, 5)}`;
+}
+
+function renderDescription(text: string, tr: TFunction) {
+  if (!text?.trim()) return <p className="text-sm italic text-stone-400">{tr("work.taskDetail.noDescription")}</p>;
   return (
     <div className="space-y-1.5">
       {text.split("\n").map((line, i) =>
@@ -56,6 +85,7 @@ function fileIsVideo(url: string) {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export function WorkPage() {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
@@ -111,9 +141,9 @@ export function WorkPage() {
   async function handleDeleteSelectedTask() {
     if (!selectedTask) return;
     const ok = await confirm({
-      title: "Supprimer cette tâche ?",
+      title: tr("work.confirmDelete.title"),
       message: selectedTask.title,
-      confirmLabel: "Supprimer",
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteTask.mutate(selectedTask.id);
@@ -163,7 +193,7 @@ export function WorkPage() {
       setProofFile(null);
       setProofPreview(null);
     } catch {
-      toast.error("Erreur lors de l'envoi de la preuve.");
+      toast.error(tr("work.toast.proofUploadError"));
     } finally {
       setProofUploading(false);
     }
@@ -218,18 +248,18 @@ export function WorkPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COLOR[selectedTask.status]}`}>
-                    {STATUS_LABEL[selectedTask.status]}
+                    {labelFromMap(STATUS_LABEL, selectedTask.status, tr)}
                   </span>
                   <StatusBadge
-                    label={PRIORITY_LABEL[selectedTask.priority] ?? selectedTask.priority}
+                    label={priorityLabel(selectedTask.priority, tr)}
                     tone={selectedTask.priority === "high" ? "red" : "neutral"}
                   />
                   {selectedTask.assigned_to_me && (
-                    <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">À traiter par moi</span>
+                    <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">{tr("work.badges.assignedToMe")}</span>
                   )}
                   {isOverdue(selectedTask.due_date, selectedTask.status) && (
                     <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
-                      <AlertTriangle size={9} /> En retard
+                      <AlertTriangle size={9} /> {tr("work.badges.overdue")}
                     </span>
                   )}
                 </div>
@@ -240,7 +270,7 @@ export function WorkPage() {
                   <button
                     onClick={handleDeleteSelectedTask}
                     className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-500 transition"
-                    title="Supprimer"
+                    title={tr("common.delete")}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -260,17 +290,17 @@ export function WorkPage() {
               {/* Méta-infos */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="flex items-center gap-2 rounded-xl border border-black/[0.05] bg-stone-50 px-3 py-2.5">
-                  <User2 size={14} className="shrink-0 text-stone-400" />
+                    <User2 size={14} className="shrink-0 text-stone-400" />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Responsable</p>
-                    <p className="truncate text-sm font-semibold text-[#17211f]">{selectedTask.assignee_name || "Non assigné"}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.assignee")}</p>
+                    <p className="truncate text-sm font-semibold text-[#17211f]">{selectedTask.assignee_name || tr("work.taskDetail.unassigned")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-black/[0.05] bg-stone-50 px-3 py-2.5">
                   <Clock3 size={14} className="shrink-0 text-stone-400" />
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Créée le</p>
-                    <p className="text-sm font-semibold text-[#17211f]">{shortDateTime(selectedTask.created_at) ?? "—"}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.createdAt")}</p>
+                    <p className="text-sm font-semibold text-[#17211f]">{workDateTime(selectedTask.created_at)}</p>
                   </div>
                 </div>
                 {selectedTask.due_date && (
@@ -281,9 +311,9 @@ export function WorkPage() {
                   }`}>
                     <CalendarDays size={14} className={`shrink-0 ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-400" : "text-stone-400"}`} />
                     <div>
-                      <p className={`text-[10px] font-bold uppercase tracking-wide ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-400" : "text-stone-400"}`}>Échéance</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wide ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-400" : "text-stone-400"}`}>{tr("work.taskDetail.due")}</p>
                       <p className={`text-sm font-semibold ${isOverdue(selectedTask.due_date, selectedTask.status) ? "text-red-700" : "text-[#17211f]"}`}>
-                        {shortDateTime(selectedTask.due_date, selectedTask.due_time)}
+                        {workDateTime(selectedTask.due_date, selectedTask.due_time)}
                       </p>
                     </div>
                   </div>
@@ -292,7 +322,7 @@ export function WorkPage() {
                   <div className="flex items-center gap-2 rounded-xl border border-black/[0.05] bg-stone-50 px-3 py-2.5">
                     <FileText size={14} className="shrink-0 text-stone-400" />
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Source</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.source")}</p>
                       <p className="text-sm font-semibold capitalize text-[#17211f]">{selectedTask.source}</p>
                     </div>
                   </div>
@@ -303,9 +333,9 @@ export function WorkPage() {
                   }`}>
                     <ShieldCheck size={14} className={`shrink-0 ${selectedTask.proof_url ? "text-emerald-500" : "text-amber-500"}`} />
                     <div>
-                      <p className={`text-[10px] font-bold uppercase tracking-wide ${selectedTask.proof_url ? "text-emerald-500" : "text-amber-500"}`}>Justificatif</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wide ${selectedTask.proof_url ? "text-emerald-500" : "text-amber-500"}`}>{tr("work.proof.title")}</p>
                       <p className={`text-sm font-semibold ${selectedTask.proof_url ? "text-emerald-700" : "text-amber-700"}`}>
-                        {selectedTask.proof_url ? "Preuve déposée ✓" : "Obligatoire — veuillez joindre une preuve"}
+                        {selectedTask.proof_url ? tr("work.proof.deposited") : tr("work.proof.required")}
                       </p>
                     </div>
                   </div>
@@ -314,16 +344,16 @@ export function WorkPage() {
 
               {/* Consignes */}
               <div>
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">Consignes & description</p>
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">{tr("work.taskDetail.instructions")}</p>
                 <div className="rounded-xl border border-black/[0.06] bg-stone-50 px-4 py-3">
-                  {renderDescription(selectedTask.description)}
+                  {renderDescription(selectedTask.description, tr)}
                 </div>
               </div>
 
               {/* Preuve déjà déposée */}
               {selectedTask.proof_url && (
                 <div>
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">Preuve déposée</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">{tr("work.proof.depositedTitle")}</p>
                   <div className="overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
                     {fileIsVideo(selectedTask.proof_url) ? (
                       <video
@@ -340,13 +370,13 @@ export function WorkPage() {
                           rel="noopener noreferrer"
                           className="text-sm font-semibold text-emerald-700 hover:underline"
                         >
-                          Voir le document PDF →
+                          {tr("work.proof.viewPdf")}
                         </a>
                       </div>
                     ) : (
                       <img
                         src={`${import.meta.env.VITE_API_URL ?? "http://localhost:8010"}${selectedTask.proof_url}`}
-                        alt="Preuve"
+                        alt={tr("work.proof.imageAlt")}
                         className="max-h-56 w-full object-contain"
                       />
                     )}
@@ -358,7 +388,7 @@ export function WorkPage() {
               {(selectedTask.assigned_to_me || selectedTask.can_update) && (
                 <div>
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">
-                    {selectedTask.proof_url ? "Remplacer la preuve" : selectedTask.proof_required ? "Joindre une preuve (obligatoire)" : "Joindre une preuve"}
+                    {selectedTask.proof_url ? tr("work.proof.replace") : selectedTask.proof_required ? tr("work.proof.attachRequired") : tr("work.proof.attach")}
                   </p>
 
                   {/* Prévisualisation du fichier choisi */}
@@ -372,7 +402,7 @@ export function WorkPage() {
                           <span className="text-sm font-semibold text-[#17211f] truncate">{proofFile.name}</span>
                         </div>
                       ) : (
-                        <img src={proofPreview} alt="Prévisualisation" className="max-h-40 w-full object-contain" />
+                        <img src={proofPreview} alt={tr("work.proof.previewAlt")} className="max-h-40 w-full object-contain" />
                       )}
                     </div>
                   )}
@@ -392,10 +422,10 @@ export function WorkPage() {
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.10] bg-stone-50 py-3 text-sm font-semibold text-stone-500 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
                     >
                       <Image size={16} />
-                      Photo / Image
+                      {tr("work.proof.photoImage")}
                       <span className="text-stone-300">·</span>
                       <Video size={16} />
-                      Vidéo
+                      {tr("work.proof.video")}
                     </button>
                     {proofFile && (
                       <button
@@ -409,11 +439,11 @@ export function WorkPage() {
                         ) : (
                           <Upload size={15} />
                         )}
-                        {proofUploading ? "Envoi…" : "Envoyer"}
+                        {proofUploading ? tr("work.proof.uploading") : tr("work.proof.send")}
                       </button>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[10px] text-stone-400">Formats acceptés : image (JPG, PNG, GIF), vidéo (MP4, MOV, WebM) ou PDF · max 50 Mo</p>
+                  <p className="mt-1.5 text-[10px] text-stone-400">{tr("work.proof.acceptedFormats")}</p>
                 </div>
               )}
             </div>
@@ -422,7 +452,7 @@ export function WorkPage() {
             <div className="shrink-0 border-t border-black/[0.05] bg-white px-5 py-3 flex gap-2">
               {!selectedTask.can_update && (
                 <p className="flex items-center gap-1 text-xs font-semibold text-stone-400 mr-auto">
-                  <Lock size={12} /> Lecture seule
+                  <Lock size={12} /> {tr("work.taskDetail.readOnly")}
                 </p>
               )}
               {STATUS_FLOW[selectedTask.status] && selectedTask.can_update && (
@@ -431,14 +461,14 @@ export function WorkPage() {
                   disabled={updateTask.isPending}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40 transition"
                 >
-                  {selectedTask.status === "doing" ? <><CheckCircle2 size={15} /> Marquer terminé</> : <><ArrowRight size={15} /> Démarrer</>}
+                  {selectedTask.status === "doing" ? <><CheckCircle2 size={15} /> {tr("work.actions.markDone")}</> : <><ArrowRight size={15} /> {tr("work.actions.start")}</>}
                 </button>
               )}
               <button
                 onClick={() => { setSelectedTask(null); setProofFile(null); setProofPreview(null); }}
                 className="flex items-center justify-center rounded-xl border border-black/[0.06] px-4 py-2.5 text-sm font-bold text-stone-600 hover:bg-stone-50 transition"
               >
-                Fermer
+                {tr("common.close")}
               </button>
             </div>
           </div>
@@ -448,8 +478,8 @@ export function WorkPage() {
       {/* ── Page ──────────────────────────────────────────────────────────── */}
       <div className="space-y-5">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">Travail, chat et orchestration</p>
-          <h1 className="text-3xl font-black text-ink">Actions et conversations</h1>
+          <p className="text-sm font-semibold text-emerald-600">{tr("work.header.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-ink">{tr("work.header.title")}</h1>
         </div>
 
         {/* ── Barre recherche + filtres ────────────────────────────────── */}
@@ -459,7 +489,7 @@ export function WorkPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher une tâche…"
+              placeholder={tr("work.search.placeholder")}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
             />
             {search && (
@@ -478,7 +508,7 @@ export function WorkPage() {
             }`}
           >
             <Filter size={14} />
-            Filtres
+            {tr("work.filters.title")}
             {activeFilterCount > 0 && (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
                 {activeFilterCount}
@@ -488,11 +518,11 @@ export function WorkPage() {
 
           {/* Compteur global */}
           <div className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white px-4 py-2.5 text-sm font-semibold text-stone-500 shadow-sm">
-            <span>{grouped.todo.length} à faire</span>
+            <span>{tr("work.counter.todo", { count: grouped.todo.length })}</span>
             <span className="text-stone-200">·</span>
-            <span className="text-blue-600">{grouped.doing.length} en cours</span>
+            <span className="text-blue-600">{tr("work.counter.doing", { count: grouped.doing.length })}</span>
             <span className="text-stone-200">·</span>
-            <span className="text-emerald-600">{grouped.done.length} terminé</span>
+            <span className="text-emerald-600">{tr("work.counter.done", { count: grouped.done.length })}</span>
           </div>
         </div>
 
@@ -500,10 +530,10 @@ export function WorkPage() {
         {showFilters && (
           <div className="flex flex-wrap gap-3 rounded-xl border border-black/[0.06] bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Priorité</label>
+              <label className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("work.filters.priority")}</label>
               <div className="flex gap-1.5">
                 {(["all", "high", "normal", "low"] as const).map((p) => {
-                  const label = { all: "Toutes", high: "Haute", normal: "Normal", low: "Basse" }[p];
+                  const label = p === "all" ? tr("common.all") : priorityLabel(p, tr);
                   const active = filterPriority === p;
                   return (
                     <button
@@ -522,7 +552,7 @@ export function WorkPage() {
 
             {assignees.length > 0 && (
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Responsable</label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.assignee")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setFilterAssignee("")}
@@ -530,7 +560,7 @@ export function WorkPage() {
                       !filterAssignee ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-black/[0.07] bg-stone-50 text-stone-600 hover:border-emerald-200"
                     }`}
                   >
-                    Tous
+                    {tr("common.all")}
                   </button>
                   {assignees.map((name) => (
                     <button
@@ -552,7 +582,7 @@ export function WorkPage() {
                 onClick={() => { setFilterPriority("all"); setFilterAssignee(""); }}
                 className="self-end rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition"
               >
-                Réinitialiser
+                {tr("work.filters.reset")}
               </button>
             )}
           </div>
@@ -560,7 +590,7 @@ export function WorkPage() {
 
         {/* ── Board + Chat ──────────────────────────────────────────────── */}
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Panel title="Board opérations">
+          <Panel title={tr("work.board.title")}>
             <div className="grid gap-3 md:grid-cols-3">
               {(["todo", "doing", "done"] as const).map((key) => {
                 const col = grouped[key];
@@ -571,7 +601,7 @@ export function WorkPage() {
                   <div key={key} className="flex flex-col rounded-xl bg-stone-50 p-3">
                     {/* En-tête colonne */}
                     <div className="mb-3 flex items-center justify-between">
-                      <p className="text-sm font-bold text-[#17211f]">{STATUS_LABEL[key]}</p>
+                      <p className="text-sm font-bold text-[#17211f]">{labelFromMap(STATUS_LABEL, key, tr)}</p>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_COLOR[key]}`}>
                         {col.length}
                       </span>
@@ -609,20 +639,20 @@ export function WorkPage() {
                           {/* Tags */}
                           <div className="mt-2 flex flex-wrap items-center gap-1">
                             <StatusBadge
-                              label={PRIORITY_LABEL[task.priority] ?? task.priority}
+                              label={priorityLabel(task.priority, tr)}
                               tone={task.priority === "high" ? "red" : "neutral"}
                             />
                             {task.assigned_to_me && (
-                              <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">Moi</span>
+                              <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{tr("work.badges.me")}</span>
                             )}
                             {task.proof_required && !task.proof_url && (
-                              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-600">Justif. requis</span>
+                              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-600">{tr("work.badges.proofRequired")}</span>
                             )}
                             {task.proof_url && (
-                              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">Preuve ✓</span>
+                              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">{tr("work.badges.proof")}</span>
                             )}
                             {isOverdue(task.due_date, task.status) && (
-                              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-600">En retard</span>
+                              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-600">{tr("work.badges.overdue")}</span>
                             )}
                           </div>
 
@@ -637,7 +667,7 @@ export function WorkPage() {
                           {task.due_date && (
                             <p className={`mt-1.5 flex items-center gap-1 text-[11px] font-semibold ${isOverdue(task.due_date, task.status) ? "text-red-500" : "text-stone-400"}`}>
                               <CalendarDays size={10} className="shrink-0" />
-                              {shortDateTime(task.due_date, task.due_time)}
+                              {workDateTime(task.due_date, task.due_time)}
                             </p>
                           )}
 
@@ -648,7 +678,7 @@ export function WorkPage() {
                               disabled={updateTask.isPending}
                               className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-800 disabled:text-stone-400"
                             >
-                              {task.status === "doing" ? <><CheckCircle2 size={11} /> Terminé</> : <><ArrowRight size={11} /> Démarrer</>}
+                              {task.status === "doing" ? <><CheckCircle2 size={11} /> {tr("work.actions.done")}</> : <><ArrowRight size={11} /> {tr("work.actions.start")}</>}
                             </button>
                           )}
                         </article>
@@ -657,7 +687,7 @@ export function WorkPage() {
                       {col.length === 0 && (
                         <div className="flex flex-col items-center gap-1 py-6 text-stone-300">
                           <CheckCircle2 size={22} className="opacity-40" />
-                          <p className="text-xs">Aucune tâche</p>
+                          <p className="text-xs">{tr("work.board.emptyColumn")}</p>
                         </div>
                       )}
                     </div>
@@ -668,7 +698,7 @@ export function WorkPage() {
                         onClick={() => setDoneLimit((v) => v + 10)}
                         className="mt-2 w-full rounded-lg border border-black/[0.05] bg-white py-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-700 transition"
                       >
-                        Voir {col.length - doneLimit} de plus…
+                        {tr("work.board.showMore", { count: col.length - doneLimit })}
                       </button>
                     )}
                     {key === "done" && doneLimit > 5 && col.length <= doneLimit && (
@@ -676,7 +706,7 @@ export function WorkPage() {
                         onClick={() => setDoneLimit(5)}
                         className="mt-2 w-full rounded-lg border border-black/[0.05] bg-white py-1.5 text-xs font-semibold text-stone-400 hover:text-stone-600 transition"
                       >
-                        Réduire
+                        {tr("work.board.collapse")}
                       </button>
                     )}
                   </div>
@@ -687,33 +717,33 @@ export function WorkPage() {
 
           <div className="space-y-5">
             {/* ── Nouvelle tâche ── */}
-            <Panel title="Nouvelle tâche">
+            <Panel title={tr("work.newTask.title")}>
               <form onSubmit={submitTask} className="space-y-3">
                 <TextInput
-                  label="Titre"
+                  label={tr("work.newTask.taskTitle")}
                   value={taskForm.title}
                   onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                   required
                 />
                 <TextInput
-                  label="Responsable"
+                  label={tr("work.taskDetail.assignee")}
                   value={taskForm.assignee_name}
                   onChange={(e) => setTaskForm({ ...taskForm, assignee_name: e.target.value })}
                 />
                 <SelectInput
-                  label="Priorité"
+                  label={tr("work.filters.priority")}
                   value={taskForm.priority}
                   onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
                 >
-                  <option value="normal">Normale</option>
-                  <option value="high">Haute</option>
-                  <option value="low">Basse</option>
+                  <option value="normal">{tr("work.priority.normal")}</option>
+                  <option value="high">{tr("work.priority.high")}</option>
+                  <option value="low">{tr("work.priority.low")}</option>
                 </SelectInput>
 
                 {/* Échéance + Heure */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Échéance</label>
+                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.due")}</label>
                     <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
                       <CalendarDays size={13} className="shrink-0 text-stone-400" />
                       <input
@@ -725,7 +755,7 @@ export function WorkPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Heure</label>
+                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.newTask.time")}</label>
                     <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
                       <Clock3 size={13} className="shrink-0 text-stone-400" />
                       <input
@@ -744,7 +774,7 @@ export function WorkPage() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-semibold text-white disabled:bg-stone-300 hover:bg-emerald-700 transition"
                 >
                   <PlusCircle size={18} />
-                  {createTask.isPending ? "Ajout…" : "Ajouter la tâche"}
+                  {createTask.isPending ? tr("work.newTask.adding") : tr("work.newTask.add")}
                 </button>
                 {createTask.error && (
                   <p className="text-sm text-red-600">{createTask.error.message}</p>
@@ -753,7 +783,7 @@ export function WorkPage() {
             </Panel>
 
             {/* ── Chat opérations ── */}
-            <Panel title={`Chat · ${channels.data?.[0]?.name ?? "Opérations"}`}>
+            <Panel title={tr("work.chat.title", { channel: channels.data?.[0]?.name ?? tr("work.chat.defaultChannel") })}>
               <div className="mb-3 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {messages.data?.map((item) => (
                   <div key={item.id} className="rounded-xl bg-stone-50 p-3">
@@ -767,12 +797,12 @@ export function WorkPage() {
                   </div>
                 ))}
                 {!messages.data?.length && (
-                  <p className="py-4 text-center text-sm text-stone-400">Aucun message.</p>
+                  <p className="py-4 text-center text-sm text-stone-400">{tr("work.chat.empty")}</p>
                 )}
               </div>
               <form onSubmit={submitMessage} className="space-y-3">
                 <TextArea
-                  label="Message"
+                  label={tr("work.chat.message")}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
@@ -782,7 +812,7 @@ export function WorkPage() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 font-semibold text-white disabled:bg-stone-300 hover:bg-stone-800 transition"
                 >
                   <MessageSquarePlus size={18} />
-                  {send.isPending ? "Envoi…" : "Envoyer"}
+                  {send.isPending ? tr("work.chat.sending") : tr("work.chat.send")}
                 </button>
               </form>
             </Panel>
