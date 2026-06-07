@@ -4,9 +4,12 @@ import { useAuth } from "../../app/AuthContext";
 import { initials } from "../../utils/format";
 import { useTheme } from "../../hooks/useTheme";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useWebSocketNotifications } from "../../hooks/useWebSocketNotifications";
+import i18n from "../../i18n";
 
 export function GroupsShell() {
+  const { t: tr } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -29,7 +32,7 @@ export function GroupsShell() {
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-black text-[#17211f] dark:text-white leading-tight">KOMPTA</p>
-            <p className="text-[10px] text-blue-800 font-bold leading-tight">Groupes & Organisations</p>
+            <p className="text-[10px] text-blue-800 font-bold leading-tight">{tr("groupPages.shell.brandSubtitle")}</p>
           </div>
         </button>
 
@@ -43,7 +46,7 @@ export function GroupsShell() {
             className="hidden sm:flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 hover:border-blue-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
           >
             <Building2 size={14} />
-            Espace Entreprise
+            {tr("groupPages.shell.companySpace")}
           </button>
         )}
 
@@ -73,20 +76,20 @@ export function GroupsShell() {
               <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
               <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-black/[0.08] bg-white shadow-lg dark:border-white/10 dark:bg-[#1e2229] overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
-                  <p className="text-sm font-bold text-[#17211f] dark:text-white">Notifications</p>
+                  <p className="text-sm font-bold text-[#17211f] dark:text-white">{tr("groupPages.shell.notifications")}</p>
                   {notifications.length > 0 && (
-                    <button onClick={clearHistory} className="text-xs text-[#717182] hover:text-rose-500 transition">Tout effacer</button>
+                    <button onClick={clearHistory} className="text-xs text-[#717182] hover:text-rose-500 transition">{tr("groupPages.shell.clearAll")}</button>
                   )}
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                   {notifications.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-[#717182]">Aucune notification</p>
+                    <p className="px-4 py-6 text-center text-sm text-[#717182]">{tr("groupPages.shell.noNotification")}</p>
                   ) : (
                     notifications.slice(0, 20).map((n) => (
                       <div key={n.id} className="px-4 py-3">
                         <p className="text-sm font-semibold text-[#17211f] dark:text-white">{n.title}</p>
                         {n.detail && <p className="text-xs text-[#717182] mt-0.5 line-clamp-2">{n.detail}</p>}
-                        <p className="text-[10px] text-[#aaaabc] mt-1">{new Date(n.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</p>
+                        <p className="text-[10px] text-[#aaaabc] mt-1">{new Date(n.createdAt).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" })}</p>
                       </div>
                     ))
                   )}
@@ -123,7 +126,7 @@ export function GroupsShell() {
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#17211f] hover:bg-black/[0.04] dark:text-white dark:hover:bg-white/[0.05]"
                   >
                     <Building2 size={14} className="text-[#717182]" />
-                    Espace Entreprise
+                    {tr("groupPages.shell.companySpace")}
                   </button>
                 )}
                 <button
@@ -131,7 +134,7 @@ export function GroupsShell() {
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                 >
                   <LogOut size={14} />
-                  Déconnexion
+                  {tr("groupPages.shell.logout")}
                 </button>
               </div>
             </>
@@ -151,7 +154,7 @@ export function GroupsShell() {
           className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-500"
         >
           <Users2 size={20} />
-          <span>Groupes</span>
+          <span>{tr("groupPages.shell.groups")}</span>
         </button>
         {user?.role !== "membre_groupe" && (
           <button
@@ -159,7 +162,7 @@ export function GroupsShell() {
             className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-[#717182]"
           >
             <Building2 size={20} />
-            <span>Entreprise</span>
+            <span>{tr("groupPages.shell.company")}</span>
           </button>
         )}
         <button
@@ -169,7 +172,7 @@ export function GroupsShell() {
           <div className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-blue-700 to-blue-900 text-[9px] font-bold text-white">
             {initials(user?.full_name ?? "?")}
           </div>
-          <span>Profil</span>
+          <span>{tr("groupPages.shell.profile")}</span>
         </button>
       </nav>
     </div>

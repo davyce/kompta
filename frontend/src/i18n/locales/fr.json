@@ -1,4 +1,83 @@
 {
+  "groupPages": {
+    "layout": {
+      "closeMenu": "Fermer le menu",
+      "allGroups": "Tous les groupes",
+      "nav": {
+        "dashboard": "Tableau de bord",
+        "members": "Membres",
+        "contributions": "Cotisations",
+        "transactions": "Caisse",
+        "expenses": "Dépenses",
+        "calendar": "Calendrier",
+        "meetings": "Réunions",
+        "chat": "Chat",
+        "documents": "Documents",
+        "votes": "Votes",
+        "leadership": "Bureau & Mandats",
+        "aiAssistant": "Assistant Limule",
+        "reports": "Rapports",
+        "settings": "Paramètres"
+      }
+    },
+    "shell": {
+      "brandSubtitle": "Groupes & Organisations",
+      "companySpace": "Espace Entreprise",
+      "notifications": "Notifications",
+      "clearAll": "Tout effacer",
+      "noNotification": "Aucune notification",
+      "logout": "Déconnexion",
+      "groups": "Groupes",
+      "company": "Entreprise",
+      "profile": "Profil"
+    },
+    "list": {
+      "title": "Mes Groupes & Orgs",
+      "subtitle": "Associations, tontines, mutuelles, ONG, collectifs…",
+      "stats": {
+        "groups": "Groupes",
+        "members": "Membres",
+        "types": "Types"
+      },
+      "emptyTitle": "Aucun groupe",
+      "emptyBody": "Créez votre premier groupe pour gérer cotisations, membres et activités.",
+      "createGroup": "Créer un groupe",
+      "tipTitle": "Conseil KOMPTA",
+      "tipBody": "La page \"Créer un groupe\" vous guide en 3 étapes pour configurer votre espace complet.",
+      "start": "Commencer →"
+    },
+    "birthdays": {
+      "title": "Anniversaires",
+      "today": "🎉 Aujourd'hui",
+      "todayBang": "🎉 Aujourd'hui !",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois",
+      "inDays": "Dans {{count}} jour{{date}}",
+      "inDays_one": "Dans {{count}} jour{{date}}",
+      "inDays_other": "Dans {{count}} jours{{date}}",
+      "empty": "Aucune date de naissance renseignée chez les membres."
+    },
+    "calendar": {
+      "title": "Calendrier du groupe",
+      "empty": "Aucun événement à venir.",
+      "unknownDate": "Date inconnue",
+      "types": {
+        "meeting": "Réunions",
+        "activity": "Activités",
+        "vote": "Votes",
+        "birthday": "Anniversaires"
+      }
+    },
+    "transactions": {
+      "title": "Caisse & Transactions",
+      "currentBalance": "Solde actuel",
+      "inflows": "Entrées",
+      "outflows": "Sorties",
+      "description": "Description",
+      "category": "Catégorie",
+      "empty": "Aucune transaction."
+    }
+  },
   "investmentsPage": {
     "periods": {
       "oneDay": "1J",

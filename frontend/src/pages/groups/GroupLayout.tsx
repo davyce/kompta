@@ -6,27 +6,29 @@ import {
   ChevronRight, Menu, X,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
 import { LimuleIcon } from "../../components/LimuleAvatar";
 
 const NAV_ITEMS = [
-  { key: "dashboard",      label: "Tableau de bord",  icon: LayoutDashboard },
-  { key: "members",        label: "Membres",           icon: Users },
-  { key: "contributions",  label: "Cotisations",       icon: CreditCard },
-  { key: "transactions",   label: "Caisse",            icon: Wallet },
-  { key: "expenses",       label: "Dépenses",          icon: ShoppingBag },
-  { key: "calendar",       label: "Calendrier",        icon: Calendar },
-  { key: "meetings",       label: "Réunions",          icon: Calendar },
-  { key: "chat",           label: "Chat",              icon: MessageCircle },
-  { key: "documents",      label: "Documents",         icon: FileText },
-  { key: "votes",          label: "Votes",             icon: Vote },
-  { key: "leadership",     label: "Bureau & Mandats",  icon: Crown },
-  { key: "ai-assistant",   label: "Assistant Limule",  icon: LimuleIcon },
-  { key: "reports",        label: "Rapports",          icon: BarChart3 },
-  { key: "settings",       label: "Paramètres",        icon: Settings },
+  { key: "dashboard",      tk: "groupPages.layout.nav.dashboard",      icon: LayoutDashboard },
+  { key: "members",        tk: "groupPages.layout.nav.members",        icon: Users },
+  { key: "contributions",  tk: "groupPages.layout.nav.contributions",  icon: CreditCard },
+  { key: "transactions",   tk: "groupPages.layout.nav.transactions",   icon: Wallet },
+  { key: "expenses",       tk: "groupPages.layout.nav.expenses",       icon: ShoppingBag },
+  { key: "calendar",       tk: "groupPages.layout.nav.calendar",       icon: Calendar },
+  { key: "meetings",       tk: "groupPages.layout.nav.meetings",       icon: Calendar },
+  { key: "chat",           tk: "groupPages.layout.nav.chat",           icon: MessageCircle },
+  { key: "documents",      tk: "groupPages.layout.nav.documents",      icon: FileText },
+  { key: "votes",          tk: "groupPages.layout.nav.votes",          icon: Vote },
+  { key: "leadership",     tk: "groupPages.layout.nav.leadership",     icon: Crown },
+  { key: "ai-assistant",   tk: "groupPages.layout.nav.aiAssistant",    icon: LimuleIcon },
+  { key: "reports",        tk: "groupPages.layout.nav.reports",        icon: BarChart3 },
+  { key: "settings",       tk: "groupPages.layout.nav.settings",       icon: Settings },
 ];
 
 export function GroupLayout() {
+  const { t: tr } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const id = Number(groupId);
   const location = useLocation();
@@ -48,7 +50,7 @@ export function GroupLayout() {
       {/* Backdrop mobile — ferme le tiroir au clic */}
       {sidebarOpen && (
         <button
-          aria-label="Fermer le menu"
+          aria-label={tr("groupPages.layout.closeMenu")}
           onClick={() => setSidebarOpen(false)}
           className="fixed inset-0 z-30 bg-black/40 md:hidden"
         />
@@ -58,7 +60,7 @@ export function GroupLayout() {
         {/* Group header */}
         <div className="p-4 border-b border-black/[0.05] dark:border-white/[0.05]">
           <button onClick={() => navigate("/groups")} className="flex items-center gap-1.5 text-xs text-[#717182] hover:text-blue-800 mb-3 transition">
-            <ArrowLeft size={12} /> Tous les groupes
+            <ArrowLeft size={12} /> {tr("groupPages.layout.allGroups")}
           </button>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-700 to-blue-900 text-white font-black text-base">
@@ -82,7 +84,7 @@ export function GroupLayout() {
                          : "text-[#17211f] dark:text-white/80 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
                 }`}>
                 <item.icon size={15} className={active ? "text-blue-700" : "text-[#717182]"} />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{tr(item.tk)}</span>
                 {active && <ChevronRight size={12} className="text-blue-500" />}
               </Link>
             );

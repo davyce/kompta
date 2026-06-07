@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus, Users, X, Loader2, ChevronRight, MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
 import type { OrganizationGroup } from "../../types/domain";
 
@@ -26,6 +27,7 @@ function typeColor(type: string) {
 }
 
 export function GroupsListPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -48,14 +50,14 @@ export function GroupsListPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#17211f] dark:text-white">Mes Groupes & Orgs</h1>
-          <p className="text-xs sm:text-sm text-[#717182]">Associations, tontines, mutuelles, ONG, collectifs…</p>
+          <h1 className="text-xl sm:text-2xl font-black text-[#17211f] dark:text-white">{tr("groupPages.list.title")}</h1>
+          <p className="text-xs sm:text-sm text-[#717182]">{tr("groupPages.list.subtitle")}</p>
         </div>
         <button
           onClick={() => navigate("/register-group")}
           className="flex items-center gap-1.5 rounded-xl bg-blue-800 px-3 sm:px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition whitespace-nowrap"
         >
-          <Plus size={15} /> <span className="hidden sm:inline">Créer</span><span className="sm:hidden">+</span>
+          <Plus size={15} /> <span className="hidden sm:inline">{tr("common.create")}</span><span className="sm:hidden">+</span>
         </button>
       </div>
 
@@ -63,9 +65,9 @@ export function GroupsListPage() {
       {groups.length > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
-            { label: "Groupes", value: groups.filter(g => g.is_active).length, color: "text-blue-800" },
-            { label: "Membres", value: groups.reduce((s, g) => s + (g.member_count || 0), 0), color: "text-sky-600" },
-            { label: "Types", value: new Set(groups.map(g => g.type)).size, color: "text-amber-600" },
+            { label: tr("groupPages.list.stats.groups"), value: groups.filter(g => g.is_active).length, color: "text-blue-800" },
+            { label: tr("groupPages.list.stats.members"), value: groups.reduce((s, g) => s + (g.member_count || 0), 0), color: "text-sky-600" },
+            { label: tr("groupPages.list.stats.types"), value: new Set(groups.map(g => g.type)).size, color: "text-amber-600" },
           ].map(stat => (
             <div key={stat.label} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-3 sm:p-4">
               <p className="text-[10px] sm:text-xs text-[#717182] font-medium">{stat.label}</p>
@@ -85,13 +87,13 @@ export function GroupsListPage() {
           <div className="grid h-16 w-16 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-800/10 text-blue-800">
             <Building2 size={28} />
           </div>
-          <h3 className="mt-4 text-lg font-bold text-[#17211f] dark:text-white">Aucun groupe</h3>
-          <p className="mt-1 text-sm text-[#717182] max-w-xs px-4">Créez votre premier groupe pour gérer cotisations, membres et activités.</p>
+          <h3 className="mt-4 text-lg font-bold text-[#17211f] dark:text-white">{tr("groupPages.list.emptyTitle")}</h3>
+          <p className="mt-1 text-sm text-[#717182] max-w-xs px-4">{tr("groupPages.list.emptyBody")}</p>
           <button
             onClick={() => navigate("/register-group")}
             className="mt-5 flex items-center gap-2 rounded-xl bg-blue-800 px-5 py-3 text-sm font-bold text-white hover:bg-blue-900"
           >
-            <Plus size={14} /> Créer un groupe
+            <Plus size={14} /> {tr("groupPages.list.createGroup")}
           </button>
         </div>
       ) : (
@@ -121,14 +123,14 @@ export function GroupsListPage() {
       {!isLoading && groups.length === 0 && (
         <div className="rounded-xl border border-dashed border-blue-400 dark:border-blue-700/30 bg-blue-50 dark:bg-blue-700/5 p-4 flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
           <div className="text-sm text-blue-900 dark:text-blue-400">
-            <p className="font-bold">Conseil KOMPTA</p>
-            <p className="text-xs mt-0.5">La page "Créer un groupe" vous guide en 3 étapes pour configurer votre espace complet.</p>
+            <p className="font-bold">{tr("groupPages.list.tipTitle")}</p>
+            <p className="text-xs mt-0.5">{tr("groupPages.list.tipBody")}</p>
           </div>
           <button
             onClick={() => navigate("/register-group")}
             className="shrink-0 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition"
           >
-            Commencer →
+            {tr("groupPages.list.start")}
           </button>
         </div>
       )}

@@ -1,4 +1,83 @@
 {
+  "groupPages": {
+    "layout": {
+      "closeMenu": "Close menu",
+      "allGroups": "All groups",
+      "nav": {
+        "dashboard": "Dashboard",
+        "members": "Members",
+        "contributions": "Contributions",
+        "transactions": "Cashbox",
+        "expenses": "Expenses",
+        "calendar": "Calendar",
+        "meetings": "Meetings",
+        "chat": "Chat",
+        "documents": "Documents",
+        "votes": "Votes",
+        "leadership": "Officers & Terms",
+        "aiAssistant": "Limule Assistant",
+        "reports": "Reports",
+        "settings": "Settings"
+      }
+    },
+    "shell": {
+      "brandSubtitle": "Groups & Organizations",
+      "companySpace": "Company Space",
+      "notifications": "Notifications",
+      "clearAll": "Clear all",
+      "noNotification": "No notification",
+      "logout": "Log out",
+      "groups": "Groups",
+      "company": "Company",
+      "profile": "Profile"
+    },
+    "list": {
+      "title": "My Groups & Orgs",
+      "subtitle": "Associations, tontines, mutuals, NGOs, collectives…",
+      "stats": {
+        "groups": "Groups",
+        "members": "Members",
+        "types": "Types"
+      },
+      "emptyTitle": "No group",
+      "emptyBody": "Create your first group to manage contributions, members, and activities.",
+      "createGroup": "Create a group",
+      "tipTitle": "KOMPTA tip",
+      "tipBody": "The \"Create a group\" page guides you in 3 steps to set up your complete space.",
+      "start": "Start →"
+    },
+    "birthdays": {
+      "title": "Birthdays",
+      "today": "🎉 Today",
+      "todayBang": "🎉 Today!",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "inDays": "In {{count}} day{{date}}",
+      "inDays_one": "In {{count}} day{{date}}",
+      "inDays_other": "In {{count}} days{{date}}",
+      "empty": "No birth date has been provided for members."
+    },
+    "calendar": {
+      "title": "Group calendar",
+      "empty": "No upcoming event.",
+      "unknownDate": "Unknown date",
+      "types": {
+        "meeting": "Meetings",
+        "activity": "Activities",
+        "vote": "Votes",
+        "birthday": "Birthdays"
+      }
+    },
+    "transactions": {
+      "title": "Cashbox & Transactions",
+      "currentBalance": "Current balance",
+      "inflows": "Inflows",
+      "outflows": "Outflows",
+      "description": "Description",
+      "category": "Category",
+      "empty": "No transaction."
+    }
+  },
   "investmentsPage": {
     "periods": {
       "oneDay": "1D",

@@ -1,7 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, Users, Vote, Gift, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
+import i18n from "../../i18n";
 import type { GroupCalendarEvent } from "../../types/domain";
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -12,11 +14,12 @@ const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: 
 };
 
 function fmtDate(dateStr: string) {
-  try { return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr)); }
+  try { return new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr)); }
   catch { return dateStr; }
 }
 
 export function GroupCalendarPage() {
+  const { t: tr } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const id = Number(groupId);
   const { data, isLoading } = useQuery({ queryKey: ["group-calendar", id], queryFn: () => api.groupCalendar(id) });
@@ -29,20 +32,20 @@ export function GroupCalendarPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <h2 className="text-xl font-black text-[#17211f] dark:text-white">Calendrier du groupe</h2>
+      <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("groupPages.calendar.title")}</h2>
       <div className="flex gap-3 flex-wrap">
         {Object.entries(TYPE_CONFIG).map(([type, cfg]) => (
           <div key={type} className={`flex items-center gap-1.5 rounded-full ${cfg.bg} px-3 py-1 text-xs font-bold ${cfg.color}`}>
-            <cfg.icon size={11} /> {type === "meeting" ? "Réunions" : type === "activity" ? "Activités" : type === "vote" ? "Votes" : "Anniversaires"}
+            <cfg.icon size={11} /> {tr(`groupPages.calendar.types.${type}`)}
           </div>
         ))}
       </div>
       {isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 size={24} className="animate-spin text-blue-700" /></div> :
-        events.length === 0 ? <p className="text-center text-sm text-[#717182] py-12">Aucun événement à venir.</p> :
+        events.length === 0 ? <p className="text-center text-sm text-[#717182] py-12">{tr("groupPages.calendar.empty")}</p> :
         <div className="space-y-4">
           {Object.entries(byDate).sort().map(([date, evs]) => (
             <div key={date}>
-              <p className="text-xs font-bold uppercase text-[#717182] mb-2">{date === "?" ? "Date inconnue" : new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+              <p className="text-xs font-bold uppercase text-[#717182] mb-2">{date === "?" ? tr("groupPages.calendar.unknownDate") : new Date(date + "T12:00:00").toLocaleDateString(i18n.language, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
               <div className="space-y-2">
                 {evs.map((ev, i) => {
                   const cfg = TYPE_CONFIG[ev.type] ?? { icon: Calendar, color: "text-gray-600", bg: "bg-gray-100" };
@@ -54,7 +57,7 @@ export function GroupCalendarPage() {
                         <p className="font-bold text-sm text-[#17211f] dark:text-white">{ev.title}</p>
                         {ev.start && typeof ev.start === "string" && ev.start.includes("T") && <p className="text-xs text-[#717182]">{fmtDate(ev.start)}</p>}
                         {ev.location && <p className="text-xs text-[#717182]">📍 {ev.location}</p>}
-                        {(ev as { days_until?: number }).days_until !== undefined && <p className="text-xs font-semibold text-rose-600">{(ev as { days_until: number }).days_until === 0 ? "🎉 Aujourd'hui !" : `Dans ${(ev as { days_until: number }).days_until} jour(s)`}</p>}
+                        {(ev as { days_until?: number }).days_until !== undefined && <p className="text-xs font-semibold text-rose-600">{(ev as { days_until: number }).days_until === 0 ? tr("groupPages.birthdays.todayBang") : tr("groupPages.birthdays.inDays", { count: (ev as { days_until: number }).days_until, date: "" })}</p>}
                       </div>
                     </div>
                   );
