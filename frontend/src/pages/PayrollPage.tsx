@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2,
   ChevronRight, Clock, Download, Edit2, FileText, Loader2,
-  Plus, RefreshCcw, Send, Users, Wallet, X,
+  Plus, Send, Users, Wallet, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import i18n from "../i18n";
 import { api } from "../services/api";
 import type { EmployeePayrollOverride, Payslip } from "../types/domain";
-import { money, compactMoney, shortDate } from "../utils/format";
+import { money, compactMoney } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { useToast } from "../components/ToastProvider";
@@ -39,6 +42,33 @@ const MONTHS = [
   "Janvier","Février","Mars","Avril","Mai","Juin",
   "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
 ];
+const MONTH_KEYS = [
+  "jan", "feb", "mar", "apr", "may", "jun",
+  "jul", "aug", "sep", "oct", "nov", "dec",
+] as const;
+const MONTH_KEY_BY_FR = MONTHS.reduce<Record<string, (typeof MONTH_KEYS)[number]>>((acc, month, index) => {
+  acc[month] = MONTH_KEYS[index]!;
+  return acc;
+}, {});
+
+function monthName(index: number, tr: TFunction) {
+  return tr(`payroll.months.${MONTH_KEYS[index]}`);
+}
+
+function displayPeriod(period: string, tr: TFunction) {
+  const [month, ...rest] = period.split(" ");
+  const key = MONTH_KEY_BY_FR[month];
+  return key ? `${tr(`payroll.months.${key}`)} ${rest.join(" ")}` : period;
+}
+
+function payrollDate(value: string | null, tr: TFunction) {
+  if (!value) return tr("payroll.date.notDefined");
+  return new Intl.DateTimeFormat(i18n.language, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
 
 type Tab = "variables" | "bulletins" | "teras" | "historique";
 
@@ -71,12 +101,13 @@ function KpiCard({ label, value, sub, icon: Icon, accent = "emerald" }: {
 
 /* ── Bulletin card ─────────────────────────────────────────────── */
 function BulletinCard({
-  slip, runPeriod, runId, onDownload, onUpdateStatus,
+  slip, onDownload, onUpdateStatus,
 }: {
-  slip: Payslip; runPeriod: string; runId: number;
+  slip: Payslip;
   onDownload: (id: number) => void;
   onUpdateStatus: (id: number, status: string) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isReady = slip.payout_status === "ready";
   const isDone = slip.payout_status === "paid";
@@ -95,11 +126,11 @@ function BulletinCard({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-[#17211f] dark:text-white truncate">{slip.employee_name}</p>
-          <p className="text-xs text-[#717182]">Réf. {slip.reference}</p>
+          <p className="text-xs text-[#717182]">{tr("payroll.bulletin.reference")} {slip.reference}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-extrabold text-emerald-600">{money(slip.net_pay)}</p>
-          <p className="text-[10px] text-[#717182]">net</p>
+          <p className="text-[10px] text-[#717182]">{tr("payroll.bulletin.netLabel")}</p>
         </div>
         <button onClick={() => setExpanded(!expanded)} className="text-[#717182] hover:text-emerald-600 transition">
           <ChevronRight size={16} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
@@ -115,7 +146,13 @@ function BulletinCard({
           : "bg-stone-100 text-[#717182]"
         }`}>
           {isDone ? <CheckCircle2 size={9} /> : isMissing ? <AlertCircle size={9} /> : <Clock size={9} />}
-          {isDone ? "Payé" : isMissing ? "Destination manquante" : isReady ? "Prêt" : "En attente"}
+          {isDone
+            ? tr("payroll.payoutStatus.paid")
+            : isMissing
+              ? tr("payroll.payoutStatus.missingDestination")
+              : isReady
+                ? tr("payroll.payoutStatus.ready")
+                : tr("payroll.payoutStatus.pending")}
         </span>
         {slip.payout_destination && (
           <span className="text-[10px] text-[#717182] truncate max-w-[180px]">
@@ -128,37 +165,37 @@ function BulletinCard({
       {expanded && (
         <div className="border-t border-black/[0.04] dark:border-white/[0.04] px-4 py-3 space-y-1.5 text-sm bg-black/[0.01] dark:bg-white/[0.01]">
           <div className="flex justify-between text-[#717182]">
-            <span>Salaire de base</span>
+            <span>{tr("payroll.bulletin.baseSalary")}</span>
             <span className="font-medium text-[#17211f] dark:text-white">{money(slip.gross_pay - (slip.overtime_pay||0) - (slip.bonus||0) + (slip.absence_deduction||0))}</span>
           </div>
           {(slip.overtime_pay || 0) > 0 && (
             <div className="flex justify-between text-[#717182]">
-              <span>Heures supplémentaires</span>
+              <span>{tr("payroll.bulletin.overtime")}</span>
               <span className="text-sky-600">+{money(slip.overtime_pay)}</span>
             </div>
           )}
           {(slip.bonus || 0) > 0 && (
             <div className="flex justify-between text-[#717182]">
-              <span>Prime / gratification</span>
+              <span>{tr("payroll.bulletin.bonus")}</span>
               <span className="text-sky-600">+{money(slip.bonus)}</span>
             </div>
           )}
           {(slip.absence_deduction || 0) > 0 && (
             <div className="flex justify-between text-[#717182]">
-              <span>Retenue absences</span>
+              <span>{tr("payroll.bulletin.absenceDeduction")}</span>
               <span className="text-rose-500">-{money(slip.absence_deduction)}</span>
             </div>
           )}
           <div className="flex justify-between font-medium text-[#17211f] dark:text-white pt-1 border-t border-black/[0.04] dark:border-white/[0.04]">
-            <span>Salaire brut</span>
+            <span>{tr("payroll.bulletin.grossSalary")}</span>
             <span>{money(slip.gross_pay)}</span>
           </div>
           <div className="flex justify-between text-[#717182]">
-            <span>CNSS (10%)</span>
+            <span>{tr("payroll.bulletin.cnss")}</span>
             <span className="text-rose-500">-{money(slip.deductions)}</span>
           </div>
           <div className="flex justify-between font-extrabold text-emerald-700 dark:text-emerald-400 pt-1 border-t border-black/[0.04] dark:border-white/[0.04]">
-            <span>NET À PAYER</span>
+            <span>{tr("payroll.bulletin.netToPay")}</span>
             <span>{money(slip.net_pay)}</span>
           </div>
         </div>
@@ -177,12 +214,12 @@ function BulletinCard({
             onClick={() => onUpdateStatus(slip.id, "paid")}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition"
           >
-            <CheckCircle2 size={11} /> Marquer payé
+            <CheckCircle2 size={11} /> {tr("payroll.bulletin.markPaid")}
           </button>
         )}
         {isDone && (
           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-            <CheckCircle2 size={12} /> Versement effectué
+            <CheckCircle2 size={12} /> {tr("payroll.bulletin.paymentDone")}
           </span>
         )}
       </div>
@@ -192,6 +229,7 @@ function BulletinCard({
 
 /* ══════════════════════════════════════════════════════════════ */
 export function PayrollPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToast();
   useCurrency();
@@ -281,7 +319,7 @@ export function PayrollPage() {
 
   function handleGenerate() {
     if (activeEmployees.length === 0) {
-      setLaunchError("Aucun employé actif — ajoutez des employés avant de lancer la paie.");
+      setLaunchError(tr("payroll.errors.noActiveEmployee"));
       return;
     }
     const ovList: EmployeePayrollOverride[] = Object.entries(overrides)
@@ -298,7 +336,7 @@ export function PayrollPage() {
 
   async function handleDownloadSlip(id: number) {
     try { openBlob(await api.downloadPayslip(id), `bulletin-${id}.pdf`); }
-    catch { toast.error("Erreur téléchargement PDF"); }
+    catch { toast.error(tr("payroll.errors.downloadPdf")); }
   }
 
   /* ── Limule analysis ── */
@@ -313,13 +351,19 @@ export function PayrollPage() {
     await api.aiGenerateStream(
       {
         kind: "payroll_analysis",
-        title: `Analyse paie ${currentRun.period}`,
-        prompt: `En tant que DRH expert PME Afrique centrale, donne un résumé exécutif concis (4-5 lignes) en français du cycle de paie ${currentRun.period} : ${count} employés, masse brute ${gross.toLocaleString("fr-FR")} XAF, net total ${net.toLocaleString("fr-FR")} XAF, ${anomalies} anomalie(s) de versement. Inclus : (1) Conformité CNSS/IRPP, (2) Points d'attention, (3) Recommandation pratique. Sois direct et actionnable.`,
+        title: tr("payroll.limule.aiTitle", { period: displayPeriod(currentRun.period, tr) }),
+        prompt: tr("payroll.limule.prompt", {
+          period: displayPeriod(currentRun.period, tr),
+          count,
+          gross: gross.toLocaleString(i18n.language),
+          net: net.toLocaleString(i18n.language),
+          anomalies,
+        }),
         context: "payroll",
       },
       (partial) => setLimuleResult(partial),
       (final, _id) => { setLimuleResult(final); setLimuleRunning(false); },
-      () => { setLimuleResult("Limule indisponible."); setLimuleRunning(false); },
+      () => { setLimuleResult(tr("payroll.errors.limuleUnavailable")); setLimuleRunning(false); },
     );
   }
 
@@ -328,11 +372,11 @@ export function PayrollPage() {
   const paidCount    = currentRun?.payslips.filter((s) => s.payout_status === "paid").length ?? 0;
 
   /* ── Tabs ── */
-  const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "variables",   label: "1 · Variables",  icon: Edit2 },
-    { key: "bulletins",   label: "2 · Bulletins",  icon: FileText },
-    { key: "teras",       label: "3 · TERAS",      icon: AlertCircle },
-    { key: "historique",  label: "4 · Historique", icon: Clock },
+  const TABS: { key: Tab; tk: string; icon: React.ElementType }[] = [
+    { key: "variables",   tk: "payroll.tabs.variables",  icon: Edit2 },
+    { key: "bulletins",   tk: "payroll.tabs.bulletins",  icon: FileText },
+    { key: "teras",       tk: "payroll.tabs.teras",      icon: AlertCircle },
+    { key: "historique",  tk: "payroll.tabs.history",    icon: Clock },
   ];
 
   /* ════════ RENDER ════════════════════════════════════════════ */
@@ -343,8 +387,8 @@ export function PayrollPage() {
       <div className="shrink-0 border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-emerald-600">RH · Finance</p>
-            <h1 className="text-2xl font-extrabold text-[#17211f] dark:text-white">Paie</h1>
+            <p className="text-sm font-semibold text-emerald-600">{tr("payroll.header.eyebrow")}</p>
+            <h1 className="text-2xl font-extrabold text-[#17211f] dark:text-white">{tr("payroll.header.title")}</h1>
           </div>
 
           {/* Period selector */}
@@ -356,7 +400,7 @@ export function PayrollPage() {
                 onChange={(e) => setMonth(Number(e.target.value))}
                 className="bg-transparent text-sm font-semibold text-[#17211f] dark:text-white outline-none px-1 py-1"
               >
-                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                {MONTHS.map((m, i) => <option key={m} value={i}>{monthName(i, tr)}</option>)}
               </select>
               <select
                 value={year}
@@ -374,7 +418,7 @@ export function PayrollPage() {
                 className="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] disabled:opacity-50 transition"
               >
                 {exportingId === currentRun.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                Exporter PDF
+                {tr("payroll.header.exportPdf")}
               </button>
             )}
 
@@ -384,7 +428,11 @@ export function PayrollPage() {
               className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
             >
               {createMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              {createMut.isPending ? "Génération…" : currentRun ? "Nouveau cycle" : "Lancer la paie"}
+              {createMut.isPending
+                ? tr("payroll.header.generating")
+                : currentRun
+                  ? tr("payroll.header.newCycle")
+                  : tr("payroll.header.launch")}
             </button>
           </div>
         </div>
@@ -402,24 +450,28 @@ export function PayrollPage() {
       {/* ── KPI row ── */}
       <div className="shrink-0 grid grid-cols-2 gap-4 px-6 py-4 lg:grid-cols-4">
         <KpiCard
-          label="Masse salariale" icon={Wallet} accent="emerald"
+          label={tr("payroll.kpi.payrollMass")} icon={Wallet} accent="emerald"
           value={currentRun ? compactMoney(currentRun.gross_total) : compactMoney(projected)}
-          sub={currentRun ? `Cycle ${currentRun.period}` : `${activeEmployees.length} emp. · estimation`}
+          sub={currentRun
+            ? tr("payroll.kpi.cycle", { period: displayPeriod(currentRun.period, tr) })
+            : tr("payroll.kpi.employeeEstimate", { count: activeEmployees.length })}
         />
         <KpiCard
-          label="Net à verser" icon={Send} accent="sky"
+          label={tr("payroll.kpi.netToPay")} icon={Send} accent="sky"
           value={currentRun ? compactMoney(currentRun.net_total) : "—"}
-          sub={currentRun ? `${paidCount}/${currentRun.payslips.length} versés` : "Cycle non généré"}
+          sub={currentRun
+            ? tr("payroll.kpi.paidProgress", { paid: paidCount, total: currentRun.payslips.length })
+            : tr("payroll.kpi.cycleNotGenerated")}
         />
         <KpiCard
-          label="Anomalies TERAS" icon={AlertTriangle} accent={anomalyCount > 0 ? "amber" : "emerald"}
+          label={tr("payroll.kpi.terasAnomalies")} icon={AlertTriangle} accent={anomalyCount > 0 ? "amber" : "emerald"}
           value={String(anomalyCount)}
-          sub={anomalyCount > 0 ? "destinations manquantes" : "Aucune anomalie"}
+          sub={anomalyCount > 0 ? tr("payroll.kpi.missingDestinations") : tr("payroll.kpi.noAnomaly")}
         />
         <KpiCard
-          label="Employés actifs" icon={Users} accent="sky"
+          label={tr("payroll.kpi.activeEmployees")} icon={Users} accent="sky"
           value={String(activeEmployees.length)}
-          sub={`Cycle : ${period}`}
+          sub={tr("payroll.kpi.selectedCycle", { period: displayPeriod(period, tr) })}
         />
       </div>
 
@@ -436,7 +488,7 @@ export function PayrollPage() {
             }`}
           >
             <tab.icon size={14} />
-            {tab.label}
+            {tr(tab.tk)}
             {tab.key === "teras" && anomalyCount > 0 && (
               <span className="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {anomalyCount}
@@ -462,10 +514,11 @@ export function PayrollPage() {
                   <Edit2 size={15} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Collecte des variables — {period}</p>
+                  <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                    {tr("payroll.variables.guideTitle", { period: displayPeriod(period, tr) })}
+                  </p>
                   <p className="mt-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-                    Saisissez les heures supplémentaires, primes et absences avant de générer les bulletins.
-                    Laissez à 0 si aucune modification pour cet employé.
+                    {tr("payroll.variables.guideBody")}
                   </p>
                 </div>
               </div>
@@ -475,9 +528,9 @@ export function PayrollPage() {
             {activeEmployees.length === 0 ? (
               <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Users size={36} className="text-[#d1d5db]" />
-                <p className="text-sm font-semibold text-[#717182]">Aucun employé actif</p>
+                <p className="text-sm font-semibold text-[#717182]">{tr("payroll.variables.emptyTitle")}</p>
                 <p className="text-xs text-[#9ca3af] max-w-xs">
-                  Ajoutez des employés dans la section RH avant de lancer la paie.
+                  {tr("payroll.variables.emptyBody")}
                 </p>
               </div>
             ) : (
@@ -485,11 +538,11 @@ export function PayrollPage() {
                 <div className="grid grid-cols-[1fr_120px_120px_110px_80px] gap-0">
                   {/* Column headers */}
                   <div className="col-span-5 grid grid-cols-[1fr_120px_120px_110px_80px] border-b border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02]">
-                    <div className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#717182]">Employé</div>
-                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[#717182]">Salaire base</div>
-                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-sky-600">H.Sup (h)</div>
-                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-sky-600">Prime (XAF)</div>
-                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-rose-500">Absent (j)</div>
+                    <div className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("payroll.variables.employee")}</div>
+                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("payroll.variables.baseSalary")}</div>
+                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-sky-600">{tr("payroll.variables.overtimeHours")}</div>
+                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-sky-600">{tr("payroll.variables.bonus")}</div>
+                    <div className="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-rose-500">{tr("payroll.variables.absenceDays")}</div>
                   </div>
 
                   {/* Employee rows */}
@@ -559,12 +612,12 @@ export function PayrollPage() {
                 {/* Summary footer */}
                 <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 border-t border-emerald-200/60 dark:border-emerald-500/20">
                   <div>
-                    <p className="text-xs text-[#717182]">Masse salariale estimée (brut)</p>
+                    <p className="text-xs text-[#717182]">{tr("payroll.variables.estimatedGross")}</p>
                     <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400">{money(projected)}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right text-xs text-[#717182]">
-                      <p>Net estimé</p>
+                      <p>{tr("payroll.variables.estimatedNet")}</p>
                       <p className="font-bold text-[#17211f] dark:text-white">{money(projected * 0.9)}</p>
                     </div>
 
@@ -574,7 +627,7 @@ export function PayrollPage() {
                       onChange={(e) => setPaymentAccountId(e.target.value ? Number(e.target.value) : null)}
                       className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white outline-none"
                     >
-                      <option value="">Compte source</option>
+                      <option value="">{tr("payroll.variables.sourceAccount")}</option>
                       {payrollAccounts.map((a) => (
                         <option key={a.id} value={a.id}>{a.label} · {a.currency}</option>
                       ))}
@@ -586,7 +639,7 @@ export function PayrollPage() {
                       className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
                     >
                       {createMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-                      {createMut.isPending ? "Génération…" : "Générer les bulletins"}
+                      {createMut.isPending ? tr("payroll.header.generating") : tr("payroll.variables.generatePayslips")}
                     </button>
                   </div>
                 </div>
@@ -607,14 +660,16 @@ export function PayrollPage() {
                   <FileText size={28} />
                 </div>
                 <div>
-                  <p className="text-base font-bold text-[#17211f] dark:text-white">Aucun bulletin pour {period}</p>
-                  <p className="mt-1 text-sm text-[#717182]">Renseignez les variables puis lancez la génération.</p>
+                  <p className="text-base font-bold text-[#17211f] dark:text-white">
+                    {tr("payroll.bulletins.emptyTitle", { period: displayPeriod(period, tr) })}
+                  </p>
+                  <p className="mt-1 text-sm text-[#717182]">{tr("payroll.bulletins.emptyBody")}</p>
                 </div>
                 <button
                   onClick={() => setActiveTab("variables")}
                   className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition"
                 >
-                  <Edit2 size={14} /> Renseigner les variables
+                  <Edit2 size={14} /> {tr("payroll.bulletins.fillVariables")}
                 </button>
               </div>
             ) : (
@@ -623,10 +678,17 @@ export function PayrollPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-[#17211f] dark:text-white">
-                      Cycle {currentRun.period} · {currentRun.payslips.length} bulletin{currentRun.payslips.length > 1 ? "s" : ""}
+                      {tr("payroll.bulletins.runTitle", {
+                        period: displayPeriod(currentRun.period, tr),
+                        count: currentRun.payslips.length,
+                      })}
                     </p>
                     <p className="text-xs text-[#717182]">
-                      Brut : {money(currentRun.gross_total)} · Net : {money(currentRun.net_total)} · Créé le {shortDate(currentRun.created_at)}
+                      {tr("payroll.bulletins.runMeta", {
+                        gross: money(currentRun.gross_total),
+                        net: money(currentRun.net_total),
+                        date: payrollDate(currentRun.created_at, tr),
+                      })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -634,14 +696,14 @@ export function PayrollPage() {
                       currentRun.status === "validated" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
                       : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                     }`}>
-                      {currentRun.status === "validated" ? "Validé" : "Brouillon"}
+                      {currentRun.status === "validated" ? tr("payroll.runStatus.validated") : tr("payroll.runStatus.draft")}
                     </span>
                     {currentRun.status !== "validated" && (
                       <button
                         onClick={() => updateStatusMut.mutate({ id: currentRun.id, status: "validated" })}
                         className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition"
                       >
-                        <CheckCircle2 size={12} /> Valider le cycle
+                        <CheckCircle2 size={12} /> {tr("payroll.bulletins.validateCycle")}
                       </button>
                     )}
                   </div>
@@ -653,8 +715,6 @@ export function PayrollPage() {
                     <BulletinCard
                       key={slip.id}
                       slip={slip}
-                      runPeriod={currentRun.period}
-                      runId={currentRun.id}
                       onDownload={handleDownloadSlip}
                       onUpdateStatus={(id, status) => updateSlipMut.mutate({ id, payload: { payout_status: status } })}
                     />
@@ -664,7 +724,9 @@ export function PayrollPage() {
                 {/* Mark all paid */}
                 {paidCount < currentRun.payslips.length && (
                   <div className="flex items-center justify-end gap-3 pt-2">
-                    <p className="text-xs text-[#717182]">{paidCount}/{currentRun.payslips.length} versements effectués</p>
+                    <p className="text-xs text-[#717182]">
+                      {tr("payroll.bulletins.paidProgress", { paid: paidCount, total: currentRun.payslips.length })}
+                    </p>
                     <button
                       onClick={() => {
                         currentRun.payslips.forEach((s) => {
@@ -673,7 +735,7 @@ export function PayrollPage() {
                       }}
                       className="flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
                     >
-                      <CheckCircle2 size={12} /> Tout marquer comme payé
+                      <CheckCircle2 size={12} /> {tr("payroll.bulletins.markAllPaid")}
                     </button>
                   </div>
                 )}
@@ -683,7 +745,7 @@ export function PayrollPage() {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2">
                       <LimuleIcon size={15} className="text-emerald-600" />
-                      <h3 className="font-bold text-[#17211f] dark:text-white text-sm">Analyse Limule du cycle</h3>
+                      <h3 className="font-bold text-[#17211f] dark:text-white text-sm">{tr("payroll.limule.panelTitle")}</h3>
                     </div>
                     <button
                       onClick={handleLimuleAnalysis}
@@ -691,7 +753,11 @@ export function PayrollPage() {
                       className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition disabled:opacity-50"
                     >
                       {limuleRunning ? <Loader2 size={11} className="animate-spin" /> : <LimuleIcon size={11} />}
-                      {limuleRunning ? "Analyse…" : limuleResult ? "Rafraîchir" : "Analyser"}
+                      {limuleRunning
+                        ? tr("payroll.limule.analyzing")
+                        : limuleResult
+                          ? tr("payroll.limule.refresh")
+                          : tr("payroll.limule.analyze")}
                     </button>
                   </div>
                   {limuleResult ? (
@@ -700,7 +766,7 @@ export function PayrollPage() {
                     </div>
                   ) : (
                     <div className="px-5 py-5 text-xs text-[#717182]">
-                      Cliquez sur "Analyser" pour que Limule vérifie la conformité CNSS, détecte les anomalies et propose des recommandations.
+                      {tr("payroll.limule.empty")}
                     </div>
                   )}
                 </div>
@@ -716,10 +782,12 @@ export function PayrollPage() {
           <div className="max-w-5xl mx-auto px-6 py-5 space-y-4">
             <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-                <h3 className="font-bold text-[#17211f] dark:text-white">Contrôle TERAS — {period}</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white">
+                  {tr("payroll.teras.title", { period: displayPeriod(period, tr) })}
+                </h3>
                 {anomalyCount > 0 && (
                   <span className="flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-                    <AlertCircle size={11} /> {anomalyCount} anomalie{anomalyCount > 1 ? "s" : ""}
+                    <AlertCircle size={11} /> {tr("payroll.teras.anomalyCount", { count: anomalyCount })}
                   </span>
                 )}
               </div>
@@ -727,11 +795,11 @@ export function PayrollPage() {
               {!currentRun ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-center px-5">
                   <AlertCircle size={28} className="text-[#d1d5db]" />
-                  <p className="text-sm text-[#717182]">Générez d'abord les bulletins pour lancer le contrôle TERAS.</p>
+                  <p className="text-sm text-[#717182]">{tr("payroll.teras.empty")}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
-                  {currentRun.payslips.map((slip, i) => {
+                  {currentRun.payslips.map((slip) => {
                     const hasAnomaly = !slip.payout_destination || slip.payout_status === "missing_destination";
                     return (
                       <div key={slip.id} className={`flex items-start gap-3 px-5 py-4 ${hasAnomaly ? "bg-amber-50/30 dark:bg-amber-500/5" : ""}`}>
@@ -747,22 +815,24 @@ export function PayrollPage() {
                                 : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
                             }`}>
                               {hasAnomaly ? <AlertCircle size={9} /> : <CheckCircle2 size={9} />}
-                              {hasAnomaly ? "Anomalie" : "OK"}
+                              {hasAnomaly ? tr("payroll.teras.anomaly") : tr("payroll.teras.ok")}
                             </span>
                           </div>
                           <div className="mt-1 grid grid-cols-2 gap-x-6 text-xs text-[#717182]">
-                            <span>CNSS (10%) : {money(slip.deductions)} ✓</span>
-                            <span>Net : {money(slip.net_pay)}</span>
+                            <span>{tr("payroll.teras.cnss", { amount: money(slip.deductions) })}</span>
+                            <span>{tr("payroll.teras.net", { amount: money(slip.net_pay) })}</span>
                             <span className={slip.payout_destination ? "text-emerald-600" : "text-amber-600 font-semibold"}>
-                              Versement : {slip.payout_destination || "⚠ Destination manquante"}
+                              {tr("payroll.teras.payout", {
+                                destination: slip.payout_destination || tr("payroll.teras.missingDestination"),
+                              })}
                             </span>
-                            <span>Méthode : {slip.payout_method || "non définie"}</span>
+                            <span>{tr("payroll.teras.method", { method: slip.payout_method || tr("payroll.teras.notDefined") })}</span>
                           </div>
                         </div>
                         {hasAnomaly && (
                           <div className="shrink-0">
                             <p className="text-[10px] text-amber-600 font-semibold max-w-[160px] text-right">
-                              Complétez les coordonnées de paiement dans le dossier RH de l'employé
+                              {tr("payroll.teras.fixHelp")}
                             </p>
                           </div>
                         )}
@@ -779,8 +849,8 @@ export function PayrollPage() {
                 }`}>
                   <p className={`text-xs font-bold ${anomalyCount === 0 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
                     {anomalyCount === 0
-                      ? `✓ Tous les ${currentRun.payslips.length} bulletins sont conformes TERAS`
-                      : `⚠ ${anomalyCount} bulletin${anomalyCount > 1 ? "s" : ""} nécessite${anomalyCount > 1 ? "nt" : ""} une correction`}
+                      ? tr("payroll.teras.allCompliant", { count: currentRun.payslips.length })
+                      : tr("payroll.teras.needsCorrection", { count: anomalyCount })}
                   </p>
                 </div>
               )}
@@ -789,14 +859,32 @@ export function PayrollPage() {
             {/* Compliance summary */}
             <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
               <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-                <h3 className="font-bold text-[#17211f] dark:text-white">Checklist conformité réglementaire</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white">{tr("payroll.teras.checklistTitle")}</h3>
               </div>
               <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                 {[
-                  { label: "Taux CNSS employé (10%)", ok: true, note: "Conforme au barème CNSS" },
-                  { label: "Bulletins signés / validés", ok: currentRun?.status === "validated", note: currentRun?.status === "validated" ? "Cycle validé" : "En attente de validation" },
-                  { label: "Destinations de versement", ok: anomalyCount === 0, note: anomalyCount === 0 ? "Toutes renseignées" : `${anomalyCount} manquante(s)` },
-                  { label: "Période de paie complète", ok: !!currentRun, note: currentRun ? `Cycle ${currentRun.period} généré` : "Cycle non généré" },
+                  { label: tr("payroll.teras.checklist.cnss"), ok: true, note: tr("payroll.teras.checklist.cnssOk") },
+                  {
+                    label: tr("payroll.teras.checklist.validatedSlips"),
+                    ok: currentRun?.status === "validated",
+                    note: currentRun?.status === "validated"
+                      ? tr("payroll.teras.checklist.cycleValidated")
+                      : tr("payroll.teras.checklist.validationPending"),
+                  },
+                  {
+                    label: tr("payroll.teras.checklist.payoutDestinations"),
+                    ok: anomalyCount === 0,
+                    note: anomalyCount === 0
+                      ? tr("payroll.teras.checklist.allFilled")
+                      : tr("payroll.teras.checklist.missingCount", { count: anomalyCount }),
+                  },
+                  {
+                    label: tr("payroll.teras.checklist.completePeriod"),
+                    ok: !!currentRun,
+                    note: currentRun
+                      ? tr("payroll.teras.checklist.cycleGenerated", { period: displayPeriod(currentRun.period, tr) })
+                      : tr("payroll.kpi.cycleNotGenerated"),
+                  },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between px-5 py-3">
                     <div className="flex items-center gap-2">
@@ -821,12 +909,12 @@ export function PayrollPage() {
             {(runsQ.data?.length ?? 0) === 0 ? (
               <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] flex flex-col items-center gap-3 py-16 text-center">
                 <Clock size={28} className="text-[#d1d5db]" />
-                <p className="text-sm text-[#717182]">Aucun historique de paie</p>
+                <p className="text-sm text-[#717182]">{tr("payroll.history.empty")}</p>
               </div>
             ) : (
               <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
                 <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-                  <h3 className="font-bold text-[#17211f] dark:text-white">Tous les cycles de paie</h3>
+                  <h3 className="font-bold text-[#17211f] dark:text-white">{tr("payroll.history.title")}</h3>
                 </div>
                 <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                   {(runsQ.data ?? []).map((run) => {
@@ -834,24 +922,29 @@ export function PayrollPage() {
                     return (
                       <div key={run.id} className="flex items-center gap-4 px-5 py-4 hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-black text-xs">
-                          {run.period.slice(0, 3).toUpperCase()}
+                          {displayPeriod(run.period, tr).slice(0, 3).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-[#17211f] dark:text-white">{run.period}</p>
+                          <p className="text-sm font-bold text-[#17211f] dark:text-white">{displayPeriod(run.period, tr)}</p>
                           <p className="text-xs text-[#717182]">
-                            {shortDate(run.created_at)} · {run.payslips.length} bulletins · {runPaid}/{run.payslips.length} versés
+                            {tr("payroll.history.rowMeta", {
+                              date: payrollDate(run.created_at, tr),
+                              count: run.payslips.length,
+                              paid: runPaid,
+                              total: run.payslips.length,
+                            })}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-sm font-bold text-[#17211f] dark:text-white">{compactMoney(run.net_total)}</p>
-                          <p className="text-xs text-[#717182]">net</p>
+                          <p className="text-xs text-[#717182]">{tr("payroll.bulletin.netLabel")}</p>
                         </div>
                         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                           run.status === "validated"
                             ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
                             : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                         }`}>
-                          {run.status === "validated" ? "Validé" : "Brouillon"}
+                          {run.status === "validated" ? tr("payroll.runStatus.validated") : tr("payroll.runStatus.draft")}
                         </span>
                         <button
                           onClick={() => handleExportRun(run.id, run.period)}
@@ -880,8 +973,10 @@ export function PayrollPage() {
                 <Plus size={18} />
               </div>
               <div>
-                <p className="font-bold text-[#17211f] dark:text-white">Nouveau cycle — {period}</p>
-                <p className="text-xs text-[#717182]">Un cycle existe déjà. Voulez-vous en créer un nouveau ?</p>
+                <p className="font-bold text-[#17211f] dark:text-white">
+                  {tr("payroll.confirm.title", { period: displayPeriod(period, tr) })}
+                </p>
+                <p className="text-xs text-[#717182]">{tr("payroll.confirm.body")}</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -889,7 +984,7 @@ export function PayrollPage() {
                 onClick={() => setShowNewCycleConfirm(false)}
                 className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition"
               >
-                Annuler
+                {tr("common.cancel")}
               </button>
               <button
                 onClick={handleGenerate}
@@ -897,7 +992,7 @@ export function PayrollPage() {
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white transition disabled:opacity-60"
               >
                 {createMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                Créer quand même
+                {tr("payroll.confirm.createAnyway")}
               </button>
             </div>
           </div>

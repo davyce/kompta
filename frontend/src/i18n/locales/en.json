@@ -1,4 +1,165 @@
 {
+  "payroll": {
+    "months": {
+      "jan": "January",
+      "feb": "February",
+      "mar": "March",
+      "apr": "April",
+      "may": "May",
+      "jun": "June",
+      "jul": "July",
+      "aug": "August",
+      "sep": "September",
+      "oct": "October",
+      "nov": "November",
+      "dec": "December"
+    },
+    "date": {
+      "notDefined": "Not defined"
+    },
+    "header": {
+      "eyebrow": "HR · Finance",
+      "title": "Payroll",
+      "exportPdf": "Export PDF",
+      "generating": "Generating…",
+      "newCycle": "New cycle",
+      "launch": "Run payroll"
+    },
+    "tabs": {
+      "variables": "1 · Variables",
+      "bulletins": "2 · Payslips",
+      "teras": "3 · TERAS",
+      "history": "4 · History"
+    },
+    "kpi": {
+      "payrollMass": "Payroll mass",
+      "cycle": "Cycle {{period}}",
+      "employeeEstimate": "{{count}} employee · estimate",
+      "employeeEstimate_one": "{{count}} employee · estimate",
+      "employeeEstimate_other": "{{count}} employees · estimate",
+      "netToPay": "Net to pay",
+      "paidProgress": "{{paid}}/{{total}} paid",
+      "cycleNotGenerated": "Cycle not generated",
+      "terasAnomalies": "TERAS anomalies",
+      "missingDestinations": "missing destinations",
+      "noAnomaly": "No anomaly",
+      "activeEmployees": "Active employees",
+      "selectedCycle": "Cycle: {{period}}"
+    },
+    "payoutStatus": {
+      "paid": "Paid",
+      "missingDestination": "Missing destination",
+      "ready": "Ready",
+      "pending": "Pending"
+    },
+    "bulletin": {
+      "reference": "Ref.",
+      "netLabel": "net",
+      "baseSalary": "Base salary",
+      "overtime": "Overtime",
+      "bonus": "Bonus / gratuity",
+      "absenceDeduction": "Absence deduction",
+      "grossSalary": "Gross salary",
+      "cnss": "CNSS (10%)",
+      "netToPay": "NET TO PAY",
+      "markPaid": "Mark paid",
+      "paymentDone": "Payment completed"
+    },
+    "errors": {
+      "noActiveEmployee": "No active employee — add employees before running payroll.",
+      "downloadPdf": "PDF download error",
+      "limuleUnavailable": "Limule is unavailable."
+    },
+    "limule": {
+      "aiTitle": "Payroll analysis {{period}}",
+      "prompt": "As an HR payroll expert for Central African SMEs, provide a concise executive summary (4-5 lines) in English for the payroll cycle {{period}}: {{count}} employees, gross payroll {{gross}} XAF, total net {{net}} XAF, {{anomalies}} payout anomaly/anomalies. Include: (1) CNSS/IRPP compliance, (2) points of attention, (3) practical recommendation. Be direct and actionable.",
+      "panelTitle": "Limule cycle analysis",
+      "analyzing": "Analyzing…",
+      "refresh": "Refresh",
+      "analyze": "Analyze",
+      "empty": "Click \"Analyze\" so Limule can verify CNSS compliance, detect anomalies, and suggest recommendations."
+    },
+    "variables": {
+      "guideTitle": "Variable collection — {{period}}",
+      "guideBody": "Enter overtime, bonuses, and absences before generating payslips. Leave 0 if there is no change for this employee.",
+      "emptyTitle": "No active employee",
+      "emptyBody": "Add employees in the HR section before running payroll.",
+      "employee": "Employee",
+      "baseSalary": "Base salary",
+      "overtimeHours": "Overtime (h)",
+      "bonus": "Bonus (XAF)",
+      "absenceDays": "Absent (d)",
+      "estimatedGross": "Estimated payroll mass (gross)",
+      "estimatedNet": "Estimated net",
+      "sourceAccount": "Source account",
+      "generatePayslips": "Generate payslips"
+    },
+    "bulletins": {
+      "emptyTitle": "No payslip for {{period}}",
+      "emptyBody": "Fill in the variables, then launch generation.",
+      "fillVariables": "Fill in variables",
+      "runTitle": "Cycle {{period}} · {{count}} payslip",
+      "runTitle_one": "Cycle {{period}} · {{count}} payslip",
+      "runTitle_other": "Cycle {{period}} · {{count}} payslips",
+      "runMeta": "Gross: {{gross}} · Net: {{net}} · Created on {{date}}",
+      "validateCycle": "Validate cycle",
+      "paidProgress": "{{paid}}/{{total}} payments completed",
+      "markAllPaid": "Mark all as paid"
+    },
+    "runStatus": {
+      "validated": "Validated",
+      "draft": "Draft"
+    },
+    "teras": {
+      "title": "TERAS control — {{period}}",
+      "anomalyCount": "{{count}} anomaly",
+      "anomalyCount_one": "{{count}} anomaly",
+      "anomalyCount_other": "{{count}} anomalies",
+      "empty": "Generate payslips first to launch the TERAS control.",
+      "anomaly": "Anomaly",
+      "ok": "OK",
+      "cnss": "CNSS (10%): {{amount}} ✓",
+      "net": "Net: {{amount}}",
+      "payout": "Payout: {{destination}}",
+      "missingDestination": "⚠ Missing destination",
+      "method": "Method: {{method}}",
+      "notDefined": "not defined",
+      "fixHelp": "Complete the payment details in the employee's HR file",
+      "allCompliant": "✓ All {{count}} payslips are TERAS-compliant",
+      "allCompliant_one": "✓ The payslip is TERAS-compliant",
+      "allCompliant_other": "✓ All {{count}} payslips are TERAS-compliant",
+      "needsCorrection": "⚠ {{count}} payslip requires correction",
+      "needsCorrection_one": "⚠ {{count}} payslip requires correction",
+      "needsCorrection_other": "⚠ {{count}} payslips require correction",
+      "checklistTitle": "Regulatory compliance checklist",
+      "checklist": {
+        "cnss": "Employee CNSS rate (10%)",
+        "cnssOk": "Compliant with the CNSS scale",
+        "validatedSlips": "Signed / validated payslips",
+        "cycleValidated": "Cycle validated",
+        "validationPending": "Pending validation",
+        "payoutDestinations": "Payout destinations",
+        "allFilled": "All filled in",
+        "missingCount": "{{count}} missing",
+        "missingCount_one": "{{count}} missing",
+        "missingCount_other": "{{count}} missing",
+        "completePeriod": "Complete payroll period",
+        "cycleGenerated": "Cycle {{period}} generated"
+      }
+    },
+    "history": {
+      "empty": "No payroll history",
+      "title": "All payroll cycles",
+      "rowMeta": "{{date}} · {{count}} payslip · {{paid}}/{{total}} paid",
+      "rowMeta_one": "{{date}} · {{count}} payslip · {{paid}}/{{total}} paid",
+      "rowMeta_other": "{{date}} · {{count}} payslips · {{paid}}/{{total}} paid"
+    },
+    "confirm": {
+      "title": "New cycle — {{period}}",
+      "body": "A cycle already exists. Do you want to create a new one?",
+      "createAnyway": "Create anyway"
+    }
+  },
   "declarations": {
     "types": {
       "fiscale": {

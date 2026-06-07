@@ -1,4 +1,165 @@
 {
+  "payroll": {
+    "months": {
+      "jan": "Janvier",
+      "feb": "Février",
+      "mar": "Mars",
+      "apr": "Avril",
+      "may": "Mai",
+      "jun": "Juin",
+      "jul": "Juillet",
+      "aug": "Août",
+      "sep": "Septembre",
+      "oct": "Octobre",
+      "nov": "Novembre",
+      "dec": "Décembre"
+    },
+    "date": {
+      "notDefined": "Non défini"
+    },
+    "header": {
+      "eyebrow": "RH · Finance",
+      "title": "Paie",
+      "exportPdf": "Exporter PDF",
+      "generating": "Génération…",
+      "newCycle": "Nouveau cycle",
+      "launch": "Lancer la paie"
+    },
+    "tabs": {
+      "variables": "1 · Variables",
+      "bulletins": "2 · Bulletins",
+      "teras": "3 · TERAS",
+      "history": "4 · Historique"
+    },
+    "kpi": {
+      "payrollMass": "Masse salariale",
+      "cycle": "Cycle {{period}}",
+      "employeeEstimate": "{{count}} emp. · estimation",
+      "employeeEstimate_one": "{{count}} emp. · estimation",
+      "employeeEstimate_other": "{{count}} emp. · estimation",
+      "netToPay": "Net à verser",
+      "paidProgress": "{{paid}}/{{total}} versés",
+      "cycleNotGenerated": "Cycle non généré",
+      "terasAnomalies": "Anomalies TERAS",
+      "missingDestinations": "destinations manquantes",
+      "noAnomaly": "Aucune anomalie",
+      "activeEmployees": "Employés actifs",
+      "selectedCycle": "Cycle : {{period}}"
+    },
+    "payoutStatus": {
+      "paid": "Payé",
+      "missingDestination": "Destination manquante",
+      "ready": "Prêt",
+      "pending": "En attente"
+    },
+    "bulletin": {
+      "reference": "Réf.",
+      "netLabel": "net",
+      "baseSalary": "Salaire de base",
+      "overtime": "Heures supplémentaires",
+      "bonus": "Prime / gratification",
+      "absenceDeduction": "Retenue absences",
+      "grossSalary": "Salaire brut",
+      "cnss": "CNSS (10%)",
+      "netToPay": "NET À PAYER",
+      "markPaid": "Marquer payé",
+      "paymentDone": "Versement effectué"
+    },
+    "errors": {
+      "noActiveEmployee": "Aucun employé actif — ajoutez des employés avant de lancer la paie.",
+      "downloadPdf": "Erreur téléchargement PDF",
+      "limuleUnavailable": "Limule indisponible."
+    },
+    "limule": {
+      "aiTitle": "Analyse paie {{period}}",
+      "prompt": "En tant que DRH expert PME Afrique centrale, donne un résumé exécutif concis (4-5 lignes) en français du cycle de paie {{period}} : {{count}} employés, masse brute {{gross}} XAF, net total {{net}} XAF, {{anomalies}} anomalie(s) de versement. Inclus : (1) Conformité CNSS/IRPP, (2) Points d'attention, (3) Recommandation pratique. Sois direct et actionnable.",
+      "panelTitle": "Analyse Limule du cycle",
+      "analyzing": "Analyse…",
+      "refresh": "Rafraîchir",
+      "analyze": "Analyser",
+      "empty": "Cliquez sur \"Analyser\" pour que Limule vérifie la conformité CNSS, détecte les anomalies et propose des recommandations."
+    },
+    "variables": {
+      "guideTitle": "Collecte des variables — {{period}}",
+      "guideBody": "Saisissez les heures supplémentaires, primes et absences avant de générer les bulletins. Laissez à 0 si aucune modification pour cet employé.",
+      "emptyTitle": "Aucun employé actif",
+      "emptyBody": "Ajoutez des employés dans la section RH avant de lancer la paie.",
+      "employee": "Employé",
+      "baseSalary": "Salaire base",
+      "overtimeHours": "H.Sup (h)",
+      "bonus": "Prime (XAF)",
+      "absenceDays": "Absent (j)",
+      "estimatedGross": "Masse salariale estimée (brut)",
+      "estimatedNet": "Net estimé",
+      "sourceAccount": "Compte source",
+      "generatePayslips": "Générer les bulletins"
+    },
+    "bulletins": {
+      "emptyTitle": "Aucun bulletin pour {{period}}",
+      "emptyBody": "Renseignez les variables puis lancez la génération.",
+      "fillVariables": "Renseigner les variables",
+      "runTitle": "Cycle {{period}} · {{count}} bulletin",
+      "runTitle_one": "Cycle {{period}} · {{count}} bulletin",
+      "runTitle_other": "Cycle {{period}} · {{count}} bulletins",
+      "runMeta": "Brut : {{gross}} · Net : {{net}} · Créé le {{date}}",
+      "validateCycle": "Valider le cycle",
+      "paidProgress": "{{paid}}/{{total}} versements effectués",
+      "markAllPaid": "Tout marquer comme payé"
+    },
+    "runStatus": {
+      "validated": "Validé",
+      "draft": "Brouillon"
+    },
+    "teras": {
+      "title": "Contrôle TERAS — {{period}}",
+      "anomalyCount": "{{count}} anomalie",
+      "anomalyCount_one": "{{count}} anomalie",
+      "anomalyCount_other": "{{count}} anomalies",
+      "empty": "Générez d'abord les bulletins pour lancer le contrôle TERAS.",
+      "anomaly": "Anomalie",
+      "ok": "OK",
+      "cnss": "CNSS (10%) : {{amount}} ✓",
+      "net": "Net : {{amount}}",
+      "payout": "Versement : {{destination}}",
+      "missingDestination": "⚠ Destination manquante",
+      "method": "Méthode : {{method}}",
+      "notDefined": "non définie",
+      "fixHelp": "Complétez les coordonnées de paiement dans le dossier RH de l'employé",
+      "allCompliant": "✓ Tous les {{count}} bulletins sont conformes TERAS",
+      "allCompliant_one": "✓ Le bulletin est conforme TERAS",
+      "allCompliant_other": "✓ Tous les {{count}} bulletins sont conformes TERAS",
+      "needsCorrection": "⚠ {{count}} bulletin nécessite une correction",
+      "needsCorrection_one": "⚠ {{count}} bulletin nécessite une correction",
+      "needsCorrection_other": "⚠ {{count}} bulletins nécessitent une correction",
+      "checklistTitle": "Checklist conformité réglementaire",
+      "checklist": {
+        "cnss": "Taux CNSS employé (10%)",
+        "cnssOk": "Conforme au barème CNSS",
+        "validatedSlips": "Bulletins signés / validés",
+        "cycleValidated": "Cycle validé",
+        "validationPending": "En attente de validation",
+        "payoutDestinations": "Destinations de versement",
+        "allFilled": "Toutes renseignées",
+        "missingCount": "{{count}} manquante(s)",
+        "missingCount_one": "{{count}} manquante",
+        "missingCount_other": "{{count}} manquantes",
+        "completePeriod": "Période de paie complète",
+        "cycleGenerated": "Cycle {{period}} généré"
+      }
+    },
+    "history": {
+      "empty": "Aucun historique de paie",
+      "title": "Tous les cycles de paie",
+      "rowMeta": "{{date}} · {{count}} bulletin · {{paid}}/{{total}} versés",
+      "rowMeta_one": "{{date}} · {{count}} bulletin · {{paid}}/{{total}} versés",
+      "rowMeta_other": "{{date}} · {{count}} bulletins · {{paid}}/{{total}} versés"
+    },
+    "confirm": {
+      "title": "Nouveau cycle — {{period}}",
+      "body": "Un cycle existe déjà. Voulez-vous en créer un nouveau ?",
+      "createAnyway": "Créer quand même"
+    }
+  },
   "declarations": {
     "types": {
       "fiscale": {
