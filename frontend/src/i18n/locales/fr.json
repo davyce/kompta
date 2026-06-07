@@ -137,6 +137,92 @@
       "footer": "Contrôle humain recommandé avant soumission officielle · Généré le {{date}}"
     }
   },
+  "assistants": {
+    "templates": {
+      "email": "Email professionnel",
+      "note": "Note de service",
+      "communique": "Communiqué",
+      "courrier": "Courrier officiel",
+      "reponseClient": "Réponse client",
+      "annonceInterne": "Annonce interne",
+      "clause": "Clause contractuelle",
+      "declaration": "Analyse déclarative"
+    },
+    "tones": {
+      "professional": "Professionnel",
+      "warm": "Chaleureux",
+      "formal": "Formel",
+      "firm": "Ferme"
+    },
+    "defaults": {
+      "audience": "Équipe boutique Plateau",
+      "notes": "Annoncer le lancement de la collection wax 2026 et le planning de formation"
+    },
+    "header": {
+      "eyebrow": "Rédaction IA",
+      "title": "Studio Limule",
+      "subtitle": "Emails, notes, courriers et clauses générés avec variables dynamiques et contexte CEMAC."
+    },
+    "templatesPanel": {
+      "title": "Modèles"
+    },
+    "llmBadge": {
+      "title": "Limule — LLM actif",
+      "subtitle": "Génération temps réel · Variables DB · Contexte CEMAC"
+    },
+    "editor": {
+      "generating": "Limule génère…",
+      "generatedBadge": "Généré par Limule"
+    },
+    "form": {
+      "audience": "Destinataire / audience",
+      "tone": "Ton",
+      "objective": "Objectif / contexte",
+      "objectivePlaceholder": "Décris ta demande… Tu peux utiliser {entreprise}, {utilisateur}, {teras_score}, etc."
+    },
+    "variables": {
+      "title": "Variables dynamiques",
+      "available": "{{count}} disponibles",
+      "available_one": "{{count}} disponible",
+      "available_other": "{{count}} disponibles",
+      "help": "Cliquez sur une variable pour l'insérer dans le texte. Survol = valeur actuelle.",
+      "loading": "Chargement des variables…"
+    },
+    "draft": {
+      "streaming": "Limule génère en temps réel…",
+      "title": "Brouillon généré",
+      "emptyPrefix": "Remplissez le formulaire et cliquez sur",
+      "emptySuffix": " pour créer votre brouillon.",
+      "tipPrefix": "💡 Utilisez les",
+      "tipSuffix": "pour injecter automatiquement le nom de l'entreprise, le score TERAS, le nombre d'employés et plus encore."
+    },
+    "actions": {
+      "generating": "Génération…",
+      "generate": "Générer",
+      "warmVariant": "Variante chaleureuse",
+      "copied": "Copié !",
+      "copySendTitle": "Copier dans le presse-papiers pour envoyer",
+      "copySend": "Copier & envoyer"
+    },
+    "qa": {
+      "title": "Mes dernières questions",
+      "empty": "Tes questions à Limule s'enregistrent automatiquement ici.",
+      "noQuestion": "(sans question)",
+      "answerPanel": "Réponse Limule",
+      "question": "Question",
+      "answer": "Réponse",
+      "emptyAnswer": "(réponse vide)",
+      "selectPrompt": "Sélectionne une question dans la liste pour afficher la réponse."
+    },
+    "history": {
+      "title": "Historique Limule",
+      "count": "{{count}} générations",
+      "count_one": "{{count}} génération",
+      "count_other": "{{count}} générations",
+      "empty": "Tes générations apparaîtront ici dès que Limule aura produit du contenu.",
+      "noTitle": "(sans titre)"
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

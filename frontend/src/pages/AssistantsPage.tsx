@@ -1,29 +1,43 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Braces, ChevronDown, ChevronUp, ClipboardCheck,
-  Copy, Download, Mail, RefreshCcw, Save, Send, Sparkles, Trash2, Zap,
+  Copy, Download, Mail, RefreshCcw, Send, Sparkles, Trash2, Zap,
 } from "lucide-react";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 
 import { TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
+import i18n from "../i18n";
 import { api } from "../services/api";
 
 /* ─── Modèles de documents ──────────────────────────────────────────────── */
 const TEMPLATES = [
-  { key: "email",          label: "Email professionnel",  icon: Mail },
-  { key: "note",           label: "Note de service",       icon: ClipboardCheck },
-  { key: "communique",     label: "Communiqué",            icon: Sparkles },
-  { key: "courrier",       label: "Courrier officiel",     icon: ClipboardCheck },
-  { key: "reponse_client", label: "Réponse client",        icon: Mail },
-  { key: "annonce_interne",label: "Annonce interne",       icon: Sparkles },
-  { key: "clause",         label: "Clause contractuelle",  icon: Braces },
-  { key: "declaration",    label: "Analyse déclarative",   icon: Zap },
+  { key: "email",          labelTk: "assistants.templates.email",          icon: Mail },
+  { key: "note",           labelTk: "assistants.templates.note",           icon: ClipboardCheck },
+  { key: "communique",     labelTk: "assistants.templates.communique",     icon: Sparkles },
+  { key: "courrier",       labelTk: "assistants.templates.courrier",       icon: ClipboardCheck },
+  { key: "reponse_client", labelTk: "assistants.templates.reponseClient",  icon: Mail },
+  { key: "annonce_interne",labelTk: "assistants.templates.annonceInterne", icon: Sparkles },
+  { key: "clause",         labelTk: "assistants.templates.clause",         icon: Braces },
+  { key: "declaration",    labelTk: "assistants.templates.declaration",    icon: Zap },
 ];
 
-const TONES = ["professionnel", "chaleureux", "formel", "ferme"];
+const TONES = [
+  { value: "professionnel", tk: "assistants.tones.professional" },
+  { value: "chaleureux", tk: "assistants.tones.warm" },
+  { value: "formel", tk: "assistants.tones.formal" },
+  { value: "ferme", tk: "assistants.tones.firm" },
+];
+
+function formatAssistantDateTime(value: string): string {
+  return new Date(value).toLocaleString(i18n.language, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
 
 /* ─── Composant variable chip ────────────────────────────────────────────── */
 function VarChip({
@@ -61,14 +75,15 @@ function VarChip({
 
 /* ─── Page principale ────────────────────────────────────────────────────── */
 export function AssistantsPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
   const [form, setForm] = useState({
     content_type: "email",
     tone: "professionnel",
-    audience: "Équipe boutique Plateau",
-    notes: "Annoncer le lancement de la collection wax 2026 et le planning de formation",
+    audience: tr("assistants.defaults.audience"),
+    notes: tr("assistants.defaults.notes"),
   });
 
   const [streamedDraft, setStreamedDraft]     = useState<string>("");
@@ -117,7 +132,7 @@ export function AssistantsPage() {
     await api.aiGenerateStream(
       {
         kind:    form.content_type,
-        title:   `${selectedTemplate.label} · ${form.audience}`,
+        title:   `${tr(selectedTemplate.labelTk)} · ${form.audience}`,
         prompt:  form.notes,
         context: `tone:${form.tone}; audience:${form.audience}`,
       },
@@ -143,7 +158,7 @@ export function AssistantsPage() {
     await api.aiGenerateStream(
       {
         kind:    form.content_type,
-        title:   `${selectedTemplate.label} · ${form.audience}`,
+        title:   `${tr(selectedTemplate.labelTk)} · ${form.audience}`,
         prompt:  form.notes,
         context: `tone:${tone}; audience:${form.audience}`,
       },
@@ -184,17 +199,17 @@ export function AssistantsPage() {
 
       {/* En-tête */}
       <div>
-        <p className="text-sm font-semibold text-emerald-600">Rédaction IA</p>
-        <h1 className="text-2xl sm:text-3xl font-black text-ink">Studio Limule</h1>
+        <p className="text-sm font-semibold text-emerald-600">{tr("assistants.header.eyebrow")}</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-ink">{tr("assistants.header.title")}</h1>
         <p className="mt-1 text-sm font-medium text-[#717182]">
-          Emails, notes, courriers et clauses générés avec variables dynamiques et contexte CEMAC.
+          {tr("assistants.header.subtitle")}
         </p>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr]">
 
         {/* ── Modèles ── */}
-        <Panel title="Modèles">
+        <Panel title={tr("assistants.templatesPanel.title")}>
           <div className="space-y-1">
             {TEMPLATES.map(t => (
               <button
@@ -207,7 +222,7 @@ export function AssistantsPage() {
                 }`}
               >
                 <t.icon size={16} className="shrink-0" />
-                {t.label}
+                {tr(t.labelTk)}
               </button>
             ))}
           </div>
@@ -216,22 +231,22 @@ export function AssistantsPage() {
           <div className="mt-4 rounded-lg border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
             <p className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
               <Zap size={12} />
-              Limule — LLM actif
+              {tr("assistants.llmBadge.title")}
             </p>
             <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-500">
-              Génération temps-réel · Variables DB · Contexte CEMACE
+              {tr("assistants.llmBadge.subtitle")}
             </p>
           </div>
         </Panel>
 
         {/* ── Éditeur ── */}
         <Panel
-          title={selectedTemplate.label}
+          title={tr(selectedTemplate.labelTk)}
           action={
             isStreaming
-              ? <span className="flex items-center gap-2 text-xs font-bold text-emerald-600"><RefreshCcw className="animate-spin" size={13} />Limule génère…</span>
+              ? <span className="flex items-center gap-2 text-xs font-bold text-emerald-600"><RefreshCcw className="animate-spin" size={13} />{tr("assistants.editor.generating")}</span>
               : hasContent
-              ? <StatusBadge label="Généré par Limule" tone="green" />
+              ? <StatusBadge label={tr("assistants.editor.generatedBadge")} tone="green" />
               : null
           }
         >
@@ -240,25 +255,25 @@ export function AssistantsPage() {
             {/* Audience + Ton */}
             <div className="grid gap-3 lg:grid-cols-[0.95fr_1fr]">
               <TextInput
-                label="Destinataire / audience"
+                label={tr("assistants.form.audience")}
                 value={form.audience}
                 onChange={e => setForm(f => ({ ...f, audience: e.target.value }))}
               />
               <label className="block">
-                <span className="text-xs font-semibold uppercase text-[#717182]">Ton</span>
+                <span className="text-xs font-semibold uppercase text-[#717182]">{tr("assistants.form.tone")}</span>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {TONES.map(tone => (
+                  {TONES.map(({ value, tk }) => (
                     <button
-                      key={tone}
+                      key={value}
                       type="button"
-                      onClick={() => setForm(f => ({ ...f, tone }))}
+                      onClick={() => setForm(f => ({ ...f, tone: value }))}
                       className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
-                        form.tone === tone
+                        form.tone === value
                           ? "bg-emerald-600 text-white"
                           : "bg-black/[0.04] dark:bg-white/[0.06] text-[#17211f] dark:text-white hover:bg-stone-200 dark:hover:bg-white/[0.10]"
                       }`}
                     >
-                      {tone[0].toUpperCase() + tone.slice(1)}
+                      {tr(tk)}
                     </button>
                   ))}
                 </div>
@@ -268,10 +283,10 @@ export function AssistantsPage() {
             {/* Objectif / notes */}
             <TextArea
               ref={notesRef}
-              label="Objectif / contexte"
+              label={tr("assistants.form.objective")}
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Décris ta demande… Tu peux utiliser {entreprise}, {utilisateur}, {teras_score}, etc."
+              placeholder={tr("assistants.form.objectivePlaceholder")}
             />
 
             {/* ── Variables dynamiques ── */}
@@ -282,21 +297,21 @@ export function AssistantsPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-[#717182] hover:text-ink dark:hover:text-white transition"
               >
                 <Braces size={13} />
-                Variables dynamiques
+                {tr("assistants.variables.title")}
                 {showVars ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {variables.data && (
                   <span className="ml-1 rounded-md bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                    {Object.keys(variables.data.catalogue).length} disponibles
+                    {tr("assistants.variables.available", { count: Object.keys(variables.data.catalogue).length })}
                   </span>
                 )}
               </button>
               {showVars && (
                 <div className="mt-2 rounded-lg border border-black/[0.05] dark:border-white/[0.05] bg-stone-50 dark:bg-white/[0.02] p-3">
                   <p className="mb-2 text-[11px] text-[#717182]">
-                    Cliquez sur une variable pour l'insérer dans le texte. Survol = valeur actuelle.
+                    {tr("assistants.variables.help")}
                   </p>
                   {variables.isLoading && (
-                    <p className="text-xs text-[#717182]">Chargement des variables…</p>
+                    <p className="text-xs text-[#717182]">{tr("assistants.variables.loading")}</p>
                   )}
                   {variables.data && (
                     <div className="flex flex-wrap gap-2">
@@ -320,7 +335,7 @@ export function AssistantsPage() {
               <div className="mb-3 flex items-center gap-2">
                 <LimuleAvatar state={isStreaming ? "speaking" : "idle"} size={28} />
                 <p className="font-bold text-emerald-600">
-                  {isStreaming ? "Limule génère en temps réel…" : "Brouillon généré"}
+                  {isStreaming ? tr("assistants.draft.streaming") : tr("assistants.draft.title")}
                 </p>
               </div>
 
@@ -338,12 +353,12 @@ export function AssistantsPage() {
               ) : (
                 <div className="space-y-2 text-sm leading-7 text-[#717182] italic">
                   <p>
-                    Remplissez le formulaire et cliquez sur{" "}
-                    <strong className="not-italic text-ink dark:text-white">Générer</strong> pour créer votre brouillon.
+                    {tr("assistants.draft.emptyPrefix")}{" "}
+                    <strong className="not-italic text-ink dark:text-white">{tr("assistants.actions.generate")}</strong>
+                    {tr("assistants.draft.emptySuffix")}
                   </p>
                   <p className="text-[12px]">
-                    💡 Utilisez les <strong className="not-italic text-ink dark:text-white">variables dynamiques</strong> pour injecter
-                    automatiquement le nom de l'entreprise, le score TERAS, le nombre d'employés et plus encore.
+                    {tr("assistants.draft.tipPrefix")} <strong className="not-italic text-ink dark:text-white">{tr("assistants.variables.title")}</strong> {tr("assistants.draft.tipSuffix")}
                   </p>
                 </div>
               )}
@@ -364,7 +379,7 @@ export function AssistantsPage() {
                   className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
                 >
                   {isStreaming ? <LimuleAvatar state="thinking" size={18} /> : <LimuleIcon size={16} className="brightness-0" />}
-                  {isStreaming ? "Génération…" : "Générer"}
+                  {isStreaming ? tr("assistants.actions.generating") : tr("assistants.actions.generate")}
                 </button>
                 <button
                   type="button"
@@ -372,7 +387,7 @@ export function AssistantsPage() {
                   disabled={isStreaming}
                   className="rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition"
                 >
-                  Variante chaleureuse
+                  {tr("assistants.actions.warmVariant")}
                 </button>
                 <button
                   type="button"
@@ -381,7 +396,7 @@ export function AssistantsPage() {
                   className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition"
                 >
                   <Copy size={15} />
-                  {copied ? "Copié !" : "Copier"}
+                  {copied ? tr("assistants.actions.copied") : tr("common.copy")}
                 </button>
               </div>
               <button
@@ -389,10 +404,10 @@ export function AssistantsPage() {
                 onClick={copyDraft}
                 disabled={!hasContent}
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-stone-300 transition"
-                title="Copier dans le presse-papiers pour envoyer"
+                title={tr("assistants.actions.copySendTitle")}
               >
                 <Send size={15} />
-                Copier &amp; envoyer
+                {tr("assistants.actions.copySend")}
               </button>
             </div>
 
@@ -403,7 +418,7 @@ export function AssistantsPage() {
       {/* ── Mes dernières questions Limule (Q&A persistées) ── */}
       <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr]">
         <Panel
-          title="Mes dernières questions"
+          title={tr("assistants.qa.title")}
           action={
             <span className="text-xs text-[#717182]">
               {limuleQA.data?.length ?? 0}
@@ -411,11 +426,11 @@ export function AssistantsPage() {
           }
         >
           {limuleQA.isLoading && (
-            <p className="py-4 text-sm text-[#717182]">Chargement…</p>
+            <p className="py-4 text-sm text-[#717182]">{tr("common.loading")}</p>
           )}
           {!limuleQA.isLoading && (limuleQA.data?.length ?? 0) === 0 && (
             <p className="py-4 text-sm text-[#717182]">
-              Tes questions à Limule s'enregistrent automatiquement ici.
+              {tr("assistants.qa.empty")}
             </p>
           )}
           <ul className="divide-y divide-black/[0.04] dark:divide-white/[0.04] max-h-96 overflow-y-auto">
@@ -427,16 +442,13 @@ export function AssistantsPage() {
                   className="block w-full text-left px-2 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-md transition"
                 >
                   <p className="text-sm font-semibold text-[#17211f] dark:text-white truncate">
-                    {q.question || "(sans question)"}
+                    {q.question || tr("assistants.qa.noQuestion")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-[#717182]">
                     {q.module}
                     {q.created_at
                       ? " · " +
-                        new Date(q.created_at).toLocaleString("fr-FR", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })
+                        formatAssistantDateTime(q.created_at)
                       : ""}
                   </p>
                 </button>
@@ -445,12 +457,12 @@ export function AssistantsPage() {
           </ul>
         </Panel>
 
-        <Panel title="Réponse Limule">
+        <Panel title={tr("assistants.qa.answerPanel")}>
           {selectedQA ? (
             <div className="space-y-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
-                  Question
+                  {tr("assistants.qa.question")}
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#17211f] dark:text-white">
                   {selectedQA.question}
@@ -458,16 +470,16 @@ export function AssistantsPage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
-                  Réponse
+                  {tr("assistants.qa.answer")}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-[#17211f] dark:text-white">
-                  {selectedQA.answer || "(réponse vide)"}
+                  {selectedQA.answer || tr("assistants.qa.emptyAnswer")}
                 </p>
               </div>
             </div>
           ) : (
             <p className="py-4 text-sm text-[#717182]">
-              Sélectionne une question dans la liste pour afficher la réponse.
+              {tr("assistants.qa.selectPrompt")}
             </p>
           )}
         </Panel>
@@ -475,17 +487,17 @@ export function AssistantsPage() {
 
       {/* ── Historique Limule ── */}
       <Panel
-        title="Historique Limule"
+        title={tr("assistants.history.title")}
         action={
           <span className="text-xs text-[#717182]">
-            {history.data?.length ?? 0} génération{(history.data?.length ?? 0) !== 1 ? "s" : ""}
+            {tr("assistants.history.count", { count: history.data?.length ?? 0 })}
           </span>
         }
       >
-        {history.isLoading && <p className="py-4 text-sm text-[#717182]">Chargement…</p>}
+        {history.isLoading && <p className="py-4 text-sm text-[#717182]">{tr("common.loading")}</p>}
         {!history.isLoading && (history.data?.length ?? 0) === 0 && (
           <p className="py-4 text-sm text-[#717182]">
-            Tes générations apparaîtront ici dès que Limule aura produit du contenu.
+            {tr("assistants.history.empty")}
           </p>
         )}
         <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
@@ -495,11 +507,11 @@ export function AssistantsPage() {
                 <LimuleIcon size={22} />
               </span>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[#17211f] dark:text-white truncate">{g.title || "(sans titre)"}</p>
+                <p className="font-semibold text-[#17211f] dark:text-white truncate">{g.title || tr("assistants.history.noTitle")}</p>
                 <p className="text-xs text-[#717182]">
                   {g.kind}
                   {" · "}
-                  {new Date(g.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                  {formatAssistantDateTime(g.created_at)}
                   {g.teras_used ? " · TERAS" : ""}
                 </p>
                 {g.content && (
@@ -514,14 +526,14 @@ export function AssistantsPage() {
                   )
                 }
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-                title="Télécharger"
+                title={tr("common.download")}
               >
                 <Download size={13} />
               </button>
               <button
                 onClick={() => deleteGen.mutate(g.id)}
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
-                title="Supprimer"
+                title={tr("common.delete")}
               >
                 <Trash2 size={13} />
               </button>
