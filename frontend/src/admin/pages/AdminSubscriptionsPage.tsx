@@ -4,11 +4,12 @@ import { useState } from "react";
 
 import { useConfirm } from "../../components/ConfirmProvider";
 import { api, type PromotionDto, type SubscriptionPlanDto } from "../../services/api";
+import i18n from "../../i18n";
 
 type Tab = "plans" | "promos" | "companies";
 
 const money = (cents: number, cur = "XAF") =>
-  `${(cents / 100).toLocaleString("fr-FR")} ${cur}`;
+  `${(cents / 100).toLocaleString(i18n.language)} ${cur}`;
 
 export function AdminSubscriptionsPage() {
   const [tab, setTab] = useState<Tab>("plans");
@@ -234,7 +235,7 @@ function CompaniesSection() {
                 <td className="px-4 py-2 font-semibold">{r.company_name}</td>
                 <td className="px-4 py-2 text-white/50">{r.plan_code || "—"}</td>
                 <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge(r.status)}`}>{r.status.toUpperCase()}</span></td>
-                <td className="px-4 py-2 text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString("fr-FR") : "—"}</td>
+                <td className="px-4 py-2 text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString(i18n.language) : "—"}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1.5">
                     <button onClick={() => grant.mutate({ id: r.company_id, plan: r.plan_code || "pro", days: 30 })} title="Offrir 30 jours" className="rounded-lg bg-violet-500/20 px-2 py-1 text-violet-300 hover:bg-violet-500/30"><Gift size={14} /></button>

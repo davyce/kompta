@@ -1,6 +1,7 @@
 // Imports dynamiques : jspdf / xlsx pèsent ~700 kB combinés. En les chargeant
 // uniquement au moment où l'utilisateur clique sur "Exporter", on évite de
 // gonfler le bundle initial (chunk vendor-export devient lazy).
+import i18n from "../i18n";
 
 /**
  * Export an array of objects to a .xlsx file download.
@@ -33,7 +34,7 @@ export async function exportToPDF(
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(120, 120, 120);
-  doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")}`, 14, 28);
+  doc.text(i18n.t("common.generatedOn", { date: new Date().toLocaleDateString(i18n.language) }), 14, 28);
 
   // Separator line
   doc.setDrawColor(5, 150, 105);

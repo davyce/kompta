@@ -246,6 +246,11 @@
       "title": "Subscription suspended",
       "message": "Pay or renew the subscription to reactivate access to business modules."
     },
+    "charts": {
+      "trend": "Trend chart",
+      "distribution": "Distribution",
+      "bar": "Bar chart"
+    },
     "sync": {
       "online": "Online",
       "upToDate": "Sync up to date",
@@ -1113,15 +1118,16 @@
       "empty": "Click “Generate” so Limule can cross-check market data, fundamental metrics, and news."
     },
     "description": {
-      "aiTitle": "French overview — {{name}}",
-      "limuleUnavailable": "Limule is unavailable for translation.",
-      "translationUnavailable": "Translation unavailable.",
+      "aiTitle": "English overview — {{name}}",
+      "prompt": "Translate and summarize in English in 3-4 clear, professional sentences the following text describing {{name}}:\n\n\"{{description}}\"",
+      "limuleUnavailable": "Limule is unavailable for the summary.",
+      "translationUnavailable": "Summary unavailable.",
       "about": "About",
-      "translating": "Translating…",
-      "refreshFr": "Refresh FR",
-      "describeFr": "Describe in French",
-      "summaryFr": "French summary — Limule",
-      "limuleTranslating": "Limule is translating…"
+      "translating": "Summarizing…",
+      "refreshFr": "Refresh EN",
+      "describeFr": "Describe in English",
+      "summaryFr": "English summary — Limule",
+      "limuleTranslating": "Limule is summarizing…"
     },
     "alert": {
       "button": "Alert",
@@ -2394,6 +2400,7 @@
     "actions": "Actions",
     "total": "Total",
     "new": "New",
+    "generatedOn": "Generated on {{date}}",
     "notDefined": "Not defined"
   },
   "nav": {
@@ -2422,7 +2429,27 @@
       "Système": "System",
       "Support": "Support",
       "Compte": "Account",
-      "Kanban": "Kanban"
+      "Kanban": "Kanban",
+      "KOMPTA": "KOMPTA",
+      "Entreprise": "Company",
+      "RH": "HR",
+      "Documents": "Documents",
+      "Paie": "Payroll",
+      "Comptabilité": "Accounting",
+      "Facturation": "Invoicing",
+      "POS / Caisse": "POS / Register",
+      "Inventaire": "Inventory",
+      "Projets": "Projects",
+      "Chat": "Chat",
+      "Agenda": "Calendar",
+      "Notes IA": "AI Notes",
+      "Rapports": "Reports",
+      "Investissements": "Investments",
+      "TERAS": "TERAS",
+      "Rédaction IA": "AI Writing",
+      "Déclarations": "Filings",
+      "Législation IA": "AI Legislation",
+      "Paramètres": "Settings"
     },
     "items": {
       "/": "Dashboard",
@@ -2452,7 +2479,11 @@
       "/audit": "Audit logs",
       "/safe-mode": "Safe Mode",
       "/settings": "Settings",
-      "/kanban": "Kanban"
+      "/kanban": "Kanban",
+      "/work": "Tasks",
+      "/meetings": "Meetings",
+      "/help": "Help center",
+      "/groups": "Groups"
     },
     "mobile": {
       "home": "Home",
@@ -2496,7 +2527,15 @@
       "/safe-mode": "Backup & Restore",
       "/help": "Help center",
       "/activation": "Secure activation",
-      "/kanban": "Task board"
+      "/kanban": "Task board",
+      "localSpace": "Local workspace"
+    },
+    "limule": {
+      "ok": "Limule · {{latency}}ms",
+      "noKey": "Limule · missing key",
+      "offline": "Limule · offline",
+      "loading": "Limule…",
+      "title": "Grand Sage 1.0 · {{label}}"
     }
   },
   "roles": {
@@ -2902,6 +2941,8 @@
     "periodQuarter": "{{count}} employees · Q2",
     "periodMonth": "{{count}} employees · April",
     "aiAnalysisTitle": "AI Analysis — Grand Sage 1.0",
+    "aiSummaryTitle": "Dashboard summary",
+    "aiSummaryPrompt": "Generate a 3-4 line executive summary in English for the KOMPTA dashboard. Current data: {{kpis}}. Highlight attention points and good news. Be concise and actionable.",
     "limuleAnalyzing": "Limule is analyzing your data…",
     "commercialPerf": "Commercial performance",
     "revenueMarginSub": "Revenue & margin — real data (M {{cur}})",
@@ -3425,7 +3466,29 @@
     "recentNoCycle": "No cycle launched",
     "recentTreasuryTitle": "Cash",
     "recentTreasuryBal": "Balance: {{amount}}",
-    "recentFinancialData": "Financial data"
+    "recentFinancialData": "Financial data",
+    "prompts": {
+      "notStarted": "not started",
+      "unknown": "unknown",
+      "financial": "Generate a complete monthly financial report in English. Available data: Cash={{treasury}}, Revenue={{revenue}}, Payroll={{payroll}}, Active alerts={{failedChecks}}. Include P&L analysis, liquidity ratios, and operational recommendations.",
+      "hr": "Generate a concise HR report in English. Latest payroll cycle: {{lastPayrollPeriod}}, {{payslipCount}} payslips. Payroll: {{payroll}}. Include headcount analysis, HR policy recommendations, and workforce risk management.",
+      "project": "Generate a project steering report in English. Financial context: cash={{treasury}}, active alerts={{failedChecks}}. Include progress analysis, identified risks, and recommendations on project prioritization.",
+      "teras": "Generate a detailed TERAS compliance report in English. Current score: {{terasScore}}/100. Active alerts: {{failedChecks}}. Analyze compliance risks, identify priority corrective actions, and propose a score improvement plan.",
+      "rse": "Generate a CSR report in English. Include analysis of social, environmental, and governance impact. Propose CSR key performance indicators, concrete actions, and a communication plan.",
+      "evolution": "Generate a consolidated English analysis of the company's evolution over 12 months. Available key metrics: TERAS={{terasScore}}/100, Cash={{treasury}}, Revenue={{revenue}}. Include trends, improvement areas, and a 3-month projection."
+    },
+    "plTitle": "Simplified profit and loss",
+    "plPeriod": "Period",
+    "plProducts": "REVENUE",
+    "plAmount": "Amount",
+    "plPosSales": "POS sales",
+    "plBillingClients": "Client billing",
+    "plTotalProducts": "Total revenue",
+    "plEstimatedCharges": "EXPENSES (estimated)",
+    "plEstimatedPayroll": "Payroll expense (estimated)",
+    "plEstimatedOverheads": "Overheads (estimated)",
+    "plTotalCharges": "Total expenses",
+    "plNetResult": "NET RESULT"
   },
   "teras": {
     "disabledTitle": "TERAS Connect is disabled",
@@ -4033,6 +4096,8 @@
     "reportAi": "AI report",
     "csvTemplate": "CSV template",
     "csvTemplateShort": "Template",
+    "csvTemplateContent": "name,sku,category,price,stock_quantity,reorder_level,unit\nSample Product,SKU001,General,5000,100,10,unit",
+    "csvTemplateFilename": "products_template.csv",
     "importCsv": "Import CSV",
     "importShort": "Import",
     "newProduct": "New product",
@@ -4117,6 +4182,8 @@
     "phReason": "e.g. Supplier delivery, Breakage, Direct sale…",
     "saveEntry": "Save entry",
     "saveExit": "Save exit",
+    "stockUpdated_one": "Stock updated: {{count}} unit in stock",
+    "stockUpdated_other": "Stock updated: {{count}} units in stock",
     "chooseProductErr": "Choose a product",
     "scanTitle": "Scan a Kompta QR",
     "scanPoint": "Point at a Kompta QR label",

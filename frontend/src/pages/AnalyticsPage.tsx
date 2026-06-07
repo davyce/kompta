@@ -20,13 +20,14 @@ import { Download, TrendingUp, DollarSign, Users, Percent } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api } from "../services/api";
 import { exportToPDF } from "../utils/export";
+import i18n from "../i18n";
 
 // Palette variée et harmonieuse (plus de « vert sur vert »).
 const EMERALD_PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#0ea5e9", "#8b5cf6", "#ec4899", "#14b8a6", "#ef4444"];
 
 function fmt(n: number, currency = true): string {
-  if (currency) return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(n);
-  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(n);
+  if (currency) return new Intl.NumberFormat(i18n.language, { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(n);
 }
 
 function KpiCard({ title, value, sub, icon: Icon, color }: {

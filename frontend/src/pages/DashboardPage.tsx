@@ -14,6 +14,7 @@ import {
 
 import { useAuth } from "../app/AuthContext";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
+import i18n from "../i18n";
 import { api } from "../services/api";
 import { compactMoney, money, shortDate, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
@@ -107,7 +108,7 @@ function TreasuryPrediction({
   const dailyNet   = (monthlyIn - monthlyOut) / 30;
 
   const points = Array.from({ length: 7 }, (_, i) => ({
-    day: new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(new Date(today.getTime() + i * 86400000)),
+    day: new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(new Date(today.getTime() + i * 86400000)),
     balance: Math.round((i + 1) * dailyNet),
   }));
 
@@ -157,7 +158,7 @@ function TreasuryEurEquivalent({ amountXaf }: { amountXaf: number }) {
     <p className="text-xs text-[#717182] -mt-3 pl-1">
       {tr("dashboard.treasuryApprox")}{" "}
       <span className="font-mono font-semibold">
-        {conversion.data.converted.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} EUR
+        {conversion.data.converted.toLocaleString(i18n.language, { maximumFractionDigits: 2 })} EUR
       </span>{" "}
       <span className="opacity-60">({tr("dashboard.rate", { source: conversion.data.source })})</span>
     </p>
@@ -250,8 +251,8 @@ export function DashboardPage() {
     await api.aiGenerateStream(
       {
         kind: "dashboard_summary",
-        title: "Résumé tableau de bord",
-        prompt: `Génère un résumé exécutif de 3-4 lignes en français pour le tableau de bord KOMPTA. Données actuelles: ${kpisText}. Mets en avant les points d'attention et les bonnes nouvelles. Sois concis et actionnable.`,
+        title: tr("dashboard.aiSummaryTitle"),
+        prompt: tr("dashboard.aiSummaryPrompt", { kpis: kpisText }),
         context: "dashboard",
       },
       (partial) => setAiSummary(partial),
@@ -405,10 +406,10 @@ export function DashboardPage() {
             {tr("dashboard.welcome", { name: firstName })}
           </h1>
           <p className="mt-1 text-sm text-[#717182]">
-            {data?.company ?? "KOMPTA"} · {new Intl.DateTimeFormat("fr-FR", { dateStyle: "full" }).format(new Date())}
+            {data?.company ?? "KOMPTA"} · {new Intl.DateTimeFormat(i18n.language, { dateStyle: "full" }).format(new Date())}
           </p>
           <p className="mt-0.5 text-xs text-[#717182] dark:text-white/40">
-            {tr("dashboard.updatedAt", { time: lastRefreshed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) })}
+            {tr("dashboard.updatedAt", { time: lastRefreshed.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -923,7 +924,7 @@ export function DashboardPage() {
               <div key={m.id} className="flex items-center gap-4 px-5 py-3">
                 <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/15">
                   <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">
-                    {m.start_at ? new Date(m.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "--"}
+                    {m.start_at ? new Date(m.start_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" }) : "--"}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">

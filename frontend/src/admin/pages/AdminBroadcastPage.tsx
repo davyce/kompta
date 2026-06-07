@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
+import i18n from "../../i18n";
 
 type BroadcastType = "info" | "warning" | "critical";
 
@@ -264,7 +265,7 @@ export function AdminBroadcastPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-white/10 text-xs text-slate-400 dark:text-white/35">
-                <Bell size={11} /> KOMPTA Platform · {new Date().toLocaleDateString("fr-FR")}
+                <Bell size={11} /> KOMPTA Platform · {new Date().toLocaleDateString(i18n.language)}
               </div>
             </div>
           </div>

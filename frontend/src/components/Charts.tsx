@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type TrendPoint = {
   label: string;
   value: number;
@@ -32,6 +34,7 @@ export function LineAreaChart({
   min?: number;
   max?: number;
 }) {
+  const { t: tr } = useTranslation();
   const width = 760;
   const height = 260;
   const primaryValues = data.map((item) => item.value);
@@ -46,7 +49,7 @@ export function LineAreaChart({
 
   return (
     <div className="h-[320px] w-full overflow-hidden">
-      <svg viewBox={`0 0 ${width + 72} ${height + 58}`} className="h-full w-full" role="img" aria-label="Graphique de tendance">
+      <svg viewBox={`0 0 ${width + 72} ${height + 58}`} className="h-full w-full" role="img" aria-label={tr("components.charts.trend")}>
         <g transform="translate(46 20)">
           {ticks.map((tick) => {
             const y = height - ((tick - min) / Math.max(computedMax - min, 1)) * height;
@@ -85,6 +88,7 @@ export function LineAreaChart({
 }
 
 export function DonutChart({ segments, size = 210, stroke = 30 }: { segments: DonutSegment[]; size?: number; stroke?: number }) {
+  const { t: tr } = useTranslation();
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
@@ -92,7 +96,7 @@ export function DonutChart({ segments, size = 210, stroke = 30 }: { segments: Do
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Repartition">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={tr("components.charts.distribution")}>
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#edf1ee" strokeWidth={stroke} />
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           {segments.map((segment) => {
@@ -142,6 +146,7 @@ export function BarChart({
   secondaryColor?: string;
   max?: number;
 }) {
+  const { t: tr } = useTranslation();
   const width = 760;
   const height = 220;
   const barW = Math.max(8, Math.floor((width / data.length) * 0.55));
@@ -152,7 +157,7 @@ export function BarChart({
 
   return (
     <div className="h-[280px] w-full overflow-hidden">
-      <svg viewBox={`0 0 ${width + 72} ${height + 58}`} className="h-full w-full" role="img" aria-label="Graphique en barres">
+      <svg viewBox={`0 0 ${width + 72} ${height + 58}`} className="h-full w-full" role="img" aria-label={tr("components.charts.bar")}>
         <g transform="translate(46 10)">
           {[0, 0.25, 0.5, 0.75, 1].map((t) => {
             const tick = Math.round(computedMax * t);

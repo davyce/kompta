@@ -63,6 +63,7 @@ function isUnauthorized(error: unknown): boolean {
 
 /** Limule status chip shown in the topbar */
 function LimuleStatus() {
+  const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ["ai-health"],
     queryFn: api.aiHealth,
@@ -71,10 +72,10 @@ function LimuleStatus() {
   });
   const status = data?.status ?? "unknown";
   const label =
-    status === "ok" ? `Limule · ${data?.latency_ms}ms` :
-    status === "no_key" ? "Limule · clé manquante" :
-    status === "offline" ? "Limule · hors-ligne" :
-    "Limule…";
+    status === "ok" ? t("nav.limule.ok", { latency: data?.latency_ms }) :
+    status === "no_key" ? t("nav.limule.noKey") :
+    status === "offline" ? t("nav.limule.offline") :
+    t("nav.limule.loading");
   const dot =
     status === "ok" ? "bg-emerald-400" :
     status === "no_key" ? "bg-amber-400" :
@@ -82,7 +83,7 @@ function LimuleStatus() {
 
   return (
     <div
-      title={`Grand Sage 1.0 · ${label}`}
+      title={t("nav.limule.title", { label })}
       className="hidden items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] md:flex cursor-default"
     >
       <LimuleIcon size={18} />
@@ -126,116 +127,115 @@ function roleLabel(role?: string) {
 }
 
 type NavItem = {
-  label: string;
   to: string;
   icon: LucideIcon | React.ComponentType<{ size?: number; className?: string }>;
   badge?: string;
 };
 
 type NavSection = {
-  label: string;
+  sectionKey: string;
   items: NavItem[];
 };
 
 const navSections: NavSection[] = [
   {
-    label: "Pilotage",
+    sectionKey: "Pilotage",
     items: [
-      { label: "Tableau de bord", to: "/", icon: LayoutDashboard },
-      { label: "Entreprise", to: "/company", icon: Building2 },
+      { to: "/", icon: LayoutDashboard },
+      { to: "/company", icon: Building2 },
     ],
   },
   {
-    label: "Personnel",
+    sectionKey: "Personnel",
     items: [
-      { label: "RH", to: "/employees", icon: Users },
-      { label: "Documents", to: "/documents", icon: FolderArchive },
-      { label: "Paie", to: "/payroll", icon: HandCoins },
+      { to: "/employees", icon: Users },
+      { to: "/documents", icon: FolderArchive },
+      { to: "/payroll", icon: HandCoins },
     ],
   },
   {
-    label: "Finance",
+    sectionKey: "Finance",
     items: [
-      { label: "Comptabilité", to: "/accounting", icon: Calculator },
-      { label: "Facturation", to: "/billing", icon: ReceiptText },
-      { label: "Budget", to: "/budget", icon: PiggyBank },
-      { label: "Transactions", to: "/transactions", icon: Landmark },
+      { to: "/accounting", icon: Calculator },
+      { to: "/billing", icon: ReceiptText },
+      { to: "/budget", icon: PiggyBank },
+      { to: "/transactions", icon: Landmark },
     ],
   },
   {
-    label: "Commerce",
+    sectionKey: "Commerce",
     items: [
-      { label: "Clients", to: "/clients", icon: UserCheck },
-      { label: "POS / Caisse", to: "/pos", icon: ShoppingCart },
-      { label: "Inventaire", to: "/inventory", icon: Boxes },
+      { to: "/clients", icon: UserCheck },
+      { to: "/pos", icon: ShoppingCart },
+      { to: "/inventory", icon: Boxes },
     ],
   },
   {
-    label: "Collaboration",
+    sectionKey: "Collaboration",
     items: [
-      { label: "Projets & boards", to: "/projects", icon: CheckSquare },
-      { label: "Kanban", to: "/kanban", icon: LayoutList },
-      { label: "Chat", to: "/chat", icon: MessageSquare },
-      { label: "Agenda", to: "/calendar", icon: CalendarDays },
-      { label: "Notes IA", to: "/notes", icon: FileText },
+      { to: "/projects", icon: CheckSquare },
+      { to: "/kanban", icon: LayoutList },
+      { to: "/chat", icon: MessageSquare },
+      { to: "/calendar", icon: CalendarDays },
+      { to: "/notes", icon: FileText },
     ],
   },
   {
-    label: "Intelligence",
+    sectionKey: "Intelligence",
     items: [
-      { label: "Rapports", to: "/reports", icon: ChartNoAxesCombined },
-      { label: "Analytics", to: "/analytics", icon: BarChart2 },
-      { label: "Agenda fiscal", to: "/fiscal", icon: CalendarClock },
-      { label: "Investissements", to: "/investments", icon: TrendingUp },
-      { label: "Déclarations", to: "/declarations", icon: ClipboardList },
-      { label: "Législation IA", to: "/legislation", icon: BookOpen },
-      { label: "Rédaction IA", to: "/assistants", icon: LimuleIcon },
-      { label: "TERAS Connect", to: "/reports-teras", icon: ShieldCheck, badge: "!" },
+      { to: "/reports", icon: ChartNoAxesCombined },
+      { to: "/analytics", icon: BarChart2 },
+      { to: "/fiscal", icon: CalendarClock },
+      { to: "/investments", icon: TrendingUp },
+      { to: "/declarations", icon: ClipboardList },
+      { to: "/legislation", icon: BookOpen },
+      { to: "/assistants", icon: LimuleIcon },
+      { to: "/reports-teras", icon: ShieldCheck, badge: "!" },
     ],
   },
   {
-    label: "Système",
+    sectionKey: "Système",
     items: [
-      { label: "Journaux d'audit", to: "/audit", icon: FileText },
-      { label: "Safe Mode", to: "/safe-mode", icon: ShieldCheck },
-      { label: "Paramètres", to: "/settings", icon: Settings },
+      { to: "/audit", icon: FileText },
+      { to: "/safe-mode", icon: ShieldCheck },
+      { to: "/settings", icon: Settings },
     ],
   },
 ];
 
-const routeLabels: Record<string, { section: string; title: string }> = {
-  "/": { section: "Pilotage", title: "Tableau de bord" },
-  "/company": { section: "Entreprise", title: "Profil et structure" },
-  "/employees": { section: "RH", title: "Dossiers du personnel" },
-  "/documents": { section: "Documents", title: "Bibliothèque intelligente" },
-  "/payroll": { section: "Paie", title: "Cycles et bulletins" },
-  "/accounting": { section: "Comptabilité", title: "Finance et SYSCEMAC" },
-  "/budget": { section: "Finance", title: "Gestion budgétaire" },
-  "/transactions": { section: "Finance", title: "Relevés & transactions" },
-  "/billing": { section: "Facturation", title: "Clients et encaissements" },
-  "/clients": { section: "Commerce", title: "CRM & Clients" },
-  "/pos": { section: "POS / Caisse", title: "Caisse et encaissement" },
-  "/inventory": { section: "Inventaire", title: "Stock multi-sites" },
-  "/projects": { section: "Projets", title: "Boards et budgets" },
-  "/kanban": { section: "Kanban", title: "Tableau de tâches" },
-  "/chat": { section: "Chat", title: "Messagerie d'équipe" },
-  "/work": { section: "Collaboration", title: "Tâches et projets" },
-  "/calendar": { section: "Agenda", title: "Calendrier & réunions" },
-  "/notes": { section: "Notes IA", title: "Journal quotidien" },
-  "/meetings": { section: "Agenda", title: "Calendrier & réunions" },
-  "/reports": { section: "Rapports", title: "Hub d'analyse" },
-  "/investments": { section: "Investissements", title: "Portefeuille boursier" },
-  "/reports-teras": { section: "TERAS", title: "Conformité et risques" },
-  "/assistants": { section: "Rédaction IA", title: "Studio rédactionnel" },
-  "/declarations": { section: "Déclarations", title: "Obligations légales & fiscales" },
-  "/legislation": { section: "Législation IA", title: "Base législative & réglementaire" },
-  "/analytics": { section: "Intelligence", title: "Analytics & performances" },
-  "/fiscal": { section: "Intelligence", title: "Agenda fiscal" },
-  "/audit": { section: "Système", title: "Journaux d'audit" },
-  "/settings": { section: "Paramètres", title: "Configuration" },
-  "/safe-mode": { section: "Système", title: "Sauvegarde & Restauration" },
-  "/help": { section: "Support", title: "Centre d'aide" },
-  "/activation": { section: "Compte", title: "Activation sécurisée" },
+const routeLabels: Record<string, { sectionKey: string; titleTk: string }> = {
+  "/": { sectionKey: "Pilotage", titleTk: "nav.titles./" },
+  "/company": { sectionKey: "Entreprise", titleTk: "nav.titles./company" },
+  "/employees": { sectionKey: "RH", titleTk: "nav.titles./employees" },
+  "/documents": { sectionKey: "Documents", titleTk: "nav.titles./documents" },
+  "/payroll": { sectionKey: "Paie", titleTk: "nav.titles./payroll" },
+  "/accounting": { sectionKey: "Comptabilité", titleTk: "nav.titles./accounting" },
+  "/budget": { sectionKey: "Finance", titleTk: "nav.titles./budget" },
+  "/transactions": { sectionKey: "Finance", titleTk: "nav.titles./transactions" },
+  "/billing": { sectionKey: "Facturation", titleTk: "nav.titles./billing" },
+  "/clients": { sectionKey: "Commerce", titleTk: "nav.titles./clients" },
+  "/pos": { sectionKey: "POS / Caisse", titleTk: "nav.titles./pos" },
+  "/inventory": { sectionKey: "Inventaire", titleTk: "nav.titles./inventory" },
+  "/projects": { sectionKey: "Projets", titleTk: "nav.titles./projects" },
+  "/kanban": { sectionKey: "Kanban", titleTk: "nav.titles./kanban" },
+  "/chat": { sectionKey: "Chat", titleTk: "nav.titles./chat" },
+  "/work": { sectionKey: "Collaboration", titleTk: "nav.titles./work" },
+  "/calendar": { sectionKey: "Agenda", titleTk: "nav.titles./calendar" },
+  "/notes": { sectionKey: "Notes IA", titleTk: "nav.titles./notes" },
+  "/meetings": { sectionKey: "Agenda", titleTk: "nav.titles./meetings" },
+  "/reports": { sectionKey: "Rapports", titleTk: "nav.titles./reports" },
+  "/investments": { sectionKey: "Investissements", titleTk: "nav.titles./investments" },
+  "/reports-teras": { sectionKey: "TERAS", titleTk: "nav.titles./reports-teras" },
+  "/assistants": { sectionKey: "Rédaction IA", titleTk: "nav.titles./assistants" },
+  "/declarations": { sectionKey: "Déclarations", titleTk: "nav.titles./declarations" },
+  "/legislation": { sectionKey: "Législation IA", titleTk: "nav.titles./legislation" },
+  "/analytics": { sectionKey: "Intelligence", titleTk: "nav.titles./analytics" },
+  "/fiscal": { sectionKey: "Intelligence", titleTk: "nav.titles./fiscal" },
+  "/audit": { sectionKey: "Système", titleTk: "nav.titles./audit" },
+  "/settings": { sectionKey: "Paramètres", titleTk: "nav.titles./settings" },
+  "/safe-mode": { sectionKey: "Système", titleTk: "nav.titles./safe-mode" },
+  "/help": { sectionKey: "Support", titleTk: "nav.titles./help" },
+  "/activation": { sectionKey: "Compte", titleTk: "nav.titles./activation" },
 };
 
 export function Shell() {
@@ -371,7 +371,7 @@ export function Shell() {
   }, [navigate]);
 
   const currentRoute = useMemo(
-    () => routeLabels[location.pathname] ?? { section: "KOMPTA", title: "Espace local" },
+    () => routeLabels[location.pathname] ?? { sectionKey: "KOMPTA", titleTk: "nav.titles.localSpace" },
     [location.pathname]
   );
   const firstName = user?.full_name.split(" ")[0] ?? "KOMPTA";
@@ -446,20 +446,20 @@ export function Shell() {
       {/* Nav */}
       <nav data-tour="nav" className="scrollbar-thin flex-1 overflow-y-auto pb-4 px-3 space-y-5">
         {filteredSections.map((section) => (
-          <div key={section.label} className={collapsed ? "mt-3 space-y-0.5" : ""}>
+          <div key={section.sectionKey} className={collapsed ? "mt-3 space-y-0.5" : ""}>
             {!collapsed && (
               <p className="mb-1 px-2 pt-2 text-[10px] font-bold uppercase tracking-wider text-white/35">
-                {t(`nav.sections.${section.label}`, { defaultValue: section.label })}
+                {t(`nav.sections.${section.sectionKey}`, { defaultValue: section.sectionKey })}
               </p>
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const terasCount = terasModuleBadges[item.to] ?? 0;
                 const staticBadge = item.badge;
-                const itemLabel = t(`nav.items.${item.to}`, { defaultValue: item.label });
+                const itemLabel = t(`nav.items.${item.to}`, { defaultValue: item.to });
                 return (
                   <NavLink
-                    key={`${item.label}-${item.to}`}
+                    key={item.to}
                     to={item.to}
                     end={item.to === "/"}
                     onClick={() => setMobileOpen(false)}
@@ -573,7 +573,7 @@ export function Shell() {
           <button
             className="absolute inset-0 bg-black/30"
             onClick={() => setMobileOpen(false)}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
           />
           <div className="relative h-full w-80 max-w-[85vw]">{sideNav}</div>
         </div>
@@ -594,9 +594,9 @@ export function Shell() {
               <div className="hidden min-w-0 items-center gap-1.5 text-sm text-[#717182] sm:flex">
                 <span>KOMPTA</span>
                 <ChevronRight size={14} className="opacity-50" />
-                <span>{t(`nav.items.${location.pathname}`, { defaultValue: t(`nav.sections.${currentRoute.section}`, { defaultValue: currentRoute.section }) })}</span>
+                <span>{t(`nav.items.${location.pathname}`, { defaultValue: t(`nav.sections.${currentRoute.sectionKey}`, { defaultValue: currentRoute.sectionKey }) })}</span>
                 <ChevronRight size={14} className="opacity-50" />
-                <span className="max-w-[220px] truncate text-[#17211f] font-medium dark:text-white">{t(`nav.titles.${location.pathname}`, { defaultValue: currentRoute.title })}</span>
+                <span className="max-w-[220px] truncate text-[#17211f] font-medium dark:text-white">{t(currentRoute.titleTk)}</span>
               </div>
             </div>
 

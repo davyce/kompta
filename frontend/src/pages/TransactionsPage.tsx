@@ -15,6 +15,7 @@ import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { exportTableToExcel } from "../utils/export";
 import { useConfirm } from "../components/ConfirmProvider";
+import i18n from "../i18n";
 
 // ── Catégories ────────────────────────────────────────────────────────────────
 const CATEGORIES: { key: string; tk: string; color: string }[] = [
@@ -338,13 +339,11 @@ function formatTxAmount(amount: number, txCurrency: string): string {
     return compactMoney(amount);
   }
   // Transaction is in a different currency — show native value
-  const fmt = txCurrency === "EUR"
-    ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })
-    : txCurrency === "USD"
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 })
-    : null;
-  const native = fmt ? fmt.format(amount) : `${amount} ${txCurrency}`;
-  return `${native}`;
+  try {
+    return new Intl.NumberFormat(i18n.language, { style: "currency", currency: txCurrency, maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    return `${amount.toLocaleString(i18n.language)} ${txCurrency}`;
+  }
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 
 import { useConfirm } from "../../components/ConfirmProvider";
 import { api } from "../../services/api";
+import i18n from "../../i18n";
 
 type Tab = "flags" | "health" | "system" | "email";
 
@@ -351,7 +352,7 @@ function HealthTab() {
                   <div className="flex justify-between">
                     <span>Dernier check</span>
                     <span className="font-bold text-slate-500 dark:text-white/50">
-                      {svc.last_check ? new Date(svc.last_check).toLocaleTimeString("fr-FR") : "–"}
+                      {svc.last_check ? new Date(svc.last_check).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" }) : "–"}
                     </span>
                   </div>
                 </div>
@@ -381,7 +382,7 @@ function SystemInfoTab() {
     { label: "Version application", value: health.data?.version ?? "v1.6.0", icon: Info },
     { label: "Environnement", value: health.data?.environment ?? "production", icon: Server },
     { label: "Base de données", value: health.data?.database ?? "SQLite", icon: Database },
-    { label: "Dernière mise à jour", value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString("fr-FR") : "08/05/2026", icon: Clock },
+    { label: "Dernière mise à jour", value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString(i18n.language) : new Date("2026-05-08T12:00:00").toLocaleDateString(i18n.language), icon: Clock },
     {
       label: "Uptime",
       value: health.data?.uptime_seconds != null ? formatUptime(health.data.uptime_seconds) : "–",

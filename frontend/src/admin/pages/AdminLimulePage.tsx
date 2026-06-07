@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
+import i18n from "../../i18n";
 
 // ── localStorage history
 const LS_KEY = "kompta_admin_limule_history";
@@ -131,7 +132,7 @@ export function AdminLimulePage() {
   // fournisseur LLM. On affiche une borne indicative (≈420 tokens/req), jamais
   // présentée comme une mesure exacte.
   const tokensConsumed = insights.data?.total_interactions
-    ? `≈ ${(insights.data.total_interactions * 420).toLocaleString("fr-FR")}`
+    ? `≈ ${(insights.data.total_interactions * 420).toLocaleString(i18n.language)}`
     : "–";
 
   useEffect(() => {

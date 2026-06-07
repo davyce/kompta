@@ -10,6 +10,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
 import { shortDate } from "../utils/format";
+import i18n from "../i18n";
 
 const RECOMMENDATION_TONES = [
   "bg-blue-50 text-blue-700",
@@ -45,13 +46,16 @@ export function ReportsTerasPage() {
         .sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""))
         .slice(-12)
         .map((s) => ({
-          label: new Date(s.created_at).toLocaleDateString("fr-FR", { month: "short" }),
+          label: new Date(s.created_at).toLocaleDateString(i18n.language, { month: "short" }),
           value: s.score,
         }));
     }
     // Empty state — show flat at current average
-    return ["Mai","Juin","Juil","Aoû","Sep","Oct","Nov","Déc","Jan","Fév","Mar","Avr"]
-      .map((label) => ({ label, value: terasAverage }));
+    return Array.from({ length: 12 }, (_, idx) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (11 - idx));
+      return { label: d.toLocaleDateString(i18n.language, { month: "short" }), value: terasAverage };
+    });
   })();
 
   const analyze = useMutation({

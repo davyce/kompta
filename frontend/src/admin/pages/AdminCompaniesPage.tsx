@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../services/api";
+import i18n from "../../i18n";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -310,7 +311,7 @@ function CompanyCard({
         <Pill>{company.industry || "Services"}</Pill>
         <Pill tone="sky">{company.country || "—"}</Pill>
         {company.created_at && (
-          <Pill tone="violet">{new Date(company.created_at).toLocaleDateString("fr-FR")}</Pill>
+          <Pill tone="violet">{new Date(company.created_at).toLocaleDateString(i18n.language)}</Pill>
         )}
       </div>
 

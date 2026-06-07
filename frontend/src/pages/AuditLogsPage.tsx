@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Download, FileText, Search, ShieldCheck } from 
 import { api } from "../services/api";
 import type { AuditLogDto } from "../services/api";
 import { exportTableToExcel } from "../utils/export";
+import i18n from "../i18n";
 
 const ACTION_TONE: Record<string, { tk: string; className: string }> = {
   create:  { tk: "audit.actionCreate",    className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
@@ -51,7 +52,7 @@ export function AuditLogsPage() {
   function exportExcel() {
     const headers = [tr("audit.colDate"), tr("audit.colUser"), tr("audit.colAction"), tr("audit.colModule"), tr("audit.colDetails")];
     const rows = filtered.map((log): (string | number)[] => [
-      log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "",
+      log.created_at ? new Date(log.created_at).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }) : "",
       log.actor ?? "",
       log.action,
       log.employee ?? "",
@@ -127,8 +128,8 @@ export function AuditLogsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.className}`}>{tone.label}</span>
                   <span className="text-[10px] text-[#717182]">
-                    {new Date(log.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}{" "}
-                    {new Date(log.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(log.created_at).toLocaleDateString(i18n.language, { day: "2-digit", month: "short" })}{" "}
+                    {new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -157,8 +158,8 @@ export function AuditLogsPage() {
               return (
                 <div key={log.id} className="grid grid-cols-[150px_130px_120px_110px_1fr] gap-3 items-start px-5 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
                   <span className="text-xs text-[#717182]">
-                    {new Date(log.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}{" "}
-                    <span className="opacity-60">{new Date(log.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    {new Date(log.created_at).toLocaleDateString(i18n.language, { day: "2-digit", month: "short", year: "numeric" })}{" "}
+                    <span className="opacity-60">{new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}</span>
                   </span>
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15">

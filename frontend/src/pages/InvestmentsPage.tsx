@@ -397,8 +397,8 @@ export function InvestmentsPage() {
         {
           kind: "translate",
           title: tr("investmentsPage.description.aiTitle", { name: quote.name || selected?.ticker }),
-          prompt: `Traduis et résume en français en 3-4 phrases claires et professionnelles le texte suivant qui décrit l'entreprise ${quote.name || selected?.ticker} :\n\n"${quote.description}"`,
-          context: "investment_desc_fr",
+          prompt: tr("investmentsPage.description.prompt", { name: quote.name || selected?.ticker, description: quote.description }),
+          context: i18n.language.startsWith("en") ? "investment_desc_en" : "investment_desc_fr",
         },
         (partial) => setDescFr(partial),
         (final, _id) => { setDescFr(final); setDescFrLoading(false); },

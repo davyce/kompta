@@ -19,6 +19,7 @@ import type { PaymentAccount, Product } from "../types/domain";
 import { inferProductIcon } from "../utils/productIcons";
 import { money } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import i18n from "../i18n";
 
 /* Modes de paiement qui passent par MTN Mobile Money (Collection API) */
 const MOMO_METHODS = new Set(["mobile_money", "orange_money", "mtn", "airtel", "wave"]);
@@ -95,8 +96,8 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
                   return (
                     <div key={item.product_id} className="flex justify-between gap-2">
                       <span className="min-w-0 flex-1 truncate text-[#17211f] dark:text-white">{item.quantity}× {item.name}</span>
-                      <span className="shrink-0 text-right text-[#717182]">{item.quantity > 1 ? `${Math.round(unitPrice).toLocaleString("fr-FR")} ×${item.quantity}` : ""}</span>
-                      <span className="shrink-0 font-semibold text-[#17211f] dark:text-white">{item.total.toLocaleString("fr-FR")} F</span>
+                      <span className="shrink-0 text-right text-[#717182]">{item.quantity > 1 ? `${Math.round(unitPrice).toLocaleString(i18n.language)} ×${item.quantity}` : ""}</span>
+                      <span className="shrink-0 font-semibold text-[#17211f] dark:text-white">{item.total.toLocaleString(i18n.language)} F</span>
                     </div>
                   );
                 })}
@@ -105,23 +106,23 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
               <div className="mt-3 border-t border-dashed border-black/[0.15] dark:border-white/[0.15] pt-3 space-y-1 text-xs">
                 <div className="flex justify-between text-[#717182]">
                   <span>{tr("pos.subtotal")}</span>
-                  <span>{ticket.subtotal_before_discount.toLocaleString("fr-FR")} F</span>
+                  <span>{ticket.subtotal_before_discount.toLocaleString(i18n.language)} F</span>
                 </div>
                 {ticket.discount_percent > 0 && (
                   <div className="flex justify-between text-red-600">
                     <span>{tr("pos.discount", { pct: ticket.discount_percent })}</span>
-                    <span>-{Math.round(ticket.subtotal_before_discount * ticket.discount_percent / 100).toLocaleString("fr-FR")} F</span>
+                    <span>-{Math.round(ticket.subtotal_before_discount * ticket.discount_percent / 100).toLocaleString(i18n.language)} F</span>
                   </div>
                 )}
                 {ticket.tax > 0 && (
                   <div className="flex justify-between text-[#717182]">
                     <span>{tr("pos.tva")}</span>
-                    <span>{ticket.tax.toLocaleString("fr-FR")} F</span>
+                    <span>{ticket.tax.toLocaleString(i18n.language)} F</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-black/[0.10] dark:border-white/[0.10] pt-2 text-base font-bold text-[#17211f] dark:text-white">
                   <span>{tr("pos.totalTtc")}</span>
-                  <span className="text-emerald-700 dark:text-emerald-400">{ticket.total_amount.toLocaleString("fr-FR")} F</span>
+                  <span className="text-emerald-700 dark:text-emerald-400">{ticket.total_amount.toLocaleString(i18n.language)} F</span>
                 </div>
                 <div className="flex justify-between text-[#717182]">
                   <span>{tr("pos.payment")}</span>
@@ -347,7 +348,7 @@ export function PosPage() {
         discount_percent: discountPercent,
         subtotal_before_discount: cart.reduce((s, i) => s + i.price * i.quantity, 0),
         tax: tvaEnabled ? Math.round(cart.reduce((s, i) => s + i.price * i.quantity, 0) * (1 - discountPercent / 100) * (tvaRate / 100)) : 0,
-        date: new Date().toLocaleString("fr-FR"),
+        date: new Date().toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
       });
       toast.success(tr("pos.saleCashed", { num: data.receipt_number }));
       setCart([]);
@@ -816,7 +817,7 @@ export function PosPage() {
             <span className="text-xs text-[#717182]">%</span>
             {discountAmount > 0 && (
               <span className="ml-auto text-xs font-semibold text-red-600 dark:text-red-400">
-                -{discountAmount.toLocaleString("fr-FR")} F
+                -{discountAmount.toLocaleString(i18n.language)} F
               </span>
             )}
           </div>

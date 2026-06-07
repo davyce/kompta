@@ -246,6 +246,11 @@
       "title": "Abonnement suspendu",
       "message": "Réglez ou renouvelez l'abonnement pour réactiver l'accès aux modules métier."
     },
+    "charts": {
+      "trend": "Graphique de tendance",
+      "distribution": "Répartition",
+      "bar": "Graphique en barres"
+    },
     "sync": {
       "online": "En ligne",
       "upToDate": "Synchronisation à jour",
@@ -1114,6 +1119,7 @@
     },
     "description": {
       "aiTitle": "Présentation FR — {{name}}",
+      "prompt": "Traduis et résume en français en 3-4 phrases claires et professionnelles le texte suivant qui décrit l'entreprise {{name}} :\n\n\"{{description}}\"",
       "limuleUnavailable": "Limule indisponible pour la traduction.",
       "translationUnavailable": "Traduction indisponible.",
       "about": "À propos",
@@ -2394,6 +2400,7 @@
     "actions": "Actions",
     "total": "Total",
     "new": "Nouveau",
+    "generatedOn": "Généré le {{date}}",
     "notDefined": "Non défini"
   },
   "nav": {
@@ -2422,7 +2429,27 @@
       "Système": "Système",
       "Support": "Support",
       "Compte": "Compte",
-      "Kanban": "Kanban"
+      "Kanban": "Kanban",
+      "KOMPTA": "KOMPTA",
+      "Entreprise": "Entreprise",
+      "RH": "RH",
+      "Documents": "Documents",
+      "Paie": "Paie",
+      "Comptabilité": "Comptabilité",
+      "Facturation": "Facturation",
+      "POS / Caisse": "POS / Caisse",
+      "Inventaire": "Inventaire",
+      "Projets": "Projets",
+      "Chat": "Chat",
+      "Agenda": "Agenda",
+      "Notes IA": "Notes IA",
+      "Rapports": "Rapports",
+      "Investissements": "Investissements",
+      "TERAS": "TERAS",
+      "Rédaction IA": "Rédaction IA",
+      "Déclarations": "Déclarations",
+      "Législation IA": "Législation IA",
+      "Paramètres": "Paramètres"
     },
     "items": {
       "/": "Tableau de bord",
@@ -2452,7 +2479,11 @@
       "/audit": "Journaux d'audit",
       "/safe-mode": "Safe Mode",
       "/settings": "Paramètres",
-      "/kanban": "Kanban"
+      "/kanban": "Kanban",
+      "/work": "Tâches",
+      "/meetings": "Réunions",
+      "/help": "Centre d'aide",
+      "/groups": "Groupes"
     },
     "mobile": {
       "home": "Accueil",
@@ -2496,7 +2527,15 @@
       "/safe-mode": "Sauvegarde & Restauration",
       "/help": "Centre d'aide",
       "/activation": "Activation sécurisée",
-      "/kanban": "Tableau de tâches"
+      "/kanban": "Tableau de tâches",
+      "localSpace": "Espace local"
+    },
+    "limule": {
+      "ok": "Limule · {{latency}}ms",
+      "noKey": "Limule · clé manquante",
+      "offline": "Limule · hors-ligne",
+      "loading": "Limule…",
+      "title": "Grand Sage 1.0 · {{label}}"
     }
   },
   "roles": {
@@ -2902,6 +2941,8 @@
     "periodQuarter": "{{count}} employés · Q2",
     "periodMonth": "{{count}} employés · avril",
     "aiAnalysisTitle": "Analyse IA — Grand Sage 1.0",
+    "aiSummaryTitle": "Résumé tableau de bord",
+    "aiSummaryPrompt": "Génère un résumé exécutif de 3-4 lignes en français pour le tableau de bord KOMPTA. Données actuelles : {{kpis}}. Mets en avant les points d'attention et les bonnes nouvelles. Sois concis et actionnable.",
     "limuleAnalyzing": "Limule analyse vos données…",
     "commercialPerf": "Performance commerciale",
     "revenueMarginSub": "Revenus & marge — données réelles (M {{cur}})",
@@ -3425,7 +3466,29 @@
     "recentNoCycle": "Aucun cycle lancé",
     "recentTreasuryTitle": "Trésorerie",
     "recentTreasuryBal": "Solde: {{amount}}",
-    "recentFinancialData": "Données financières"
+    "recentFinancialData": "Données financières",
+    "prompts": {
+      "notStarted": "non lancé",
+      "unknown": "inconnu",
+      "financial": "Génère un rapport financier mensuel complet en français. Données disponibles : Trésorerie={{treasury}}, Chiffre d'affaires={{revenue}}, Masse salariale={{payroll}}, Alertes actives={{failedChecks}}. Inclure analyse P&L, ratios de liquidité, recommandations opérationnelles.",
+      "hr": "Génère un rapport RH synthétique en français. Dernier cycle de paie : {{lastPayrollPeriod}}, {{payslipCount}} bulletins. Masse salariale : {{payroll}}. Inclure analyse des effectifs, recommandations sur la politique RH, gestion des risques liés au personnel.",
+      "project": "Génère un rapport de pilotage projet en français. Contexte financier : trésorerie={{treasury}}, alertes actives={{failedChecks}}. Inclure analyse d'avancement, risques identifiés, recommandations sur la priorisation des projets.",
+      "teras": "Génère un rapport de conformité TERAS détaillé en français. Score actuel : {{terasScore}}/100. Nombre d'alertes actives : {{failedChecks}}. Analyser les risques de conformité, identifier les actions correctives prioritaires, proposer un plan d'amélioration du score.",
+      "rse": "Génère un rapport RSE (Responsabilité Sociale des Entreprises) en français. Inclure analyse de l'impact social, environnemental et de gouvernance. Proposer des indicateurs clés de performance RSE, des actions concrètes et un plan de communication.",
+      "evolution": "Génère une analyse consolidée en français de l'évolution de l'entreprise sur 12 mois. Métriques clés disponibles : TERAS={{terasScore}}/100, Trésorerie={{treasury}}, CA={{revenue}}. Inclure tendances, axes d'amélioration, projection sur les 3 prochains mois."
+    },
+    "plTitle": "Compte de résultat simplifié",
+    "plPeriod": "Période",
+    "plProducts": "PRODUITS",
+    "plAmount": "Montant",
+    "plPosSales": "Ventes POS",
+    "plBillingClients": "Facturation clients",
+    "plTotalProducts": "Total produits",
+    "plEstimatedCharges": "CHARGES (estimées)",
+    "plEstimatedPayroll": "Masse salariale (estimée)",
+    "plEstimatedOverheads": "Frais généraux (estimés)",
+    "plTotalCharges": "Total charges",
+    "plNetResult": "RÉSULTAT NET"
   },
   "teras": {
     "disabledTitle": "TERAS Connect est désactivé",
@@ -4033,6 +4096,8 @@
     "reportAi": "Rapport IA",
     "csvTemplate": "Modèle CSV",
     "csvTemplateShort": "Modèle",
+    "csvTemplateContent": "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité",
+    "csvTemplateFilename": "modele_produits.csv",
     "importCsv": "Importer CSV",
     "importShort": "Importer",
     "newProduct": "Nouveau produit",
@@ -4117,6 +4182,8 @@
     "phReason": "Ex : Réception fournisseur, Casse, Vente directe…",
     "saveEntry": "Enregistrer l'entrée",
     "saveExit": "Enregistrer la sortie",
+    "stockUpdated_one": "Stock mis à jour : {{count}} unité en stock",
+    "stockUpdated_other": "Stock mis à jour : {{count}} unités en stock",
     "chooseProductErr": "Choisissez un produit",
     "scanTitle": "Scanner un QR Kompta",
     "scanPoint": "Pointez vers une étiquette QR Kompta",

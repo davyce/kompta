@@ -6,7 +6,9 @@ import {
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNavigate } from "react-router-dom";
+import i18n from "../i18n";
 
 /* ── Léger renderer Markdown → JSX (sans dépendance externe) ─────── */
 function MarkdownBlock({ content }: { content: string }) {
@@ -75,15 +77,13 @@ import { compactMoney, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
 interface ReportCard {
-  title: string;
   titleKey: string;
   descKey: string;
-  description: string;
   icon: LucideIcon;
   tone: string;
   to: string;
   kind: string;
-  promptFn: (ctx: ReportContext) => string;
+  promptFn: (ctx: ReportContext, tr: TFunction) => string;
 }
 
 interface ReportContext {
@@ -113,95 +113,96 @@ function buildContext(
 
 const REPORT_CARDS: ReportCard[] = [
   {
-    title: "Rapport financier mensuel",
     titleKey: "reportsHub.cardFinancialTitle",
     descKey: "reportsHub.cardFinancialDesc",
-    description: "P&L, trésorerie, ratios clés",
     icon: BarChart3,
     tone: "bg-blue-50 text-blue-700",
     to: "/accounting",
     kind: "financial_report",
-    promptFn: (c) =>
-      `Génère un rapport financier mensuel complet. Données disponibles: Trésorerie=${c.treasury !== undefined ? compactMoney(c.treasury) : "N/A"}, Chiffre d'affaires=${c.revenue !== undefined ? compactMoney(c.revenue) : "N/A"}, Masse salariale=${c.payroll !== undefined ? compactMoney(c.payroll) : "N/A"}, Alertes actives=${c.failedChecks}. Inclure analyse P&L, ratios de liquidité, recommandations opérationnelles.`,
+    promptFn: (c, tr) => tr("reportsHub.prompts.financial", {
+      treasury: c.treasury !== undefined ? compactMoney(c.treasury) : "N/A",
+      revenue: c.revenue !== undefined ? compactMoney(c.revenue) : "N/A",
+      payroll: c.payroll !== undefined ? compactMoney(c.payroll) : "N/A",
+      failedChecks: c.failedChecks,
+    }),
   },
   {
-    title: "Rapport RH",
     titleKey: "reportsHub.cardHrTitle",
     descKey: "reportsHub.cardHrDesc",
-    description: "Effectifs, turn-over, accès, paie",
     icon: Users,
     tone: "bg-amber-50 text-amber-700",
     to: "/employees",
     kind: "hr_report",
-    promptFn: (c) =>
-      `Génère un rapport RH synthétique. Dernier cycle de paie: ${c.lastPayrollPeriod ?? "non lancé"}, ${c.payslipCount} bulletins. Masse salariale: ${c.payroll !== undefined ? compactMoney(c.payroll) : "N/A"}. Inclure analyse des effectifs, recommandations sur la politique RH, gestion des risques liés au personnel.`,
+    promptFn: (c, tr) => tr("reportsHub.prompts.hr", {
+      lastPayrollPeriod: c.lastPayrollPeriod ?? tr("reportsHub.prompts.notStarted"),
+      payslipCount: c.payslipCount,
+      payroll: c.payroll !== undefined ? compactMoney(c.payroll) : "N/A",
+    }),
   },
   {
-    title: "Rapport projet",
     titleKey: "reportsHub.cardProjectTitle",
     descKey: "reportsHub.cardProjectDesc",
-    description: "Avancement, budget, risques",
     icon: Target,
     tone: "bg-violet-50 text-violet-700",
     to: "/projects",
     kind: "project_report",
-    promptFn: (c) =>
-      `Génère un rapport de pilotage projet. Context financier: trésorerie=${c.treasury !== undefined ? compactMoney(c.treasury) : "N/A"}, alertes actives=${c.failedChecks}. Inclure analyse d'avancement, risques identifiés, recommandations sur la priorisation des projets.`,
+    promptFn: (c, tr) => tr("reportsHub.prompts.project", {
+      treasury: c.treasury !== undefined ? compactMoney(c.treasury) : "N/A",
+      failedChecks: c.failedChecks,
+    }),
   },
   {
-    title: "Rapport conformité TERAS",
     titleKey: "reportsHub.cardTerasTitle",
     descKey: "reportsHub.cardTerasDesc",
-    description: "Score, alertes, recommandations",
     icon: ShieldCheck,
     tone: "bg-red-50 text-red-700",
     to: "/reports-teras",
     kind: "teras_report",
-    promptFn: (c) =>
-      `Génère un rapport de conformité TERAS détaillé. Score actuel: ${c.terasScore ?? "inconnu"}/100. Nombre d'alertes actives: ${c.failedChecks}. Analyser les risques de conformité, identifier les actions correctives prioritaires, proposer un plan d'amélioration du score.`,
+    promptFn: (c, tr) => tr("reportsHub.prompts.teras", {
+      terasScore: c.terasScore ?? tr("reportsHub.prompts.unknown"),
+      failedChecks: c.failedChecks,
+    }),
   },
   {
-    title: "Rapport RSE",
     titleKey: "reportsHub.cardRseTitle",
     descKey: "reportsHub.cardRseDesc",
-    description: "Impact social et environnemental",
     icon: Leaf,
     tone: "bg-emerald-50 text-emerald-600",
     to: "/company",
     kind: "rse_report",
-    promptFn: () =>
-      `Génère un rapport RSE (Responsabilité Sociale des Entreprises). Inclure analyse de l'impact social, environnemental et de gouvernance. Proposer des indicateurs clés de performance RSE, des actions concrètes et un plan de communication.`,
+    promptFn: (_c, tr) => tr("reportsHub.prompts.rse"),
   },
   {
-    title: "Évolution entreprise",
     titleKey: "reportsHub.cardEvolutionTitle",
     descKey: "reportsHub.cardEvolutionDesc",
-    description: "Vue 12 mois consolidée",
     icon: FileSpreadsheet,
     tone: "bg-black/[0.04] text-[#17211f]",
     to: "/",
     kind: "evolution_report",
-    promptFn: (c) =>
-      `Génère une analyse consolidée de l'évolution de l'entreprise sur 12 mois. Métriques clés disponibles: TERAS=${c.terasScore ?? "N/A"}/100, Trésorerie=${c.treasury !== undefined ? compactMoney(c.treasury) : "N/A"}, CA=${c.revenue !== undefined ? compactMoney(c.revenue) : "N/A"}. Inclure tendances, axes d'amélioration, projection sur les 3 prochains mois.`,
+    promptFn: (c, tr) => tr("reportsHub.prompts.evolution", {
+      terasScore: c.terasScore ?? "N/A",
+      treasury: c.treasury !== undefined ? compactMoney(c.treasury) : "N/A",
+      revenue: c.revenue !== undefined ? compactMoney(c.revenue) : "N/A",
+    }),
   },
 ];
 
-function exportPLCsv(invoicesTotal: number, salesTotal: number) {
+function exportPLCsv(invoicesTotal: number, salesTotal: number, tr: TFunction) {
   const rows: (string | number)[][] = [
-    ["Compte de résultat simplifié", ""],
-    ["Période", new Date().toLocaleDateString("fr-FR")],
+    [tr("reportsHub.plTitle"), ""],
+    [tr("reportsHub.plPeriod"), new Date().toLocaleDateString(i18n.language)],
     ["", ""],
-    ["PRODUITS", "Montant"],
-    ["Ventes POS", salesTotal],
-    ["Facturation clients", invoicesTotal],
-    ["Total produits", salesTotal + invoicesTotal],
+    [tr("reportsHub.plProducts"), tr("reportsHub.plAmount")],
+    [tr("reportsHub.plPosSales"), salesTotal],
+    [tr("reportsHub.plBillingClients"), invoicesTotal],
+    [tr("reportsHub.plTotalProducts"), salesTotal + invoicesTotal],
     ["", ""],
-    ["CHARGES (estimées)", ""],
-    ["Masse salariale (estimée)", Math.round((salesTotal + invoicesTotal) * 0.35)],
-    ["Frais généraux (estimés)", Math.round((salesTotal + invoicesTotal) * 0.15)],
-    ["Total charges", Math.round((salesTotal + invoicesTotal) * 0.5)],
+    [tr("reportsHub.plEstimatedCharges"), ""],
+    [tr("reportsHub.plEstimatedPayroll"), Math.round((salesTotal + invoicesTotal) * 0.35)],
+    [tr("reportsHub.plEstimatedOverheads"), Math.round((salesTotal + invoicesTotal) * 0.15)],
+    [tr("reportsHub.plTotalCharges"), Math.round((salesTotal + invoicesTotal) * 0.5)],
     ["", ""],
-    ["RÉSULTAT NET", Math.round((salesTotal + invoicesTotal) * 0.5)],
+    [tr("reportsHub.plNetResult"), Math.round((salesTotal + invoicesTotal) * 0.5)],
   ];
   const csv = rows.map((r) => r.join(";")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -237,8 +238,8 @@ export function ReportsHubPage() {
     await api.aiGenerateStream(
       {
         kind: card.kind,
-        title: card.title,
-        prompt: card.promptFn(ctx),
+        title: tr(card.titleKey),
+        prompt: card.promptFn(ctx, tr),
         context: "reports",
       },
       (partial) => {
@@ -287,7 +288,7 @@ export function ReportsHubPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0)}
+            onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0, tr)}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
             <Download size={13} /> {tr("reportsHub.exportPL")}
@@ -298,7 +299,7 @@ export function ReportsHubPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {REPORT_CARDS.map((report) => (
           <article
-            key={report.title}
+            key={report.kind}
             className="rounded-xl border border-black/[0.06] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/[0.06] dark:bg-[#1e2229]"
           >
             <span className={`grid h-12 w-12 place-items-center rounded-xl ${report.tone}`}>

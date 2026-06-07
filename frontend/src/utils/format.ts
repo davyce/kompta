@@ -3,18 +3,26 @@ import i18n from "../i18n";
 export type CurrencyCode = "XAF" | "EUR" | "USD" | "XOF" | "GBP" | "CNY";
 
 /* ── Formatters ────────────────────────────────────────────────── */
-const FR  = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
-const FR1 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
+function appLocale(): string {
+  return i18n.language || "fr";
+}
 
-// Pre-built formatters per currency
-const _fmt: Record<CurrencyCode, Intl.NumberFormat> = {
-  XAF: FR,
-  EUR: new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-  USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-  XOF: FR,
-  GBP: new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-  CNY: new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-};
+function wholeNumber(): Intl.NumberFormat {
+  return new Intl.NumberFormat(appLocale(), { maximumFractionDigits: 0 });
+}
+
+function oneDecimal(): Intl.NumberFormat {
+  return new Intl.NumberFormat(appLocale(), { maximumFractionDigits: 1 });
+}
+
+function currencyFormatter(currency: Exclude<CurrencyCode, "XAF" | "XOF">): Intl.NumberFormat {
+  return new Intl.NumberFormat(appLocale(), {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 /* ── Exchange rates (relative to XAF as base) ── */
 export const EXCHANGE_RATES: Record<CurrencyCode, number> = {
@@ -36,8 +44,8 @@ export function convertCurrency(amount: number, from: CurrencyCode = "XAF", to: 
 /** Format an amount in a specific currency (converts from XAF if needed) */
 export function formatInCurrency(amount: number, currency: CurrencyCode = "XAF"): string {
   const converted = convertCurrency(amount, "XAF", currency);
-  if (currency === "XAF" || currency === "XOF") return `${FR.format(converted)} ${currency}`;
-  return _fmt[currency].format(converted);
+  if (currency === "XAF" || currency === "XOF") return `${wholeNumber().format(converted)} ${currency}`;
+  return currencyFormatter(currency).format(converted);
 }
 
 /* ── Module-level active currency (updated by CurrencyContext) ── */
@@ -65,48 +73,50 @@ export function getActiveCurrency(): CurrencyCode {
  */
 export function money(value: number): string {
   const c = _activeCurrency;
-  if (c === "XAF" || c === "XOF") return `${FR.format(value)} ${c}`;
-  return _fmt[c].format(value);
+  if (c === "XAF" || c === "XOF") return `${wholeNumber().format(value)} ${c}`;
+  return currencyFormatter(c).format(value);
 }
 
 export function compactMoney(value: number): string {
   const c = _activeCurrency;
   const abs = Math.abs(value);
+  const n0 = wholeNumber();
+  const n1 = oneDecimal();
 
   if (c === "XAF") {
-    if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M XAF`;
-    if (abs >= 1_000)     return `${FR.format(value / 1_000)} k XAF`;
-    return `${FR.format(value)} XAF`;
+    if (abs >= 1_000_000) return `${n1.format(value / 1_000_000)} M XAF`;
+    if (abs >= 1_000)     return `${n0.format(value / 1_000)} k XAF`;
+    return `${n0.format(value)} XAF`;
   }
 
   if (c === "XOF") {
-    if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M XOF`;
-    if (abs >= 1_000)     return `${FR.format(value / 1_000)} k XOF`;
-    return `${FR.format(value)} XOF`;
+    if (abs >= 1_000_000) return `${n1.format(value / 1_000_000)} M XOF`;
+    if (abs >= 1_000)     return `${n0.format(value / 1_000)} k XOF`;
+    return `${n0.format(value)} XOF`;
   }
 
   if (c === "EUR") {
-    if (abs >= 1_000_000) return `${FR1.format(value / 1_000_000)} M €`;
-    if (abs >= 1_000)     return `${FR1.format(value / 1_000)} k €`;
-    return _fmt.EUR.format(value);
+    if (abs >= 1_000_000) return `${n1.format(value / 1_000_000)} M €`;
+    if (abs >= 1_000)     return `${n1.format(value / 1_000)} k €`;
+    return currencyFormatter("EUR").format(value);
   }
 
   if (c === "GBP") {
-    if (abs >= 1_000_000) return `£${FR1.format(value / 1_000_000)}M`;
-    if (abs >= 1_000)     return `£${FR1.format(value / 1_000)}k`;
-    return _fmt.GBP.format(value);
+    if (abs >= 1_000_000) return `£${n1.format(value / 1_000_000)}M`;
+    if (abs >= 1_000)     return `£${n1.format(value / 1_000)}k`;
+    return currencyFormatter("GBP").format(value);
   }
 
   if (c === "CNY") {
-    if (abs >= 1_000_000) return `¥${FR1.format(value / 1_000_000)}M`;
-    if (abs >= 1_000)     return `¥${FR1.format(value / 1_000)}k`;
-    return _fmt.CNY.format(value);
+    if (abs >= 1_000_000) return `¥${n1.format(value / 1_000_000)}M`;
+    if (abs >= 1_000)     return `¥${n1.format(value / 1_000)}k`;
+    return currencyFormatter("CNY").format(value);
   }
 
   // USD
-  if (abs >= 1_000_000) return `$${FR1.format(value / 1_000_000)}M`;
-  if (abs >= 1_000)     return `$${FR1.format(value / 1_000)}k`;
-  return _fmt.USD.format(value);
+  if (abs >= 1_000_000) return `$${n1.format(value / 1_000_000)}M`;
+  if (abs >= 1_000)     return `$${n1.format(value / 1_000)}k`;
+  return currencyFormatter("USD").format(value);
 }
 
 /** Short currency label for display (e.g. "XAF", "€", "$") */

@@ -14,6 +14,7 @@ import type { Product } from "../types/domain";
 import { shortDate, money, compactMoney, currencyLabel } from "../utils/format";
 import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
 import { useCurrency } from "../contexts/CurrencyContext";
+import i18n from "../i18n";
 
 function ProductIconDisplay({ product, size = 22 }: { product: Pick<Product, "name" | "category">; size?: number }) {
   const entry = inferProductIcon(product);
@@ -220,7 +221,7 @@ export function InventoryPage() {
   const createMovement = useMutation({
     mutationFn: api.createMovement,
     onSuccess: (data) => {
-      setMovementSuccess(`Stock mis à jour : ${data.new_stock} unité${data.new_stock !== 1 ? "s" : ""} en stock`);
+      setMovementSuccess(tr("inventory.stockUpdated", { count: data.new_stock }));
       setMovementForm(EMPTY_MOVEMENT);
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
@@ -410,11 +411,11 @@ export function InventoryPage() {
           {/* Secondary actions collapsible on mobile */}
           <button
             onClick={() => {
-              const csv = "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité";
+              const csv = tr("inventory.csvTemplateContent");
               const blob = new Blob([csv], { type: "text/csv" });
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
-              a.href = url; a.download = "modele_produits.csv"; a.click();
+              a.href = url; a.download = tr("inventory.csvTemplateFilename"); a.click();
               URL.revokeObjectURL(url);
             }}
             className="hidden sm:flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
@@ -445,11 +446,11 @@ export function InventoryPage() {
         <div className="flex flex-wrap gap-2 sm:hidden">
           <button
             onClick={() => {
-              const csv = "name,sku,category,price,stock_quantity,reorder_level,unit\nExemple Produit,SKU001,Général,5000,100,10,unité";
+              const csv = tr("inventory.csvTemplateContent");
               const blob = new Blob([csv], { type: "text/csv" });
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
-              a.href = url; a.download = "modele_produits.csv"; a.click();
+              a.href = url; a.download = tr("inventory.csvTemplateFilename"); a.click();
               URL.revokeObjectURL(url);
             }}
             className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] dark:bg-white/5 dark:border-white/[0.08]"
@@ -644,7 +645,7 @@ export function InventoryPage() {
                             <td className="py-3 pr-4 hidden lg:table-cell">
                               <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />{tr("inventory.depot")}</span>
                             </td>
-                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString("fr-FR")}</td>
+                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString(i18n.language)}</td>
                             <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.stock_quantity}</td>
                             <td className="py-3 pr-4">
                               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{tr(`inventory.${badge.key}`)}</span>
@@ -1224,7 +1225,7 @@ export function InventoryPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <p className="mb-3 text-xs text-[#717182]">
-                {tr("inventory.aiGeneratedAt", { date: new Date(aiReport.generated_at).toLocaleString() })}
+                {tr("inventory.aiGeneratedAt", { date: new Date(aiReport.generated_at).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }) })}
               </p>
               <div className="whitespace-pre-wrap text-sm leading-relaxed text-[#17211f] dark:text-white/90">
                 {aiReport.content}

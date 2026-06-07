@@ -29,6 +29,7 @@ import { api } from "../services/api";
 import { initials } from "../utils/format";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "../hooks/useTheme";
+import i18n from "../i18n";
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -270,8 +271,8 @@ export function AdminShell() {
     });
   }
 
-  const dateStr = now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
-  const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now.toLocaleDateString(i18n.language, { weekday: "short", day: "numeric", month: "short" });
+  const timeStr = now.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const isDark = theme === "dark";
 
