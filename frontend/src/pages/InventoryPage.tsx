@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
   AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, FileDown, Filter,
@@ -24,9 +25,9 @@ function ProductIconDisplay({ product, size = 22 }: { product: Pick<Product, "na
 }
 
 function statusBadge(qty: number, threshold: number) {
-  if (qty === 0) return { label: "Rupture", cls: "bg-rose-50 text-rose-700" };
-  if (qty <= threshold) return { label: "Bas", cls: "bg-amber-50 text-amber-700" };
-  return { label: "OK", cls: "bg-emerald-50 text-emerald-700" };
+  if (qty === 0) return { key: "statusOut", cls: "bg-rose-50 text-rose-700" };
+  if (qty <= threshold) return { key: "statusLow", cls: "bg-amber-50 text-amber-700" };
+  return { key: "statusOk", cls: "bg-emerald-50 text-emerald-700" };
 }
 
 type Tab = "list" | "movements" | "labels" | "alerts";
@@ -36,6 +37,7 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
   onRestock: (p: Product) => void;
   restocking: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const [restockingId, setRestockingId] = useState<number | null>(null);
   const [done, setDone] = useState<number[]>([]);
 
@@ -52,8 +54,8 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
     return (
       <div className="flex flex-col items-center gap-3 py-12">
         <Check size={40} className="text-emerald-500" />
-        <p className="font-semibold text-[#17211f] dark:text-white">Tout est nominal</p>
-        <p className="text-sm text-[#717182]">Aucun produit sous le seuil de réapprovisionnement</p>
+        <p className="font-semibold text-[#17211f] dark:text-white">{tr("inventory.allNominal")}</p>
+        <p className="text-sm text-[#717182]">{tr("inventory.noneBelow")}</p>
       </div>
     );
   }
@@ -61,7 +63,7 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-        {lowStock.length} produit{lowStock.length > 1 ? "s" : ""} nécessitent une action — réapprovisionnement recommandé
+        {tr("inventory.needAction", { count: lowStock.length })}
       </div>
       {lowStock.map((p) => {
         const isDone = done.includes(p.id);
@@ -76,14 +78,14 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-semibold text-[#17211f] dark:text-white">{p.name}</p>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${p.stock_quantity === 0 ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
-                  {p.stock_quantity === 0 ? "Rupture" : `Stock bas · ${p.stock_quantity} restants`}
+                  {p.stock_quantity === 0 ? tr("inventory.statusOut") : tr("inventory.stockLowRemaining", { count: p.stock_quantity })}
                 </span>
               </div>
               <p className="mt-1 text-xs text-[#717182]">
-                Seuil : {p.reorder_level} · SKU : {p.sku} · Prix : {money(p.price)}
+                {tr("inventory.thresholdLine", { threshold: p.reorder_level, sku: p.sku, price: money(p.price) })}
               </p>
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Recommandation : commander {qtyToOrder} unités → stock cible {p.reorder_level * 2}
+                {tr("inventory.recommendation", { qty: qtyToOrder, target: p.reorder_level * 2 })}
               </p>
             </div>
             <button
@@ -95,7 +97,7 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
                   : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
               }`}
             >
-              {isDone ? "✓ Réappro. lancé" : isRestocking ? "Traitement…" : `+ ${qtyToOrder} unités`}
+              {isDone ? tr("inventory.restockDone") : isRestocking ? tr("inventory.processing") : tr("inventory.restockUnits", { qty: qtyToOrder })}
             </button>
           </div>
         );
@@ -111,6 +113,7 @@ type ImagePreview = { file: File; url: string };
 const EMPTY_MOVEMENT = { product_id: 0, movement_type: "in" as "in" | "out", quantity: 1, reason: "", reference: "" };
 
 export function InventoryPage() {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const { confirm } = useConfirm();
   const queryClient = useQueryClient();
@@ -161,7 +164,7 @@ export function InventoryPage() {
     setReportBusy(format);
     try {
       const res = await api.inventoryReport(format);
-      if (!res.ok) throw new Error("Échec du téléchargement");
+      if (!res.ok) throw new Error(tr("inventory.downloadFailed"));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -169,7 +172,7 @@ export function InventoryPage() {
       a.download = `rapport_inventaire_${new Date().toISOString().slice(0, 10)}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Rapport téléchargé");
+      toast.success(tr("inventory.reportDownloaded"));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -210,8 +213,8 @@ export function InventoryPage() {
     mutationFn: api.importProductsCsv,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      const suffix = result.errors.length ? `, ${result.errors.length} erreur(s)` : "";
-      toast.success(`${result.imported} produit(s) importé(s)${suffix}`);
+      const suffix = result.errors.length ? tr("inventory.importErrors", { count: result.errors.length }) : "";
+      toast.success(tr("inventory.importDone", { count: result.imported }) + suffix);
     },
   });
   const createMovement = useMutation({
@@ -236,7 +239,7 @@ export function InventoryPage() {
   const scanQr = useMutation({
     mutationFn: api.scanProductQr,
     onSuccess: (product) => { setScanResult(product); setScanError(""); },
-    onError: (error) => { setScanResult(null); setScanError(error instanceof Error ? error.message : "QR introuvable"); },
+    onError: (error) => { setScanResult(null); setScanError(error instanceof Error ? error.message : tr("inventory.qrNotFound")); },
   });
 
   const categories = useMemo(
@@ -346,15 +349,15 @@ export function InventoryPage() {
     e.preventDefault();
     setMovementError("");
     setMovementSuccess("");
-    if (!movementForm.product_id) { setMovementError("Choisissez un produit"); return; }
+    if (!movementForm.product_id) { setMovementError(tr("inventory.chooseProductErr")); return; }
     createMovement.mutate(movementForm);
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Boxes }[] = [
-    { key: "list", label: "Catalogue", icon: Boxes },
-    { key: "movements", label: "Mouvements", icon: RefreshCcw },
-    { key: "labels", label: "Étiquettes QR", icon: QrCode },
-    { key: "alerts", label: `Alertes${lowStock.length ? ` (${lowStock.length})` : ""}`, icon: AlertCircle },
+    { key: "list", label: tr("inventory.tabCatalogue"), icon: Boxes },
+    { key: "movements", label: tr("inventory.tabMovements"), icon: RefreshCcw },
+    { key: "labels", label: tr("inventory.tabLabels"), icon: QrCode },
+    { key: "alerts", label: `${tr("inventory.tabAlerts")}${lowStock.length ? ` (${lowStock.length})` : ""}`, icon: AlertCircle },
   ];
 
   return (
@@ -362,42 +365,42 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#17211f] dark:text-white">Inventaire</h1>
+          <h1 className="text-2xl font-semibold text-[#17211f] dark:text-white">{tr("inventory.title")}</h1>
           <p className="mt-0.5 text-sm text-[#717182]">
-            {products.data?.length ?? "…"} références · QR codes intégrés pour scan rapide
+            {tr("inventory.subtitle", { count: products.data?.length ?? "…" })}
           </p>
         </div>
         {/* Actions — ligne principale sur mobile, alignée à droite sur desktop */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setScanOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
-            <Camera size={15} /> Scanner
+            <Camera size={15} /> {tr("inventory.scan")}
           </button>
           <button
             onClick={() => openMovementModal()}
             className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
           >
-            <RefreshCcw size={15} /> Mouvement
+            <RefreshCcw size={15} /> {tr("inventory.movement")}
           </button>
           <button
             onClick={() => downloadReport("pdf")}
             disabled={reportBusy !== null}
             className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
           >
-            {reportBusy === "pdf" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />} Rapport PDF
+            {reportBusy === "pdf" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />} {tr("inventory.reportPdf")}
           </button>
           <button
             onClick={() => downloadReport("csv")}
             disabled={reportBusy !== null}
             className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
           >
-            {reportBusy === "csv" ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} Rapport CSV
+            {reportBusy === "csv" ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} {tr("inventory.reportCsv")}
           </button>
           <button
             onClick={() => aiReportMutation.mutate()}
             disabled={aiReportMutation.isPending}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
-            {aiReportMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Rapport IA
+            {aiReportMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {tr("inventory.reportAi")}
           </button>
           {selected.length > 0 && (
             <button onClick={() => setTab("labels")} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
@@ -417,13 +420,13 @@ export function InventoryPage() {
             className="hidden sm:flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
           >
             <FileDown size={15} />
-            <span className="hidden md:inline">Modèle CSV</span>
-            <span className="md:hidden">Modèle</span>
+            <span className="hidden md:inline">{tr("inventory.csvTemplate")}</span>
+            <span className="md:hidden">{tr("inventory.csvTemplateShort")}</span>
           </button>
           <label className="hidden sm:flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
             <Upload size={15} />
-            <span className="hidden md:inline">Importer CSV</span>
-            <span className="md:hidden">Importer</span>
+            <span className="hidden md:inline">{tr("inventory.importCsv")}</span>
+            <span className="md:hidden">{tr("inventory.importShort")}</span>
             <input type="file" accept=".csv" className="hidden" onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) importCsv.mutate(file);
@@ -435,7 +438,7 @@ export function InventoryPage() {
             onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            <Plus size={15} /> <span className="hidden sm:inline">Nouveau produit</span><span className="sm:hidden">Nouveau</span>
+            <Plus size={15} /> <span className="hidden sm:inline">{tr("inventory.newProduct")}</span><span className="sm:hidden">{tr("inventory.newShort")}</span>
           </button>
         </div>
         {/* Mobile-only: secondary actions row */}
@@ -451,10 +454,10 @@ export function InventoryPage() {
             }}
             className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] dark:bg-white/5 dark:border-white/[0.08]"
           >
-            <FileDown size={15} /> Modèle CSV
+            <FileDown size={15} /> {tr("inventory.csvTemplate")}
           </button>
           <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
-            <Upload size={15} /> Importer CSV
+            <Upload size={15} /> {tr("inventory.importCsv")}
             <input type="file" accept=".csv" className="hidden" onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) importCsv.mutate(file);
@@ -467,10 +470,10 @@ export function InventoryPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "Valeur stock", value: compactMoney(totalValue), hint: "prix de vente total", accent: "indigo" },
-          { label: "Ruptures", value: ruptures.length.toString(), hint: "à réapprovisionner urgt.", accent: "rose" },
-          { label: "Sous seuil", value: lowStock.length.toString(), hint: "seuils d'alerte dépassés", accent: "amber" },
-          { label: "Références", value: (products.data?.length ?? "…").toString(), hint: "produits actifs", accent: "sky" },
+          { label: tr("inventory.kpiStockValue"), value: compactMoney(totalValue), hint: tr("inventory.kpiStockValueHint"), accent: "indigo" },
+          { label: tr("inventory.kpiRuptures"), value: ruptures.length.toString(), hint: tr("inventory.kpiRupturesHint"), accent: "rose" },
+          { label: tr("inventory.kpiBelow"), value: lowStock.length.toString(), hint: tr("inventory.kpiBelowHint"), accent: "amber" },
+          { label: tr("inventory.kpiRefs"), value: (products.data?.length ?? "…").toString(), hint: tr("inventory.kpiRefsHint"), accent: "sky" },
         ].map((k) => {
           const colors: Record<string, string> = {
             indigo: "from-emerald-500/15 to-emerald-500/0 text-emerald-600",
@@ -494,7 +497,7 @@ export function InventoryPage() {
         <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
           <AlertCircle size={17} className="shrink-0 text-amber-600" />
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-            {lowStock.length} produit{lowStock.length > 1 ? "s" : ""} sous le seuil de réapprovisionnement
+            {tr("inventory.lowStockBanner", { count: lowStock.length })}
           </p>
           <p className="truncate text-sm text-amber-600 dark:text-amber-400">
             {lowStock.map((p) => p.name).join(" · ")}
@@ -533,7 +536,7 @@ export function InventoryPage() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Rechercher par SKU, nom, catégorie…"
+                    placeholder={tr("inventory.searchPlaceholder")}
                     className="min-w-0 flex-1 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
                   />
                 </div>
@@ -545,21 +548,21 @@ export function InventoryPage() {
                       : "border-black/[0.08] bg-white hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
                   }`}
                 >
-                  <Filter size={14} /> Filtres{stockFilter === "low" ? " · Stock bas" : stockFilter === "out" ? " · Ruptures" : ""}
+                  <Filter size={14} /> {tr("inventory.filters")}{stockFilter === "low" ? tr("inventory.filterLowSuffix") : stockFilter === "out" ? tr("inventory.filterOutSuffix") : ""}
                 </button>
                 {showFilters && (
                   <div className="flex gap-1.5 rounded-lg border border-black/[0.06] bg-white p-1.5 dark:border-white/[0.06] dark:bg-[#1e2229]">
                     {(["all", "low", "out"] as const).map((key) => (
                       <button key={key} onClick={() => setStockFilter(key)}
                         className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${stockFilter === key ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-stone-100 dark:hover:bg-white/10"}`}>
-                        {key === "all" ? "Tous" : key === "low" ? "Stock bas" : "Ruptures"}
+                        {key === "all" ? tr("inventory.filterAll") : key === "low" ? tr("inventory.filterLow") : tr("inventory.filterOut")}
                       </button>
                     ))}
                   </div>
                 )}
                 {selected.length > 0 && (
                   <button onClick={() => setTab("labels")} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
-                    <Printer size={14} /> Étiquettes ({selected.length})
+                    <Printer size={14} /> {tr("inventory.labelsBtn", { count: selected.length })}
                   </button>
                 )}
               </div>
@@ -570,7 +573,7 @@ export function InventoryPage() {
                     className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       category === cat ? "bg-emerald-600 text-white" : "bg-[#ececf0] text-[#717182] hover:bg-[#e0e0ea] dark:bg-white/10 dark:text-white/60"
                     }`}>
-                    {cat}
+                    {cat === "Tous" ? tr("inventory.filterAll") : cat}
                   </button>
                 ))}
               </div>
@@ -580,11 +583,11 @@ export function InventoryPage() {
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
                   <Boxes size={40} className="text-[#d1d5db]" />
-                  <p className="font-semibold text-[#717182]">Aucun produit trouvé</p>
-                  <p className="text-sm text-[#9ca3af]">Utilisez le formulaire ci-dessous pour créer votre premier produit</p>
+                  <p className="font-semibold text-[#717182]">{tr("inventory.noProductFound")}</p>
+                  <p className="text-sm text-[#9ca3af]">{tr("inventory.useFormBelow")}</p>
                   <button onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
                     className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                    <Plus size={15} /> Créer un produit
+                    <Plus size={15} /> {tr("inventory.createProductBtn")}
                   </button>
                 </div>
               ) : (
@@ -596,20 +599,20 @@ export function InventoryPage() {
                           <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
                         </th>
                         <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleInvSort("name")}>
-                          <span className="flex items-center">Produit<InvSortIcon field="name" /></span>
+                          <span className="flex items-center">{tr("inventory.colProduct")}<InvSortIcon field="name" /></span>
                         </th>
                         <th className="py-2 pr-4 hidden sm:table-cell">SKU</th>
                         <th className="py-2 pr-4 hidden md:table-cell cursor-pointer" onClick={() => toggleInvSort("category")}>
-                          <span className="flex items-center">Catégorie<InvSortIcon field="category" /></span>
+                          <span className="flex items-center">{tr("inventory.colCategory")}<InvSortIcon field="category" /></span>
                         </th>
-                        <th className="py-2 pr-4 hidden lg:table-cell">Site</th>
+                        <th className="py-2 pr-4 hidden lg:table-cell">{tr("inventory.colSite")}</th>
                         <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("price")}>
-                          <span className="flex items-center justify-end">Prix<InvSortIcon field="price" /></span>
+                          <span className="flex items-center justify-end">{tr("inventory.colPrice")}<InvSortIcon field="price" /></span>
                         </th>
                         <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("stock")}>
-                          <span className="flex items-center justify-end">Stock<InvSortIcon field="stock" /></span>
+                          <span className="flex items-center justify-end">{tr("inventory.colStock")}<InvSortIcon field="stock" /></span>
                         </th>
-                        <th className="py-2 pr-4">Statut</th>
+                        <th className="py-2 pr-4">{tr("inventory.colStatus")}</th>
                         <th className="py-2" />
                       </tr>
                     </thead>
@@ -630,7 +633,7 @@ export function InventoryPage() {
                                   <span className="block truncate font-medium text-[#17211f] dark:text-white">{p.name}</span>
                                   {(p.images?.length ?? 0) > 0 && (
                                     <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-300">
-                                      {p.images.length} image{p.images.length > 1 ? "s" : ""}
+                                      {tr("inventory.imagesCount", { count: p.images.length })}
                                     </span>
                                   )}
                                 </div>
@@ -639,20 +642,20 @@ export function InventoryPage() {
                             <td className="py-3 pr-4 hidden sm:table-cell font-mono text-xs text-[#717182]">{p.sku}</td>
                             <td className="py-3 pr-4 hidden md:table-cell text-[#717182]">{p.category}</td>
                             <td className="py-3 pr-4 hidden lg:table-cell">
-                              <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />Dépôt</span>
+                              <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />{tr("inventory.depot")}</span>
                             </td>
                             <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString("fr-FR")}</td>
                             <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.stock_quantity}</td>
                             <td className="py-3 pr-4">
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{badge.label}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{tr(`inventory.${badge.key}`)}</span>
                             </td>
                             <td className="py-3">
                               <div className="flex flex-wrap gap-1.5">
                                 <button onClick={() => openEdit(p)} className="rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
-                                  Modifier
+                                  {tr("inventory.edit")}
                                 </button>
                                 <button onClick={() => { openMovementModal(p.id); }} className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
-                                  <RefreshCcw size={11} /> Mvt
+                                  <RefreshCcw size={11} /> {tr("inventory.mvt")}
                                 </button>
                                 <button onClick={() => openQr(p)} className="flex items-center gap-1 rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
                                   <QrCode size={12} /> QR
@@ -673,29 +676,29 @@ export function InventoryPage() {
           {tab === "movements" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-[#717182]">{(movements.data ?? []).length} mouvement{(movements.data ?? []).length !== 1 ? "s" : ""} enregistré{(movements.data ?? []).length !== 1 ? "s" : ""}</p>
+                <p className="text-sm text-[#717182]">{tr("inventory.movementsCount", { count: (movements.data ?? []).length })}</p>
                 <button
                   onClick={() => openMovementModal()}
                   className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
-                  <Plus size={15} /> Nouveau mouvement
+                  <Plus size={15} /> {tr("inventory.newMovement")}
                 </button>
               </div>
               {movements.isLoading && <div className="h-32 animate-pulse rounded-lg bg-[#ececf0] dark:bg-white/10" />}
               {(movements.data ?? []).length === 0 && !movements.isLoading && (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
                   <RefreshCcw size={36} className="text-[#d1d5db]" />
-                  <p className="font-semibold text-[#717182]">Aucun mouvement enregistré</p>
-                  <p className="text-xs text-[#9ca3af]">Enregistrez les entrées et sorties de stock manuellement</p>
+                  <p className="font-semibold text-[#717182]">{tr("inventory.noMovement")}</p>
+                  <p className="text-xs text-[#9ca3af]">{tr("inventory.recordInOut")}</p>
                   <button onClick={() => openMovementModal()} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                    <Plus size={15} /> Premier mouvement
+                    <Plus size={15} /> {tr("inventory.firstMovement")}
                   </button>
                 </div>
               )}
               {(movements.data ?? []).map((m) => {
                 const isIn = m.movement_type === "in";
                 const Icon = isIn ? ArrowDown : ArrowUp;
-                const productName = (products.data ?? []).find((p) => p.id === m.product_id)?.name ?? `Produit #${m.product_id}`;
+                const productName = (products.data ?? []).find((p) => p.id === m.product_id)?.name ?? tr("inventory.productHash", { id: m.product_id });
                 return (
                   <div key={m.id} className="flex items-center gap-3 rounded-lg border border-black/[0.06] p-3 dark:border-white/[0.06]">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isIn ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400"}`}>
@@ -703,13 +706,13 @@ export function InventoryPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#17211f] dark:text-white">
-                        {isIn ? "Entrée" : "Sortie"} — <span className="font-semibold">{productName}</span>
+                        {isIn ? tr("inventory.entry") : tr("inventory.exit")} — <span className="font-semibold">{productName}</span>
                         {m.reason ? ` · ${m.reason}` : ""}
                       </p>
                       <p className="text-xs text-[#717182]">{shortDate(m.created_at)}</p>
                     </div>
                     <span className={`text-sm font-semibold ${isIn ? "text-emerald-600" : "text-rose-600"}`}>
-                      {isIn ? "+" : "-"}{m.quantity} unité{m.quantity !== 1 ? "s" : ""}
+                      {isIn ? "+" : "-"}{m.quantity} {tr("inventory.unit", { count: m.quantity })}
                     </span>
                   </div>
                 );
@@ -721,9 +724,9 @@ export function InventoryPage() {
           {tab === "labels" && (
             <div className="text-center py-6">
               <QrCode size={40} className="mx-auto text-emerald-600 mb-3" />
-              <h3 className="font-semibold text-[#17211f] dark:text-white">Étiquettes QR</h3>
+              <h3 className="font-semibold text-[#17211f] dark:text-white">{tr("inventory.labelsTitle")}</h3>
               <p className="mt-1 text-sm text-[#717182] max-w-md mx-auto">
-                Sélectionnez des produits dans le catalogue puis imprimez une planche A4.
+                {tr("inventory.labelsDesc")}
               </p>
               {selected.length > 0 ? (
                 <>
@@ -742,21 +745,21 @@ export function InventoryPage() {
                       onClick={() => window.print()}
                       className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                     >
-                      <Printer size={15} /> Imprimer {selected.length} étiquette{selected.length > 1 ? "s" : ""}
+                      <Printer size={15} /> {tr("inventory.printLabels", { count: selected.length })}
                     </button>
                     <button onClick={() => setSelected([])} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10">
-                      Désélectionner
+                      {tr("inventory.deselect")}
                     </button>
                   </div>
                 </>
               ) : (
                 <div className="mt-6 flex gap-3 justify-center">
                   <button onClick={() => setTab("list")} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10">
-                    Choisir dans le catalogue
+                    {tr("inventory.chooseFromCatalogue")}
                   </button>
                   {(products.data?.length ?? 0) > 0 && (
                     <button onClick={() => setSelected((products.data ?? []).map((p) => p.id))} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                      Tous les produits ({products.data?.length})
+                      {tr("inventory.allProducts", { count: products.data?.length })}
                     </button>
                   )}
                 </div>
@@ -772,7 +775,7 @@ export function InventoryPage() {
                 product_id: p.id,
                 movement_type: "in",
                 quantity: qty,
-                reason: "Réapprovisionnement automatique",
+                reason: tr("inventory.autoRestock"),
               });
             }} restocking={createMovement.isPending} />
           )}
@@ -783,12 +786,12 @@ export function InventoryPage() {
       <div id="add-product-form" className="rounded-xl border border-black/[0.08] bg-white p-5 dark:border-white/[0.08] dark:bg-[#1e2229]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-semibold text-[#17211f] dark:text-white">Nouveau produit</h3>
-            <p className="mt-1 text-xs text-[#717182]">Le pictogramme se propose automatiquement depuis le nom ou la catégorie.</p>
+            <h3 className="font-semibold text-[#17211f] dark:text-white">{tr("inventory.newProduct")}</h3>
+            <p className="mt-1 text-xs text-[#717182]">{tr("inventory.addFormHint")}</p>
           </div>
           <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${inferProductIcon(form).bg} dark:bg-white/[0.06]`}>
             <ProductIconDisplay product={form} size={22} />
-            <span className="text-xs font-bold uppercase tracking-wide text-[#17211f] dark:text-white">icône suggérée</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-[#17211f] dark:text-white">{tr("inventory.iconSuggested")}</span>
           </div>
         </div>
         {createError && (
@@ -796,12 +799,12 @@ export function InventoryPage() {
         )}
         {createProduct.isSuccess && (
           <div className="mb-3 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            ✓ Produit créé avec succès !
+            {tr("inventory.productCreated")}
           </div>
         )}
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="sm:col-span-2 lg:col-span-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône rapide</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.quickIcon")}</span>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {productIconSuggestions(`${form.name} ${form.category}`, 20).map((entry) => (
                 <button key={entry.key} type="button" onClick={() => setForm((v) => ({ ...v, category: entry.label }))}
@@ -818,9 +821,9 @@ export function InventoryPage() {
             </div>
           </div>
           {[
-            { label: "Nom du produit *", key: "name", placeholder: "Ex : Jus Tropical 33cl" },
-            { label: "SKU *", key: "sku", placeholder: "Ex : JUS-TROP-33" },
-            { label: "Catégorie", key: "category", placeholder: "Général" },
+            { label: tr("inventory.fieldName"), key: "name", placeholder: tr("inventory.phName") },
+            { label: tr("inventory.fieldSku"), key: "sku", placeholder: tr("inventory.phSku") },
+            { label: tr("inventory.fieldCategory"), key: "category", placeholder: tr("inventory.phCategory") },
           ].map((f) => (
             <label key={f.key} className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{f.label}</span>
@@ -834,9 +837,9 @@ export function InventoryPage() {
             </label>
           ))}
           {[
-            { label: `Prix unitaire (${currencyLabel()})`, key: "price" },
-            { label: "Quantité en stock", key: "stock_quantity" },
-            { label: "Seuil de réapprovisionnement", key: "reorder_level" },
+            { label: tr("inventory.fieldPrice", { cur: currencyLabel() }), key: "price" },
+            { label: tr("inventory.fieldStockQty"), key: "stock_quantity" },
+            { label: tr("inventory.fieldReorder"), key: "reorder_level" },
           ].map((f) => (
             <label key={f.key} className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{f.label}</span>
@@ -855,7 +858,7 @@ export function InventoryPage() {
               className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               <QrCode size={15} />
-              {createProduct.isPending ? "Création…" : "Créer le produit"}
+              {createProduct.isPending ? tr("inventory.creating") : tr("inventory.createProduct")}
             </button>
           </div>
         </form>
@@ -871,7 +874,7 @@ export function InventoryPage() {
           >
             <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <RefreshCcw size={18} className="text-emerald-600" />
-              <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">Mouvement de stock</h3>
+              <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">{tr("inventory.modalMovementTitle")}</h3>
               <button type="button" onClick={() => setMovementOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
                 <X size={15} />
               </button>
@@ -879,24 +882,24 @@ export function InventoryPage() {
             <div className="space-y-4 p-5">
               {/* Product */}
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Produit *</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldProduct")}</span>
                 <select
                   value={movementForm.product_id || ""}
                   onChange={(e) => setMovementForm({ ...movementForm, product_id: Number(e.target.value) })}
                   required
                   className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                 >
-                  <option value="">-- Choisir un produit --</option>
+                  <option value="">{tr("inventory.chooseProduct")}</option>
                   {(products.data ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.stock_quantity} en stock)</option>
+                    <option key={p.id} value={p.id}>{tr("inventory.optionStock", { name: p.name, count: p.stock_quantity })}</option>
                   ))}
                 </select>
               </label>
               {/* Type */}
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Type de mouvement *</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.movementType")}</span>
                 <div className="mt-2 flex gap-2">
-                  {([["in", "Entrée (réception)"], ["out", "Sortie (consommation)"]] as const).map(([val, label]) => (
+                  {([["in", tr("inventory.typeIn")], ["out", tr("inventory.typeOut")]] as const).map(([val, label]) => (
                     <button
                       key={val} type="button"
                       onClick={() => setMovementForm({ ...movementForm, movement_type: val })}
@@ -914,7 +917,7 @@ export function InventoryPage() {
               </div>
               {/* Quantity */}
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Quantité *</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldQuantity")}</span>
                 <input
                   type="number" min={1} required
                   value={movementForm.quantity}
@@ -924,12 +927,12 @@ export function InventoryPage() {
               </label>
               {/* Reason */}
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Motif</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldReason")}</span>
                 <input
                   type="text"
                   value={movementForm.reason}
                   onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })}
-                  placeholder="Ex : Réception fournisseur, Casse, Vente directe…"
+                  placeholder={tr("inventory.phReason")}
                   className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                 />
               </label>
@@ -938,7 +941,7 @@ export function InventoryPage() {
             </div>
             <div className="flex gap-2 border-t border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <button type="button" onClick={() => setMovementOpen(false)} className="flex-1 rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10">
-                Annuler
+                {tr("common.cancel")}
               </button>
               <button
                 type="submit"
@@ -947,7 +950,7 @@ export function InventoryPage() {
                   movementForm.movement_type === "in" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
-                {createMovement.isPending ? "Enregistrement…" : `Enregistrer ${movementForm.movement_type === "in" ? "l'entrée" : "la sortie"}`}
+                {createMovement.isPending ? tr("common.saving") : (movementForm.movement_type === "in" ? tr("inventory.saveEntry") : tr("inventory.saveExit"))}
               </button>
             </div>
           </form>
@@ -960,7 +963,7 @@ export function InventoryPage() {
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <Camera size={18} className="text-emerald-600" />
-              <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">Scanner un QR Kompta</h3>
+              <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">{tr("inventory.scanTitle")}</h3>
               <button onClick={() => setScanOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
                 <X size={15} />
               </button>
@@ -973,7 +976,7 @@ export function InventoryPage() {
                     <span key={pos} className={`absolute ${pos} h-6 w-6 rounded-tl-lg border-l-4 border-t-4 border-emerald-300`} />
                   ))}
                   <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70">
-                    Pointez vers une étiquette QR Kompta
+                    {tr("inventory.scanPoint")}
                   </div>
                 </div>
               </div>
@@ -981,16 +984,16 @@ export function InventoryPage() {
             <div className="p-4">
               <form onSubmit={submitScan} className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">QR code ou SKU</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.qrOrSku")}</span>
                   <input
                     value={scanInput}
                     onChange={(e) => setScanInput(e.target.value)}
-                    placeholder="Ex : KOMPTA:1:SKU:12 ou SKU"
+                    placeholder={tr("inventory.phScan")}
                     className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                   />
                 </label>
                 <button disabled={scanQr.isPending || !scanInput.trim()} className="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                  {scanQr.isPending ? "Scan…" : "Scanner ce code"}
+                  {scanQr.isPending ? tr("inventory.scanning") : tr("inventory.scanThis")}
                 </button>
               </form>
               {scanResult && (
@@ -1000,7 +1003,7 @@ export function InventoryPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-[#17211f] dark:text-white">{scanResult.name} — {scanResult.sku}</p>
-                    <p className="text-xs text-[#717182]">{scanResult.stock_quantity} en stock · {money(scanResult.price)}</p>
+                    <p className="text-xs text-[#717182]">{tr("inventory.inStockShort", { count: scanResult.stock_quantity, price: money(scanResult.price) })}</p>
                   </div>
                 </div>
               )}
@@ -1011,7 +1014,7 @@ export function InventoryPage() {
                   className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10 hover:bg-[#f5f5fa]"
                   onClick={() => { setScanInput(""); setScanResult(null); setScanError(""); }}
                 >
-                  Nouveau scan
+                  {tr("inventory.newScan")}
                 </button>
                 <button
                   type="button"
@@ -1021,7 +1024,7 @@ export function InventoryPage() {
                     if (scanResult) { openEdit(scanResult); setScanOpen(false); }
                   }}
                 >
-                  Modifier le produit
+                  {tr("inventory.editProduct")}
                 </button>
               </div>
             </div>
@@ -1046,10 +1049,10 @@ export function InventoryPage() {
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button onClick={() => setQrProduct(null)} className="rounded-lg border border-black/[0.08] py-2 text-sm dark:border-white/10">
-                Fermer
+                {tr("common.close")}
               </button>
               <button onClick={() => window.print()} className="rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white">
-                Imprimer
+                {tr("inventory.print")}
               </button>
             </div>
           </div>
@@ -1070,7 +1073,7 @@ export function InventoryPage() {
                   <ProductIconDisplay product={editForm} size={24} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[#17211f] dark:text-white">Modifier le produit</h3>
+                  <h3 className="font-semibold text-[#17211f] dark:text-white">{tr("inventory.editProduct")}</h3>
                   <p className="text-xs text-[#717182]">{editingProduct.sku}</p>
                 </div>
               </div>
@@ -1082,10 +1085,10 @@ export function InventoryPage() {
             <div className="grid gap-5 p-5 lg:grid-cols-[1fr_280px]">
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
-                  { label: "Nom du produit", key: "name" },
-                  { label: "Catégorie", key: "category" },
-                  { label: "Marque", key: "brand" },
-                  { label: "Variante", key: "variant" },
+                  { label: tr("inventory.editFieldName"), key: "name" },
+                  { label: tr("inventory.fieldCategory"), key: "category" },
+                  { label: tr("inventory.editFieldBrand"), key: "brand" },
+                  { label: tr("inventory.editFieldVariant"), key: "variant" },
                 ].map((field) => (
                   <label key={field.key} className="block">
                     <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{field.label}</span>
@@ -1097,12 +1100,12 @@ export function InventoryPage() {
                   </label>
                 ))}
                 {[
-                  { label: "Prix unitaire", key: "price" },
-                  { label: "Stock", key: "stock_quantity" },
-                  { label: "Seuil d'alerte", key: "reorder_level" },
+                  { label: "", key: "price", lk: "inventory.colPrice" },
+                  { label: "", key: "stock_quantity", lk: "inventory.editFieldStock" },
+                  { label: "", key: "reorder_level", lk: "inventory.editFieldAlert" },
                 ].map((field) => (
                   <label key={field.key} className="block">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{field.label}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr((field as any).lk)}</span>
                     <input
                       type="number" min={0}
                       value={(editForm as Record<string, unknown>)[field.key] as number}
@@ -1112,7 +1115,7 @@ export function InventoryPage() {
                   </label>
                 ))}
                 <div className="sm:col-span-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">Icône de catégorie</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.categoryIcon")}</span>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {productIconSuggestions(`${editForm.name} ${editForm.category}`, 16).map((entry) => (
                       <button key={`edit-${entry.key}`} type="button"
@@ -1134,11 +1137,11 @@ export function InventoryPage() {
                 <div className="rounded-xl border border-black/[0.08] bg-[#f8f8fc] p-3 dark:border-white/10 dark:bg-white/5">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-[#17211f] dark:text-white">Images produit</p>
-                      <p className="text-xs text-[#717182]">Ajoute face, dos, emballage, détail.</p>
+                      <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("inventory.productImages")}</p>
+                      <p className="text-xs text-[#717182]">{tr("inventory.imagesHint")}</p>
                     </div>
                     <label className="cursor-pointer rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700">
-                      Ajouter
+                      {tr("common.add")}
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleEditImages} />
                     </label>
                   </div>
@@ -1147,7 +1150,7 @@ export function InventoryPage() {
                       <div key={image.id} className="rounded-lg border border-black/[0.06] bg-white p-2 text-xs dark:border-white/10 dark:bg-[#252931]">
                         <div className="grid aspect-square place-items-center rounded-md bg-violet-50 text-2xl dark:bg-violet-500/10">🖼️</div>
                         <p className="mt-1 truncate font-semibold text-[#17211f] dark:text-white">{image.filename}</p>
-                        <p className="text-[10px] text-[#717182]">{image.is_primary ? "Principale" : "Galerie"}</p>
+                        <p className="text-[10px] text-[#717182]">{image.is_primary ? tr("inventory.primary") : tr("inventory.gallery")}</p>
                       </div>
                     ))}
                     {editImagePreviews.map((preview, index) => (
@@ -1160,7 +1163,7 @@ export function InventoryPage() {
                     ))}
                     {!editingProduct.images?.length && !editImagePreviews.length && (
                       <div className="col-span-2 rounded-lg border border-dashed border-black/[0.12] p-5 text-center text-xs text-[#717182] dark:border-white/15">
-                        Aucune image encore.
+                        {tr("inventory.noImageYet")}
                       </div>
                     )}
                   </div>
@@ -1175,9 +1178,9 @@ export function InventoryPage() {
                 disabled={deleteProduct.isPending}
                 onClick={async () => {
                   const ok = await confirm({
-                    title: `Supprimer "${editingProduct.name}" ?`,
-                    message: "Le produit sera retiré du catalogue définitivement. Cette action est irréversible.",
-                    confirmLabel: "Supprimer",
+                    title: tr("inventory.deleteTitle", { name: editingProduct.name }),
+                    message: tr("inventory.deleteMsg"),
+                    confirmLabel: tr("common.delete"),
                     danger: true,
                   });
                   if (ok) deleteProduct.mutate(editingProduct.id);
@@ -1185,18 +1188,18 @@ export function InventoryPage() {
                 className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400"
               >
                 <Trash2 size={14} />
-                {deleteProduct.isPending ? "Suppression…" : "Supprimer"}
+                {deleteProduct.isPending ? tr("inventory.deleting") : tr("common.delete")}
               </button>
               <div className="flex gap-2">
                 <button type="button" onClick={closeEdit} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm dark:border-white/10">
-                  Annuler
+                  {tr("common.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={updateProduct.isPending || uploadImages.isPending || !editForm.name}
                   className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
                 >
-                  {updateProduct.isPending || uploadImages.isPending ? "Enregistrement…" : "Enregistrer"}
+                  {updateProduct.isPending || uploadImages.isPending ? tr("common.saving") : tr("common.save")}
                 </button>
               </div>
             </div>
@@ -1213,7 +1216,7 @@ export function InventoryPage() {
             <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-emerald-600" />
-                <h2 className="text-lg font-semibold text-[#17211f] dark:text-white">Rapport d'inventaire IA</h2>
+                <h2 className="text-lg font-semibold text-[#17211f] dark:text-white">{tr("inventory.aiReportTitle")}</h2>
               </div>
               <button onClick={() => setAiReportOpen(false)} className="rounded-lg p-1 hover:bg-black/[0.04] dark:hover:bg-white/10">
                 <X size={18} />
@@ -1221,7 +1224,7 @@ export function InventoryPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <p className="mb-3 text-xs text-[#717182]">
-                Généré le {new Date(aiReport.generated_at).toLocaleString("fr-FR")} · par Limule IA
+                {tr("inventory.aiGeneratedAt", { date: new Date(aiReport.generated_at).toLocaleString() })}
               </p>
               <div className="whitespace-pre-wrap text-sm leading-relaxed text-[#17211f] dark:text-white/90">
                 {aiReport.content}
@@ -1231,11 +1234,11 @@ export function InventoryPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(aiReport.content);
-                  toast.success("Copié dans le presse-papier");
+                  toast.success(tr("common.copied"));
                 }}
                 className="rounded-lg border border-black/[0.08] bg-white px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
               >
-                Copier
+                {tr("common.copy")}
               </button>
               <button
                 onClick={() => {
@@ -1249,7 +1252,7 @@ export function InventoryPage() {
                 }}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
               >
-                Télécharger
+                {tr("common.download")}
               </button>
             </div>
           </div>
