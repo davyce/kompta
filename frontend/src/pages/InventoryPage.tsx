@@ -12,7 +12,7 @@ import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmProvider";
 import type { Product } from "../types/domain";
 import { shortDate, money, compactMoney, currencyLabel } from "../utils/format";
-import { inferProductIcon, productIconSuggestions } from "../utils/productIcons";
+import { inferProductIcon, productIconLabel, productIconSuggestions } from "../utils/productIcons";
 import { useCurrency } from "../contexts/CurrencyContext";
 import i18n from "../i18n";
 
@@ -809,14 +809,14 @@ export function InventoryPage() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               {productIconSuggestions(`${form.name} ${form.category}`, 20).map((entry) => (
                 <button key={entry.key} type="button" onClick={() => setForm((v) => ({ ...v, category: entry.label }))}
-                  title={entry.label}
+                  title={productIconLabel(entry, tr)}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
                     ${form.category === entry.label ? `${entry.bg} ${entry.color} border-transparent` : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                 >
                   <span className={form.category === entry.label ? entry.color : "text-[#717182]"}>
                     <entry.Icon size={13} />
                   </span>
-                  {entry.label}
+                  {productIconLabel(entry, tr)}
                 </button>
               ))}
             </div>
@@ -1120,14 +1120,14 @@ export function InventoryPage() {
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {productIconSuggestions(`${editForm.name} ${editForm.category}`, 16).map((entry) => (
                       <button key={`edit-${entry.key}`} type="button"
-                        onClick={() => setEditForm((v) => ({ ...v, category: entry.label }))} title={entry.label}
+                        onClick={() => setEditForm((v) => ({ ...v, category: entry.label }))} title={productIconLabel(entry, tr)}
                         className={`flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold transition
                           ${editForm.category === entry.label ? `${entry.bg} ${entry.color} border-transparent` : "bg-white text-[#17211f] hover:border-violet-300 hover:bg-violet-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-violet-500/10"}`}
                       >
                         <span className={editForm.category === entry.label ? entry.color : "text-[#717182]"}>
                           <entry.Icon size={13} />
                         </span>
-                        {entry.label}
+                        {productIconLabel(entry, tr)}
                       </button>
                     ))}
                   </div>

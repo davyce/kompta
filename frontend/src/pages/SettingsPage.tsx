@@ -682,7 +682,7 @@ export function SettingsPage() {
                     }}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
                     <option value="fr">{tr("settings.french")}</option>
-                    <option value="en">English</option>
+                    <option value="en">{tr("settings.english")}</option>
                   </select>
                 </SettingRow>
                 <SettingRow icon={Globe} label={tr("settingsPage.general.referenceCurrency")} description={tr("settingsPage.general.referenceCurrencyDesc")}>
@@ -691,7 +691,7 @@ export function SettingsPage() {
                     onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
                     {SUPPORTED_CURRENCIES.map((c) => (
-                      <option key={c.code} value={c.code}>{c.label}</option>
+                      <option key={c.code} value={c.code}>{tr(c.labelTk, { defaultValue: c.label })}</option>
                     ))}
                   </select>
                 </SettingRow>

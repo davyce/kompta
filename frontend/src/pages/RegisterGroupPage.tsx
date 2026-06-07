@@ -29,18 +29,33 @@ const GROUP_TYPES = [
 ];
 
 const CURRENCIES = [
-  { value: "XAF", label: "XAF — Franc CFA CEMAC" },
-  { value: "XOF", label: "XOF — Franc CFA UEMOA" },
-  { value: "CDF", label: "CDF — Franc congolais" },
-  { value: "USD", label: "USD — Dollar américain" },
-  { value: "EUR", label: "EUR — Euro" },
-  { value: "NGN", label: "NGN — Naira nigérian" },
+  { value: "XAF", tk: "currencies.groups.XAF" },
+  { value: "XOF", tk: "currencies.groups.XOF" },
+  { value: "CDF", tk: "currencies.groups.CDF" },
+  { value: "USD", tk: "currencies.groups.USD" },
+  { value: "EUR", tk: "currencies.groups.EUR" },
+  { value: "NGN", tk: "currencies.groups.NGN" },
 ];
 
 const COUNTRIES = [
-  "Congo", "RDC", "Cameroun", "Gabon", "Sénégal", "Côte d'Ivoire",
-  "Mali", "Burkina Faso", "Niger", "Togo", "Bénin", "Guinea", "Tchad",
-  "Centrafrique", "France", "Belgique", "Canada", "Autre",
+  { value: "Congo", tk: "countries.congo" },
+  { value: "RDC", tk: "countries.drc" },
+  { value: "Cameroun", tk: "countries.cameroon" },
+  { value: "Gabon", tk: "countries.gabon" },
+  { value: "Sénégal", tk: "countries.senegal" },
+  { value: "Côte d'Ivoire", tk: "countries.ivoryCoast" },
+  { value: "Mali", tk: "countries.mali" },
+  { value: "Burkina Faso", tk: "countries.burkinaFaso" },
+  { value: "Niger", tk: "countries.niger" },
+  { value: "Togo", tk: "countries.togo" },
+  { value: "Bénin", tk: "countries.benin" },
+  { value: "Guinea", tk: "countries.guinea" },
+  { value: "Tchad", tk: "countries.chad" },
+  { value: "Centrafrique", tk: "countries.centralAfricanRepublic" },
+  { value: "France", tk: "countries.france" },
+  { value: "Belgique", tk: "countries.belgium" },
+  { value: "Canada", tk: "countries.canada" },
+  { value: "Autre", tk: "countries.other" },
 ];
 
 const FEATURES = [
@@ -51,6 +66,10 @@ const FEATURES = [
   { key: "anniversaires", icon: Calendar,        tk: "registerGroup.featBirthdays" },
   { key: "ia",            icon: Sparkles,        tk: "registerGroup.featAi" },
 ];
+
+function countryLabel(value: string, tr: (key: string) => string) {
+  return tr(COUNTRIES.find((country) => country.value === value)?.tk ?? "countries.other");
+}
 
 // Étapes : si connecté → 1..3 ; si non connecté → 0..3 (étape 0 = compte)
 type Step = 0 | 1 | 2 | 3;
@@ -306,7 +325,7 @@ export function RegisterGroupPage() {
               </div>
 
               <SelectInput label={tr("registerGroup.country")} value={form.country} onChange={e => set("country", e.target.value)}>
-                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {COUNTRIES.map(c => <option key={c.value} value={c.value}>{tr(c.tk)}</option>)}
               </SelectInput>
 
               <TextInput
@@ -317,7 +336,7 @@ export function RegisterGroupPage() {
               />
 
               <SelectInput label={tr("registerGroup.currencyLabel")} value={form.currency} onChange={e => set("currency", e.target.value)}>
-                {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {CURRENCIES.map(c => <option key={c.value} value={c.value}>{tr(c.tk)}</option>)}
               </SelectInput>
             </div>
           )}
@@ -362,7 +381,7 @@ export function RegisterGroupPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-[#717182]">
                     <Globe size={12} />
-                    <span>{typeLabel} · {form.country}{form.city ? `, ${form.city}` : ""} · {form.currency}</span>
+                    <span>{typeLabel} · {countryLabel(form.country, tr)}{form.city ? `, ${form.city}` : ""} · {form.currency}</span>
                   </div>
                 </div>
               </div>

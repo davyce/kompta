@@ -12,7 +12,7 @@ import { QrScannerModal } from "../components/QrScannerModal";
 import { MoMoPaymentModal } from "../components/MoMoPaymentModal";
 import { StripeCardPaymentModal } from "../components/StripeCardPaymentModal";
 import { QRCodeSVG } from "qrcode.react";
-import { productIconSuggestions } from "../utils/productIcons";
+import { productIconLabel, productIconSuggestions } from "../utils/productIcons";
 import { api } from "../services/api";
 import { useToast } from "../components/ToastProvider";
 import { enqueue, listPending, dequeue } from "../lib/offlineQueue";
@@ -578,7 +578,7 @@ export function PosPage() {
               <button
                 key={entry.key}
                 onClick={() => setSearch(search === entry.label ? "" : entry.label)}
-                title={entry.label}
+                title={productIconLabel(entry, tr)}
                 className={`flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2 text-xs font-medium transition ${
                   search === entry.label
                     ? `${entry.bg} ${entry.color} border-transparent`
@@ -588,7 +588,7 @@ export function PosPage() {
                 <span className={search === entry.label ? entry.color : "text-[#717182]"}>
                   <entry.Icon size={13} />
                 </span>
-                {entry.label}
+                {productIconLabel(entry, tr)}
               </button>
             ))}
           </div>

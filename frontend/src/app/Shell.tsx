@@ -113,17 +113,7 @@ function canAccess(role: string | undefined, path: string): boolean {
 }
 
 function roleLabel(role?: string) {
-  const labels: Record<string, string> = {
-    super_admin: "Super admin",
-    admin_entreprise: "Admin entreprise",
-    manager_entreprise: "DG",
-    rh_entreprise: "RH entreprise",
-    caissier_pos: "Caisse",
-    comptable: "Comptable",
-    employe: "Employé",
-    membre_groupe: "Membre",
-  };
-  return role ? labels[role] ?? role : "session";
+  return role ?? "session";
 }
 
 type NavItem = {

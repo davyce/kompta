@@ -2,13 +2,13 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api, getToken } from "../services/api";
 import { setActiveCurrency, convertCurrency, formatInCurrency, type CurrencyCode } from "../utils/format";
 
-export const SUPPORTED_CURRENCIES: { code: CurrencyCode; label: string }[] = [
-  { code: "XAF", label: "XAF — Franc CFA BEAC" },
-  { code: "XOF", label: "XOF — Franc CFA BCEAO" },
-  { code: "EUR", label: "EUR — Euro €" },
-  { code: "USD", label: "USD — Dollar américain $" },
-  { code: "GBP", label: "GBP — Livre sterling £" },
-  { code: "CNY", label: "CNY — Yuan chinois ¥" },
+export const SUPPORTED_CURRENCIES: { code: CurrencyCode; label: string; labelTk: string }[] = [
+  { code: "XAF", label: "XAF - CFA franc BEAC", labelTk: "currencies.settings.XAF" },
+  { code: "XOF", label: "XOF - CFA franc BCEAO", labelTk: "currencies.settings.XOF" },
+  { code: "EUR", label: "EUR - Euro €", labelTk: "currencies.settings.EUR" },
+  { code: "USD", label: "USD - US dollar $", labelTk: "currencies.settings.USD" },
+  { code: "GBP", label: "GBP - Pound sterling £", labelTk: "currencies.settings.GBP" },
+  { code: "CNY", label: "CNY - Chinese yuan ¥", labelTk: "currencies.settings.CNY" },
 ];
 
 /* ── Context type ─────────────────────────────────────────────── */

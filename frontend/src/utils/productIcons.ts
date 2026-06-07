@@ -3,6 +3,7 @@
  * Uses Lucide React icons — real SVGs, no emoji
  */
 import type { LucideIcon } from "lucide-react";
+import type { TFunction } from "i18next";
 import {
   Shirt, Scissors, Layers, Footprints, Briefcase,
   Gem, GlassWater, Wheat, Droplets, Smartphone,
@@ -158,6 +159,10 @@ export const PRODUCT_ICONS: ProductIconEntry[] = [
 /** Look up an icon entry by key */
 export function getProductIconByKey(key: string): ProductIconEntry {
   return PRODUCT_ICONS.find((e) => e.key === key) ?? PRODUCT_ICONS[PRODUCT_ICONS.length - 1];
+}
+
+export function productIconLabel(entry: ProductIconEntry, tr: TFunction): string {
+  return tr(`productIcons.${entry.key}`, { defaultValue: entry.label });
 }
 
 /** Infer the best icon from product name + category */

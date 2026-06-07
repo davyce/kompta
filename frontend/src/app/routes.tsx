@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, createBrowserRouter, useNavigate, useRouteError } from "react-router-dom";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
@@ -84,48 +85,50 @@ const AdminSubscriptionsPage = lazy(() => import("../admin/pages/AdminSubscripti
 
 // ── Route error boundary (replaces React Router's ugly default) ───────────
 function RouteErrorElement() {
+  const { t: tr } = useTranslation();
   const error = useRouteError() as Error | null;
-  const msg = error instanceof Error ? error.message : String(error ?? "Erreur inattendue");
+  const msg = error instanceof Error ? error.message : String(error ?? tr("routes.errorUnexpected"));
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
         <AlertTriangle size={28} className="text-red-500" />
       </div>
       <div>
-        <p className="text-base font-bold text-red-700 dark:text-red-400">Une erreur s'est produite</p>
+        <p className="text-base font-bold text-red-700 dark:text-red-400">{tr("routes.errorTitle")}</p>
         <p className="mt-1 max-w-sm text-sm text-red-600/80 dark:text-red-300/70">{msg}</p>
       </div>
       <button
         onClick={() => window.location.reload()}
         className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
       >
-        <RefreshCcw size={14} /> Recharger la page
+        <RefreshCcw size={14} /> {tr("routes.reloadPage")}
       </button>
     </div>
   );
 }
 
 // ── Suspense fallback spinner ──────────────────────────────────────────────
+function LoadingFallback({ messageTk, height = "h-dvh", tone = "emerald" }: { messageTk: string; height?: string; tone?: "emerald" | "violet" }) {
+  const { t: tr } = useTranslation();
+  const border = tone === "violet" ? "border-violet-600" : "border-emerald-600";
+  return (
+    <div className={`flex ${height} flex-col items-center justify-center gap-3 text-center`}>
+      <div className={`h-8 w-8 animate-spin rounded-full border-4 ${border} border-t-transparent`} />
+      <p className="text-sm font-semibold text-[#717182] dark:text-white/60">{tr(messageTk)}</p>
+    </div>
+  );
+}
+
 function LazyRoute({ page: Page }: { page: React.ComponentType }) {
   return (
-    <Suspense fallback={
-      <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-        <p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement du module KOMPTA en cours...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingFallback messageTk="routes.loadingModule" height="h-64" />}>
       <Page />
     </Suspense>
   );
 }
 
 function AuthBootstrapSpinner() {
-  return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-3 text-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-      <p className="text-sm font-semibold text-[#717182] dark:text-white/60">Restauration de la session...</p>
-    </div>
-  );
+  return <LoadingFallback messageTk="routes.restoreSession" />;
 }
 
 function ProtectedRoute() {
@@ -161,7 +164,7 @@ function GroupsProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
   return (
-    <Suspense fallback={<div className="flex h-dvh flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement des groupes KOMPTA...</p></div>}>
+    <Suspense fallback={<LoadingFallback messageTk="routes.loadingGroups" tone="violet" />}>
       <GroupsShell />
     </Suspense>
   );
@@ -176,7 +179,7 @@ function ActivationRoute() {
   if (bootstrapping) return <AuthBootstrapSpinner />;
   if (!token) return <Navigate to="/login" replace />;
   return (
-    <Suspense fallback={<div className="flex h-dvh flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement de l'activation KOMPTA...</p></div>}>
+    <Suspense fallback={<LoadingFallback messageTk="routes.loadingActivation" />}>
       <ActivationPageWrapper user={user} />
     </Suspense>
   );
@@ -227,7 +230,7 @@ export const router = createBrowserRouter([
       { index: true,               element: <LazyRoute page={GroupsListPage} /> },
       {
         path: ":groupId",
-        element: <Suspense fallback={<div className="flex h-64 flex-col items-center justify-center gap-3 text-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /><p className="text-sm font-semibold text-[#717182] dark:text-white/60">Chargement du groupe...</p></div>}><GroupLayout /></Suspense>,
+        element: <Suspense fallback={<LoadingFallback messageTk="routes.loadingGroup" height="h-64" tone="violet" />}><GroupLayout /></Suspense>,
         children: [
           { index: true,               element: <LazyRoute page={GroupDashboardPage} /> },
           { path: "dashboard",         element: <LazyRoute page={GroupDashboardPage} /> },
