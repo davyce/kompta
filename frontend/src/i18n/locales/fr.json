@@ -1,4 +1,142 @@
 {
+  "declarations": {
+    "types": {
+      "fiscale": {
+        "label": "Déclaration fiscale",
+        "short": "Fiscale",
+        "description": "TVA, IS, acomptes provisionnels, IRPP"
+      },
+      "sociale": {
+        "label": "Déclaration sociale CNPS",
+        "short": "CNPS",
+        "description": "Cotisations salariales et patronales"
+      },
+      "tva": {
+        "label": "Déclaration de TVA",
+        "short": "TVA",
+        "description": "TVA mensuelle / trimestrielle collectée et déductible"
+      },
+      "is": {
+        "label": "Impôt sur les Sociétés",
+        "short": "IS",
+        "description": "Déclaration IS annuelle, acomptes provisionnels"
+      },
+      "bailleur": {
+        "label": "Rapport bailleur",
+        "short": "Bailleur",
+        "description": "ONG, agence de financement, partenaires institutionnels"
+      },
+      "statistique": {
+        "label": "Rapport statistique",
+        "short": "Statistique",
+        "description": "ANSS, INS, déclarations annuelles d'activité"
+      }
+    },
+    "status": {
+      "generated": "Générée",
+      "optimized": "Optimisée",
+      "draftReady": "Prête",
+      "validated": "Validée",
+      "pending": "En attente",
+      "optimization": "Optimisation"
+    },
+    "dates": {
+      "notDefined": "Non défini"
+    },
+    "header": {
+      "eyebrow": "Obligations légales",
+      "title": "Déclarations & Conformité",
+      "subtitle": "Préparez, générez et téléchargez vos déclarations fiscales, sociales et bailleurs avec Limule."
+    },
+    "kpi": {
+      "files": "Dossiers",
+      "generated": "Générées",
+      "terasAlerts": "Alertes TERAS",
+      "complianceScore": "Score conformité"
+    },
+    "alerts": {
+      "terasCount": "{{count}} alertes TERAS sur les déclarations",
+      "terasCount_one": "{{count}} alerte TERAS sur les déclarations",
+      "terasCount_other": "{{count}} alertes TERAS sur les déclarations"
+    },
+    "typeSelector": {
+      "title": "Type de déclaration"
+    },
+    "form": {
+      "period": "Période",
+      "periodPlaceholder": "ex: Mai 2026 / T1 2026 / Janvier-Mars 2026"
+    },
+    "actions": {
+      "preparing": "Audit en cours…",
+      "prepare": "Préparer (audit + checklist)",
+      "generating": "Génération Limule…",
+      "generate": "Générer la déclaration complète",
+      "optimizing": "Optimisation Limule…",
+      "optimize": "Optimisation fiscale",
+      "view": "Consulter"
+    },
+    "hints": {
+      "prepareLabel": "Préparer",
+      "prepareText": " : audit + checklist. ·",
+      "generateLabel": "Générer",
+      "generateText": " : déclaration complète avec calculs et tableaux. ·",
+      "optimizeLabel": "Optimisation",
+      "optimizeText": " : calendrier fiscal, stratégies d'économies d'impôts et actions prioritaires."
+    },
+    "results": {
+      "auditTitle": "Résultat de l'audit",
+      "aiConfidence": "{{confidence}}% confiance IA",
+      "missingDocs": "Pièces manquantes",
+      "checklist": "Checklist",
+      "generatedTitle": "Déclaration générée — {{reference}}",
+      "generatedDescription": "Document complet disponible · {{period}} · Téléchargeable en PDF depuis la consultation",
+      "optimizedTitle": "Plan d'optimisation fiscale — {{reference}}",
+      "optimizedDescription": "Calendrier fiscal · Stratégies d'économies · Actions prioritaires · Téléchargeable en PDF",
+      "error": "Erreur lors de la génération. Vérifiez que le service Limule est actif."
+    },
+    "history": {
+      "title": "Historique des déclarations ({{count}})",
+      "empty": "Aucun dossier pour le moment. Lancez une préparation ou une génération pour démarrer.",
+      "aiConfidenceShort": "{{confidence}}% IA"
+    },
+    "terasScores": {
+      "title": "Scores de conformité TERAS"
+    },
+    "quickAnalysis": {
+      "title": "Analyses TERAS rapides",
+      "subtitle": "Analysez chaque domaine déclaratif pour détecter les risques.",
+      "analyzing": "Analyse…",
+      "declaration": {
+        "label": "Déclarations fiscales",
+        "desc": "TVA, IS, IRPP"
+      },
+      "payroll": {
+        "label": "Paie & CNPS",
+        "desc": "Cotisations, bulletins"
+      },
+      "documents": {
+        "label": "Pièces justificatives",
+        "desc": "Conformité documentaire"
+      },
+      "rh": {
+        "label": "Conformité RH",
+        "desc": "Contrats, registres"
+      }
+    },
+    "viewer": {
+      "confidence": "{{confidence}}% confiance",
+      "pdfLoading": "PDF…",
+      "downloadPdf": "Télécharger PDF",
+      "noGeneratedText": "Déclaration préparée — pas encore de document complet généré. Utilisez \"Générer la déclaration\" pour obtenir le document intégral.",
+      "missingDocs": "Pièces manquantes ({{count}})",
+      "missingDocs_one": "Pièce manquante ({{count}})",
+      "missingDocs_other": "Pièces manquantes ({{count}})",
+      "checklist": "Checklist ({{count}} points)",
+      "checklist_one": "Checklist ({{count}} point)",
+      "checklist_other": "Checklist ({{count}} points)",
+      "footer": "Contrôle humain recommandé avant soumission officielle · Généré le {{date}}"
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

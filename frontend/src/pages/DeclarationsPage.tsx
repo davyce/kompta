@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList,
   Download, FileSearch, FileText, RefreshCcw, ShieldCheck,
@@ -9,17 +11,17 @@ import {
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import i18n from "../i18n";
 import { api } from "../services/api";
-import { shortDate } from "../utils/format";
 import type { DeclarationRecord } from "../types/domain";
 
 /* ── Types de déclaration ─────────────────────────────────────────── */
 const DECLARATION_TYPES = [
   {
     key: "fiscale",
-    label: "Déclaration fiscale",
-    short: "Fiscale",
-    description: "TVA, IS, acomptes provisionnels, IRPP",
+    labelTk: "declarations.types.fiscale.label",
+    shortTk: "declarations.types.fiscale.short",
+    descriptionTk: "declarations.types.fiscale.description",
     icon: ClipboardList,
     color: "text-sky-600",
     bg: "bg-sky-50 dark:bg-sky-500/10",
@@ -27,9 +29,9 @@ const DECLARATION_TYPES = [
   },
   {
     key: "sociale",
-    label: "Déclaration sociale CNPS",
-    short: "CNPS",
-    description: "Cotisations salariales et patronales",
+    labelTk: "declarations.types.sociale.label",
+    shortTk: "declarations.types.sociale.short",
+    descriptionTk: "declarations.types.sociale.description",
     icon: ShieldCheck,
     color: "text-emerald-600",
     bg: "bg-emerald-50 dark:bg-emerald-500/10",
@@ -37,9 +39,9 @@ const DECLARATION_TYPES = [
   },
   {
     key: "tva",
-    label: "Déclaration de TVA",
-    short: "TVA",
-    description: "TVA mensuelle / trimestrielle collectée et déductible",
+    labelTk: "declarations.types.tva.label",
+    shortTk: "declarations.types.tva.short",
+    descriptionTk: "declarations.types.tva.description",
     icon: FileText,
     color: "text-violet-600",
     bg: "bg-violet-50 dark:bg-violet-500/10",
@@ -47,9 +49,9 @@ const DECLARATION_TYPES = [
   },
   {
     key: "is",
-    label: "Impôt sur les Sociétés",
-    short: "IS",
-    description: "Déclaration IS annuelle, acomptes provisionnels",
+    labelTk: "declarations.types.is.label",
+    shortTk: "declarations.types.is.short",
+    descriptionTk: "declarations.types.is.description",
     icon: ClipboardCheck,
     color: "text-amber-600",
     bg: "bg-amber-50 dark:bg-amber-500/10",
@@ -57,9 +59,9 @@ const DECLARATION_TYPES = [
   },
   {
     key: "bailleur",
-    label: "Rapport bailleur",
-    short: "Bailleur",
-    description: "ONG, agence de financement, partenaires institutionnels",
+    labelTk: "declarations.types.bailleur.label",
+    shortTk: "declarations.types.bailleur.short",
+    descriptionTk: "declarations.types.bailleur.description",
     icon: FileSearch,
     color: "text-rose-600",
     bg: "bg-rose-50 dark:bg-rose-500/10",
@@ -67,9 +69,9 @@ const DECLARATION_TYPES = [
   },
   {
     key: "statistique",
-    label: "Rapport statistique",
-    short: "Statistique",
-    description: "ANSS, INS, déclarations annuelles d'activité",
+    labelTk: "declarations.types.statistique.label",
+    shortTk: "declarations.types.statistique.short",
+    descriptionTk: "declarations.types.statistique.description",
     icon: FileSearch,
     color: "text-stone-600",
     bg: "bg-stone-50 dark:bg-stone-500/10",
@@ -96,18 +98,29 @@ function statusTone(status: string): "green" | "blue" | "amber" | "purple" | "ne
   return "neutral";
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string, tr: TFunction) {
   const map: Record<string, string> = {
-    generated: "Générée",
-    draft_ready: "Prête",
-    validated: "Validée",
-    pending: "En attente",
+    generated: "declarations.status.generated",
+    optimized: "declarations.status.optimized",
+    draft_ready: "declarations.status.draftReady",
+    validated: "declarations.status.validated",
+    pending: "declarations.status.pending",
   };
-  return map[status] ?? status;
+  return map[status] ? tr(map[status]) : status;
+}
+
+function declarationDate(value: string | null, tr: TFunction): string {
+  if (!value) return tr("declarations.dates.notDefined");
+  return new Intl.DateTimeFormat(i18n.language, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 /* ── Viewer modal ─────────────────────────────────────────────────── */
 function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const [downloading, setDownloading] = useState(false);
 
   async function downloadPdf() {
@@ -138,11 +151,11 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[#717182]">{record.period}</p>
             <h2 className="mt-0.5 text-lg font-black text-[#17211f] dark:text-white">
-              {typeInfo?.label ?? record.declaration_type}
+              {typeInfo ? tr(typeInfo.labelTk) : record.declaration_type}
             </h2>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <StatusBadge label={statusLabel(record.status)} tone={statusTone(record.status)} />
-              <StatusBadge label={`${record.confidence}% confiance`} tone="blue" />
+              <StatusBadge label={statusLabel(record.status, tr)} tone={statusTone(record.status)} />
+              <StatusBadge label={tr("declarations.viewer.confidence", { confidence: record.confidence })} tone="blue" />
               <StatusBadge label={record.case_reference} tone="neutral" />
             </div>
           </div>
@@ -153,10 +166,14 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
                 disabled={downloading}
                 className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                <Download size={13} /> {downloading ? "PDF…" : "Télécharger PDF"}
+                <Download size={13} /> {downloading ? tr("declarations.viewer.pdfLoading") : tr("declarations.viewer.downloadPdf")}
               </button>
             )}
-            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
+            <button
+              onClick={onClose}
+              title={tr("common.close")}
+              className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+            >
               <X size={16} />
             </button>
           </div>
@@ -176,7 +193,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
           ) : (
             <div className="p-6">
               <p className="text-sm text-[#717182] italic">
-                Déclaration préparée — pas encore de document complet généré. Utilisez "Générer la déclaration" pour obtenir le document intégral.
+                {tr("declarations.viewer.noGeneratedText")}
               </p>
             </div>
           )}
@@ -187,7 +204,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
               {missing.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
                   <p className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300 text-sm">
-                    <AlertTriangle size={14} /> Pièces manquantes ({missing.length})
+                    <AlertTriangle size={14} /> {tr("declarations.viewer.missingDocs", { count: missing.length })}
                   </p>
                   <ul className="mt-2 space-y-1">
                     {missing.map((item) => (
@@ -201,7 +218,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
               {checklist.length > 0 && (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 p-4">
                   <p className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-sm">
-                    <CheckCircle2 size={14} /> Checklist ({checklist.length} points)
+                    <CheckCircle2 size={14} /> {tr("declarations.viewer.checklist", { count: checklist.length })}
                   </p>
                   <ul className="mt-2 space-y-1">
                     {checklist.map((item) => (
@@ -217,7 +234,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
         </div>
 
         <div className="border-t border-black/[0.05] dark:border-white/[0.05] px-6 py-3 text-xs text-[#717182]">
-          Contrôle humain recommandé avant soumission officielle · Généré le {shortDate(record.created_at)}
+          {tr("declarations.viewer.footer", { date: declarationDate(record.created_at, tr) })}
         </div>
       </div>
     </div>
@@ -226,13 +243,14 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
 
 /* ── Main page ────────────────────────────────────────────────────── */
 export function DeclarationsPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const alerts = useQuery({ queryKey: ["terasAlerts"], queryFn: api.terasAlerts });
   const scores = useQuery({ queryKey: ["terasScores"], queryFn: api.terasScores });
   const declarations = useQuery({ queryKey: ["declarations"], queryFn: api.declarations });
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().toLocaleString("fr-FR", { month: "long" });
+  const currentMonth = new Date().toLocaleString(i18n.language, { month: "long" });
   const [period, setPeriod] = useState(`${currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1)} ${currentYear}`);
   const [selectedType, setSelectedType] = useState("fiscale");
   const [viewRecord, setViewRecord] = useState<DeclarationRecord | null>(null);
@@ -287,24 +305,24 @@ export function DeclarationsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-emerald-600">Obligations légales</p>
-        <h1 className="text-3xl font-black text-[#17211f] dark:text-white">Déclarations & Conformité</h1>
+        <p className="text-sm font-semibold text-emerald-600">{tr("declarations.header.eyebrow")}</p>
+        <h1 className="text-3xl font-black text-[#17211f] dark:text-white">{tr("declarations.header.title")}</h1>
         <p className="mt-1 text-sm text-[#717182]">
-          Préparez, générez et téléchargez vos déclarations fiscales, sociales et bailleurs avec Limule.
+          {tr("declarations.header.subtitle")}
         </p>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Dossiers",         value: allDeclarations.length, icon: ClipboardList, color: "text-sky-600",     bg: "bg-sky-50 dark:bg-sky-500/10",     limule: false },
-          { label: "Générées",         value: generatedCount,         icon: null,          color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10", limule: true  },
-          { label: "Alertes TERAS",    value: declarationAlerts.length, icon: AlertTriangle, color: declarationAlerts.length > 0 ? "text-amber-600" : "text-emerald-600", bg: declarationAlerts.length > 0 ? "bg-amber-50 dark:bg-amber-500/10" : "bg-emerald-50 dark:bg-emerald-500/10", limule: false },
-          { label: "Score conformité", value: scores.data?.[0]?.score ? `${scores.data[0].score}/100` : "—", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10", limule: false },
+          { key: "files", label: tr("declarations.kpi.files"), value: allDeclarations.length, icon: ClipboardList, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-500/10", limule: false },
+          { key: "generated", label: tr("declarations.kpi.generated"), value: generatedCount, icon: null, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10", limule: true },
+          { key: "terasAlerts", label: tr("declarations.kpi.terasAlerts"), value: declarationAlerts.length, icon: AlertTriangle, color: declarationAlerts.length > 0 ? "text-amber-600" : "text-emerald-600", bg: declarationAlerts.length > 0 ? "bg-amber-50 dark:bg-amber-500/10" : "bg-emerald-50 dark:bg-emerald-500/10", limule: false },
+          { key: "complianceScore", label: tr("declarations.kpi.complianceScore"), value: scores.data?.[0]?.score ? `${scores.data[0].score}/100` : "—", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10", limule: false },
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-3">
+            <div key={kpi.key} className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{kpi.label}</span>
                 <span className={`grid h-7 w-7 place-items-center rounded-lg ${kpi.bg}`}>
@@ -325,7 +343,7 @@ export function DeclarationsPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
           <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-sm">
             <AlertTriangle size={15} />
-            {declarationAlerts.length} alerte(s) TERAS sur les déclarations
+            {tr("declarations.alerts.terasCount", { count: declarationAlerts.length })}
           </div>
           <div className="mt-2 space-y-1">
             {declarationAlerts.map((a) => (
@@ -340,7 +358,7 @@ export function DeclarationsPage() {
       <div className="grid gap-5 xl:grid-cols-[260px_1fr]">
         {/* Sélecteur de type */}
         <div className="space-y-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#717182] mb-2">Type de déclaration</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#717182] mb-2">{tr("declarations.typeSelector.title")}</p>
           {DECLARATION_TYPES.map((t) => {
             const Icon = t.icon;
             const isSelected = selectedType === t.key;
@@ -356,8 +374,8 @@ export function DeclarationsPage() {
               >
                 <span className={`mt-0.5 shrink-0 ${t.color}`}><Icon size={16} /></span>
                 <div>
-                  <p className={`text-sm font-semibold ${isSelected ? t.color : "text-[#17211f] dark:text-white"}`}>{t.short}</p>
-                  <p className="text-xs text-[#717182] leading-4 mt-0.5">{t.description}</p>
+                  <p className={`text-sm font-semibold ${isSelected ? t.color : "text-[#17211f] dark:text-white"}`}>{tr(t.shortTk)}</p>
+                  <p className="text-xs text-[#717182] leading-4 mt-0.5">{tr(t.descriptionTk)}</p>
                 </div>
               </button>
             );
@@ -372,19 +390,19 @@ export function DeclarationsPage() {
                 <TypeIcon size={20} />
               </span>
               <div>
-                <h2 className="font-black text-[#17211f] dark:text-white">{typeInfo.label}</h2>
-                <p className="text-xs text-[#717182]">{typeInfo.description}</p>
+                <h2 className="font-black text-[#17211f] dark:text-white">{tr(typeInfo.labelTk)}</h2>
+                <p className="text-xs text-[#717182]">{tr(typeInfo.descriptionTk)}</p>
               </div>
             </div>
 
             {/* Période */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[#717182] mb-1">Période</label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#717182] mb-1">{tr("declarations.form.period")}</label>
               <input
                 type="text"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                placeholder="ex: Mai 2026 / T1 2026 / Janvier–Mars 2026"
+                placeholder={tr("declarations.form.periodPlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] dark:text-white bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
               />
             </div>
@@ -397,7 +415,7 @@ export function DeclarationsPage() {
                 className="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-4 py-2.5 text-sm font-bold text-[#17211f] dark:text-white hover:bg-black/[0.03] disabled:opacity-50 transition"
               >
                 {prepare.isPending ? <RefreshCcw size={15} className="animate-spin" /> : <ClipboardCheck size={15} />}
-                {prepare.isPending ? "Audit en cours…" : "Préparer (audit + checklist)"}
+                {prepare.isPending ? tr("declarations.actions.preparing") : tr("declarations.actions.prepare")}
               </button>
               <button
                 onClick={() => generate.mutate({ period, declaration_type: selectedType })}
@@ -412,7 +430,7 @@ export function DeclarationsPage() {
                     </span>
                   )
                 }
-                {generate.isPending ? "Génération Limule…" : "Générer la déclaration complète"}
+                {generate.isPending ? tr("declarations.actions.generating") : tr("declarations.actions.generate")}
               </button>
               <button
                 onClick={() => optimize.mutate({ period, declaration_type: selectedType })}
@@ -427,15 +445,15 @@ export function DeclarationsPage() {
                     </span>
                   )
                 }
-                {optimize.isPending ? "Optimisation Limule…" : "Optimisation fiscale"}
+                {optimize.isPending ? tr("declarations.actions.optimizing") : tr("declarations.actions.optimize")}
               </button>
             </div>
 
             {/* Indications */}
             <p className="mt-3 text-xs text-[#717182]">
-              <strong>Préparer</strong> : audit + checklist. ·
-              <strong> Générer</strong> : déclaration complète avec calculs et tableaux. ·
-              <strong> Optimisation</strong> : calendrier fiscal, stratégies d'économies d'impôts et actions prioritaires.
+              <strong>{tr("declarations.hints.prepareLabel")}</strong>{tr("declarations.hints.prepareText")}
+              <strong> {tr("declarations.hints.generateLabel")}</strong>{tr("declarations.hints.generateText")}
+              <strong> {tr("declarations.hints.optimizeLabel")}</strong>{tr("declarations.hints.optimizeText")}
             </p>
           </div>
 
@@ -443,15 +461,15 @@ export function DeclarationsPage() {
           {prepare.data && (
             <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-4 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-bold text-[#17211f] dark:text-white text-sm">Résultat de l'audit</p>
-                <StatusBadge label={statusLabel(prepare.data.status)} tone={statusTone(prepare.data.status)} />
-                <StatusBadge label={`${prepare.data.confidence}% confiance IA`} tone="blue" />
+                <p className="font-bold text-[#17211f] dark:text-white text-sm">{tr("declarations.results.auditTitle")}</p>
+                <StatusBadge label={statusLabel(prepare.data.status, tr)} tone={statusTone(prepare.data.status)} />
+                <StatusBadge label={tr("declarations.results.aiConfidence", { confidence: prepare.data.confidence })} tone="blue" />
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {parseList(prepare.data.missing_documents).length > 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-3">
                     <p className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
-                      <AlertTriangle size={12} /> Pièces manquantes
+                      <AlertTriangle size={12} /> {tr("declarations.results.missingDocs")}
                     </p>
                     <ul className="mt-2 space-y-1">
                       {parseList(prepare.data.missing_documents).map((i) => (
@@ -463,7 +481,7 @@ export function DeclarationsPage() {
                 {parseList(prepare.data.checklist).length > 0 && (
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 p-3">
                     <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                      <CheckCircle2 size={12} /> Checklist
+                      <CheckCircle2 size={12} /> {tr("declarations.results.checklist")}
                     </p>
                     <ul className="mt-2 space-y-1">
                       {parseList(prepare.data.checklist).map((i) => (
@@ -485,19 +503,19 @@ export function DeclarationsPage() {
                     <LimuleIcon size={16} />
                   </span>
                   <p className="font-bold text-violet-800 dark:text-violet-200 text-sm">
-                    Déclaration générée — {generate.data.case_reference}
+                    {tr("declarations.results.generatedTitle", { reference: generate.data.case_reference })}
                   </p>
-                  <StatusBadge label="Générée" tone="purple" />
+                  <StatusBadge label={tr("declarations.status.generated")} tone="purple" />
                 </div>
                 <button
                   onClick={() => setViewRecord(generate.data!)}
                   className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-700"
                 >
-                  <Eye size={12} /> Consulter
+                  <Eye size={12} /> {tr("declarations.actions.view")}
                 </button>
               </div>
               <p className="mt-2 text-xs text-violet-700 dark:text-violet-300">
-                Document complet disponible · {generate.data.period} · Téléchargeable en PDF depuis la consultation
+                {tr("declarations.results.generatedDescription", { period: generate.data.period })}
               </p>
             </div>
           )}
@@ -511,33 +529,33 @@ export function DeclarationsPage() {
                     <TrendingUp size={14} className="text-amber-700 dark:text-amber-300" />
                   </span>
                   <p className="font-bold text-amber-800 dark:text-amber-200 text-sm">
-                    Plan d'optimisation fiscale — {optimize.data.case_reference}
+                    {tr("declarations.results.optimizedTitle", { reference: optimize.data.case_reference })}
                   </p>
-                  <StatusBadge label="Optimisation" tone="amber" />
+                  <StatusBadge label={tr("declarations.status.optimization")} tone="amber" />
                 </div>
                 <button
                   onClick={() => setViewRecord(optimize.data!)}
                   className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
                 >
-                  <Eye size={12} /> Consulter
+                  <Eye size={12} /> {tr("declarations.actions.view")}
                 </button>
               </div>
               <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                Calendrier fiscal · Stratégies d'économies · Actions prioritaires · Téléchargeable en PDF
+                {tr("declarations.results.optimizedDescription")}
               </p>
             </div>
           )}
 
           {(prepare.isError || generate.isError || optimize.isError) && (
             <p className="text-sm text-red-600 dark:text-red-400">
-              Erreur lors de la génération. Vérifiez que le service Limule est actif.
+              {tr("declarations.results.error")}
             </p>
           )}
         </div>
       </div>
 
       {/* Historique */}
-      <Panel title={`Historique des déclarations (${allDeclarations.length})`}>
+      <Panel title={tr("declarations.history.title", { count: allDeclarations.length })}>
         {declarations.isLoading && (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-black/[0.04] dark:bg-white/[0.04]" />)}
@@ -545,7 +563,7 @@ export function DeclarationsPage() {
         )}
         {!declarations.isLoading && allDeclarations.length === 0 && (
           <p className="rounded-xl border border-dashed border-black/[0.08] dark:border-white/[0.08] p-6 text-center text-sm text-[#717182]">
-            Aucun dossier pour le moment. Lancez une préparation ou une génération pour démarrer.
+            {tr("declarations.history.empty")}
           </p>
         )}
         {recentByType.length > 0 && (
@@ -567,13 +585,13 @@ export function DeclarationsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-black text-[#17211f] dark:text-white truncate">{record.period}</p>
                         <p className="text-xs font-semibold text-[#717182] uppercase tracking-wide mt-0.5">
-                          {tInfo?.short ?? record.declaration_type}
+                          {tInfo ? tr(tInfo.shortTk) : record.declaration_type}
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <StatusBadge label={statusLabel(record.status)} tone={statusTone(record.status)} />
-                      <span className="text-[10px] text-[#717182]">{record.confidence}% IA</span>
+                      <StatusBadge label={statusLabel(record.status, tr)} tone={statusTone(record.status)} />
+                      <span className="text-[10px] text-[#717182]">{tr("declarations.history.aiConfidenceShort", { confidence: record.confidence })}</span>
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-[#717182]">{record.case_reference}</p>
@@ -582,7 +600,7 @@ export function DeclarationsPage() {
                       onClick={() => setViewRecord(record)}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] transition"
                     >
-                      <Eye size={11} /> Consulter
+                      <Eye size={11} /> {tr("declarations.actions.view")}
                     </button>
                     {isGenerated && (
                       <button
@@ -601,7 +619,7 @@ export function DeclarationsPage() {
                       </button>
                     )}
                   </div>
-                  <p className="mt-2 text-[10px] text-[#717182]">{shortDate(record.created_at)}</p>
+                  <p className="mt-2 text-[10px] text-[#717182]">{declarationDate(record.created_at, tr)}</p>
                 </div>
               );
             })}
@@ -612,7 +630,7 @@ export function DeclarationsPage() {
       {/* Scores TERAS + Analyses */}
       <div className="grid gap-5 xl:grid-cols-2">
         {scores.data && scores.data.length > 0 && (
-          <Panel title="Scores de conformité TERAS">
+          <Panel title={tr("declarations.terasScores.title")}>
             <div className="grid gap-3 sm:grid-cols-2">
               {scores.data.map((s) => (
                 <div key={s.id} className="rounded-xl border border-black/[0.05] dark:border-white/[0.06] p-4">
@@ -637,15 +655,15 @@ export function DeclarationsPage() {
           </Panel>
         )}
 
-        <Panel title="Analyses TERAS rapides">
-          <p className="-mt-2 mb-4 text-sm text-[#717182]">Analysez chaque domaine déclaratif pour détecter les risques.</p>
+        <Panel title={tr("declarations.quickAnalysis.title")}>
+          <p className="-mt-2 mb-4 text-sm text-[#717182]">{tr("declarations.quickAnalysis.subtitle")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              { key: "declaration", label: "Déclarations fiscales", desc: "TVA, IS, IRPP", icon: ClipboardList },
-              { key: "payroll", label: "Paie & CNPS", desc: "Cotisations, bulletins", icon: ClipboardCheck },
-              { key: "documents", label: "Pièces justificatives", desc: "Conformité documentaire", icon: FileSearch },
-              { key: "rh", label: "Conformité RH", desc: "Contrats, registres", icon: ShieldCheck },
-            ].map(({ key, label, desc, icon: Icon }) => (
+              { key: "declaration", labelTk: "declarations.quickAnalysis.declaration.label", descTk: "declarations.quickAnalysis.declaration.desc", icon: ClipboardList },
+              { key: "payroll", labelTk: "declarations.quickAnalysis.payroll.label", descTk: "declarations.quickAnalysis.payroll.desc", icon: ClipboardCheck },
+              { key: "documents", labelTk: "declarations.quickAnalysis.documents.label", descTk: "declarations.quickAnalysis.documents.desc", icon: FileSearch },
+              { key: "rh", labelTk: "declarations.quickAnalysis.rh.label", descTk: "declarations.quickAnalysis.rh.desc", icon: ShieldCheck },
+            ].map(({ key, labelTk, descTk, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => analyzeDomain.mutate(key)}
@@ -656,9 +674,9 @@ export function DeclarationsPage() {
                   <Icon size={18} />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-[#17211f] dark:text-white">{label}</p>
+                  <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr(labelTk)}</p>
                   <p className="text-xs text-[#717182]">
-                    {analyzeDomain.isPending ? "Analyse…" : desc}
+                    {analyzeDomain.isPending ? tr("declarations.quickAnalysis.analyzing") : tr(descTk)}
                   </p>
                 </div>
               </button>

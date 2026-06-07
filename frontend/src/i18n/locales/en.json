@@ -1,4 +1,142 @@
 {
+  "declarations": {
+    "types": {
+      "fiscale": {
+        "label": "Tax filing",
+        "short": "Tax",
+        "description": "VAT, corporate tax, provisional instalments, personal income tax"
+      },
+      "sociale": {
+        "label": "CNPS social filing",
+        "short": "CNPS",
+        "description": "Employee and employer contributions"
+      },
+      "tva": {
+        "label": "VAT filing",
+        "short": "VAT",
+        "description": "Monthly / quarterly VAT collected and deductible"
+      },
+      "is": {
+        "label": "Corporate Income Tax",
+        "short": "CIT",
+        "description": "Annual corporate tax filing and provisional instalments"
+      },
+      "bailleur": {
+        "label": "Donor report",
+        "short": "Donor",
+        "description": "NGOs, funding agencies, institutional partners"
+      },
+      "statistique": {
+        "label": "Statistical report",
+        "short": "Statistics",
+        "description": "ANSS, INS, annual activity filings"
+      }
+    },
+    "status": {
+      "generated": "Generated",
+      "optimized": "Optimized",
+      "draftReady": "Ready",
+      "validated": "Validated",
+      "pending": "Pending",
+      "optimization": "Optimization"
+    },
+    "dates": {
+      "notDefined": "Not defined"
+    },
+    "header": {
+      "eyebrow": "Legal obligations",
+      "title": "Filings & Compliance",
+      "subtitle": "Prepare, generate, and download your tax, social, and donor filings with Limule."
+    },
+    "kpi": {
+      "files": "Files",
+      "generated": "Generated",
+      "terasAlerts": "TERAS Alerts",
+      "complianceScore": "Compliance score"
+    },
+    "alerts": {
+      "terasCount": "{{count}} TERAS alerts on filings",
+      "terasCount_one": "{{count}} TERAS alert on filings",
+      "terasCount_other": "{{count}} TERAS alerts on filings"
+    },
+    "typeSelector": {
+      "title": "Filing type"
+    },
+    "form": {
+      "period": "Period",
+      "periodPlaceholder": "e.g. May 2026 / Q1 2026 / January-March 2026"
+    },
+    "actions": {
+      "preparing": "Audit in progress…",
+      "prepare": "Prepare (audit + checklist)",
+      "generating": "Limule is generating…",
+      "generate": "Generate full filing",
+      "optimizing": "Limule is optimizing…",
+      "optimize": "Tax optimization",
+      "view": "View"
+    },
+    "hints": {
+      "prepareLabel": "Prepare",
+      "prepareText": " : audit + checklist. ·",
+      "generateLabel": "Generate",
+      "generateText": " : full filing with calculations and tables. ·",
+      "optimizeLabel": "Optimization",
+      "optimizeText": " : tax calendar, tax-saving strategies, and priority actions."
+    },
+    "results": {
+      "auditTitle": "Audit result",
+      "aiConfidence": "{{confidence}}% AI confidence",
+      "missingDocs": "Missing documents",
+      "checklist": "Checklist",
+      "generatedTitle": "Filing generated — {{reference}}",
+      "generatedDescription": "Complete document available · {{period}} · PDF downloadable from the preview",
+      "optimizedTitle": "Tax optimization plan — {{reference}}",
+      "optimizedDescription": "Tax calendar · Savings strategies · Priority actions · PDF downloadable",
+      "error": "Generation failed. Check that the Limule service is active."
+    },
+    "history": {
+      "title": "Filing history ({{count}})",
+      "empty": "No file yet. Start with a preparation or generation to begin.",
+      "aiConfidenceShort": "{{confidence}}% AI"
+    },
+    "terasScores": {
+      "title": "TERAS compliance scores"
+    },
+    "quickAnalysis": {
+      "title": "Quick TERAS analyses",
+      "subtitle": "Analyze each filing domain to detect risks.",
+      "analyzing": "Analyzing…",
+      "declaration": {
+        "label": "Tax filings",
+        "desc": "VAT, CIT, personal income tax"
+      },
+      "payroll": {
+        "label": "Payroll & CNPS",
+        "desc": "Contributions, payslips"
+      },
+      "documents": {
+        "label": "Supporting documents",
+        "desc": "Document compliance"
+      },
+      "rh": {
+        "label": "HR compliance",
+        "desc": "Contracts, registers"
+      }
+    },
+    "viewer": {
+      "confidence": "{{confidence}}% confidence",
+      "pdfLoading": "PDF…",
+      "downloadPdf": "Download PDF",
+      "noGeneratedText": "Filing prepared — no complete document has been generated yet. Use \"Generate full filing\" to create the full document.",
+      "missingDocs": "Missing documents ({{count}})",
+      "missingDocs_one": "Missing document ({{count}})",
+      "missingDocs_other": "Missing documents ({{count}})",
+      "checklist": "Checklist ({{count}} points)",
+      "checklist_one": "Checklist ({{count}} point)",
+      "checklist_other": "Checklist ({{count}} points)",
+      "footer": "Human review recommended before official submission · Generated on {{date}}"
+    }
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",
