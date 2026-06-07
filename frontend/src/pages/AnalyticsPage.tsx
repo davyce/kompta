@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart,
@@ -52,6 +53,7 @@ function KpiCard({ title, value, sub, icon: Icon, color }: {
 }
 
 export function AnalyticsPage() {
+  const { t: tr } = useTranslation();
   const [year, setYear] = useState<string>(String(new Date().getFullYear()));
 
   const overviewQuery = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
@@ -119,16 +121,16 @@ export function AnalyticsPage() {
   // ── Export PDF ──
   function handleExportPDF() {
     const rows = [
-      { label: "Année analysée", value: year },
-      { label: "CA Total (factures)", value: fmt(totalRevenue) },
-      { label: "Taux de recouvrement", value: `${fmt(recoveryRate, false)} %` },
-      { label: "Marge moyenne", value: `${fmt(marginPct, false)} %` },
-      { label: "Coût moyen / employé", value: fmt(avgCostPerEmployee) },
-      { label: "Nombre de clients", value: String(clients.length) },
-      { label: "Nombre de factures", value: String(invoices.length) },
-      ...top10Clients.slice(0, 5).map((c) => ({ label: `Client : ${c.name}`, value: fmt(c.CA) })),
+      { label: tr("analytics.yearAnalyzed"), value: year },
+      { label: tr("analytics.totalRevenueRow"), value: fmt(totalRevenue) },
+      { label: tr("analytics.recoveryRow"), value: `${fmt(recoveryRate, false)} %` },
+      { label: tr("analytics.avgMargin"), value: `${fmt(marginPct, false)} %` },
+      { label: tr("analytics.avgCostEmp"), value: fmt(avgCostPerEmployee) },
+      { label: tr("analytics.clientsCount"), value: String(clients.length) },
+      { label: tr("analytics.invoicesCountRow"), value: String(invoices.length) },
+      ...top10Clients.slice(0, 5).map((c) => ({ label: tr("analytics.clientRow", { name: c.name }), value: fmt(c.CA) })),
     ];
-    exportToPDF(`Analytics KOMPTA — ${year}`, rows, `analytics-kompta-${year}.pdf`);
+    exportToPDF(tr("analytics.pdfTitle", { year }), rows, `analytics-kompta-${year}.pdf`);
   }
 
   const loading = overviewQuery.isLoading || invoicesQuery.isLoading;
@@ -138,8 +140,8 @@ export function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black text-[#17211f] dark:text-white">Analytics</h1>
-          <p className="text-sm text-[#717182] dark:text-white/50">Vue consolidée des performances de l'entreprise</p>
+          <h1 className="text-xl font-black text-[#17211f] dark:text-white">{tr("analytics.title")}</h1>
+          <p className="text-sm text-[#717182] dark:text-white/50">{tr("analytics.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -156,7 +158,7 @@ export function AnalyticsPage() {
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 transition"
           >
             <Download size={15} />
-            Exporter PDF
+            {tr("analytics.exportPdf")}
           </button>
         </div>
       </div>
@@ -171,30 +173,30 @@ export function AnalyticsPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <KpiCard
-            title="CA Total"
+            title={tr("analytics.kpiTotalRevenue")}
             value={fmt(totalRevenue)}
-            sub={`${invoices.length} factures`}
+            sub={tr("analytics.invoicesCount", { count: invoices.length })}
             icon={DollarSign}
             color="bg-emerald-600"
           />
           <KpiCard
-            title="Marge"
+            title={tr("analytics.kpiMargin")}
             value={`${fmt(marginPct, false)} %`}
-            sub="Marge nette estimée"
+            sub={tr("analytics.netMarginEst")}
             icon={Percent}
             color="bg-teal-600"
           />
           <KpiCard
-            title="Taux recouvrement"
+            title={tr("analytics.kpiRecovery")}
             value={`${fmt(recoveryRate, false)} %`}
-            sub={`${fmt(paidRevenue)} encaissés`}
+            sub={tr("analytics.collected", { amount: fmt(paidRevenue) })}
             icon={TrendingUp}
             color="bg-blue-600"
           />
           <KpiCard
-            title="Coût / employé"
+            title={tr("analytics.kpiCostPerEmployee")}
             value={fmt(avgCostPerEmployee)}
-            sub={`${employeeCount} employés`}
+            sub={tr("analytics.employeesCount", { count: employeeCount })}
             icon={Users}
             color="bg-violet-600"
           />
@@ -203,9 +205,9 @@ export function AnalyticsPage() {
 
       {/* Revenus vs Marge par mois */}
       <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:border-white/[0.08] dark:bg-[#1e2229]">
-        <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">Revenus & Marge — 12 derniers mois</h2>
+        <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">{tr("analytics.revMarginTitle")}</h2>
         {revData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-[#717182] dark:text-white/40">Aucune donnée disponible</p>
+          <p className="py-10 text-center text-sm text-[#717182] dark:text-white/40">{tr("analytics.noData")}</p>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={revData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -214,8 +216,8 @@ export function AnalyticsPage() {
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
               <Legend />
-              <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Marge" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Revenus" name={tr("analytics.revenue")} fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Marge" name={tr("analytics.margin")} fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -224,14 +226,14 @@ export function AnalyticsPage() {
       {/* Top 10 Clients */}
       {top10Clients.length > 0 && (
         <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:border-white/[0.08] dark:bg-[#1e2229]">
-          <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">Top 10 Clients (CA)</h2>
+          <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">{tr("analytics.top10")}</h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart layout="vertical" data={top10Clients} margin={{ top: 4, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
-              <Bar dataKey="CA" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="CA" name={tr("analytics.ca")} fill="#0ea5e9" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -241,7 +243,7 @@ export function AnalyticsPage() {
         {/* Rentabilité par produit */}
         {productData.length > 0 && (
           <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:border-white/[0.08] dark:bg-[#1e2229]">
-            <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">Rentabilité par produit (POS)</h2>
+            <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">{tr("analytics.productProfit")}</h2>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
@@ -267,7 +269,7 @@ export function AnalyticsPage() {
         {/* Évolution trésorerie */}
         {cfData.length > 0 && (
           <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:border-white/[0.08] dark:bg-[#1e2229]">
-            <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">Évolution trésorerie</h2>
+            <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white">{tr("analytics.cashEvolution")}</h2>
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={cfData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                 <defs>
@@ -285,8 +287,8 @@ export function AnalyticsPage() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v) => fmt(Number(v))} />
                 <Legend />
-                <Area type="monotone" dataKey="Entrées" stroke="#059669" fill="url(#colorEntrees)" strokeWidth={2} />
-                <Area type="monotone" dataKey="Sorties" stroke="#ef4444" fill="url(#colorSorties)" strokeWidth={2} />
+                <Area type="monotone" dataKey="Entrées" name={tr("analytics.inflows")} stroke="#059669" fill="url(#colorEntrees)" strokeWidth={2} />
+                <Area type="monotone" dataKey="Sorties" name={tr("analytics.outflows")} stroke="#ef4444" fill="url(#colorSorties)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, BriefcaseBusiness, CheckCircle2, ClipboardList, Download, FileSearch, RefreshCcw, Settings, ShieldCheck, ShieldOff, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { LineAreaChart, ScoreRing } from "../components/Charts";
@@ -18,6 +19,7 @@ const RECOMMENDATION_TONES = [
 ];
 
 export function ReportsTerasPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
@@ -90,25 +92,25 @@ export function ReportsTerasPage() {
         <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
           <ShieldOff size={22} className="shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
-            <p className="font-bold text-amber-800 dark:text-amber-300">TERAS Connect est désactivé</p>
+            <p className="font-bold text-amber-800 dark:text-amber-300">{tr("teras.disabledTitle")}</p>
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              Les analyses de scoring et les alertes de conformité sont mises en pause. Toutes les données existantes sont conservées.
+              {tr("teras.disabledDesc")}
             </p>
           </div>
           <button
             onClick={() => navigate("/settings?tab=modules")}
             className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-50 dark:border-amber-500/40 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-500/10"
           >
-            <Settings size={14} /> Activer dans Paramètres
+            <Settings size={14} /> {tr("teras.activateInSettings")}
           </button>
         </div>
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">TERAS Connect</p>
-          <h1 className="text-3xl font-black text-ink">Conformite, scoring et risque</h1>
-          <p className="mt-1 text-sm font-medium text-[#717182]">Moteur de controle reglementaire, documentaire et social en temps reel.</p>
+          <p className="text-sm font-semibold text-emerald-600">{tr("teras.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-ink">{tr("teras.title")}</h1>
+          <p className="mt-1 text-sm font-medium text-[#717182]">{tr("teras.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -123,14 +125,14 @@ export function ReportsTerasPage() {
                 a.download = `teras_report_${new Date().toISOString().slice(0, 10)}.pdf`;
                 a.click();
                 URL.revokeObjectURL(url);
-              } catch { toast.error("Erreur export PDF"); }
+              } catch { toast.error(tr("teras.exportErr")); }
               finally { setExporting(false); }
             }}
             disabled={exporting}
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-bold text-[#17211f] hover:bg-stone-50 disabled:opacity-50"
           >
             <Download size={16} />
-            {exporting ? "Export…" : "Exporter PDF"}
+            {exporting ? tr("teras.exporting") : tr("teras.exportPdf")}
           </button>
           <button
             onClick={() => analyze.mutate()}
@@ -138,26 +140,26 @@ export function ReportsTerasPage() {
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-stone-300"
           >
             {analyze.isPending ? <RefreshCcw className="animate-spin" size={18} /> : <BriefcaseBusiness size={18} />}
-            Lancer une analyse
+            {tr("teras.runAnalysis")}
           </button>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Panel title="Score conformite global">
-          <ScoreRing score={terasAverage} label={terasAverage >= 85 ? "niveau eleve" : "a renforcer"} />
+        <Panel title={tr("teras.globalScore")}>
+          <ScoreRing score={terasAverage} label={terasAverage >= 85 ? tr("teras.highLevel") : tr("teras.toReinforce")} />
         </Panel>
-        <Panel title="Alertes actives">
+        <Panel title={tr("teras.activeAlerts")}>
           <div className="pt-5">
             <p className="text-4xl font-black text-ink">{activeAlerts.length || 3}</p>
-            <p className="mt-2 text-sm font-medium text-[#717182]">critiques: {activeAlerts.filter((alert) => alert.severity === "high").length || 1} · attention: {Math.max((activeAlerts.length || 3) - 1, 1)}</p>
-            <div className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">Priorite: pieces justificatives et paie</div>
+            <p className="mt-2 text-sm font-medium text-[#717182]">{tr("teras.criticalAttention", { crit: activeAlerts.filter((alert) => alert.severity === "high").length || 1, att: Math.max((activeAlerts.length || 3) - 1, 1) })}</p>
+            <div className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{tr("teras.priority")}</div>
           </div>
         </Panel>
-        <Panel title="Recommandations IA">
+        <Panel title={tr("teras.aiRecs")}>
           <div className="pt-5">
             <p className="text-4xl font-black text-ink">{recommendationCount}</p>
-            <p className="mt-2 text-sm font-medium text-[#717182]">actions priorisees par impact metier</p>
+            <p className="mt-2 text-sm font-medium text-[#717182]">{tr("teras.actionsPrioritized")}</p>
             <div className="mt-5 grid gap-2">
               {["rh", "payroll", "declaration", "documents"].map((domain) => (
                 <button
@@ -165,7 +167,7 @@ export function ReportsTerasPage() {
                   onClick={() => analyzeDomain.mutate(domain as "rh" | "payroll" | "declaration" | "documents")}
                   className="flex items-center justify-between rounded-lg border border-black/[0.05] px-3 py-2 text-sm font-semibold text-[#17211f] hover:border-emerald-500 hover:text-emerald-600"
                 >
-                  Analyse {domain}
+                  {tr("teras.analyzeDomain", { domain: tr("teras.domain" + domain.charAt(0).toUpperCase() + domain.slice(1)) })}
                   <FileSearch size={16} />
                 </button>
               ))}
@@ -175,10 +177,10 @@ export function ReportsTerasPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <Panel title="Evolution du score (12 mois)" action={<span className="text-sm font-bold text-emerald-600">+19 pts</span>}>
+        <Panel title={tr("teras.scoreEvolution")} action={<span className="text-sm font-bold text-emerald-600">{tr("teras.pts19")}</span>}>
           <LineAreaChart data={scoreTrend} color="#0f766e" fill="rgba(15, 118, 110, 0.10)" min={60} max={100} />
         </Panel>
-        <Panel title="Recommandations IA">
+        <Panel title={tr("teras.aiRecs")}>
           <div className="space-y-3">
             {(() => {
               const flat = recommendations.data?.flatMap((item, idx) => item.recommendations.map((rec, j) => ({
@@ -190,7 +192,7 @@ export function ReportsTerasPage() {
               if (flat.length === 0) {
                 return (
                   <p className="py-4 text-sm text-[#717182]">
-                    Lance une analyse TERAS pour générer des recommandations personnalisées.
+                    {tr("teras.runAnalysisRecs")}
                   </p>
                 );
               }
@@ -210,11 +212,11 @@ export function ReportsTerasPage() {
         </Panel>
       </div>
 
-      <Panel title="Alertes TERAS">
+      <Panel title={tr("teras.terasAlerts")}>
         <div className="space-y-3">
           {activeAlerts.length === 0 && (
             <p className="py-4 text-sm text-[#717182]">
-              Aucune alerte ouverte. Tout est en ordre — lance une analyse pour rafraîchir le contrôle.
+              {tr("teras.noOpenAlert")}
             </p>
           )}
           {activeAlerts.map((alert) => (
@@ -225,10 +227,10 @@ export function ReportsTerasPage() {
                 </span>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge label={alert.severity === "high" ? "Critique" : alert.severity === "medium" ? "Attention" : "Info"} tone={alert.severity === "high" ? "red" : alert.severity === "medium" ? "amber" : "blue"} />
+                    <StatusBadge label={alert.severity === "high" ? tr("teras.sevCritical") : alert.severity === "medium" ? tr("teras.sevAttention") : tr("teras.sevInfo")} tone={alert.severity === "high" ? "red" : alert.severity === "medium" ? "amber" : "blue"} />
                     <p className="font-bold text-ink">{alert.title}</p>
                   </div>
-                  <p className="mt-1 text-sm text-[#717182]">{alert.module} · {alert.recommendation} · {alert.created_at ? shortDate(alert.created_at) : "Analyse recente"}</p>
+                  <p className="mt-1 text-sm text-[#717182]">{alert.module} · {alert.recommendation} · {alert.created_at ? shortDate(alert.created_at) : tr("teras.recentAnalysis")}</p>
                 </div>
               </div>
               <button
@@ -236,7 +238,7 @@ export function ReportsTerasPage() {
                 onClick={() => convert.mutate(alert.id)}
                 className="rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm font-bold text-ink disabled:text-stone-400"
               >
-                Convertir en tache
+                {tr("teras.convertToTask")}
               </button>
             </article>
           ))}
