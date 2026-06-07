@@ -447,6 +447,9 @@ class Task(TimestampMixin, Base):
     proof_required: Mapped[bool] = mapped_column(Boolean, default=False)
     proof_url: Mapped[str | None] = mapped_column(String(400), nullable=True)
     due_time: Mapped[str | None] = mapped_column(String(5), nullable=True)   # "HH:MM"
+    order_index: Mapped[int] = mapped_column(Integer, default=0)  # ordre dans la colonne Kanban
+    tags: Mapped[str] = mapped_column(String(255), default="")    # libellés séparés par des virgules
+    project: Mapped[str] = mapped_column(String(120), default="")  # regroupement projet/board
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 

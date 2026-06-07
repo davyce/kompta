@@ -56,7 +56,8 @@
       "Intelligence": "Intelligence",
       "Système": "Système",
       "Support": "Support",
-      "Compte": "Compte"
+      "Compte": "Compte",
+      "Kanban": "Kanban"
     },
     "items": {
       "/": "Tableau de bord",
@@ -85,7 +86,8 @@
       "/reports-teras": "TERAS Connect",
       "/audit": "Journaux d'audit",
       "/safe-mode": "Safe Mode",
-      "/settings": "Paramètres"
+      "/settings": "Paramètres",
+      "/kanban": "Kanban"
     },
     "mobile": {
       "home": "Accueil",
@@ -128,7 +130,8 @@
       "/settings": "Configuration",
       "/safe-mode": "Sauvegarde & Restauration",
       "/help": "Centre d'aide",
-      "/activation": "Activation sécurisée"
+      "/activation": "Activation sécurisée",
+      "/kanban": "Tableau de tâches"
     }
   },
   "roles": {
@@ -281,6 +284,39 @@
     "positions_other": "{{count}} positions · Total investi : {{amount}}",
     "limuleUnavailable": "Limule indisponible. Vérifie que le backend est lancé.",
     "limuleUnavailable2": "Limule indisponible pour le moment. Vérifie que le backend est lancé."
+  },
+  "kanban": {
+    "title": "Kanban",
+    "subtitle": "Tableau de bord des tâches — glissez-déposez pour avancer",
+    "searchPlaceholder": "Rechercher une tâche, un responsable, un tag…",
+    "allAssignees": "Tous les responsables",
+    "allPriorities": "Toutes priorités",
+    "addCard": "+ Ajouter une carte",
+    "addCardPlaceholder": "Titre de la tâche…",
+    "add": "Ajouter",
+    "colTodo": "À faire",
+    "colDoing": "En cours",
+    "colReview": "En revue",
+    "colDone": "Terminé",
+    "priorityHigh": "Haute",
+    "priorityNormal": "Normale",
+    "priorityLow": "Basse",
+    "priorityUrgent": "Urgent",
+    "noTasks": "Aucune tâche",
+    "dropHere": "Déposez ici",
+    "overdue": "En retard",
+    "cards_one": "{{count}} carte",
+    "cards_other": "{{count}} cartes",
+    "unassigned": "Non assigné",
+    "deleteTask": "Supprimer cette tâche ?",
+    "added": "Tâche ajoutée",
+    "moved": "Tâche déplacée",
+    "filters": "Filtres",
+    "groupByProject": "Grouper par projet",
+    "noProject": "Sans projet",
+    "wip": "WIP {{count}}",
+    "totalTasks": "{{count}} tâche(s) au total",
+    "addTagPlaceholder": "tag1, tag2…"
   },
   "pos": {
     "ticketTitle": "Ticket de caisse",

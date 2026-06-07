@@ -96,14 +96,14 @@ function LimuleStatus() {
 const ROLE_ROUTES: Record<string, string[]> = {
   super_admin: ["*"],   // accès complet (mais redirigé vers /admin via AuthContext)
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/investments", "/budget", "/transactions", "/audit", "/settings", "/safe-mode", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/kanban", "/investments", "/budget", "/transactions", "/audit", "/settings", "/safe-mode", "/help"],
   comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
-  employe: ["/", "/work", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
+  employe: ["/", "/work", "/kanban", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
   // Membre de groupe/organisation : interface légère orientée collaboration & suivi
-  membre_groupe: ["/", "/groups", "/chat", "/calendar", "/meetings", "/notes", "/documents", "/investments", "/projects", "/assistants", "/work", "/settings", "/help"],
+  membre_groupe: ["/", "/groups", "/chat", "/calendar", "/meetings", "/notes", "/documents", "/investments", "/projects", "/kanban", "/assistants", "/work", "/settings", "/help"],
 };
 
 function canAccess(role: string | undefined, path: string): boolean {
@@ -174,6 +174,7 @@ const navSections: NavSection[] = [
     label: "Collaboration",
     items: [
       { label: "Projets & boards", to: "/projects", icon: CheckSquare },
+      { label: "Kanban", to: "/kanban", icon: LayoutList },
       { label: "Chat", to: "/chat", icon: MessageSquare },
       { label: "Agenda", to: "/calendar", icon: CalendarDays },
       { label: "Notes IA", to: "/notes", icon: FileText },
@@ -216,6 +217,7 @@ const routeLabels: Record<string, { section: string; title: string }> = {
   "/pos": { section: "POS / Caisse", title: "Caisse et encaissement" },
   "/inventory": { section: "Inventaire", title: "Stock multi-sites" },
   "/projects": { section: "Projets", title: "Boards et budgets" },
+  "/kanban": { section: "Kanban", title: "Tableau de tâches" },
   "/chat": { section: "Chat", title: "Messagerie d'équipe" },
   "/work": { section: "Collaboration", title: "Tâches et projets" },
   "/calendar": { section: "Agenda", title: "Calendrier & réunions" },

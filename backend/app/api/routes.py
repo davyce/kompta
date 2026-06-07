@@ -111,6 +111,7 @@ from app.schemas import (
     SecurityAuditRead,
     TaskCreate,
     TaskRead,
+    TaskReorder,
     TerasAlertRead,
     TerasAnalysisJobRead,
     TerasScoreSnapshotRead,
@@ -350,6 +351,9 @@ def _serialize_task(db: Session, task: Task, current_user: User, subjects: set[s
         "can_delete": is_manager,
         "proof_url": task.proof_url,
         "due_time": task.due_time,
+        "tags": getattr(task, "tags", "") or "",
+        "project": getattr(task, "project", "") or "",
+        "order_index": getattr(task, "order_index", 0) or 0,
     }
 
 
@@ -2389,7 +2393,7 @@ def update_task(
     if not is_manager and not assigned_to_me:
         raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que les taches qui vous sont assignees")
 
-    allowed_fields = {"status", "title", "description", "priority", "assignee_name", "due_date", "due_time", "proof_required", "source"} if is_manager else {"status"}
+    allowed_fields = {"status", "title", "description", "priority", "assignee_name", "due_date", "due_time", "proof_required", "source", "tags", "project", "order_index"} if is_manager else {"status", "order_index"}
     blocked_fields = [field for field in payload if field not in allowed_fields]
     if blocked_fields:
         raise HTTPException(status_code=403, detail="Modification non autorisee pour ce profil")
@@ -2415,6 +2419,28 @@ def update_task(
     db.commit()
     db.refresh(task)
     return _serialize_task(db, task, current_user, subjects)
+
+
+@router.post("/tasks/reorder", response_model=list[TaskRead])
+def reorder_tasks(
+    payload: TaskReorder,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Persiste l'ordre et le statut des cartes après un glisser-déposer Kanban."""
+    subjects, _ = _task_subjects_for_user(db, current_user)
+    is_manager = _can_manage_tasks(current_user)
+    for item in payload.items:
+        task = db.get(Task, item.id)
+        if not task or task.company_id != current_user.company_id:
+            continue
+        if not is_manager and not _task_assigned_to_user(task, subjects):
+            continue
+        task.status = item.status
+        task.order_index = item.order_index
+    db.commit()
+    tasks = company_scope(db, current_user, Task, Task.created_at.desc())
+    return [_serialize_task(db, task, current_user, subjects) for task in tasks]
 
 
 @router.delete("/tasks/{task_id}")

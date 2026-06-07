@@ -511,6 +511,19 @@ class TaskCreate(BaseModel):
     assignee_name: str = ""
     source: str = "manual"
     proof_required: bool = False
+    tags: str = ""
+    project: str = ""
+    order_index: int = 0
+
+
+class TaskReorderItem(BaseModel):
+    id: int
+    status: str
+    order_index: int
+
+
+class TaskReorder(BaseModel):
+    items: list[TaskReorderItem]
 
 
 class TaskRead(TaskCreate):
@@ -525,6 +538,9 @@ class TaskRead(TaskCreate):
     can_delete: bool = False
     proof_url: str | None = None
     due_time: str | None = None
+    tags: str = ""
+    project: str = ""
+    order_index: int = 0
 
 
 class ChatChannelRead(BaseModel):

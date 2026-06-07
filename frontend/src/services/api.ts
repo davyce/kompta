@@ -416,6 +416,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  reorderTasks: (items: { id: number; status: string; order_index: number }[]) =>
+    request<Task[]>("/tasks/reorder", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
   deleteTask: (id: number) =>
     request<{ status: string; task: Partial<Task> }>(`/tasks/${id}`, {
       method: "DELETE"

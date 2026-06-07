@@ -190,6 +190,9 @@ export type Task = {
   assigned_to_me: boolean;
   can_update: boolean;
   can_delete: boolean;
+  tags: string;
+  project: string;
+  order_index: number;
 };
 
 export type Channel = {

@@ -101,6 +101,11 @@ def ensure_sqlite_migrations() -> None:
         "meetings": {
             "agenda": "TEXT DEFAULT ''",
         },
+        "tasks": {
+            "order_index": "INTEGER DEFAULT 0",
+            "tags": "VARCHAR(255) DEFAULT ''",
+            "project": "VARCHAR(120) DEFAULT ''",
+        },
         "company_documents": {
             "raw_text":          "TEXT DEFAULT ''",
             "extracted_data":    "TEXT DEFAULT '{}'",

@@ -56,7 +56,8 @@
       "Intelligence": "Intelligence",
       "Système": "System",
       "Support": "Support",
-      "Compte": "Account"
+      "Compte": "Account",
+      "Kanban": "Kanban"
     },
     "items": {
       "/": "Dashboard",
@@ -85,7 +86,8 @@
       "/reports-teras": "TERAS Connect",
       "/audit": "Audit logs",
       "/safe-mode": "Safe Mode",
-      "/settings": "Settings"
+      "/settings": "Settings",
+      "/kanban": "Kanban"
     },
     "mobile": {
       "home": "Home",
@@ -128,7 +130,8 @@
       "/settings": "Configuration",
       "/safe-mode": "Backup & Restore",
       "/help": "Help center",
-      "/activation": "Secure activation"
+      "/activation": "Secure activation",
+      "/kanban": "Task board"
     }
   },
   "roles": {
@@ -281,6 +284,39 @@
     "positions_other": "{{count}} positions · Total invested: {{amount}}",
     "limuleUnavailable": "Limule unavailable. Check that the backend is running.",
     "limuleUnavailable2": "Limule unavailable right now. Check that the backend is running."
+  },
+  "kanban": {
+    "title": "Kanban",
+    "subtitle": "Task board — drag and drop to move work forward",
+    "searchPlaceholder": "Search a task, an assignee, a tag…",
+    "allAssignees": "All assignees",
+    "allPriorities": "All priorities",
+    "addCard": "+ Add a card",
+    "addCardPlaceholder": "Task title…",
+    "add": "Add",
+    "colTodo": "To do",
+    "colDoing": "In progress",
+    "colReview": "In review",
+    "colDone": "Done",
+    "priorityHigh": "High",
+    "priorityNormal": "Normal",
+    "priorityLow": "Low",
+    "priorityUrgent": "Urgent",
+    "noTasks": "No task",
+    "dropHere": "Drop here",
+    "overdue": "Overdue",
+    "cards_one": "{{count}} card",
+    "cards_other": "{{count}} cards",
+    "unassigned": "Unassigned",
+    "deleteTask": "Delete this task?",
+    "added": "Task added",
+    "moved": "Task moved",
+    "filters": "Filters",
+    "groupByProject": "Group by project",
+    "noProject": "No project",
+    "wip": "WIP {{count}}",
+    "totalTasks": "{{count}} task(s) total",
+    "addTagPlaceholder": "tag1, tag2…"
   },
   "pos": {
     "ticketTitle": "Receipt",

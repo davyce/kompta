@@ -30,6 +30,7 @@ const WorkPage            = lazy(() => import("../pages/WorkPage").then(m => ({ 
 const CalendarPage        = lazy(() => import("../pages/CalendarPage").then(m => ({ default: m.CalendarPage })));
 const NotesPage           = lazy(() => import("../pages/NotesPage").then(m => ({ default: m.NotesPage })));
 const ProjectsPage        = lazy(() => import("../pages/ProjectsPage").then(m => ({ default: m.ProjectsPage })));
+const KanbanPage          = lazy(() => import("../pages/KanbanPage").then(m => ({ default: m.KanbanPage })));
 const MeetingsPage        = lazy(() => import("../pages/MeetingsPage").then(m => ({ default: m.MeetingsPage })));
 const HelpCenterPage      = lazy(() => import("../pages/HelpCenterPage").then(m => ({ default: m.HelpCenterPage })));
 const SafeModePage        = lazy(() => import("../pages/SafeModePage").then(m => ({ default: m.SafeModePage })));
@@ -275,6 +276,7 @@ export const router = createBrowserRouter([
       { path: "settings",              element: <LazyRoute page={SettingsPage} /> },
       { path: "accounting",            element: <LazyRoute page={AccountingFinancePage} /> },
       { path: "projects",              element: <LazyRoute page={ProjectsPage} /> },
+      { path: "kanban",                element: <LazyRoute page={KanbanPage} /> },
       { path: "meetings",              element: <LazyRoute page={MeetingsPage} /> },
       { path: "help",                  element: <LazyRoute page={HelpCenterPage} /> },
       { path: "safe-mode",             element: <LazyRoute page={SafeModePage} /> },
