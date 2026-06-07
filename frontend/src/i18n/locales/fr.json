@@ -1,4 +1,156 @@
 {
+  "investmentsPage": {
+    "periods": {
+      "oneDay": "1J",
+      "fiveDays": "1S",
+      "oneMonth": "1M",
+      "threeMonths": "3M",
+      "sixMonths": "6M",
+      "oneYear": "1A",
+      "fiveYears": "5A",
+      "max": "MAX"
+    },
+    "header": {
+      "eyebrow": "Finance",
+      "title": "Investissements boursiers",
+      "detail": "Détail",
+      "portfolio": "Portefeuille",
+      "refreshPrices": "Rafraîchir les cours"
+    },
+    "empty": {
+      "title": "Aucun investissement suivi",
+      "body": "Ajoutez une action cotée pour suivre son évolution, obtenir les métriques financières et générer une analyse Limule.",
+      "add": "Ajouter un investissement"
+    },
+    "portfolio": {
+      "totalInvested": "Total investi",
+      "currentValue": "Valeur actuelle",
+      "gainLoss": "Plus/moins-value",
+      "performance": "Performance",
+      "positionsCount": "sur {{count}} position",
+      "positionsCount_one": "sur {{count}} position",
+      "positionsCount_other": "sur {{count}} positions",
+      "allocation": "Répartition du portefeuille",
+      "value": "Valeur",
+      "pricesUnavailable": "Cours non disponibles",
+      "positionsDetail": "Détail des positions",
+      "individualPositions": "Positions individuelles"
+    },
+    "position": {
+      "invested": "Investi",
+      "currentValue": "Valeur actuelle",
+      "shares": "Actions",
+      "pnl": "P&L",
+      "limuleAnalysis": "Analyse Limule : {{date}}",
+      "myPosition": "Ma position",
+      "purchasePrice": "Prix d'achat",
+      "gainLoss": "Plus/Moins-value",
+      "localConversion": "Conversion locale",
+      "boughtOn": "Acheté le {{date}}"
+    },
+    "sidebar": {
+      "totalPortfolio": "Portefeuille total"
+    },
+    "confirmDelete": {
+      "title": "Supprimer {{ticker}} ?",
+      "message": "Cette ligne sera retirée du portefeuille."
+    },
+    "analysis": {
+      "portfolioFallbackTitle": "**Évaluation ({{count}} position)**",
+      "portfolioFallbackTitle_one": "**Évaluation ({{count}} position)**",
+      "portfolioFallbackTitle_other": "**Évaluation ({{count}} positions)**",
+      "error": "Impossible de générer l'analyse. Vérifiez votre connexion.",
+      "portfolioUnavailable": "Évaluation indisponible. Vérifiez votre connexion et que le backend est démarré.",
+      "portfolioTitle": "Évaluation Limule du portefeuille",
+      "running": "Analyse en cours…",
+      "evaluatePortfolio": "Évaluer le portefeuille",
+      "portfolioLoading": "Limule analyse la stratégie globale du portefeuille…",
+      "portfolioEmpty": "Cliquez sur « Évaluer le portefeuille » pour que Limule analyse la diversification, les risques et propose une stratégie de rééquilibrage.",
+      "title": "Analyse Limule",
+      "analyzing": "Analyse…",
+      "generate": "Générer",
+      "loadingMarket": "Limule analyse les données de marché…",
+      "lastAnalysis": "Dernière analyse : {{date}}",
+      "empty": "Cliquez sur « Générer » pour que Limule croise les données de marché, les métriques fondamentales et les actualités."
+    },
+    "description": {
+      "aiTitle": "Présentation FR — {{name}}",
+      "limuleUnavailable": "Limule indisponible pour la traduction.",
+      "translationUnavailable": "Traduction indisponible.",
+      "about": "À propos",
+      "translating": "Traduction…",
+      "refreshFr": "Rafraîchir FR",
+      "describeFr": "Décrire en français",
+      "summaryFr": "Résumé en français — Limule",
+      "limuleTranslating": "Limule traduit…"
+    },
+    "alert": {
+      "button": "Alerte",
+      "title": "Définir une alerte de cours",
+      "high": "Seuil haut (vente)",
+      "low": "Seuil bas (achat)",
+      "save": "Enregistrer l'alerte"
+    },
+    "chart": {
+      "purchase": "Achat"
+    },
+    "metrics": {
+      "title": "Métriques clés",
+      "marketCap": "Capitalisation",
+      "eps": "BPA",
+      "beta": "Bêta",
+      "week52High": "52S Haut",
+      "week52Low": "52S Bas",
+      "open": "Ouverture",
+      "volume": "Volume",
+      "dividend": "Dividende",
+      "sector": "Secteur"
+    },
+    "news": {
+      "french": "Actualités en français 🇫🇷",
+      "loadingFrench": "Chargement des actualités françaises…",
+      "noFrench": "Aucune actualité française disponible.",
+      "international": "Actualités internationales 🌐",
+      "noNews": "Aucune actualité disponible."
+    },
+    "add": {
+      "title": "Ajouter un investissement",
+      "searchLabel": "Rechercher une entreprise cotée — toutes bourses mondiales",
+      "sharesAuto": "Le nombre d'actions est calculé automatiquement au cours actuel.",
+      "exchangeGuide": {
+        "title": "Suffixes par bourse — recherche directe par ticker",
+        "items": [
+          { "label": "🇫🇷 Euronext Paris", "hint": ".PA  (TTE.PA, BNP.PA, MC.PA)" },
+          { "label": "🇬🇧 London Stock Exch.", "hint": ".L   (BP.L, SHEL.L, AZN.L)" },
+          { "label": "🇩🇪 Frankfurt XETRA", "hint": ".DE  (SAP.DE, VOW.DE, BMW.DE)" },
+          { "label": "🇳🇱 Euronext Amsterdam", "hint": ".AS  (ASML.AS, MT.AS)" },
+          { "label": "🇨🇭 SIX Zurich", "hint": ".SW  (NESN.SW, NOVN.SW)" },
+          { "label": "🇪🇸 Madrid (BME)", "hint": ".MC  (SAN.MC, BBVA.MC)" },
+          { "label": "🇮🇹 Borsa Italiana", "hint": ".MI  (ENI.MI, ISP.MI)" },
+          { "label": "🇿🇦 Johannesburg (JSE)", "hint": ".JO  (NPN.JO, AGL.JO)" },
+          { "label": "🇯🇵 Tokyo (TSE)", "hint": ".T   (7203.T Toyota)" },
+          { "label": "🇭🇰 Hong Kong (HKEX)", "hint": ".HK  (0700.HK Tencent)" },
+          { "label": "🇨🇦 Toronto (TSX)", "hint": ".TO  (TD.TO, SHOP.TO)" },
+          { "label": "🇧🇷 B3 Brésil", "hint": ".SA  (PETR4.SA, VALE3.SA)" },
+          { "label": "🌍 BRVM Afrique Ouest", "hint": "Rechercher : SGBC, ONATEL…" },
+          { "label": "🇺🇸 NYSE / NASDAQ", "hint": "Pas de suffixe (AAPL, TSLA)" }
+        ]
+      }
+    },
+    "form": {
+      "investedAmount": "Montant investi",
+      "purchaseDateOptional": "Date d'achat (optionnel)",
+      "notesOptional": "Notes (optionnel)",
+      "notesPlaceholder": "Raison de l'investissement, stratégie…",
+      "shares": "Nombre d'actions",
+      "purchasePrice": "Prix d'achat ({{currency}})",
+      "purchaseDate": "Date d'achat",
+      "notes": "Notes"
+    },
+    "edit": {
+      "title": "Modifier — {{ticker}}"
+    }
+  },
   "clientsPage": {
     "date": {
       "notDefined": "Non défini"

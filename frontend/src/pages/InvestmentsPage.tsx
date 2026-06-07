@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -20,6 +22,7 @@ import { money, compactMoney } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useConfirm } from "../components/ConfirmProvider";
 import { CurrencyConverter } from "../components/CurrencyConverter";
+import i18n from "../i18n";
 
 /* ── Palette for pie chart ─────────────────────────────────────── */
 const PALETTE = [
@@ -29,18 +32,27 @@ const PALETTE = [
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 const fmt = (v: number | null | undefined, dec = 2) =>
-  v == null ? "—" : v.toLocaleString("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  v == null ? "—" : v.toLocaleString(i18n.language, { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 const pct = (v: number | null | undefined) =>
   v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 
 const PERIODS = [
-  { key: "1d",  label: "1J" }, { key: "5d",  label: "1S" },
-  { key: "1mo", label: "1M" }, { key: "3mo", label: "3M" },
-  { key: "6mo", label: "6M" }, { key: "1y",  label: "1A" },
-  { key: "5y",  label: "5A" }, { key: "max", label: "MAX" },
+  { key: "1d",  tk: "investmentsPage.periods.oneDay" },
+  { key: "5d",  tk: "investmentsPage.periods.fiveDays" },
+  { key: "1mo", tk: "investmentsPage.periods.oneMonth" },
+  { key: "3mo", tk: "investmentsPage.periods.threeMonths" },
+  { key: "6mo", tk: "investmentsPage.periods.sixMonths" },
+  { key: "1y",  tk: "investmentsPage.periods.oneYear" },
+  { key: "5y",  tk: "investmentsPage.periods.fiveYears" },
+  { key: "max", tk: "investmentsPage.periods.max" },
 ] as const;
 type Period = typeof PERIODS[number]["key"];
+type ExchangeGuideItem = { label: string; hint: string };
+
+function translatedMarketAnalysisFallback(count: number, analysis: string, tr: TFunction) {
+  return `${tr("investmentsPage.analysis.portfolioFallbackTitle", { count })}\n\n${analysis}`;
+}
 
 /* ── Metric card ──────────────────────────────────────────────── */
 function MetricBox({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
@@ -81,7 +93,7 @@ function ChartTooltip({ active, payload, label, currency }: {
   const v = payload[0].value as number;
   return (
     <div className="rounded-xl bg-[#17211f] px-3 py-2 text-white text-xs shadow-xl">
-      <p className="font-mono font-bold">{v.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} {currency}</p>
+      <p className="font-mono font-bold">{v.toLocaleString(i18n.language, { minimumFractionDigits: 2 })} {currency}</p>
       <p className="text-white/60 mt-0.5">{label}</p>
     </div>
   );
@@ -89,6 +101,7 @@ function ChartTooltip({ active, payload, label, currency }: {
 
 /* ══════════════════════════════════════════════════════════════ */
 export function InvestmentsPage() {
+  const { t: tr } = useTranslation();
   useCurrency();
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
@@ -253,9 +266,9 @@ export function InvestmentsPage() {
 
   async function handleDeleteInvestment(investment: InvestmentDto) {
     const ok = await confirm({
-      title: `Supprimer ${investment.ticker} ?`,
-      message: "Cette ligne sera retirée du portefeuille.",
-      confirmLabel: "Supprimer",
+      title: tr("investmentsPage.confirmDelete.title", { ticker: investment.ticker }),
+      message: tr("investmentsPage.confirmDelete.message"),
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteMut.mutate(investment.id);
@@ -351,7 +364,7 @@ export function InvestmentsPage() {
       const res = await api.analyzeInvestment(selected.ticker, selected.id);
       setAnalysis(res.analysis);
       queryClient.invalidateQueries({ queryKey: ["investments"] });
-    } catch { setAnalysis("Impossible de générer l'analyse. Vérifiez votre connexion."); }
+    } catch { setAnalysis(tr("investmentsPage.analysis.error")); }
     finally { setAnalysisLoading(false); }
   }
 
@@ -367,9 +380,9 @@ export function InvestmentsPage() {
       // Fallback: analyze top holding individually
       try {
         const first = await api.analyzeInvestment(invs[0].ticker, invs[0].id);
-        setPortfolioAnalysis(`**Évaluation (${invs.length} position${invs.length > 1 ? "s" : ""})**\n\n${first.analysis}`);
+        setPortfolioAnalysis(translatedMarketAnalysisFallback(invs.length, first.analysis, tr));
       } catch {
-        setPortfolioAnalysis("Évaluation indisponible. Vérifiez votre connexion et que le backend est démarré.");
+        setPortfolioAnalysis(tr("investmentsPage.analysis.portfolioUnavailable"));
       }
     } finally { setPortfolioAnalysisLoading(false); }
   }
@@ -383,16 +396,16 @@ export function InvestmentsPage() {
       await api.aiGenerateStream(
         {
           kind: "translate",
-          title: `Présentation FR — ${quote.name || selected?.ticker}`,
+          title: tr("investmentsPage.description.aiTitle", { name: quote.name || selected?.ticker }),
           prompt: `Traduis et résume en français en 3-4 phrases claires et professionnelles le texte suivant qui décrit l'entreprise ${quote.name || selected?.ticker} :\n\n"${quote.description}"`,
           context: "investment_desc_fr",
         },
         (partial) => setDescFr(partial),
         (final, _id) => { setDescFr(final); setDescFrLoading(false); },
-        () => { setDescFr("Limule indisponible pour la traduction."); setDescFrLoading(false); },
+        () => { setDescFr(tr("investmentsPage.description.limuleUnavailable")); setDescFrLoading(false); },
       );
     } catch {
-      setDescFr("Traduction indisponible."); setDescFrLoading(false);
+      setDescFr(tr("investmentsPage.description.translationUnavailable")); setDescFrLoading(false);
     }
   }
 
@@ -409,6 +422,7 @@ export function InvestmentsPage() {
   }
 
   const isEmpty = !investmentsQ.isLoading && !(investmentsQ.data?.length);
+  const exchangeGuide = tr("investmentsPage.add.exchangeGuide.items", { returnObjects: true }) as ExchangeGuideItem[];
 
   /* ══════════════ RENDER ══════════════════════════════════════ */
   return (
@@ -417,8 +431,8 @@ export function InvestmentsPage() {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 shrink-0 border-b border-black/[0.05] dark:border-white/[0.05]">
         <div>
-          <p className="text-xs font-semibold text-emerald-600">Finance</p>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-[#17211f] dark:text-white">Investissements boursiers</h1>
+          <p className="text-xs font-semibold text-emerald-600">{tr("investmentsPage.header.eyebrow")}</p>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#17211f] dark:text-white">{tr("investmentsPage.header.title")}</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* View toggle */}
@@ -428,20 +442,20 @@ export function InvestmentsPage() {
                 onClick={() => setView("detail")}
                 className={`px-3 py-2 text-xs font-bold transition ${view === "detail" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
               >
-                Détail
+                {tr("investmentsPage.header.detail")}
               </button>
               <button
                 onClick={() => setView("portfolio")}
                 className={`px-3 py-2 text-xs font-bold transition ${view === "portfolio" ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
               >
-                Portefeuille
+                {tr("investmentsPage.header.portfolio")}
               </button>
             </div>
           )}
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["stock-quotes-all"] })}
             className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] p-2 text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-            title="Rafraîchir les cours"
+            title={tr("investmentsPage.header.refreshPrices")}
           >
             <RefreshCcw size={14} />
           </button>
@@ -449,7 +463,7 @@ export function InvestmentsPage() {
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 sm:px-4 py-2 text-sm font-bold text-white shadow-sm transition"
           >
-            <Plus size={15} /> <span className="hidden sm:inline">Ajouter</span><span className="sm:hidden">+</span>
+            <Plus size={15} /> <span className="hidden sm:inline">{tr("common.add")}</span><span className="sm:hidden">+</span>
           </button>
         </div>
       </div>
@@ -460,15 +474,15 @@ export function InvestmentsPage() {
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/15">
             <TrendingUp size={36} className="text-emerald-600" />
           </div>
-          <h2 className="text-xl font-bold text-[#17211f] dark:text-white">Aucun investissement suivi</h2>
+          <h2 className="text-xl font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.empty.title")}</h2>
           <p className="max-w-sm text-sm text-[#717182]">
-            Ajoutez une action cotée pour suivre son évolution, obtenir les métriques financières et générer une analyse Limule.
+            {tr("investmentsPage.empty.body")}
           </p>
           <button
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition"
           >
-            <Plus size={15} /> Ajouter un investissement
+            <Plus size={15} /> {tr("investmentsPage.empty.add")}
           </button>
         </div>
       ) : view === "portfolio" ? (
@@ -478,21 +492,21 @@ export function InvestmentsPage() {
 
             {/* Portfolio KPIs */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <MetricBox label="Total investi" value={compactMoney(portfolioStats.totalInvested)} />
+              <MetricBox label={tr("investmentsPage.portfolio.totalInvested")} value={compactMoney(portfolioStats.totalInvested)} />
               <MetricBox
-                label="Valeur actuelle"
+                label={tr("investmentsPage.portfolio.currentValue")}
                 value={portfolioStats.totalCurrent > 0 ? compactMoney(portfolioStats.totalCurrent) : "—"}
               />
               <MetricBox
-                label="Plus/moins-value"
+                label={tr("investmentsPage.portfolio.gainLoss")}
                 value={portfolioStats.gain >= 0 ? `+${compactMoney(portfolioStats.gain)}` : compactMoney(portfolioStats.gain)}
                 accent={portfolioStats.gain >= 0 ? "text-emerald-600" : "text-rose-500"}
               />
               <MetricBox
-                label="Performance"
+                label={tr("investmentsPage.portfolio.performance")}
                 value={pct(portfolioStats.gainPct)}
                 accent={portfolioStats.gainPct >= 0 ? "text-emerald-600" : "text-rose-500"}
-                sub={`sur ${(investmentsQ.data ?? []).length} positions`}
+                sub={tr("investmentsPage.portfolio.positionsCount", { count: (investmentsQ.data ?? []).length })}
               />
             </div>
 
@@ -501,7 +515,7 @@ export function InvestmentsPage() {
 
               {/* Pie */}
               <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-5">
-                <h3 className="font-bold text-[#17211f] dark:text-white mb-4">Répartition du portefeuille</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white mb-4">{tr("investmentsPage.portfolio.allocation")}</h3>
                 {pieData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
@@ -513,21 +527,21 @@ export function InvestmentsPage() {
                       </Pie>
                       <Tooltip
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(val: any) => [compactMoney(Number(val)), "Valeur"]}
+                        formatter={(val: any) => [compactMoney(Number(val)), tr("investmentsPage.portfolio.value")]}
                         contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
                       />
                       <Legend iconType="circle" iconSize={10} formatter={(v) => <span className="text-xs text-[#717182]">{v}</span>} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-sm text-[#717182] text-center py-10">Cours non disponibles</p>
+                  <p className="text-sm text-[#717182] text-center py-10">{tr("investmentsPage.portfolio.pricesUnavailable")}</p>
                 )}
               </div>
 
               {/* Position breakdown table */}
               <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
                 <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-                  <h3 className="font-bold text-[#17211f] dark:text-white">Détail des positions</h3>
+                  <h3 className="font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.portfolio.positionsDetail")}</h3>
                 </div>
                 <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                   {portfolioStats.breakdown.map((b) => (
@@ -563,7 +577,7 @@ export function InvestmentsPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
                 <div className="flex items-center gap-2">
                   <BrainCircuit size={16} className="text-emerald-600" />
-                  <h3 className="font-bold text-[#17211f] dark:text-white">Évaluation Limule du portefeuille</h3>
+                  <h3 className="font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.analysis.portfolioTitle")}</h3>
                 </div>
                 <button
                   onClick={handlePortfolioEval}
@@ -571,14 +585,14 @@ export function InvestmentsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition disabled:opacity-50"
                 >
                   {portfolioAnalysisLoading ? <Loader2 size={12} className="animate-spin" /> : <BrainCircuit size={12} />}
-                  {portfolioAnalysisLoading ? "Analyse en cours…" : "Évaluer le portefeuille"}
+                  {portfolioAnalysisLoading ? tr("investmentsPage.analysis.running") : tr("investmentsPage.analysis.evaluatePortfolio")}
                 </button>
               </div>
               <div className="px-5 py-5">
                 {portfolioAnalysisLoading ? (
                   <div className="flex items-center gap-3 py-6 text-[#717182]">
                     <Loader2 size={18} className="animate-spin text-emerald-500" />
-                    <span className="text-sm">Limule analyse la stratégie globale du portefeuille…</span>
+                    <span className="text-sm">{tr("investmentsPage.analysis.portfolioLoading")}</span>
                   </div>
                 ) : portfolioAnalysis ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -593,7 +607,7 @@ export function InvestmentsPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-[#717182] py-4 text-center">
-                    Cliquez sur « Évaluer le portefeuille » pour que Limule analyse la diversification, les risques et propose une stratégie de rééquilibrage.
+                    {tr("investmentsPage.analysis.portfolioEmpty")}
                   </p>
                 )}
               </div>
@@ -601,7 +615,7 @@ export function InvestmentsPage() {
 
             {/* Individual cards */}
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3">Positions individuelles</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3">{tr("investmentsPage.portfolio.individualPositions")}</h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {(investmentsQ.data ?? []).map((inv, i) => {
                   const b = portfolioStats.breakdown.find((x) => x.name === inv.ticker);
@@ -633,24 +647,24 @@ export function InvestmentsPage() {
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <p className="text-[#717182]">Investi</p>
+                          <p className="text-[#717182]">{tr("investmentsPage.position.invested")}</p>
                           <p className="font-bold text-[#17211f] dark:text-white">{compactMoney(inv.invested_amount)}</p>
                         </div>
                         <div>
-                          <p className="text-[#717182]">Valeur actuelle</p>
+                          <p className="text-[#717182]">{tr("investmentsPage.position.currentValue")}</p>
                           <p className="font-bold text-[#17211f] dark:text-white">{b ? compactMoney(b.current) : "—"}</p>
                         </div>
                         <div>
-                          <p className="text-[#717182]">Actions</p>
-                          <p className="font-bold text-[#17211f] dark:text-white">{inv.shares.toLocaleString("fr-FR", { maximumFractionDigits: 4 })}</p>
+                          <p className="text-[#717182]">{tr("investmentsPage.position.shares")}</p>
+                          <p className="font-bold text-[#17211f] dark:text-white">{inv.shares.toLocaleString(i18n.language, { maximumFractionDigits: 4 })}</p>
                         </div>
                         <div>
-                          <p className="text-[#717182]">P&L</p>
+                          <p className="text-[#717182]">{tr("investmentsPage.position.pnl")}</p>
                           <p className={`font-bold ${isPos ? "text-emerald-600" : "text-rose-500"}`}>{pct(b?.gainPct)}</p>
                         </div>
                       </div>
                       {inv.last_analysis_at && (
-                        <p className="mt-2 text-[10px] text-[#aaaabc]">Analyse Limule : {inv.last_analysis_at.slice(0, 10)}</p>
+                        <p className="mt-2 text-[10px] text-[#aaaabc]">{tr("investmentsPage.position.limuleAnalysis", { date: inv.last_analysis_at.slice(0, 10) })}</p>
                       )}
                     </div>
                   );
@@ -668,7 +682,7 @@ export function InvestmentsPage() {
 
             {/* Portfolio summary bar */}
             <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.015]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#717182]">Portefeuille total</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#717182]">{tr("investmentsPage.sidebar.totalPortfolio")}</p>
               <p className="mt-1 text-lg font-extrabold text-[#17211f] dark:text-white">
                 {portfolioStats.totalCurrent > 0 ? compactMoney(portfolioStats.totalCurrent) : compactMoney(portfolioStats.totalInvested)}
               </p>
@@ -698,7 +712,7 @@ export function InvestmentsPage() {
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-[#17211f] dark:text-white">
                           {quotesMap.data?.[inv.ticker]?.price
-                            ? quotesMap.data[inv.ticker].price!.toLocaleString("fr-FR", { maximumFractionDigits: 2 })
+                            ? quotesMap.data[inv.ticker].price!.toLocaleString(i18n.language, { maximumFractionDigits: 2 })
                             : "—"}
                         </p>
                         <p className={`text-[11px] font-bold ${isPos ? "text-emerald-600" : "text-rose-500"}`}>
@@ -710,7 +724,7 @@ export function InvestmentsPage() {
                     <button
                       onClick={() => openEdit(inv)}
                       className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 rounded p-1 text-[#717182] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition"
-                      title="Modifier"
+                      title={tr("common.edit")}
                     >
                       <Edit2 size={11} />
                     </button>
@@ -764,7 +778,7 @@ export function InvestmentsPage() {
                       onClick={() => openEdit(selected)}
                       className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-2 text-xs font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition"
                     >
-                      <Edit2 size={12} /> Modifier
+                      <Edit2 size={12} /> {tr("common.edit")}
                     </button>
                     <button
                       onClick={() => setAlertTicker(alertTicker === selected.ticker ? null : selected.ticker)}
@@ -775,7 +789,7 @@ export function InvestmentsPage() {
                       }`}
                     >
                       {alertTicker === selected.ticker ? <Bell size={12} /> : <BellOff size={12} />}
-                      Alerte
+                      {tr("investmentsPage.alert.button")}
                     </button>
                     <button
                       onClick={() => handleDeleteInvestment(selected)}
@@ -791,17 +805,17 @@ export function InvestmentsPage() {
                   <div className="rounded-xl border border-amber-200 dark:border-amber-600/30 bg-amber-50/60 dark:bg-amber-500/10 px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <AlertTriangle size={14} className="text-amber-600" />
-                      <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">Définir une alerte de cours</h4>
+                      <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">{tr("investmentsPage.alert.title")}</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1">Seuil haut (vente)</label>
+                        <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1">{tr("investmentsPage.alert.high")}</label>
                         <input type="number" value={alertHigh} onChange={(e) => setAlertHigh(e.target.value)}
                           placeholder={`> ${fmt(quote?.price)}`}
                           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-amber-400" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1">Seuil bas (achat)</label>
+                        <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1">{tr("investmentsPage.alert.low")}</label>
                         <input type="number" value={alertLow} onChange={(e) => setAlertLow(e.target.value)}
                           placeholder={`< ${fmt(quote?.price)}`}
                           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-amber-400" />
@@ -814,7 +828,7 @@ export function InvestmentsPage() {
                       }}
                       className="mt-3 rounded-lg bg-amber-500 hover:bg-amber-600 px-4 py-1.5 text-xs font-bold text-white transition"
                     >
-                      Enregistrer l'alerte
+                      {tr("investmentsPage.alert.save")}
                     </button>
                   </div>
                 )}
@@ -827,7 +841,7 @@ export function InvestmentsPage() {
                         className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                           period === p.key ? "bg-emerald-600 text-white" : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                         }`}>
-                        {p.label}
+                        {tr(p.tk)}
                       </button>
                     ))}
                   </div>
@@ -847,12 +861,12 @@ export function InvestmentsPage() {
                           </defs>
                           <XAxis dataKey="t" tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                           <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} width={52}
-                            tickFormatter={(v) => v.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} />
+                            tickFormatter={(v) => v.toLocaleString(i18n.language, { maximumFractionDigits: 0 })} />
                           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           <Tooltip content={(props: any) => <ChartTooltip {...props} currency={quote?.currency || "USD"} />} />
                           {selected.purchase_price_ref > 0 && (
                             <ReferenceLine y={selected.purchase_price_ref} stroke="#f59e0b" strokeDasharray="4 4"
-                              label={{ value: "Achat", fill: "#f59e0b", fontSize: 10, position: "insideTopLeft" }} />
+                              label={{ value: tr("investmentsPage.chart.purchase"), fill: "#f59e0b", fontSize: 10, position: "insideTopLeft" }} />
                           )}
                           <Area type="monotone" dataKey="c" stroke={chartColor} fill="url(#gStock)" strokeWidth={2} dot={false} />
                         </AreaChart>
@@ -864,18 +878,18 @@ export function InvestmentsPage() {
                 {/* Key metrics */}
                 {quote && (
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3">Métriques clés</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3">{tr("investmentsPage.metrics.title")}</h3>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                      <MetricBox label="Capitalisation" value={quote.market_cap_fmt} />
+                      <MetricBox label={tr("investmentsPage.metrics.marketCap")} value={quote.market_cap_fmt} />
                       <MetricBox label="P/E" value={fmt(quote.pe_ratio, 1)} />
-                      <MetricBox label="BPA" value={fmt(quote.eps, 2)} sub={quote.currency} />
-                      <MetricBox label="Bêta" value={fmt(quote.beta, 2)} />
-                      <MetricBox label="52S Haut" value={`${fmt(quote.week52_high)} ${quote.currency}`} />
-                      <MetricBox label="52S Bas" value={`${fmt(quote.week52_low)} ${quote.currency}`} />
-                      <MetricBox label="Ouverture" value={`${fmt(quote.open)} ${quote.currency}`} />
-                      <MetricBox label="Volume" value={quote.volume ? (quote.volume / 1_000_000).toFixed(1) + "M" : "—"} />
-                      {quote.dividend_yield != null && <MetricBox label="Dividende" value={`${fmt(quote.dividend_yield, 2)}%`} />}
-                      {quote.sector && <MetricBox label="Secteur" value={quote.sector} sub={quote.industry} />}
+                      <MetricBox label={tr("investmentsPage.metrics.eps")} value={fmt(quote.eps, 2)} sub={quote.currency} />
+                      <MetricBox label={tr("investmentsPage.metrics.beta")} value={fmt(quote.beta, 2)} />
+                      <MetricBox label={tr("investmentsPage.metrics.week52High")} value={`${fmt(quote.week52_high)} ${quote.currency}`} />
+                      <MetricBox label={tr("investmentsPage.metrics.week52Low")} value={`${fmt(quote.week52_low)} ${quote.currency}`} />
+                      <MetricBox label={tr("investmentsPage.metrics.open")} value={`${fmt(quote.open)} ${quote.currency}`} />
+                      <MetricBox label={tr("investmentsPage.metrics.volume")} value={quote.volume ? (quote.volume / 1_000_000).toLocaleString(i18n.language, { maximumFractionDigits: 1 }) + "M" : "—"} />
+                      {quote.dividend_yield != null && <MetricBox label={tr("investmentsPage.metrics.dividend")} value={`${fmt(quote.dividend_yield, 2)}%`} />}
+                      {quote.sector && <MetricBox label={tr("investmentsPage.metrics.sector")} value={quote.sector} sub={quote.industry} />}
                     </div>
                   </div>
                 )}
@@ -884,37 +898,37 @@ export function InvestmentsPage() {
                 <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-5 py-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                      <Building2 size={13} /> Ma position
+                      <Building2 size={13} /> {tr("investmentsPage.position.myPosition")}
                     </h3>
                     <button onClick={() => openEdit(selected)}
                       className="flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:text-emerald-600 transition">
-                      <Edit2 size={11} /> Modifier
+                      <Edit2 size={11} /> {tr("common.edit")}
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-[#717182]">Actions</span>
-                      <span className="font-bold text-[#17211f] dark:text-white">{selected.shares.toLocaleString("fr-FR", { maximumFractionDigits: 4 })}</span>
+                      <span className="text-[#717182]">{tr("investmentsPage.position.shares")}</span>
+                      <span className="font-bold text-[#17211f] dark:text-white">{selected.shares.toLocaleString(i18n.language, { maximumFractionDigits: 4 })}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#717182]">Prix d'achat</span>
+                      <span className="text-[#717182]">{tr("investmentsPage.position.purchasePrice")}</span>
                       <span className="font-bold text-[#17211f] dark:text-white">{fmt(selected.purchase_price_ref)} {selected.currency_stock}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#717182]">Investi</span>
+                      <span className="text-[#717182]">{tr("investmentsPage.position.invested")}</span>
                       <span className="font-bold text-[#17211f] dark:text-white">{money(selected.invested_amount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#717182]">Valeur actuelle</span>
+                      <span className="text-[#717182]">{tr("investmentsPage.position.currentValue")}</span>
                       <span className="font-bold text-[#17211f] dark:text-white">
-                        {invPnl ? `${invPnl.current.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${quote?.currency || "USD"}` : "—"}
+                        {invPnl ? `${invPnl.current.toLocaleString(i18n.language, { maximumFractionDigits: 2 })} ${quote?.currency || "USD"}` : "—"}
                       </span>
                     </div>
                     {invPnl && (
                       <div className="col-span-2 flex justify-between pt-2 border-t border-emerald-200/60 dark:border-emerald-500/20">
-                        <span className="text-[#717182] font-medium">Plus/Moins-value</span>
+                        <span className="text-[#717182] font-medium">{tr("investmentsPage.position.gainLoss")}</span>
                         <span className={`font-extrabold text-base ${invPnl.gain >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-500"}`}>
-                          {invPnl.gain >= 0 ? "+" : ""}{invPnl.gain.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} {quote?.currency || "USD"}
+                          {invPnl.gain >= 0 ? "+" : ""}{invPnl.gain.toLocaleString(i18n.language, { maximumFractionDigits: 2 })} {quote?.currency || "USD"}
                           {" "}({pct(invPnl.gainPct)})
                         </span>
                       </div>
@@ -924,7 +938,7 @@ export function InvestmentsPage() {
                   {invPnl && (selected.currency_stock || "USD") !== "XAF" && (
                     <div className="mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-500/20">
                       <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#717182]">
-                        Conversion locale
+                        {tr("investmentsPage.position.localConversion")}
                       </p>
                       <CurrencyConverter
                         defaultAmount={Math.round(invPnl.current * 100) / 100}
@@ -936,7 +950,7 @@ export function InvestmentsPage() {
                   )}
                   {selected.purchase_date && (
                     <p className="mt-2 text-xs text-[#717182] flex items-center gap-1">
-                      <Calendar size={11} /> Acheté le {selected.purchase_date}
+                      <Calendar size={11} /> {tr("investmentsPage.position.boughtOn", { date: selected.purchase_date })}
                     </p>
                   )}
                   {selected.notes && <p className="mt-2 text-xs text-[#717182] italic">{selected.notes}</p>}
@@ -947,7 +961,7 @@ export function InvestmentsPage() {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
                     <div className="flex items-center gap-2">
                       <BrainCircuit size={16} className="text-emerald-600" />
-                      <h3 className="font-bold text-[#17211f] dark:text-white">Analyse Limule</h3>
+                      <h3 className="font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.analysis.title")}</h3>
                     </div>
                     <div className="flex gap-2">
                       {(analysis || selected.last_analysis) && (
@@ -959,7 +973,7 @@ export function InvestmentsPage() {
                       <button onClick={handleAnalyze} disabled={analysisLoading}
                         className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition disabled:opacity-50">
                         {analysisLoading ? <Loader2 size={12} className="animate-spin" /> : <BrainCircuit size={12} />}
-                        {analysisLoading ? "Analyse…" : "Générer"}
+                        {analysisLoading ? tr("investmentsPage.analysis.analyzing") : tr("investmentsPage.analysis.generate")}
                       </button>
                     </div>
                   </div>
@@ -967,12 +981,12 @@ export function InvestmentsPage() {
                     {analysisLoading ? (
                       <div className="flex items-center gap-3 py-6 text-[#717182]">
                         <Loader2 size={18} className="animate-spin text-emerald-500" />
-                        <span className="text-sm">Limule analyse les données de marché…</span>
+                        <span className="text-sm">{tr("investmentsPage.analysis.loadingMarket")}</span>
                       </div>
                     ) : (analysis || selected.last_analysis) ? (
                       <div>
                         {selected.last_analysis_at && !analysis && (
-                          <p className="text-[10px] text-[#aaaabc] mb-3">Dernière analyse : {selected.last_analysis_at.slice(0, 10)}</p>
+                          <p className="text-[10px] text-[#aaaabc] mb-3">{tr("investmentsPage.analysis.lastAnalysis", { date: selected.last_analysis_at.slice(0, 10) })}</p>
                         )}
                         <div className="prose prose-sm dark:prose-invert max-w-none">
                           {(analysis || selected.last_analysis || "").split("\n").map((line, i) => {
@@ -987,7 +1001,7 @@ export function InvestmentsPage() {
                       </div>
                     ) : (
                       <p className="text-sm text-[#717182] py-4 text-center">
-                        Cliquez sur « Générer » pour que Limule croise les données de marché, les métriques fondamentales et les actualités.
+                        {tr("investmentsPage.analysis.empty")}
                       </p>
                     )}
                   </div>
@@ -998,7 +1012,7 @@ export function InvestmentsPage() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] flex items-center gap-2">
-                        <Info size={12} /> À propos
+                        <Info size={12} /> {tr("investmentsPage.description.about")}
                       </h3>
                       <button
                         onClick={handleDescFr}
@@ -1006,7 +1020,11 @@ export function InvestmentsPage() {
                         className="flex items-center gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-600/30 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition disabled:opacity-50"
                       >
                         {descFrLoading ? <Loader2 size={10} className="animate-spin" /> : <Globe size={10} />}
-                        {descFrLoading ? "Traduction…" : descFr ? "Rafraîchir FR" : "Décrire en français"}
+                        {descFrLoading
+                          ? tr("investmentsPage.description.translating")
+                          : descFr
+                            ? tr("investmentsPage.description.refreshFr")
+                            : tr("investmentsPage.description.describeFr")}
                       </button>
                     </div>
                     <p className="text-sm text-[#717182] leading-relaxed line-clamp-4">{quote.description}</p>
@@ -1014,10 +1032,10 @@ export function InvestmentsPage() {
                     {(descFr !== null) && (
                       <div className="mt-3 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3">
                         <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 flex items-center gap-1">
-                          <Globe size={10} /> Résumé en français — Limule
+                          <Globe size={10} /> {tr("investmentsPage.description.summaryFr")}
                         </p>
                         <p className="text-sm text-[#17211f] dark:text-white leading-relaxed">
-                          {descFr || <span className="text-[#717182] animate-pulse">Limule traduit…</span>}
+                          {descFr || <span className="text-[#717182] animate-pulse">{tr("investmentsPage.description.limuleTranslating")}</span>}
                         </p>
                       </div>
                     )}
@@ -1033,14 +1051,14 @@ export function InvestmentsPage() {
                 {/* News françaises */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3 flex items-center gap-2">
-                    <BookOpen size={12} /> Actualités en français 🇫🇷
+                    <BookOpen size={12} /> {tr("investmentsPage.news.french")}
                   </h3>
                   {newsQFr.isLoading ? (
                     <div className="flex items-center gap-2 text-xs text-[#717182]">
-                      <Loader2 size={14} className="animate-spin" /> Chargement des actualités françaises…
+                      <Loader2 size={14} className="animate-spin" /> {tr("investmentsPage.news.loadingFrench")}
                     </div>
                   ) : (newsQFr.data ?? []).length === 0 ? (
-                    <p className="text-sm text-[#717182]">Aucune actualité française disponible.</p>
+                    <p className="text-sm text-[#717182]">{tr("investmentsPage.news.noFrench")}</p>
                   ) : (
                     <div className="space-y-2">
                       {(newsQFr.data ?? []).map((n, i) => <NewsCard key={i} item={n} />)}
@@ -1051,14 +1069,14 @@ export function InvestmentsPage() {
                 {/* News internationales */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-[#717182] mb-3 flex items-center gap-2">
-                    <BookOpen size={12} /> Actualités internationales 🌐
+                    <BookOpen size={12} /> {tr("investmentsPage.news.international")}
                   </h3>
                   {newsQ.isLoading ? (
                     <div className="flex items-center gap-2 text-xs text-[#717182]">
-                      <Loader2 size={14} className="animate-spin" /> Chargement…
+                      <Loader2 size={14} className="animate-spin" /> {tr("common.loading")}
                     </div>
                   ) : (newsQ.data ?? []).length === 0 ? (
-                    <p className="text-sm text-[#717182]">Aucune actualité disponible.</p>
+                    <p className="text-sm text-[#717182]">{tr("investmentsPage.news.noNews")}</p>
                   ) : (
                     <div className="space-y-2">
                       {(newsQ.data ?? []).map((n, i) => <NewsCard key={i} item={n} />)}
@@ -1076,7 +1094,7 @@ export function InvestmentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] border border-black/[0.08] dark:border-white/[0.08] shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-              <h2 className="font-bold text-[#17211f] dark:text-white">Ajouter un investissement</h2>
+              <h2 className="font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.add.title")}</h2>
               <button onClick={() => { setShowAdd(false); setSelectedResult(null); setTickerSearch(""); setSearchResults([]); }}>
                 <X size={18} className="text-[#717182]" />
               </button>
@@ -1084,7 +1102,7 @@ export function InvestmentsPage() {
             <div className="px-6 py-5 space-y-4">
               {!selectedResult ? (
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Rechercher une entreprise cotée — toutes bourses mondiales</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.add.searchLabel")}</label>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717182]" />
                     <input autoFocus type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value)}
@@ -1113,28 +1131,13 @@ export function InvestmentsPage() {
                   {!tickerSearch && (
                     <div className="mt-3 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.03] p-3">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-[#717182] mb-2 flex items-center gap-1.5">
-                        <Globe size={10} /> Suffixes par bourse — recherche directe par ticker
+                        <Globe size={10} /> {tr("investmentsPage.add.exchangeGuide.title")}
                       </p>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-[#717182]">
-                        {[
-                          ["🇫🇷 Euronext Paris",     ".PA  (TTE.PA, BNP.PA, MC.PA)"],
-                          ["🇬🇧 London Stock Exch.", ".L   (BP.L, SHEL.L, AZN.L)"],
-                          ["🇩🇪 Frankfurt XETRA",   ".DE  (SAP.DE, VOW.DE, BMW.DE)"],
-                          ["🇳🇱 Euronext Amsterdam",".AS  (ASML.AS, MT.AS)"],
-                          ["🇨🇭 SIX Zurich",         ".SW  (NESN.SW, NOVN.SW)"],
-                          ["🇪🇸 Madrid (BME)",       ".MC  (SAN.MC, BBVA.MC)"],
-                          ["🇮🇹 Borsa Italiana",     ".MI  (ENI.MI, ISP.MI)"],
-                          ["🇿🇦 Johannesburg (JSE)", ".JO  (NPN.JO, AGL.JO)"],
-                          ["🇯🇵 Tokyo (TSE)",        ".T   (7203.T Toyota)"],
-                          ["🇭🇰 Hong Kong (HKEX)",   ".HK  (0700.HK Tencent)"],
-                          ["🇨🇦 Toronto (TSX)",      ".TO  (TD.TO, SHOP.TO)"],
-                          ["🇧🇷 B3 Brésil",          ".SA  (PETR4.SA, VALE3.SA)"],
-                          ["🌍 BRVM Afrique Ouest",  "Rechercher: SGBC, ONATEL…"],
-                          ["🇺🇸 NYSE / NASDAQ",      "Pas de suffixe (AAPL, TSLA)"],
-                        ].map(([label, hint]) => (
-                          <div key={label} className="flex flex-col">
-                            <span className="font-semibold text-[#17211f] dark:text-white/70">{label}</span>
-                            <span className="opacity-70 font-mono text-[9px]">{hint}</span>
+                        {exchangeGuide.map((item) => (
+                          <div key={item.label} className="flex flex-col">
+                            <span className="font-semibold text-[#17211f] dark:text-white/70">{item.label}</span>
+                            <span className="opacity-70 font-mono text-[9px]">{item.hint}</span>
                           </div>
                         ))}
                       </div>
@@ -1151,21 +1154,21 @@ export function InvestmentsPage() {
                     <button onClick={() => setSelectedResult(null)} className="text-emerald-600 hover:text-emerald-800 transition"><X size={14} /></button>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Montant investi</label>
+                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.investedAmount")}</label>
                     <input type="number" min="0" value={addForm.invested_amount} onChange={(e) => setAddForm((f) => ({ ...f, invested_amount: e.target.value }))}
                       placeholder="Ex : 5000"
                       className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
-                    <p className="mt-1 text-[10px] text-[#717182]">Le nombre d'actions est calculé automatiquement au cours actuel.</p>
+                    <p className="mt-1 text-[10px] text-[#717182]">{tr("investmentsPage.add.sharesAuto")}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Date d'achat (optionnel)</label>
+                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.purchaseDateOptional")}</label>
                     <input type="date" value={addForm.purchase_date} onChange={(e) => setAddForm((f) => ({ ...f, purchase_date: e.target.value }))}
                       className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Notes (optionnel)</label>
+                    <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.notesOptional")}</label>
                     <textarea rows={2} value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
-                      placeholder="Raison de l'investissement, stratégie…"
+                      placeholder={tr("investmentsPage.form.notesPlaceholder")}
                       className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 resize-none" />
                   </div>
                 </div>
@@ -1175,12 +1178,12 @@ export function InvestmentsPage() {
               <div className="flex gap-3 px-6 py-4 border-t border-black/[0.06] dark:border-white/[0.06]">
                 <button onClick={() => { setShowAdd(false); setSelectedResult(null); setTickerSearch(""); }}
                   className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition">
-                  Annuler
+                  {tr("common.cancel")}
                 </button>
                 <button onClick={handleAdd} disabled={!addForm.invested_amount || createMut.isPending}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white transition disabled:opacity-50">
                   {createMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                  Ajouter
+                  {tr("common.add")}
                 </button>
               </div>
             )}
@@ -1194,7 +1197,7 @@ export function InvestmentsPage() {
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] border border-black/[0.08] dark:border-white/[0.08] shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
               <h2 className="font-bold text-[#17211f] dark:text-white">
-                Modifier — {editTarget.ticker}
+                {tr("investmentsPage.edit.title", { ticker: editTarget.ticker })}
               </h2>
               <button onClick={() => { setShowEdit(false); setEditTarget(null); }}>
                 <X size={18} className="text-[#717182]" />
@@ -1203,28 +1206,28 @@ export function InvestmentsPage() {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Nombre d'actions</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.shares")}</label>
                   <input type="number" step="0.0001" value={editForm.shares} onChange={(e) => setEditForm((f) => ({ ...f, shares: e.target.value }))}
                     className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Montant investi</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.investedAmount")}</label>
                   <input type="number" value={editForm.invested_amount} onChange={(e) => setEditForm((f) => ({ ...f, invested_amount: e.target.value }))}
                     className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Prix d'achat ({editTarget.currency_stock})</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.purchasePrice", { currency: editTarget.currency_stock })}</label>
                   <input type="number" step="0.01" value={editForm.purchase_price_ref} onChange={(e) => setEditForm((f) => ({ ...f, purchase_price_ref: e.target.value }))}
                     className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Date d'achat</label>
+                  <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.purchaseDate")}</label>
                   <input type="date" value={editForm.purchase_date} onChange={(e) => setEditForm((f) => ({ ...f, purchase_date: e.target.value }))}
                     className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Notes</label>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.notes")}</label>
                 <textarea rows={2} value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                   className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 resize-none" />
               </div>
@@ -1232,12 +1235,12 @@ export function InvestmentsPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-black/[0.06] dark:border-white/[0.06]">
               <button onClick={() => { setShowEdit(false); setEditTarget(null); }}
                 className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition">
-                Annuler
+                {tr("common.cancel")}
               </button>
               <button onClick={handleEditSave} disabled={updateMut.isPending}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white transition disabled:opacity-50">
                 {updateMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Edit2 size={14} />}
-                Enregistrer
+                {tr("common.save")}
               </button>
             </div>
           </div>

@@ -1,4 +1,156 @@
 {
+  "investmentsPage": {
+    "periods": {
+      "oneDay": "1D",
+      "fiveDays": "5D",
+      "oneMonth": "1M",
+      "threeMonths": "3M",
+      "sixMonths": "6M",
+      "oneYear": "1Y",
+      "fiveYears": "5Y",
+      "max": "MAX"
+    },
+    "header": {
+      "eyebrow": "Finance",
+      "title": "Stock investments",
+      "detail": "Detail",
+      "portfolio": "Portfolio",
+      "refreshPrices": "Refresh prices"
+    },
+    "empty": {
+      "title": "No tracked investment",
+      "body": "Add a listed stock to track its movement, review financial metrics, and generate a Limule analysis.",
+      "add": "Add an investment"
+    },
+    "portfolio": {
+      "totalInvested": "Total invested",
+      "currentValue": "Current value",
+      "gainLoss": "Gain/loss",
+      "performance": "Performance",
+      "positionsCount": "across {{count}} position",
+      "positionsCount_one": "across {{count}} position",
+      "positionsCount_other": "across {{count}} positions",
+      "allocation": "Portfolio allocation",
+      "value": "Value",
+      "pricesUnavailable": "Prices unavailable",
+      "positionsDetail": "Position detail",
+      "individualPositions": "Individual positions"
+    },
+    "position": {
+      "invested": "Invested",
+      "currentValue": "Current value",
+      "shares": "Shares",
+      "pnl": "P&L",
+      "limuleAnalysis": "Limule analysis: {{date}}",
+      "myPosition": "My position",
+      "purchasePrice": "Purchase price",
+      "gainLoss": "Gain/Loss",
+      "localConversion": "Local conversion",
+      "boughtOn": "Bought on {{date}}"
+    },
+    "sidebar": {
+      "totalPortfolio": "Total portfolio"
+    },
+    "confirmDelete": {
+      "title": "Delete {{ticker}}?",
+      "message": "This line will be removed from the portfolio."
+    },
+    "analysis": {
+      "portfolioFallbackTitle": "**Evaluation ({{count}} position)**",
+      "portfolioFallbackTitle_one": "**Evaluation ({{count}} position)**",
+      "portfolioFallbackTitle_other": "**Evaluation ({{count}} positions)**",
+      "error": "Unable to generate the analysis. Check your connection.",
+      "portfolioUnavailable": "Evaluation unavailable. Check your connection and make sure the backend is running.",
+      "portfolioTitle": "Limule portfolio evaluation",
+      "running": "Analysis running…",
+      "evaluatePortfolio": "Evaluate portfolio",
+      "portfolioLoading": "Limule is analyzing the overall portfolio strategy…",
+      "portfolioEmpty": "Click “Evaluate portfolio” so Limule can analyze diversification, risks, and suggest a rebalancing strategy.",
+      "title": "Limule analysis",
+      "analyzing": "Analyzing…",
+      "generate": "Generate",
+      "loadingMarket": "Limule is analyzing market data…",
+      "lastAnalysis": "Last analysis: {{date}}",
+      "empty": "Click “Generate” so Limule can cross-check market data, fundamental metrics, and news."
+    },
+    "description": {
+      "aiTitle": "French overview — {{name}}",
+      "limuleUnavailable": "Limule is unavailable for translation.",
+      "translationUnavailable": "Translation unavailable.",
+      "about": "About",
+      "translating": "Translating…",
+      "refreshFr": "Refresh FR",
+      "describeFr": "Describe in French",
+      "summaryFr": "French summary — Limule",
+      "limuleTranslating": "Limule is translating…"
+    },
+    "alert": {
+      "button": "Alert",
+      "title": "Define a price alert",
+      "high": "High threshold (sell)",
+      "low": "Low threshold (buy)",
+      "save": "Save alert"
+    },
+    "chart": {
+      "purchase": "Purchase"
+    },
+    "metrics": {
+      "title": "Key metrics",
+      "marketCap": "Market cap",
+      "eps": "EPS",
+      "beta": "Beta",
+      "week52High": "52W High",
+      "week52Low": "52W Low",
+      "open": "Open",
+      "volume": "Volume",
+      "dividend": "Dividend",
+      "sector": "Sector"
+    },
+    "news": {
+      "french": "French news 🇫🇷",
+      "loadingFrench": "Loading French news…",
+      "noFrench": "No French news available.",
+      "international": "International news 🌐",
+      "noNews": "No news available."
+    },
+    "add": {
+      "title": "Add an investment",
+      "searchLabel": "Search for a listed company — all global exchanges",
+      "sharesAuto": "The number of shares is calculated automatically using the current price.",
+      "exchangeGuide": {
+        "title": "Exchange suffixes — direct ticker search",
+        "items": [
+          { "label": "🇫🇷 Euronext Paris", "hint": ".PA  (TTE.PA, BNP.PA, MC.PA)" },
+          { "label": "🇬🇧 London Stock Exch.", "hint": ".L   (BP.L, SHEL.L, AZN.L)" },
+          { "label": "🇩🇪 Frankfurt XETRA", "hint": ".DE  (SAP.DE, VOW.DE, BMW.DE)" },
+          { "label": "🇳🇱 Euronext Amsterdam", "hint": ".AS  (ASML.AS, MT.AS)" },
+          { "label": "🇨🇭 SIX Zurich", "hint": ".SW  (NESN.SW, NOVN.SW)" },
+          { "label": "🇪🇸 Madrid (BME)", "hint": ".MC  (SAN.MC, BBVA.MC)" },
+          { "label": "🇮🇹 Borsa Italiana", "hint": ".MI  (ENI.MI, ISP.MI)" },
+          { "label": "🇿🇦 Johannesburg (JSE)", "hint": ".JO  (NPN.JO, AGL.JO)" },
+          { "label": "🇯🇵 Tokyo (TSE)", "hint": ".T   (7203.T Toyota)" },
+          { "label": "🇭🇰 Hong Kong (HKEX)", "hint": ".HK  (0700.HK Tencent)" },
+          { "label": "🇨🇦 Toronto (TSX)", "hint": ".TO  (TD.TO, SHOP.TO)" },
+          { "label": "🇧🇷 B3 Brazil", "hint": ".SA  (PETR4.SA, VALE3.SA)" },
+          { "label": "🌍 West Africa BRVM", "hint": "Search: SGBC, ONATEL…" },
+          { "label": "🇺🇸 NYSE / NASDAQ", "hint": "No suffix (AAPL, TSLA)" }
+        ]
+      }
+    },
+    "form": {
+      "investedAmount": "Invested amount",
+      "purchaseDateOptional": "Purchase date (optional)",
+      "notesOptional": "Notes (optional)",
+      "notesPlaceholder": "Investment reason, strategy…",
+      "shares": "Number of shares",
+      "purchasePrice": "Purchase price ({{currency}})",
+      "purchaseDate": "Purchase date",
+      "notes": "Notes"
+    },
+    "edit": {
+      "title": "Edit — {{ticker}}"
+    }
+  },
   "clientsPage": {
     "date": {
       "notDefined": "Not defined"
