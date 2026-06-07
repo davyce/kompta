@@ -334,6 +334,92 @@
       "refreshing": "Refreshing…"
     }
   },
+  "calendar": {
+    "weekdays": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "priorities": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "limuleSummary": {
+      "title": "Limule summary",
+      "empty": "Limule did not detect a direct deadline for {{day}}. Keep this slot for backlog work, follow-ups, and open TERAS checks.",
+      "summary": "Limule summarizes {{day}}: {{meetings}} meeting(s), {{done}} completed action(s), {{open}} action(s) to follow, {{urgent}} high-priority item(s)."
+    },
+    "modal": {
+      "title": "New event",
+      "subtitle": "Add a meeting directly to the calendar.",
+      "meetingTitle": "Meeting title",
+      "category": "Category",
+      "location": "Location",
+      "videoLink": "Video link",
+      "attendees": "Participants separated by commas",
+      "agenda": "Agenda (optional) — e.g. 1. Sales review · 2. Hiring · 3. Q3 budget",
+      "error": "Unable to create this event.",
+      "creating": "Creating..."
+    },
+    "header": {
+      "eyebrow": "Limule agenda",
+      "title": "Agenda",
+      "subtitle": "Calendar, meetings, tasks, minutes, and daily summary.",
+      "meetingsPage": "Meetings page",
+      "exportIcs": "Export .ics",
+      "today": "Today",
+      "meeting": "Meeting"
+    },
+    "kpi": {
+      "meetings": "Meetings this month",
+      "tasks": "Planned tasks",
+      "priorities": "High priorities",
+      "undated": "No date"
+    },
+    "month": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "view": "Monthly view",
+      "more": "+{{count}} more",
+      "more_one": "+{{count}} more",
+      "more_other": "+{{count}} more",
+      "empty": "No event this month."
+    },
+    "filters": {
+      "all": "All",
+      "meetings": "Meetings",
+      "tasks": "Tasks",
+      "priorities": "Priorities"
+    },
+    "selected": {
+      "title": "Selected day",
+      "addEvent": "Add an event",
+      "meetings": "Meetings",
+      "tasks": "Tasks",
+      "noMeetings": "No meeting this day.",
+      "noTasks": "No planned task this day."
+    },
+    "meeting": {
+      "join": "Join",
+      "manage": "Manage",
+      "summary": "Summary",
+      "regenerate": "Regenerate",
+      "convertToTasks": "Convert to tasks",
+      "delete": "Delete meeting"
+    },
+    "tasks": {
+      "unassigned": "Unassigned"
+    },
+    "unscheduled": {
+      "title": "Tasks without dates",
+      "empty": "No pending item without a date."
+    }
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",

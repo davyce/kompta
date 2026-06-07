@@ -334,6 +334,92 @@
       "refreshing": "Actualisation…"
     }
   },
+  "calendar": {
+    "weekdays": {
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam",
+      "sun": "Dim"
+    },
+    "priorities": {
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
+    "limuleSummary": {
+      "title": "Résumé Limule",
+      "empty": "Limule n'a pas détecté d'échéance directe pour {{day}}. Garde ce créneau pour traiter le backlog, les relances et les contrôles TERAS ouverts.",
+      "summary": "Limule résume {{day}} : {{meetings}} réunion(s), {{done}} action(s) terminée(s), {{open}} action(s) à suivre, {{urgent}} priorité(s) haute(s)."
+    },
+    "modal": {
+      "title": "Nouvel événement",
+      "subtitle": "Ajoute une réunion directement dans le calendrier.",
+      "meetingTitle": "Titre de la réunion",
+      "category": "Catégorie",
+      "location": "Lieu",
+      "videoLink": "Lien visio",
+      "attendees": "Participants séparés par virgules",
+      "agenda": "Ordre du jour (facultatif) — ex : 1. Bilan commercial · 2. Recrutements · 3. Budget Q3",
+      "error": "Impossible de créer cet événement.",
+      "creating": "Création..."
+    },
+    "header": {
+      "eyebrow": "Agenda Limule",
+      "title": "Agenda",
+      "subtitle": "Calendrier, réunions, tâches, comptes-rendus et synthèse journalière.",
+      "meetingsPage": "Page réunions",
+      "exportIcs": "Export .ics",
+      "today": "Aujourd'hui",
+      "meeting": "Réunion"
+    },
+    "kpi": {
+      "meetings": "Réunions ce mois",
+      "tasks": "Tâches planifiées",
+      "priorities": "Priorités hautes",
+      "undated": "Sans date"
+    },
+    "month": {
+      "previous": "Mois précédent",
+      "next": "Mois suivant",
+      "view": "Vue mensuelle",
+      "more": "+{{count}} autres",
+      "more_one": "+{{count}} autre",
+      "more_other": "+{{count}} autres",
+      "empty": "Aucun événement ce mois-ci."
+    },
+    "filters": {
+      "all": "Tout",
+      "meetings": "Réunions",
+      "tasks": "Tâches",
+      "priorities": "Priorités"
+    },
+    "selected": {
+      "title": "Jour sélectionné",
+      "addEvent": "Ajouter un événement",
+      "meetings": "Réunions",
+      "tasks": "Tâches",
+      "noMeetings": "Aucune réunion ce jour.",
+      "noTasks": "Aucune tâche planifiée ce jour."
+    },
+    "meeting": {
+      "join": "Rejoindre",
+      "manage": "Gérer",
+      "summary": "Résumé",
+      "regenerate": "Régénérer",
+      "convertToTasks": "Convertir en tâches",
+      "delete": "Supprimer la réunion"
+    },
+    "tasks": {
+      "unassigned": "Non assigné"
+    },
+    "unscheduled": {
+      "title": "Tâches sans date",
+      "empty": "Aucun élément en attente sans date."
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

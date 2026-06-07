@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   AlertTriangle,
   CalendarDays,
@@ -17,14 +18,24 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { api, type MeetingDto } from "../services/api";
+import i18n from "../i18n";
 import type { Task } from "../types/domain";
 
 type CalendarFilter = "all" | "meeting" | "task" | "priority";
 
-const WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const WEEKDAY_KEYS = [
+  "calendar.weekdays.mon",
+  "calendar.weekdays.tue",
+  "calendar.weekdays.wed",
+  "calendar.weekdays.thu",
+  "calendar.weekdays.fri",
+  "calendar.weekdays.sat",
+  "calendar.weekdays.sun",
+];
 const TAG_TONES: Record<string, string> = {
   violet: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200",
   rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
@@ -56,19 +67,19 @@ function sameMonth(a: Date, b: Date) {
 }
 
 function monthLabel(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(date);
 }
 
 function displayLongDate(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(date);
 }
 
 function displayShortDate(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "2-digit", month: "short" }).format(date);
+  return new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "2-digit", month: "short" }).format(date);
 }
 
 function displayTime(iso: string) {
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 }
 
 function exportIcs(meetings: MeetingDto[]) {
@@ -121,14 +132,23 @@ function taskTone(task: Task) {
   return "border-slate-200 bg-white text-[#17211f] dark:border-white/10 dark:bg-white/5 dark:text-white";
 }
 
-function limuleSummary(tasks: Task[], meetings: MeetingDto[], dayLabel: string) {
+function priorityLabel(priority: string, tr: TFunction) {
+  const map: Record<string, string> = {
+    high: "calendar.priorities.high",
+    medium: "calendar.priorities.medium",
+    low: "calendar.priorities.low",
+  };
+  return map[priority] ? tr(map[priority]) : priority;
+}
+
+function limuleSummary(tasks: Task[], meetings: MeetingDto[], dayLabel: string, tr: TFunction) {
   const done = tasks.filter((task) => task.status === "done").length;
   const open = tasks.filter((task) => task.status !== "done").length;
   const urgent = tasks.filter((task) => task.priority === "high" && task.status !== "done").length;
   if (!tasks.length && !meetings.length) {
-    return `Limule n'a pas detecte d'echeance directe pour ${dayLabel}. Garde ce creneau pour traiter le backlog, les relances et les controles TERAS ouverts.`;
+    return tr("calendar.limuleSummary.empty", { day: dayLabel });
   }
-  return `Limule resume ${dayLabel} : ${meetings.length} reunion(s), ${done} action(s) terminee(s), ${open} action(s) a suivre, ${urgent} priorite(s) haute(s).`;
+  return tr("calendar.limuleSummary.summary", { day: dayLabel, meetings: meetings.length, done, open, urgent });
 }
 
 function QuickMeetingModal({
@@ -140,6 +160,7 @@ function QuickMeetingModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const [form, setForm] = useState({
     title: "",
     date: dateKey(selectedDate),
@@ -189,10 +210,10 @@ function QuickMeetingModal({
       >
         <div className="flex items-center justify-between border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
           <div>
-            <h3 className="font-bold text-[#17211f] dark:text-white">Nouvel evenement</h3>
-            <p className="text-xs text-[#717182]">Ajoute une reunion directement dans le calendrier.</p>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("calendar.modal.title")}</h3>
+            <p className="text-xs text-[#717182]">{tr("calendar.modal.subtitle")}</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]" aria-label="Fermer">
+          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]" aria-label={tr("common.close")}>
             <X size={16} />
           </button>
         </div>
@@ -202,7 +223,7 @@ function QuickMeetingModal({
             required
             value={form.title}
             onChange={(event) => setForm({ ...form, title: event.target.value })}
-            placeholder="Titre de la reunion"
+            placeholder={tr("calendar.modal.meetingTitle")}
             className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
           />
           <div className="grid gap-2 sm:grid-cols-3">
@@ -232,7 +253,7 @@ function QuickMeetingModal({
             <input
               value={form.tag}
               onChange={(event) => setForm({ ...form, tag: event.target.value })}
-              placeholder="Categorie"
+              placeholder={tr("calendar.modal.category")}
               className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
             />
             <select
@@ -246,38 +267,38 @@ function QuickMeetingModal({
           <input
             value={form.location}
             onChange={(event) => setForm({ ...form, location: event.target.value })}
-            placeholder="Lieu"
+            placeholder={tr("calendar.modal.location")}
             className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
           />
           <input
             value={form.join_url}
             onChange={(event) => setForm({ ...form, join_url: event.target.value })}
-            placeholder="Lien visio"
+            placeholder={tr("calendar.modal.videoLink")}
             className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
           />
           <input
             value={form.attendees}
             onChange={(event) => setForm({ ...form, attendees: event.target.value })}
-            placeholder="Participants separes par virgules"
+            placeholder={tr("calendar.modal.attendees")}
             className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
           />
           <textarea
             value={form.agenda}
             onChange={(event) => setForm({ ...form, agenda: event.target.value })}
-            placeholder="Ordre du jour (facultatif) — ex : 1. Bilan commercial · 2. Recrutements · 3. Budget Q3"
+            placeholder={tr("calendar.modal.agenda")}
             rows={3}
             className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white resize-none"
           />
-          {create.isError && <p className="text-xs font-semibold text-rose-600">Impossible de creer cet evenement.</p>}
+          {create.isError && <p className="text-xs font-semibold text-rose-600">{tr("calendar.modal.error")}</p>}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
           <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
-            Annuler
+            {tr("common.cancel")}
           </button>
           <button type="submit" disabled={create.isPending} className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50">
             <Plus size={14} />
-            {create.isPending ? "Creation..." : "Ajouter"}
+            {create.isPending ? tr("calendar.modal.creating") : tr("common.add")}
           </button>
         </div>
       </form>
@@ -286,6 +307,7 @@ function QuickMeetingModal({
 }
 
 export function CalendarPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
@@ -381,9 +403,9 @@ export function CalendarPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-violet-600">Agenda Limule</p>
-          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Agenda</h1>
-          <p className="mt-1 text-sm text-[#717182]">Calendrier, reunions, taches, comptes-rendus et synthese journaliere.</p>
+          <p className="text-sm font-semibold text-violet-600">{tr("calendar.header.eyebrow")}</p>
+          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">{tr("calendar.header.title")}</h1>
+          <p className="mt-1 text-sm text-[#717182]">{tr("calendar.header.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -391,7 +413,7 @@ export function CalendarPage() {
             className="flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 dark:border-violet-500/30 dark:bg-[#1e2229] dark:text-violet-200 dark:hover:bg-violet-500/10"
           >
             <Users size={15} />
-            Page réunions
+            {tr("calendar.header.meetingsPage")}
           </button>
           <button
             onClick={() => exportIcs(meetings.data ?? [])}
@@ -399,34 +421,34 @@ export function CalendarPage() {
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] transition hover:bg-black/[0.03] disabled:opacity-50 dark:border-white/10 dark:bg-[#1e2229] dark:text-white dark:hover:bg-white/[0.06]"
           >
             <Download size={15} />
-            Export .ics
+            {tr("calendar.header.exportIcs")}
           </button>
           <button
             onClick={goToday}
             className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] transition hover:bg-black/[0.03] dark:border-white/10 dark:bg-[#1e2229] dark:text-white dark:hover:bg-white/[0.06]"
           >
-            Aujourd'hui
+            {tr("calendar.header.today")}
           </button>
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
           >
             <Plus size={15} />
-            Reunion
+            {tr("calendar.header.meeting")}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: "Reunions ce mois", value: monthMeetings.length, icon: CalendarDays, tone: "text-violet-600" },
-          { label: "Taches planifiees", value: monthTasks.length, icon: Target, tone: "text-emerald-600" },
-          { label: "Priorites hautes", value: monthUrgent.length, icon: AlertTriangle, tone: "text-rose-600" },
-          { label: "Sans date", value: unscheduled.length, icon: Clock, tone: "text-amber-600" },
+          { key: "meetings", label: tr("calendar.kpi.meetings"), value: monthMeetings.length, icon: CalendarDays, tone: "text-violet-600" },
+          { key: "tasks", label: tr("calendar.kpi.tasks"), value: monthTasks.length, icon: Target, tone: "text-emerald-600" },
+          { key: "priorities", label: tr("calendar.kpi.priorities"), value: monthUrgent.length, icon: AlertTriangle, tone: "text-rose-600" },
+          { key: "undated", label: tr("calendar.kpi.undated"), value: unscheduled.length, icon: Clock, tone: "text-amber-600" },
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="rounded-2xl border border-black/[0.06] bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-[#1e2229]">
+            <div key={item.key} className="rounded-2xl border border-black/[0.06] bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-[#1e2229]">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#717182]">
                 <Icon size={15} className={item.tone} />
                 {item.label}
@@ -444,18 +466,18 @@ export function CalendarPage() {
               <button
                 onClick={() => moveMonth(-1)}
                 className="grid h-9 w-9 place-items-center rounded-lg border border-black/[0.08] text-[#717182] transition hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.06]"
-                aria-label="Mois precedent"
+                aria-label={tr("calendar.month.previous")}
               >
                 <ChevronLeft size={17} />
               </button>
               <div className="min-w-48 text-center">
                 <h2 className="capitalize text-xl font-black text-[#17211f] dark:text-white">{monthLabel(visibleMonth)}</h2>
-                <p className="text-xs text-[#717182]">Vue mensuelle</p>
+                <p className="text-xs text-[#717182]">{tr("calendar.month.view")}</p>
               </div>
               <button
                 onClick={() => moveMonth(1)}
                 className="grid h-9 w-9 place-items-center rounded-lg border border-black/[0.08] text-[#717182] transition hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.06]"
-                aria-label="Mois suivant"
+                aria-label={tr("calendar.month.next")}
               >
                 <ChevronRight size={17} />
               </button>
@@ -463,10 +485,10 @@ export function CalendarPage() {
 
             <div className="flex flex-wrap gap-1 rounded-xl bg-[#f3f4f8] p-1 dark:bg-white/[0.05]">
               {[
-                { key: "all", label: "Tout" },
-                { key: "meeting", label: "Reunions" },
-                { key: "task", label: "Taches" },
-                { key: "priority", label: "Priorites" },
+                { key: "all", tk: "calendar.filters.all" },
+                { key: "meeting", tk: "calendar.filters.meetings" },
+                { key: "task", tk: "calendar.filters.tasks" },
+                { key: "priority", tk: "calendar.filters.priorities" },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -477,7 +499,7 @@ export function CalendarPage() {
                       : "text-[#717182] hover:text-[#17211f] dark:hover:text-white"
                   }`}
                 >
-                  {item.label}
+                  {tr(item.tk)}
                 </button>
               ))}
             </div>
@@ -485,9 +507,9 @@ export function CalendarPage() {
 
           {/* Desktop 7-col grid — hidden on mobile */}
           <div className="hidden sm:grid grid-cols-7 border-b border-black/[0.05] bg-[#fbfbfd] dark:border-white/[0.06] dark:bg-white/[0.03]">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[#717182]">
-                {day}
+            {WEEKDAY_KEYS.map((dayTk) => (
+              <div key={dayTk} className="px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[#717182]">
+                {tr(dayTk)}
               </div>
             ))}
           </div>
@@ -542,7 +564,7 @@ export function CalendarPage() {
                       </div>
                     ))}
                     {visibleItems > 4 && (
-                      <p className="px-1 text-[11px] font-bold text-violet-600">+{visibleItems - 4} autres</p>
+                      <p className="px-1 text-[11px] font-bold text-violet-600">{tr("calendar.month.more", { count: visibleItems - 4 })}</p>
                     )}
                   </div>
                 </button>
@@ -594,7 +616,7 @@ export function CalendarPage() {
                         </div>
                       ))}
                       {total > 6 && (
-                        <p className="px-1 text-[11px] font-bold text-violet-600">+{total - 6} autres</p>
+                        <p className="px-1 text-[11px] font-bold text-violet-600">{tr("calendar.month.more", { count: total - 6 })}</p>
                       )}
                     </div>
                   </button>
@@ -604,7 +626,7 @@ export function CalendarPage() {
               const key = dateKey(day);
               return (tasksByDay.get(key) ?? []).length === 0 && (meetingsByDay.get(key) ?? []).length === 0;
             }) && (
-              <p className="px-4 py-8 text-center text-sm text-[#717182]">Aucun événement ce mois-ci.</p>
+              <p className="px-4 py-8 text-center text-sm text-[#717182]">{tr("calendar.month.empty")}</p>
             )}
           </div>
         </section>
@@ -613,23 +635,23 @@ export function CalendarPage() {
           <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-500/30 dark:bg-violet-500/10">
             <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
               <Sparkles size={18} />
-              <h2 className="font-bold">Resume Limule</h2>
+              <h2 className="font-bold">{tr("calendar.limuleSummary.title")}</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-[#17211f] dark:text-white">
-              {limuleSummary(selectedTasks, selectedMeetings, displayLongDate(selectedDate))}
+              {limuleSummary(selectedTasks, selectedMeetings, displayLongDate(selectedDate), tr)}
             </p>
           </section>
 
           <section className="rounded-2xl border border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-[#1e2229]">
             <div className="flex items-start justify-between gap-3 border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
               <div>
-                <p className="text-xs font-bold uppercase text-[#717182]">Jour selectionne</p>
+                <p className="text-xs font-bold uppercase text-[#717182]">{tr("calendar.selected.title")}</p>
                 <h2 className="mt-1 font-bold capitalize text-[#17211f] dark:text-white">{displayLongDate(selectedDate)}</h2>
               </div>
               <button
                 onClick={() => setShowCreate(true)}
                 className="grid h-8 w-8 place-items-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-700"
-                aria-label="Ajouter un evenement"
+                aria-label={tr("calendar.selected.addEvent")}
               >
                 <Plus size={15} />
               </button>
@@ -639,7 +661,7 @@ export function CalendarPage() {
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <CalendarDays size={16} className="text-violet-600" />
-                  <h3 className="font-bold text-[#17211f] dark:text-white">Reunions</h3>
+                  <h3 className="font-bold text-[#17211f] dark:text-white">{tr("calendar.selected.meetings")}</h3>
                 </div>
                 <div className="space-y-2">
                   {selectedMeetings.map((meeting) => (
@@ -664,7 +686,7 @@ export function CalendarPage() {
                         <div className="mt-3 rounded-lg bg-white/60 p-2 text-xs leading-5 dark:bg-white/10">
                           <div className="mb-1 flex items-center gap-1 font-bold">
                             <Sparkles size={12} />
-                            Resume Limule
+                            {tr("calendar.limuleSummary.title")}
                           </div>
                           <p>{meeting.ai_summary}</p>
                           {meeting.ai_points.length > 0 ? (
@@ -683,15 +705,15 @@ export function CalendarPage() {
                         {meeting.join_url ? (
                           <a href={meeting.join_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold underline dark:bg-white/10">
                             <Video size={12} />
-                            Rejoindre
+                            {tr("calendar.meeting.join")}
                           </a>
                         ) : null}
                         <button
                           onClick={() => navigate("/meetings")}
                           className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white dark:bg-white/10 dark:hover:bg-white/15"
-                        >
-                          <Users size={12} />
-                          Gérer
+                          >
+                            <Users size={12} />
+                            {tr("calendar.meeting.manage")}
                         </button>
                         <button
                           onClick={() => generateSummary.mutate(meeting.id)}
@@ -699,7 +721,7 @@ export function CalendarPage() {
                           className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15"
                         >
                           <Sparkles size={12} />
-                          {meeting.ai_summary ? "Regenerer" : "Resume"}
+                          {meeting.ai_summary ? tr("calendar.meeting.regenerate") : tr("calendar.meeting.summary")}
                         </button>
                         {meeting.ai_points.length > 0 ? (
                           <button
@@ -708,28 +730,28 @@ export function CalendarPage() {
                             className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15"
                           >
                             <Target size={12} />
-                            Convertir en taches
+                            {tr("calendar.meeting.convertToTasks")}
                           </button>
                         ) : null}
                         <button
                           onClick={() => removeMeeting.mutate(meeting.id)}
                           disabled={removeMeeting.isPending}
                           className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:bg-white/10 dark:hover:bg-rose-500/10"
-                          aria-label="Supprimer la reunion"
+                          aria-label={tr("calendar.meeting.delete")}
                         >
                           <Trash2 size={12} />
                         </button>
                       </div>
                     </article>
                   ))}
-                  {!selectedMeetings.length && <p className="rounded-xl border border-dashed border-black/[0.08] px-3 py-6 text-center text-sm text-[#717182] dark:border-white/10">Aucune reunion ce jour.</p>}
+                  {!selectedMeetings.length && <p className="rounded-xl border border-dashed border-black/[0.08] px-3 py-6 text-center text-sm text-[#717182] dark:border-white/10">{tr("calendar.selected.noMeetings")}</p>}
                 </div>
               </div>
 
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <Target size={16} className="text-emerald-600" />
-                  <h3 className="font-bold text-[#17211f] dark:text-white">Taches</h3>
+                  <h3 className="font-bold text-[#17211f] dark:text-white">{tr("calendar.selected.tasks")}</h3>
                 </div>
                 <div className="space-y-2">
                   {selectedTasks.map((task) => (
@@ -738,12 +760,12 @@ export function CalendarPage() {
                         {task.status === "done" ? <CheckCircle2 size={18} /> : task.status === "doing" ? <Clock size={18} /> : <Target size={18} />}
                         <div className="min-w-0 flex-1">
                           <p className="font-bold">{task.title}</p>
-                          <p className="mt-1 text-xs opacity-70">{task.assignee_name || "Non assigne"} · {task.priority}</p>
+                          <p className="mt-1 text-xs opacity-70">{task.assignee_name || tr("calendar.tasks.unassigned")} · {priorityLabel(task.priority, tr)}</p>
                         </div>
                       </div>
                     </article>
                   ))}
-                  {!selectedTasks.length && <p className="rounded-xl border border-dashed border-black/[0.08] px-3 py-6 text-center text-sm text-[#717182] dark:border-white/10">Aucune tache planifiee ce jour.</p>}
+                  {!selectedTasks.length && <p className="rounded-xl border border-dashed border-black/[0.08] px-3 py-6 text-center text-sm text-[#717182] dark:border-white/10">{tr("calendar.selected.noTasks")}</p>}
                 </div>
               </div>
             </div>
@@ -752,7 +774,7 @@ export function CalendarPage() {
           <section className="rounded-2xl border border-black/[0.06] bg-white p-4 dark:border-white/[0.08] dark:bg-[#1e2229]">
             <div className="flex items-center gap-2">
               <Users size={17} className="text-[#717182]" />
-              <h2 className="font-bold text-[#17211f] dark:text-white">Taches sans date</h2>
+              <h2 className="font-bold text-[#17211f] dark:text-white">{tr("calendar.unscheduled.title")}</h2>
             </div>
             <div className="mt-3 space-y-2">
               {unscheduled.map((task) => (
@@ -760,7 +782,7 @@ export function CalendarPage() {
                   {task.title}
                 </p>
               ))}
-              {!unscheduled.length && <p className="text-sm text-[#717182]">Aucun element en attente sans date.</p>}
+              {!unscheduled.length && <p className="text-sm text-[#717182]">{tr("calendar.unscheduled.empty")}</p>}
             </div>
           </section>
         </aside>
