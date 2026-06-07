@@ -2580,6 +2580,102 @@
       "lastActivity": "Dernière activité",
       "reminder": "Rappel",
       "noCompany": "Aucune entreprise trouvée."
+    },
+    "tickets": {
+      "eyebrow": "Support",
+      "title": "Tickets de support",
+      "subtitle": "Priorisation, triage et réponses aux entreprises.",
+      "replyPlaceholder": "Votre réponse au ticket...",
+      "send": "Envoyer",
+      "reply": "Répondre",
+      "unassigned": "Non assigné",
+      "systemRequester": "système",
+      "moveTo": "Déplacer vers {{status}}",
+      "searchPlaceholder": "Rechercher sujet, entreprise, demandeur...",
+      "empty": "Aucun ticket trouvé.",
+      "emptyColumn": "Vide",
+      "views": {
+        "list": "Liste",
+        "kanban": "Kanban"
+      },
+      "metrics": {
+        "open": "Ouverts",
+        "inProgress": "En cours",
+        "critical": "Critiques"
+      },
+      "time": {
+        "minutesAgo": "Il y a {{count}}m",
+        "hoursAgo": "Il y a {{count}}h"
+      },
+      "status": {
+        "open": "Ouvert",
+        "inProgress": "En cours",
+        "resolved": "Résolu",
+        "closed": "Fermé"
+      },
+      "priority": {
+        "low": "Faible",
+        "medium": "Moyenne",
+        "high": "Haute",
+        "critical": "Critique"
+      },
+      "sort": {
+        "date": "Tri : Date",
+        "priority": "Tri : Priorité",
+        "company": "Tri : Entreprise"
+      }
+    },
+    "subscriptions": {
+      "title": "Abonnements",
+      "subtitle": "Plans, promotions et statut des entreprises — gestion en direct.",
+      "tabs": {
+        "plans": "Plans",
+        "promos": "Promotions",
+        "companies": "Entreprises"
+      },
+      "newPlan": "Nouveau plan",
+      "newPromo": "Nouvelle promo",
+      "createPlan": "Créer le plan",
+      "discount": "Réduction",
+      "used": "Utilisé",
+      "noPromo": "Aucune promotion.",
+      "refresh": "Rafraîchir",
+      "company": "Entreprise",
+      "dueDate": "Échéance",
+      "grant30Days": "Offrir 30 jours",
+      "reactivate": "Réactiver",
+      "suspend": "Suspendre",
+      "confirmDeletePlanTitle": "Supprimer le plan {{name}} ?",
+      "confirmDeletePlanMessage": "S'il est utilisé, il sera désactivé.",
+      "confirmDeletePromoTitle": "Supprimer {{code}} ?",
+      "confirmSuspendTitle": "Suspendre {{name}} ?",
+      "confirmSuspendMessage": "L'accès sera bloqué jusqu'au paiement.",
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "activeUpper": "ACTIF",
+        "inactiveUpper": "INACTIF",
+        "trialingUpper": "ESSAI",
+        "pastDueUpper": "EN RETARD",
+        "suspendedUpper": "SUSPENDU",
+        "cancelledUpper": "ANNULÉ"
+      },
+      "period": {
+        "monthShort": "mois",
+        "yearShort": "an",
+        "monthly": "Mensuel",
+        "yearly": "Annuel"
+      },
+      "fields": {
+        "codeUnique": "Code (unique)",
+        "description": "Description",
+        "priceXaf": "Prix (XAF)",
+        "period": "Période",
+        "features": "Fonctionnalités (une par ligne)",
+        "discountPercent": "Réduction %",
+        "limit": "Limite (0=∞)",
+        "targetPlan": "Plan ciblé (vide = tous)"
+      }
     }
   },
   "nav": {

@@ -2580,6 +2580,102 @@
       "lastActivity": "Last activity",
       "reminder": "Reminder",
       "noCompany": "No company found."
+    },
+    "tickets": {
+      "eyebrow": "Support",
+      "title": "Support tickets",
+      "subtitle": "Prioritization, triage and company replies.",
+      "replyPlaceholder": "Your reply to the ticket...",
+      "send": "Send",
+      "reply": "Reply",
+      "unassigned": "Unassigned",
+      "systemRequester": "system",
+      "moveTo": "Move to {{status}}",
+      "searchPlaceholder": "Search subject, company, requester...",
+      "empty": "No ticket found.",
+      "emptyColumn": "Empty",
+      "views": {
+        "list": "List",
+        "kanban": "Kanban"
+      },
+      "metrics": {
+        "open": "Open",
+        "inProgress": "In progress",
+        "critical": "Critical"
+      },
+      "time": {
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago"
+      },
+      "status": {
+        "open": "Open",
+        "inProgress": "In progress",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "sort": {
+        "date": "Sort: Date",
+        "priority": "Sort: Priority",
+        "company": "Sort: Company"
+      }
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "subtitle": "Plans, promotions and company status — managed live.",
+      "tabs": {
+        "plans": "Plans",
+        "promos": "Promotions",
+        "companies": "Companies"
+      },
+      "newPlan": "New plan",
+      "newPromo": "New promotion",
+      "createPlan": "Create plan",
+      "discount": "Discount",
+      "used": "Used",
+      "noPromo": "No promotion.",
+      "refresh": "Refresh",
+      "company": "Company",
+      "dueDate": "Due date",
+      "grant30Days": "Grant 30 days",
+      "reactivate": "Reactivate",
+      "suspend": "Suspend",
+      "confirmDeletePlanTitle": "Delete plan {{name}}?",
+      "confirmDeletePlanMessage": "If it is in use, it will be deactivated.",
+      "confirmDeletePromoTitle": "Delete {{code}}?",
+      "confirmSuspendTitle": "Suspend {{name}}?",
+      "confirmSuspendMessage": "Access will be blocked until payment.",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "activeUpper": "ACTIVE",
+        "inactiveUpper": "INACTIVE",
+        "trialingUpper": "TRIAL",
+        "pastDueUpper": "PAST DUE",
+        "suspendedUpper": "SUSPENDED",
+        "cancelledUpper": "CANCELLED"
+      },
+      "period": {
+        "monthShort": "month",
+        "yearShort": "year",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "fields": {
+        "codeUnique": "Code (unique)",
+        "description": "Description",
+        "priceXaf": "Price (XAF)",
+        "period": "Period",
+        "features": "Features (one per line)",
+        "discountPercent": "Discount %",
+        "limit": "Limit (0=∞)",
+        "targetPlan": "Target plan (empty = all)"
+      }
     }
   },
   "nav": {

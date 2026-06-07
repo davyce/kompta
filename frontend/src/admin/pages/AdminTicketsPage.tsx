@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   AlertTriangle,
   ChevronRight,
@@ -13,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api } from "../../services/api";
@@ -23,11 +25,11 @@ const PRIORITIES = ["all", "low", "medium", "high", "critical"];
 const SORT_OPTIONS = ["date", "priority", "company"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-const KANBAN_COLUMNS: { key: string; label: string; color: string }[] = [
-  { key: "open",        label: "Ouvert",    color: "border-emerald-200 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10" },
-  { key: "in_progress", label: "En cours",  color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
-  { key: "resolved",    label: "Résolu",    color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
-  { key: "closed",      label: "Fermé",     color: "border-slate-200 bg-slate-50 dark:border-white/20 dark:bg-white/5" },
+const KANBAN_COLUMNS: { key: string; tk: string; color: string }[] = [
+  { key: "open",        tk: "admin.tickets.status.open",        color: "border-emerald-200 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10" },
+  { key: "in_progress", tk: "admin.tickets.status.inProgress",  color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
+  { key: "resolved",    tk: "admin.tickets.status.resolved",    color: "border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10" },
+  { key: "closed",      tk: "admin.tickets.status.closed",      color: "border-slate-200 bg-slate-50 dark:border-white/20 dark:bg-white/5" },
 ];
 
 const NEXT_STATUS: Record<string, string> = {
@@ -57,13 +59,39 @@ function priorityIcon(priority: string) {
   return <Flag size={12} className={cls} />;
 }
 
-function slaInfo(createdAt: string): { label: string; cls: string } {
+function statusLabel(status: string, tr: TFunction): string {
+  const labels: Record<string, string> = {
+    all: tr("common.all"),
+    open: tr("admin.tickets.status.open"),
+    in_progress: tr("admin.tickets.status.inProgress"),
+    resolved: tr("admin.tickets.status.resolved"),
+    closed: tr("admin.tickets.status.closed"),
+  };
+  return labels[status] ?? status;
+}
+
+function priorityLabel(priority: string, tr: TFunction): string {
+  const labels: Record<string, string> = {
+    all: tr("common.all"),
+    low: tr("admin.tickets.priority.low"),
+    medium: tr("admin.tickets.priority.medium"),
+    high: tr("admin.tickets.priority.high"),
+    critical: tr("admin.tickets.priority.critical"),
+  };
+  return labels[priority] ?? priority;
+}
+
+function sortLabel(sort: SortOption, tr: TFunction): string {
+  return tr(`admin.tickets.sort.${sort}`);
+}
+
+function slaInfo(createdAt: string, tr: TFunction): { label: string; cls: string } {
   const diffMs = Date.now() - new Date(createdAt).getTime();
   const hours = diffMs / 3_600_000;
-  if (hours > 4) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-rose-500 dark:text-rose-400" };
-  if (hours > 1) return { label: `Il y a ${Math.floor(hours)}h`, cls: "text-indigo-500 dark:text-indigo-400" };
+  if (hours > 4) return { label: tr("admin.tickets.time.hoursAgo", { count: Math.floor(hours) }), cls: "text-rose-500 dark:text-rose-400" };
+  if (hours > 1) return { label: tr("admin.tickets.time.hoursAgo", { count: Math.floor(hours) }), cls: "text-indigo-500 dark:text-indigo-400" };
   const mins = Math.round(diffMs / 60_000);
-  return { label: `Il y a ${mins}m`, cls: "text-slate-400 dark:text-white/40" };
+  return { label: tr("admin.tickets.time.minutesAgo", { count: mins }), cls: "text-slate-400 dark:text-white/40" };
 }
 
 /* ── Metric card ── */
@@ -78,6 +106,7 @@ function MetricCard({ label, value, cls }: { label: string; value: number; cls: 
 
 /* ── Inline reply widget ── */
 function InlineReply({ ticket, onClose }: { ticket: TicketDto; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const [body, setBody] = useState("");
   const qc = useQueryClient();
   const reply = useMutation({
@@ -93,7 +122,7 @@ function InlineReply({ ticket, onClose }: { ticket: TicketDto; onClose: () => vo
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Votre réponse au ticket..."
+        placeholder={tr("admin.tickets.replyPlaceholder")}
         rows={3}
         className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-1 focus:ring-indigo-400 dark:border-transparent dark:bg-black/20 dark:text-white dark:placeholder:text-white/35"
       />
@@ -106,7 +135,7 @@ function InlineReply({ ticket, onClose }: { ticket: TicketDto; onClose: () => vo
           onClick={() => reply.mutate(body.trim())}
           className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50"
         >
-          <Send size={12} /> Envoyer
+          <Send size={12} /> {tr("admin.tickets.send")}
         </button>
       </div>
     </div>
@@ -119,6 +148,7 @@ function AssignDropdown({
 }: {
   ticket: TicketDto;
 }) {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const users = useQuery({ queryKey: ["adminUsers"], queryFn: () => api.adminUsers() });
   const assign = useMutation({
@@ -136,7 +166,7 @@ function AssignDropdown({
       onClick={(e) => e.stopPropagation()}
       className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-white/70"
     >
-      <option value="">Non assigné</option>
+      <option value="">{tr("admin.tickets.unassigned")}</option>
       {(users.data ?? []).map((u) => (
         <option key={u.id} value={u.id}>
           {u.full_name}
@@ -154,8 +184,9 @@ function TicketRow({
   ticket: TicketDto;
   onNavigate: (id: number) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [replyOpen, setReplyOpen] = useState(false);
-  const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at) : null;
+  const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at, tr) : null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50 transition-colors dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:hover:bg-white/8">
@@ -171,7 +202,7 @@ function TicketRow({
             <p className="truncate font-black text-slate-900 dark:text-white">{ticket.subject}</p>
             <p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-white/55">{ticket.body}</p>
             <p className="mt-1 text-xs font-semibold text-slate-400 dark:text-white/40">
-              {ticket.company_name || "KOMPTA"} · {ticket.requester_name || "système"}
+              {ticket.company_name || "KOMPTA"} · {ticket.requester_name || tr("admin.tickets.systemRequester")}
             </p>
           </div>
         </div>
@@ -182,9 +213,9 @@ function TicketRow({
             </span>
           )}
           <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold uppercase ${priorityClass(ticket.priority)}`}>
-            {priorityIcon(ticket.priority)} {ticket.priority}
+            {priorityIcon(ticket.priority)} {priorityLabel(ticket.priority, tr)}
           </span>
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600 dark:bg-white/10 dark:text-white/60">{ticket.status}</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600 dark:bg-white/10 dark:text-white/60">{statusLabel(ticket.status, tr)}</span>
           <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold uppercase text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">{ticket.category}</span>
           <AssignDropdown ticket={ticket} />
           <button
@@ -194,7 +225,7 @@ function TicketRow({
             }}
             className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-400/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20"
           >
-            <MessageSquare size={12} /> Répondre
+            <MessageSquare size={12} /> {tr("admin.tickets.reply")}
           </button>
           <ChevronRight size={16} className="text-slate-300 dark:text-white/30" />
         </div>
@@ -206,13 +237,14 @@ function TicketRow({
 
 /* ── Kanban card ── */
 function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id: number) => void }) {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const move = useMutation({
     mutationFn: (status: string) => api.adminUpdateTicket(ticket.id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["adminTickets"] }),
   });
   const nextStatus = NEXT_STATUS[ticket.status];
-  const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at) : null;
+  const sla = (ticket.status === "open" || ticket.status === "in_progress") ? slaInfo(ticket.created_at, tr) : null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2 shadow-sm dark:border-white/10 dark:bg-black/25 dark:shadow-none">
@@ -224,7 +256,7 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
           {ticket.subject}
         </p>
         <span className={`shrink-0 flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${priorityClass(ticket.priority)}`}>
-          {priorityIcon(ticket.priority)} {ticket.priority}
+          {priorityIcon(ticket.priority)} {priorityLabel(ticket.priority, tr)}
         </span>
       </div>
       <p className="line-clamp-2 text-xs text-slate-500 dark:text-white/50">{ticket.body}</p>
@@ -238,7 +270,7 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
           onClick={() => move.mutate(nextStatus)}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
         >
-          Déplacer vers {KANBAN_COLUMNS.find((c) => c.key === nextStatus)?.label} <ChevronRight size={12} />
+          {tr("admin.tickets.moveTo", { status: statusLabel(nextStatus, tr) })} <ChevronRight size={12} />
         </button>
       )}
     </div>
@@ -247,6 +279,7 @@ function KanbanCard({ ticket, onNavigate }: { ticket: TicketDto; onNavigate: (id
 
 /* ── Main page ── */
 export function AdminTicketsPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -304,9 +337,9 @@ export function AdminTicketsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Support</p>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Tickets de support</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Priorisation, triage et réponses aux entreprises.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{tr("admin.tickets.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.tickets.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.tickets.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -317,7 +350,7 @@ export function AdminTicketsPage() {
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
             }`}
           >
-            <LayoutList size={15} /> Liste
+            <LayoutList size={15} /> {tr("admin.tickets.views.list")}
           </button>
           <button
             onClick={() => setView("kanban")}
@@ -327,17 +360,17 @@ export function AdminTicketsPage() {
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
             }`}
           >
-            <Columns size={15} /> Kanban
+            <Columns size={15} /> {tr("admin.tickets.views.kanban")}
           </button>
         </div>
       </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Total" value={totalCount} cls="text-slate-900 dark:text-white" />
-        <MetricCard label="Ouverts" value={openCount} cls="text-emerald-600 dark:text-emerald-300" />
-        <MetricCard label="En cours" value={inProgressCount} cls="text-indigo-600 dark:text-indigo-300" />
-        <MetricCard label="Critiques" value={criticalCount} cls="text-rose-600 dark:text-rose-300" />
+        <MetricCard label={tr("common.total")} value={totalCount} cls="text-slate-900 dark:text-white" />
+        <MetricCard label={tr("admin.tickets.metrics.open")} value={openCount} cls="text-emerald-600 dark:text-emerald-300" />
+        <MetricCard label={tr("admin.tickets.metrics.inProgress")} value={inProgressCount} cls="text-indigo-600 dark:text-indigo-300" />
+        <MetricCard label={tr("admin.tickets.metrics.critical")} value={criticalCount} cls="text-rose-600 dark:text-rose-300" />
       </div>
 
       {/* Filters */}
@@ -347,7 +380,7 @@ export function AdminTicketsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher sujet, entreprise, demandeur..."
+            placeholder={tr("admin.tickets.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
@@ -357,7 +390,7 @@ export function AdminTicketsPage() {
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           {STATUSES.map((item) => (
-            <option key={item} value={item}>{item}</option>
+            <option key={item} value={item}>{statusLabel(item, tr)}</option>
           ))}
         </select>
         <select
@@ -366,7 +399,7 @@ export function AdminTicketsPage() {
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
           {PRIORITIES.map((item) => (
-            <option key={item} value={item}>{item}</option>
+            <option key={item} value={item}>{priorityLabel(item, tr)}</option>
           ))}
         </select>
         <select
@@ -374,9 +407,9 @@ export function AdminTicketsPage() {
           onChange={(e) => setSort(e.target.value as SortOption)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
-          <option value="date">Tri: Date</option>
-          <option value="priority">Tri: Priorité</option>
-          <option value="company">Tri: Entreprise</option>
+          {SORT_OPTIONS.map((item) => (
+            <option key={item} value={item}>{sortLabel(item, tr)}</option>
+          ))}
         </select>
       </div>
 
@@ -398,7 +431,7 @@ export function AdminTicketsPage() {
             />
           ))}
           {filtered.length === 0 && (
-            <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">Aucun ticket trouvé.</p>
+            <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">{tr("admin.tickets.empty")}</p>
           )}
         </div>
       )}
@@ -411,7 +444,7 @@ export function AdminTicketsPage() {
             return (
               <div key={col.key} className={`rounded-xl border p-3 space-y-3 ${col.color}`}>
                 <div className="flex items-center justify-between px-1">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-white/80">{col.label}</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-white/80">{tr(col.tk)}</h3>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500 dark:bg-white/10 dark:text-white/50">
                     {colTickets.length}
                   </span>
@@ -424,7 +457,7 @@ export function AdminTicketsPage() {
                   />
                 ))}
                 {colTickets.length === 0 && (
-                  <p className="py-6 text-center text-xs font-semibold text-slate-400 dark:text-white/25">Vide</p>
+                  <p className="py-6 text-center text-xs font-semibold text-slate-400 dark:text-white/25">{tr("admin.tickets.emptyColumn")}</p>
                 )}
               </div>
             );

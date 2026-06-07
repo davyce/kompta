@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Check, CreditCard, Gift, Plus, RefreshCw, Tag, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useConfirm } from "../../components/ConfirmProvider";
-import { api, type PromotionDto, type SubscriptionPlanDto } from "../../services/api";
+import { api, type SubscriptionPlanDto } from "../../services/api";
 import i18n from "../../i18n";
 
 type Tab = "plans" | "promos" | "companies";
@@ -12,15 +13,21 @@ const money = (cents: number, cur = "XAF") =>
   `${(cents / 100).toLocaleString(i18n.language)} ${cur}`;
 
 export function AdminSubscriptionsPage() {
+  const { t: tr } = useTranslation();
   const [tab, setTab] = useState<Tab>("plans");
+  const tabs = [
+    ["plans", tr("admin.subscriptions.tabs.plans"), CreditCard],
+    ["promos", tr("admin.subscriptions.tabs.promos"), Tag],
+    ["companies", tr("admin.subscriptions.tabs.companies"), Gift],
+  ] as const;
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-black text-white">Abonnements</h1>
-        <p className="text-sm text-white/50">Plans, promotions et statut des entreprises — gestion en direct.</p>
+        <h1 className="text-2xl font-black text-white">{tr("admin.subscriptions.title")}</h1>
+        <p className="text-sm text-white/50">{tr("admin.subscriptions.subtitle")}</p>
       </div>
       <div className="flex gap-2">
-        {([["plans", "Plans", CreditCard], ["promos", "Promotions", Tag], ["companies", "Entreprises", Gift]] as const).map(
+        {tabs.map(
           ([k, label, Icon]) => (
             <button
               key={k}
@@ -45,6 +52,7 @@ export function AdminSubscriptionsPage() {
 function PlansSection() {
   const qc = useQueryClient();
   const { confirm } = useConfirm();
+  const { t: tr } = useTranslation();
   const plans = useQuery({ queryKey: ["adminPlans"], queryFn: api.adminPlans });
   const [creating, setCreating] = useState(false);
 
@@ -61,14 +69,19 @@ function PlansSection() {
     <div className="space-y-3">
       <div className="flex justify-end">
         <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700">
-          <Plus size={15} /> Nouveau plan
+          <Plus size={15} /> {tr("admin.subscriptions.newPlan")}
         </button>
       </div>
-      {plans.isLoading && <p className="text-white/50">Chargement…</p>}
+      {plans.isLoading && <p className="text-white/50">{tr("common.loading")}</p>}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {plans.data?.map((p) => (
           <PlanCard key={p.id} plan={p} onSave={(patch) => update.mutate({ id: p.id, patch })} onDelete={async () => {
-            if (await confirm({ title: `Supprimer le plan ${p.name} ?`, message: "S'il est utilisé, il sera désactivé.", danger: true, confirmLabel: "Supprimer" })) del.mutate(p.id);
+            if (await confirm({
+              title: tr("admin.subscriptions.confirmDeletePlanTitle", { name: p.name }),
+              message: tr("admin.subscriptions.confirmDeletePlanMessage"),
+              danger: true,
+              confirmLabel: tr("common.delete"),
+            })) del.mutate(p.id);
           }} />
         ))}
       </div>
@@ -78,6 +91,7 @@ function PlansSection() {
 }
 
 function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSave: (p: Partial<SubscriptionPlanDto>) => void; onDelete: () => void }) {
+  const { t: tr } = useTranslation();
   const [price, setPrice] = useState(Math.round(plan.price_cents / 100));
   const [name, setName] = useState(plan.name);
   const dirty = price !== Math.round(plan.price_cents / 100) || name !== plan.name;
@@ -85,16 +99,16 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between">
         <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-transparent text-lg font-black text-white outline-none" />
-        <button onClick={() => onSave({ is_active: !plan.is_active })} title={plan.is_active ? "Actif" : "Inactif"}
+        <button onClick={() => onSave({ is_active: !plan.is_active })} title={plan.is_active ? tr("admin.subscriptions.status.active") : tr("admin.subscriptions.status.inactive")}
           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${plan.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
-          {plan.is_active ? "ACTIF" : "INACTIF"}
+          {plan.is_active ? tr("admin.subscriptions.status.activeUpper") : tr("admin.subscriptions.status.inactiveUpper")}
         </button>
       </div>
       <p className="mt-1 text-xs text-white/50">{plan.description}</p>
       <div className="mt-3 flex items-center gap-2">
         <input type="number" value={price} min={0} step={500} onChange={(e) => setPrice(Math.max(0, Number(e.target.value) || 0))}
           className="w-28 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm font-mono text-white outline-none focus:border-emerald-500" />
-        <span className="text-sm text-white/50">{plan.currency} / {plan.period === "year" ? "an" : "mois"}</span>
+        <span className="text-sm text-white/50">{plan.currency} / {plan.period === "year" ? tr("admin.subscriptions.period.yearShort") : tr("admin.subscriptions.period.monthShort")}</span>
       </div>
       <ul className="mt-3 space-y-1">
         {plan.features.slice(0, 5).map((f, i) => (
@@ -103,7 +117,7 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
       </ul>
       <div className="mt-3 flex gap-2">
         <button disabled={!dirty} onClick={() => onSave({ price_cents: price * 100, name })}
-          className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">Enregistrer</button>
+          className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tr("common.save")}</button>
         <button onClick={onDelete} className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-rose-300 hover:bg-rose-500/30"><Trash2 size={14} /></button>
       </div>
     </div>
@@ -111,6 +125,7 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
 }
 
 function PlanModal({ onClose }: { onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const [f, setF] = useState({ code: "", name: "", description: "", price: 0, period: "month", features: "" });
   const create = useMutation({
@@ -122,17 +137,17 @@ function PlanModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["adminPlans"] }); onClose(); },
   });
   return (
-    <Modal title="Nouveau plan" onClose={onClose}>
-      <Field label="Code (unique)"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} className={inp} placeholder="enterprise" /></Field>
-      <Field label="Nom"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp} /></Field>
-      <Field label="Description"><input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={inp} /></Field>
+    <Modal title={tr("admin.subscriptions.newPlan")} onClose={onClose}>
+      <Field label={tr("admin.subscriptions.fields.codeUnique")}><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} className={inp} placeholder="enterprise" /></Field>
+      <Field label={tr("common.name")}><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp} /></Field>
+      <Field label={tr("admin.subscriptions.fields.description")}><input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={inp} /></Field>
       <div className="flex gap-2">
-        <Field label="Prix (XAF)"><input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) || 0 })} className={inp} /></Field>
-        <Field label="Période"><select value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} className={inp}><option value="month">Mensuel</option><option value="year">Annuel</option></select></Field>
+        <Field label={tr("admin.subscriptions.fields.priceXaf")}><input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) || 0 })} className={inp} /></Field>
+        <Field label={tr("admin.subscriptions.fields.period")}><select value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} className={inp}><option value="month">{tr("admin.subscriptions.period.monthly")}</option><option value="year">{tr("admin.subscriptions.period.yearly")}</option></select></Field>
       </div>
-      <Field label="Fonctionnalités (une par ligne)"><textarea value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} rows={4} className={inp} /></Field>
+      <Field label={tr("admin.subscriptions.fields.features")}><textarea value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} rows={4} className={inp} /></Field>
       {create.error && <p className="text-xs text-rose-400">{create.error.message}</p>}
-      <button disabled={!f.code || !f.name || create.isPending} onClick={() => create.mutate()} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40">Créer le plan</button>
+      <button disabled={!f.code || !f.name || create.isPending} onClick={() => create.mutate()} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tr("admin.subscriptions.createPlan")}</button>
     </Modal>
   );
 }
@@ -141,6 +156,7 @@ function PlanModal({ onClose }: { onClose: () => void }) {
 function PromosSection() {
   const qc = useQueryClient();
   const { confirm } = useConfirm();
+  const { t: tr } = useTranslation();
   const promos = useQuery({ queryKey: ["adminPromos"], queryFn: api.adminPromotions });
   const [creating, setCreating] = useState(false);
   const toggle = useMutation({
@@ -151,27 +167,27 @@ function PromosSection() {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"><Plus size={15} /> Nouvelle promo</button>
+        <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"><Plus size={15} /> {tr("admin.subscriptions.newPromo")}</button>
       </div>
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <table className="w-full text-sm">
           <thead className="bg-white/5 text-left text-xs uppercase text-white/40">
-            <tr><th className="px-4 py-2">Code</th><th className="px-4 py-2">Réduction</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">Utilisé</th><th className="px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr>
+            <tr><th className="px-4 py-2">Code</th><th className="px-4 py-2">{tr("admin.subscriptions.discount")}</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">{tr("admin.subscriptions.used")}</th><th className="px-4 py-2">{tr("common.status")}</th><th className="px-4 py-2"></th></tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {promos.data?.map((p) => (
               <tr key={p.id} className="text-white/80">
                 <td className="px-4 py-2 font-mono font-bold">{p.code}</td>
                 <td className="px-4 py-2">-{p.percent_off}%</td>
-                <td className="px-4 py-2 text-white/50">{p.plan_code || "Tous"}</td>
+                <td className="px-4 py-2 text-white/50">{p.plan_code || tr("common.all")}</td>
                 <td className="px-4 py-2 text-white/50">{p.times_redeemed}{p.max_redemptions ? `/${p.max_redemptions}` : ""}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => toggle.mutate({ id: p.id, is_active: !p.is_active })} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${p.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>{p.is_active ? "ACTIVE" : "INACTIVE"}</button>
+                  <button onClick={() => toggle.mutate({ id: p.id, is_active: !p.is_active })} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${p.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>{p.is_active ? tr("admin.subscriptions.status.activeUpper") : tr("admin.subscriptions.status.inactiveUpper")}</button>
                 </td>
-                <td className="px-4 py-2 text-right"><button onClick={async () => { if (await confirm({ title: `Supprimer ${p.code} ?`, danger: true, confirmLabel: "Supprimer" })) del.mutate(p.id); }} className="text-rose-400 hover:text-rose-300"><Trash2 size={14} /></button></td>
+                <td className="px-4 py-2 text-right"><button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmDeletePromoTitle", { code: p.code }), danger: true, confirmLabel: tr("common.delete") })) del.mutate(p.id); }} className="text-rose-400 hover:text-rose-300"><Trash2 size={14} /></button></td>
               </tr>
             ))}
-            {!promos.data?.length && <tr><td colSpan={6} className="px-4 py-6 text-center text-white/40">Aucune promotion.</td></tr>}
+            {!promos.data?.length && <tr><td colSpan={6} className="px-4 py-6 text-center text-white/40">{tr("admin.subscriptions.noPromo")}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -181,6 +197,7 @@ function PromosSection() {
 }
 
 function PromoModal({ onClose }: { onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const [f, setF] = useState({ code: "", description: "", percent_off: 10, plan_code: "", max_redemptions: 0 });
   const create = useMutation({
@@ -188,16 +205,16 @@ function PromoModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["adminPromos"] }); onClose(); },
   });
   return (
-    <Modal title="Nouvelle promotion" onClose={onClose}>
+    <Modal title={tr("admin.subscriptions.newPromo")} onClose={onClose}>
       <Field label="Code"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} className={inp} placeholder="BIENVENUE20" /></Field>
-      <Field label="Description"><input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={inp} /></Field>
+      <Field label={tr("admin.subscriptions.fields.description")}><input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={inp} /></Field>
       <div className="flex gap-2">
-        <Field label="Réduction %"><input type="number" min={0} max={100} value={f.percent_off} onChange={(e) => setF({ ...f, percent_off: Number(e.target.value) || 0 })} className={inp} /></Field>
-        <Field label="Limite (0=∞)"><input type="number" min={0} value={f.max_redemptions} onChange={(e) => setF({ ...f, max_redemptions: Number(e.target.value) || 0 })} className={inp} /></Field>
+        <Field label={tr("admin.subscriptions.fields.discountPercent")}><input type="number" min={0} max={100} value={f.percent_off} onChange={(e) => setF({ ...f, percent_off: Number(e.target.value) || 0 })} className={inp} /></Field>
+        <Field label={tr("admin.subscriptions.fields.limit")}><input type="number" min={0} value={f.max_redemptions} onChange={(e) => setF({ ...f, max_redemptions: Number(e.target.value) || 0 })} className={inp} /></Field>
       </div>
-      <Field label="Plan ciblé (vide = tous)"><input value={f.plan_code} onChange={(e) => setF({ ...f, plan_code: e.target.value })} className={inp} placeholder="pro" /></Field>
+      <Field label={tr("admin.subscriptions.fields.targetPlan")}><input value={f.plan_code} onChange={(e) => setF({ ...f, plan_code: e.target.value })} className={inp} placeholder="pro" /></Field>
       {create.error && <p className="text-xs text-rose-400">{create.error.message}</p>}
-      <button disabled={!f.code || create.isPending} onClick={() => create.mutate()} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40">Créer</button>
+      <button disabled={!f.code || create.isPending} onClick={() => create.mutate()} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tr("common.create")}</button>
     </Modal>
   );
 }
@@ -206,6 +223,7 @@ function PromoModal({ onClose }: { onClose: () => void }) {
 function CompaniesSection() {
   const qc = useQueryClient();
   const { confirm } = useConfirm();
+  const { t: tr } = useTranslation();
   const rows = useQuery({ queryKey: ["adminCompanySubs"], queryFn: api.adminCompanySubs });
   const inv = () => qc.invalidateQueries({ queryKey: ["adminCompanySubs"] });
   const suspend = useMutation({ mutationFn: (id: number) => api.adminSubSuspend(id), onSuccess: inv });
@@ -221,28 +239,40 @@ function CompaniesSection() {
     return map[s] || "bg-white/10 text-white/40";
   };
 
+  const statusLabel = (s: string) => {
+    const labels: Record<string, string> = {
+      active: tr("admin.subscriptions.status.activeUpper"),
+      trialing: tr("admin.subscriptions.status.trialingUpper"),
+      past_due: tr("admin.subscriptions.status.pastDueUpper"),
+      suspended: tr("admin.subscriptions.status.suspendedUpper"),
+      cancelled: tr("admin.subscriptions.status.cancelledUpper"),
+      none: tr("common.none").toUpperCase(),
+    };
+    return labels[s] ?? s.toUpperCase();
+  };
+
   return (
     <div className="space-y-3">
-      <button onClick={inv} className="flex items-center gap-2 text-xs text-white/50 hover:text-white"><RefreshCw size={13} /> Rafraîchir</button>
+      <button onClick={inv} className="flex items-center gap-2 text-xs text-white/50 hover:text-white"><RefreshCw size={13} /> {tr("admin.subscriptions.refresh")}</button>
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <table className="w-full text-sm">
           <thead className="bg-white/5 text-left text-xs uppercase text-white/40">
-            <tr><th className="px-4 py-2">Entreprise</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">Statut</th><th className="px-4 py-2">Échéance</th><th className="px-4 py-2 text-right">Actions</th></tr>
+            <tr><th className="px-4 py-2">{tr("admin.subscriptions.company")}</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">{tr("common.status")}</th><th className="px-4 py-2">{tr("admin.subscriptions.dueDate")}</th><th className="px-4 py-2 text-right">{tr("common.actions")}</th></tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {rows.data?.map((r) => (
               <tr key={r.company_id} className="text-white/80">
                 <td className="px-4 py-2 font-semibold">{r.company_name}</td>
                 <td className="px-4 py-2 text-white/50">{r.plan_code || "—"}</td>
-                <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge(r.status)}`}>{r.status.toUpperCase()}</span></td>
+                <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge(r.status)}`}>{statusLabel(r.status)}</span></td>
                 <td className="px-4 py-2 text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString(i18n.language) : "—"}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1.5">
-                    <button onClick={() => grant.mutate({ id: r.company_id, plan: r.plan_code || "pro", days: 30 })} title="Offrir 30 jours" className="rounded-lg bg-violet-500/20 px-2 py-1 text-violet-300 hover:bg-violet-500/30"><Gift size={14} /></button>
+                    <button onClick={() => grant.mutate({ id: r.company_id, plan: r.plan_code || "pro", days: 30 })} title={tr("admin.subscriptions.grant30Days")} className="rounded-lg bg-violet-500/20 px-2 py-1 text-violet-300 hover:bg-violet-500/30"><Gift size={14} /></button>
                     {r.company_status === "suspended" ? (
-                      <button onClick={() => reactivate.mutate(r.company_id)} title="Réactiver" className="rounded-lg bg-emerald-500/20 px-2 py-1 text-emerald-300 hover:bg-emerald-500/30"><Check size={14} /></button>
+                      <button onClick={() => reactivate.mutate(r.company_id)} title={tr("admin.subscriptions.reactivate")} className="rounded-lg bg-emerald-500/20 px-2 py-1 text-emerald-300 hover:bg-emerald-500/30"><Check size={14} /></button>
                     ) : (
-                      <button onClick={async () => { if (await confirm({ title: `Suspendre ${r.company_name} ?`, message: "L'accès sera bloqué jusqu'au paiement.", danger: true, confirmLabel: "Suspendre" })) suspend.mutate(r.company_id); }} title="Suspendre" className="rounded-lg bg-rose-500/20 px-2 py-1 text-rose-300 hover:bg-rose-500/30"><Ban size={14} /></button>
+                      <button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmSuspendTitle", { name: r.company_name }), message: tr("admin.subscriptions.confirmSuspendMessage"), danger: true, confirmLabel: tr("admin.subscriptions.suspend") })) suspend.mutate(r.company_id); }} title={tr("admin.subscriptions.suspend")} className="rounded-lg bg-rose-500/20 px-2 py-1 text-rose-300 hover:bg-rose-500/30"><Ban size={14} /></button>
                     )}
                   </div>
                 </td>
