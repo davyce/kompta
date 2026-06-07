@@ -131,6 +131,19 @@ function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; o
   const cardEl = useRef<StripeCardElement | null>(null);
   const stripeRef = useRef<StripeInstance | null>(null);
   const txnRef = useRef<number | null>(null);
+  const secretRef = useRef<string | null>(null);
+
+  // Monte le champ carte Stripe APRÈS le rendu du conteneur (fiable sur mobile).
+  useEffect(() => {
+    if (phase !== "card_form" || !stripeRef.current || !cardMount.current || cardEl.current) return;
+    const el = stripeRef.current.elements().create("card", {
+      hidePostalCode: true,
+      style: { base: { fontSize: "16px", color: "#17211f", "::placeholder": { color: "#9ca3af" } }, invalid: { color: "#ef4444" } },
+    });
+    el.mount(cardMount.current);
+    el.on("change", (ev) => setError(ev.error?.message ?? null));
+    cardEl.current = el;
+  }, [phase]);
 
   async function applyPromo() {
     if (!promo.trim()) { setPromoOk(null); setFinalCents(plan.price_cents); return; }
@@ -150,17 +163,9 @@ function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; o
       if (method === "card") {
         await loadStripe();
         if (!window.Stripe || !res.publishable_key || !res.client_secret) throw new Error("Configuration carte indisponible.");
-        const stripe = window.Stripe(res.publishable_key);
-        stripeRef.current = stripe;
-        setPhase("card_form");
-        requestAnimationFrame(() => {
-          if (!cardMount.current) return;
-          const el = stripe.elements().create("card", { hidePostalCode: true });
-          el.mount(cardMount.current);
-          el.on("change", (ev) => setError(ev.error?.message ?? null));
-          cardEl.current = el;
-          (cardEl.current as unknown as { _secret: string })._secret = res.client_secret!;
-        });
+        stripeRef.current = window.Stripe(res.publishable_key);
+        secretRef.current = res.client_secret;
+        setPhase("card_form"); // le champ carte est monté par le useEffect dédié
       } else if (method === "momo") {
         setPhase("processing");
         await pollConfirm();
@@ -173,7 +178,8 @@ function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; o
 
   async function payCard() {
     if (!stripeRef.current || !cardEl.current) return;
-    const secret = (cardEl.current as unknown as { _secret: string })._secret;
+    const secret = secretRef.current;
+    if (!secret) return;
     setPhase("processing"); setError(null);
     const r = await stripeRef.current.confirmCardPayment(secret, { payment_method: { card: cardEl.current as unknown as object } });
     if (r.error) { setPhase("card_form"); setError(r.error.message ?? "Paiement refusé."); return; }

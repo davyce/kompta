@@ -62,21 +62,9 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         if (!window.Stripe) throw new Error("Stripe.js n'est pas disponible.");
         const stripe = window.Stripe!(intent.publishable_key);
         stripeRef.current = stripe;
+        // Le montage de l'élément carte se fait dans un useEffect dédié (ci-dessous),
+        // une fois que React a réellement peint le conteneur (fiable sur mobile).
         setPhase("form");
-        requestAnimationFrame(() => {
-          if (!cardMountRef.current || cancelled) return;
-          const elements = stripe.elements();
-          const card = elements.create("card", {
-            hidePostalCode: true,
-            style: {
-              base: { fontSize: "15px", color: "#17211f", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", "::placeholder": { color: "#9ca3af" } },
-              invalid: { color: "#ef4444" },
-            },
-          });
-          card.mount(cardMountRef.current);
-          card.on("change", (ev: { error?: { message: string } }) => setCardError(ev.error?.message ?? null));
-          cardElementRef.current = card;
-        });
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : "Paiement carte indisponible.");
@@ -86,6 +74,23 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     return () => { cancelled = true; cardElementRef.current?.destroy(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Montage du champ carte Stripe : APRÈS que le conteneur est rendu (phase "form").
+  // Évite l'iframe vide sur mobile (le rAF montait parfois avant le paint du DOM).
+  useEffect(() => {
+    if (phase !== "form" || !stripeRef.current || !cardMountRef.current || cardElementRef.current) return;
+    const elements = stripeRef.current.elements();
+    const card = elements.create("card", {
+      hidePostalCode: true,
+      style: {
+        base: { fontSize: "16px", color: "#17211f", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", "::placeholder": { color: "#9ca3af" } },
+        invalid: { color: "#ef4444" },
+      },
+    });
+    card.mount(cardMountRef.current);
+    card.on("change", (ev: { error?: { message: string } }) => setCardError(ev.error?.message ?? null));
+    cardElementRef.current = card;
+  }, [phase]);
 
   async function handlePay() {
     if (!stripeRef.current || !clientSecret || !cardElementRef.current) return;
