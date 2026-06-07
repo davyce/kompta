@@ -765,6 +765,7 @@ export function Copilot() {
       {/* ── FAB avec badge alerte (#11) ──────────────────────────────────── */}
       <div className="fixed right-5 z-30 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5">
         <button
+          data-tour="limule"
           onClick={() => setOpen(true)}
           className="relative rounded-full p-0 transition hover:scale-[1.06] focus:outline-none"
           aria-label="Ouvrir Limule"

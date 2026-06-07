@@ -42,7 +42,7 @@ import type { LucideIcon } from "lucide-react";
 import { CommandPalette } from "../components/CommandPalette";
 import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
-import { OnboardingTour } from "../components/OnboardingTour";
+import { GuidedTour } from "../components/GuidedTour";
 import { SubscriptionGate } from "../components/SubscriptionGate";
 import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import { ToastStack } from "../components/Toast";
@@ -439,7 +439,7 @@ export function Shell() {
       )}
 
       {/* Nav */}
-      <nav className="scrollbar-thin flex-1 overflow-y-auto pb-4 px-3 space-y-5">
+      <nav data-tour="nav" className="scrollbar-thin flex-1 overflow-y-auto pb-4 px-3 space-y-5">
         {filteredSections.map((section) => (
           <div key={section.label} className={collapsed ? "mt-3 space-y-0.5" : ""}>
             {!collapsed && (
@@ -680,7 +680,7 @@ export function Shell() {
       </div>
 
       {/* ── Mobile bottom navigation bar — adapté au rôle (safe-area iPhone notch) ── */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2 pb-[env(safe-area-inset-bottom)]">
+      <nav data-tour="nav" className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2 pb-[env(safe-area-inset-bottom)]">
         {(user?.role === "membre_groupe"
           ? [
               { to: "/",        icon: LayoutDashboard, label: "Accueil"  },
@@ -734,7 +734,7 @@ export function Shell() {
         onMarkAllRead={markAllRead}
         onClear={clearHistory}
       />
-      <OnboardingTour />
+      <GuidedTour />
       <SubscriptionGate />
       <Copilot />
       <ToastStack toasts={toasts} onDismiss={dismiss} />

@@ -871,6 +871,7 @@ export function PosPage() {
 
           {/* Bouton Encaisser */}
           <button
+            data-tour="pos-checkout"
             onClick={handleCheckout}
             disabled={!cart.length || sale.isPending || syncing}
             className={`w-full rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40 ${

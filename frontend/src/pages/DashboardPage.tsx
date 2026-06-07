@@ -520,7 +520,7 @@ export function DashboardPage() {
       )}
 
       {/* ── KPI row ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour="kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Trésorerie"
           value={treasury !== 0 ? compactMoney(treasury) : "—"}

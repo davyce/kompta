@@ -12,7 +12,7 @@ import { SubscriptionPanel } from "../components/SubscriptionPanel";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
 import { useConfirm } from "../components/ConfirmProvider";
-import { resetOnboardingTour } from "../components/OnboardingTour";
+import { resetOnboardingTour } from "../components/GuidedTour";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
 import type { CurrencyCode } from "../utils/format";
 import { QRCodeSVG } from "qrcode.react";
@@ -422,7 +422,7 @@ export function SettingsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div data-tour="settings-content" className="space-y-6">
       <div>
         <p className="text-sm font-semibold text-emerald-600">Administration</p>
         <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Paramètres</h1>

@@ -378,6 +378,7 @@ export function InventoryPage() {
             }} />
           </label>
           <button
+            data-tour="add-product"
             onClick={() => document.getElementById("add-product-form")?.scrollIntoView({ behavior: "smooth" })}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >

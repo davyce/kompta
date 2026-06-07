@@ -365,6 +365,7 @@ export function BillingPage() {
         </Panel>
 
         {/* Nouvelle facture multi-lignes */}
+        <div data-tour="new-invoice">
         <Panel title="Nouvelle facture">
           <form onSubmit={submit} className="space-y-3">
             <TextInput
@@ -499,6 +500,7 @@ export function BillingPage() {
             )}
           </form>
         </Panel>
+        </div>
       </div>
     </div>
   );
