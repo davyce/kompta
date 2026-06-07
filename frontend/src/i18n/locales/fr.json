@@ -76,6 +76,211 @@
       "description": "Description",
       "category": "Catégorie",
       "empty": "Aucune transaction."
+    },
+    "documents": {
+      "title": "Documents",
+      "count": "{{count}} document",
+      "count_one": "{{count}} document",
+      "count_other": "{{count}} documents",
+      "upload": "Téléverser",
+      "empty": "Aucun document. Téléversez des statuts, PV, reçus…",
+      "units": {
+        "bytes": "o",
+        "kb": "Ko",
+        "mb": "Mo"
+      },
+      "categories": {
+        "statute": "Statut",
+        "rules": "Règlement intérieur",
+        "financialReport": "Rapport financier",
+        "minutes": "PV",
+        "receipt": "Reçu",
+        "invoice": "Facture",
+        "contract": "Contrat",
+        "proof": "Preuve",
+        "other": "Autre",
+        "unknown": "Autre"
+      },
+      "visibility": {
+        "members": "Membres",
+        "managers": "Responsables",
+        "public": "Public",
+        "unknown": "Visibilité"
+      }
+    },
+    "reports": {
+      "title": "Rapports",
+      "contributions": "Cotisations",
+      "expenses": "Dépenses",
+      "totalDue": "Total attendu",
+      "totalReceived": "Total reçu",
+      "recoveryRate": "Taux de recouvrement",
+      "membersInArrears": "Membres avec arriérés"
+    },
+    "expenses": {
+      "title": "Dépenses",
+      "pendingApproval": "{{count}} en attente d'approbation",
+      "pendingApproval_one": "{{count}} en attente d'approbation",
+      "pendingApproval_other": "{{count}} en attente d'approbation",
+      "add": "Dépense",
+      "totalPaid": "Total payé",
+      "pending": "En attente",
+      "totalRows": "Total lignes",
+      "approve": "Approuver",
+      "paid": "payé",
+      "empty": "Aucune dépense.",
+      "modalTitle": "Nouvelle dépense",
+      "form": {
+        "title": "Titre *",
+        "titlePlaceholder": "Achat chaises",
+        "amount": "Montant *",
+        "category": "Catégorie",
+        "categoryPlaceholder": "matériel",
+        "paidTo": "Payé à",
+        "paidToPlaceholder": "Fournisseur",
+        "method": "Méthode"
+      },
+      "paymentMethods": {
+        "cash": "Espèces",
+        "mobileMoney": "Mobile Money",
+        "bank": "Banque",
+        "unknown": "Méthode"
+      }
+    },
+    "meetings": {
+      "title": "Réunions",
+      "add": "Réunion",
+      "enterMinutes": "Saisir le PV",
+      "empty": "Aucune réunion planifiée.",
+      "modalTitle": "Nouvelle réunion",
+      "minutesTitle": "Procès-verbal",
+      "minutesPlaceholder": "Rédigez le compte-rendu de la réunion…",
+      "saveMinutes": "Sauvegarder le PV",
+      "status": {
+        "scheduled": "Planifiée",
+        "done": "Terminée",
+        "cancelled": "Annulée",
+        "unknown": "Statut"
+      },
+      "types": {
+        "regular": "Ordinaire",
+        "extraordinary": "Extraordinaire",
+        "review": "Bilan",
+        "election": "Élection",
+        "unknown": "Type"
+      },
+      "form": {
+        "title": "Titre *",
+        "datetime": "Date & heure *",
+        "location": "Lieu",
+        "locationPlaceholder": "Salle communautaire",
+        "type": "Type",
+        "agenda": "Ordre du jour"
+      }
+    },
+    "leadership": {
+      "title": "Bureau & Mandats",
+      "changeOffice": "Changer le bureau",
+      "currentOffice": "Bureau actuel",
+      "noCurrentOffice": "Aucun bureau défini.",
+      "mandateSince": "Mandat depuis le {{date}}",
+      "oldOffices": "Anciens bureaux",
+      "unknownDate": "?",
+      "presidentShort": "Pdt :",
+      "notDefined": "— Non défini —",
+      "confirmChange": "Confirmer le changement",
+      "roles": {
+        "president": "Président",
+        "vicePresident": "Vice-président",
+        "secretary": "Secrétaire",
+        "treasurer": "Trésorier"
+      },
+      "form": {
+        "startDate": "Date de début",
+        "electedBy": "Élu par",
+        "electedByPlaceholder": "Assemblée générale",
+        "electionNotes": "Notes d'élection"
+      }
+    },
+    "ai": {
+      "title": "Limule — Assistant du groupe",
+      "subtitle": "Posez des questions sur votre groupe, ses finances et ses membres",
+      "monthlyReport": "Rapport mensuel",
+      "contributionAnalysis": "Analyse cotisations",
+      "paymentAnalysis": "Analyse paiements",
+      "empty": "Posez une question sur votre groupe : finances, membres en retard, prochaines réunions, anniversaires…",
+      "analyzing": "Limule analyse…",
+      "placeholder": "Posez une question sur votre groupe…",
+      "generatedReport": "Rapport généré par Limule",
+      "quickQuestions": {
+        "unpaid": "Qui n'a pas encore payé ses cotisations ?",
+        "cashbox": "Combien avons-nous en caisse ?",
+        "largestArrears": "Quel membre a le plus grand arriéré ?",
+        "monthEvolution": "Quelle est l'évolution des cotisations ce mois ?",
+        "decisions": "Résume les dernières décisions importantes.",
+        "birthdays": "Qui fête son anniversaire cette semaine ?",
+        "meetings": "Quelles sont nos prochaines réunions ?"
+      }
+    },
+    "dashboard": {
+      "cashBalance": "Solde caisse",
+      "activeMembers": "Membres actifs",
+      "upToDate": "{{count}} à jour",
+      "lateMembers": "Membres en retard",
+      "pendingExpenses": "Dépenses en attente",
+      "recoveryRate": "Taux de recouvrement cotisations",
+      "received": "Reçu : {{amount}}",
+      "expected": "Attendu : {{amount}}",
+      "nextMeetings": "Prochaines réunions",
+      "birthdays14": "Anniversaires (14 jours)",
+      "noBirthdays14": "Aucun anniversaire dans les 14 prochains jours.",
+      "lateMembersCount": "{{count}} membre",
+      "lateMembersCount_one": "{{count}} membre",
+      "lateMembersCount_other": "{{count}} membres",
+      "lateContribution": "en retard de cotisation. ",
+      "goTo": "Allez dans ",
+      "sendReminders": "pour envoyer des rappels.",
+      "groupTypes": {
+        "association": "Association",
+        "tontine": "Tontine",
+        "mutual": "Mutuelle",
+        "church": "Église",
+        "ngo": "ONG",
+        "sportsClub": "Club sportif",
+        "family": "Famille",
+        "union": "Syndicat",
+        "cooperative": "Coopérative",
+        "studentAssociation": "Association étudiante",
+        "neighborhoodCommittee": "Comité de quartier",
+        "professionalOrganization": "Organisation professionnelle",
+        "unknown": "Groupe"
+      }
+    },
+    "votes": {
+      "title": "Votes",
+      "add": "Vote",
+      "endsAt": "Fin : {{date}}",
+      "vote": "Voter",
+      "viewResults": "Voir les résultats",
+      "empty": "Aucun vote.",
+      "voteCount": "{{count}} vote",
+      "voteCount_one": "{{count}} vote",
+      "voteCount_other": "{{count}} votes",
+      "modalTitle": "Nouveau vote",
+      "status": {
+        "open": "Ouvert",
+        "closed": "Clôturé",
+        "cancelled": "Annulé",
+        "unknown": "Statut"
+      },
+      "form": {
+        "question": "Question *",
+        "options": "Options",
+        "optionPlaceholder": "Option {{index}}",
+        "addOption": "+ Ajouter une option",
+        "start": "Début *",
+        "end": "Fin *"
+      }
     }
   },
   "investmentsPage": {
