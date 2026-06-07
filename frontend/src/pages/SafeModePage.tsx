@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -28,26 +30,26 @@ type RestoreResult = {
 };
 
 const INCLUDED_ITEMS = [
-  { icon: <FileText size={16} className="text-stone-500" />, label: "Profil Entreprise" },
-  { icon: <Users size={16} className="text-blue-500" />, label: "Personnel & RH" },
-  { icon: <Receipt size={16} className="text-amber-500" />, label: "Finance & Facturation" },
-  { icon: <Package size={16} className="text-violet-500" />, label: "Inventaire & Produits" },
-  { icon: <CheckSquare size={16} className="text-emerald-500" />, label: "Tâches opérationnelles" },
-  { icon: <ShieldCheck size={16} className="text-rose-500" />, label: "Score TERAS & Alertes" },
-  { icon: <Zap size={16} className="text-indigo-500" />, label: "Analyse & Appréciation Limule" },
+  { icon: <FileText size={16} className="text-stone-500" />, tk: "safeMode.itemCompany" },
+  { icon: <Users size={16} className="text-blue-500" />, tk: "safeMode.itemHr" },
+  { icon: <Receipt size={16} className="text-amber-500" />, tk: "safeMode.itemFinance" },
+  { icon: <Package size={16} className="text-violet-500" />, tk: "safeMode.itemInventory" },
+  { icon: <CheckSquare size={16} className="text-emerald-500" />, tk: "safeMode.itemTasks" },
+  { icon: <ShieldCheck size={16} className="text-rose-500" />, tk: "safeMode.itemTeras" },
+  { icon: <Zap size={16} className="text-indigo-500" />, tk: "safeMode.itemLimule" },
 ];
 
 const RESTORE_SECTIONS = [
-  { key: "employees", label: "Employés", icon: <Users size={15} /> },
-  { key: "products", label: "Produits", icon: <Package size={15} /> },
-  { key: "tasks", label: "Tâches", icon: <CheckSquare size={15} /> },
+  { key: "employees", tk: "safeMode.secEmployees", icon: <Users size={15} /> },
+  { key: "products", tk: "safeMode.secProducts", icon: <Package size={15} /> },
+  { key: "tasks", tk: "safeMode.secTasks", icon: <CheckSquare size={15} /> },
 ];
 
 function formatDate(iso: string): string {
   if (!iso || iso === "—") return "—";
   try {
     const d = new Date(iso.replace(" ", "T"));
-    return d.toLocaleDateString("fr-FR", {
+    return d.toLocaleDateString(i18n.language, {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -60,6 +62,7 @@ function formatDate(iso: string): string {
 }
 
 export function SafeModePage() {
+  const { t: tr } = useTranslation();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -80,7 +83,7 @@ export function SafeModePage() {
     try {
       await api.safeMode.export();
     } catch (e) {
-      setExportError(e instanceof Error ? e.message : "Une erreur est survenue");
+      setExportError(e instanceof Error ? e.message : tr("safeMode.errGeneric"));
     } finally {
       setExporting(false);
     }
@@ -100,7 +103,7 @@ export function SafeModePage() {
     } catch (e) {
       setAnalyzeResult({
         status: "error",
-        message: e instanceof Error ? e.message : "Erreur lors de l'analyse",
+        message: e instanceof Error ? e.message : tr("safeMode.errAnalyze"),
       });
     } finally {
       setAnalyzing(false);
@@ -134,7 +137,7 @@ export function SafeModePage() {
       .catch((err) =>
         setAnalyzeResult({
           status: "error",
-          message: err instanceof Error ? err.message : "Erreur lors de l'analyse",
+          message: err instanceof Error ? err.message : tr("safeMode.errAnalyze"),
         })
       )
       .finally(() => setAnalyzing(false));
@@ -155,7 +158,7 @@ export function SafeModePage() {
       const result = await api.safeMode.restore(analyzeResult.snapshot, selectedSections);
       setRestoreResult(result);
     } catch (e) {
-      setRestoreError(e instanceof Error ? e.message : "Erreur lors de la restauration");
+      setRestoreError(e instanceof Error ? e.message : tr("safeMode.errRestore"));
     } finally {
       setRestoring(false);
     }
@@ -174,9 +177,9 @@ export function SafeModePage() {
           <ShieldCheck size={26} className="text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#17211f] dark:text-white">Safe Mode</h1>
+          <h1 className="text-2xl font-bold text-[#17211f] dark:text-white">{tr("safeMode.title")}</h1>
           <p className="mt-0.5 text-sm text-[#6b7280] dark:text-white/50">
-            Sauvegardez toutes vos données dans un PDF sécurisé et restaurez-les en cas de besoin.
+            {tr("safeMode.subtitle")}
           </p>
         </div>
       </div>
@@ -188,24 +191,24 @@ export function SafeModePage() {
             <div className="flex items-center gap-2">
               <Download size={18} className="text-emerald-600" />
               <h2 className="font-semibold text-[#17211f] dark:text-white">
-                Générer le pack de sauvegarde
+                {tr("safeMode.genPack")}
               </h2>
             </div>
             <p className="mt-1 text-xs text-[#6b7280] dark:text-white/40">
-              Télécharge un PDF complet avec toutes vos données et une analyse Limule.
+              {tr("safeMode.genPackDesc")}
             </p>
           </div>
 
           <div className="px-6 py-5 space-y-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280] dark:text-white/40">
-                Contenu du pack
+                {tr("safeMode.packContent")}
               </p>
               <ul className="space-y-2">
                 {INCLUDED_ITEMS.map((item) => (
-                  <li key={item.label} className="flex items-center gap-2.5 text-sm text-[#374151] dark:text-white/70">
+                  <li key={item.tk} className="flex items-center gap-2.5 text-sm text-[#374151] dark:text-white/70">
                     {item.icon}
-                    {item.label}
+                    {tr(item.tk)}
                   </li>
                 ))}
               </ul>
@@ -214,7 +217,7 @@ export function SafeModePage() {
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 dark:bg-amber-900/20">
               <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-600" />
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                La génération peut prendre 15–30 secondes (analyse IA incluse).
+                {tr("safeMode.genWarn")}
               </p>
             </div>
 
@@ -233,12 +236,12 @@ export function SafeModePage() {
               {exporting ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  Génération en cours…
+                  {tr("safeMode.generating")}
                 </>
               ) : (
                 <>
                   <Download size={16} />
-                  Générer et télécharger
+                  {tr("safeMode.genDownload")}
                 </>
               )}
             </button>
@@ -251,11 +254,11 @@ export function SafeModePage() {
             <div className="flex items-center gap-2">
               <Upload size={18} className="text-blue-600" />
               <h2 className="font-semibold text-[#17211f] dark:text-white">
-                Restaurer depuis un pack
+                {tr("safeMode.restoreFromPack")}
               </h2>
             </div>
             <p className="mt-1 text-xs text-[#6b7280] dark:text-white/40">
-              Importez un PDF Safe Mode pour restaurer vos données.
+              {tr("safeMode.restoreFromPackDesc")}
             </p>
           </div>
 
@@ -273,10 +276,10 @@ export function SafeModePage() {
               <Upload size={22} className="text-stone-400 dark:text-white/30" />
               <div>
                 <p className="text-sm font-medium text-[#374151] dark:text-white/70">
-                  {analyzeFile ? analyzeFile.name : "Déposez ou cliquez pour choisir un PDF"}
+                  {analyzeFile ? analyzeFile.name : tr("safeMode.dropZone")}
                 </p>
                 <p className="mt-0.5 text-xs text-[#9ca3af] dark:text-white/30">
-                  Fichier PDF Safe Mode KOMPTA uniquement
+                  {tr("safeMode.pdfOnly")}
                 </p>
               </div>
             </div>
@@ -292,7 +295,7 @@ export function SafeModePage() {
             {analyzing && (
               <div className="flex items-center gap-2 text-sm text-[#6b7280] dark:text-white/50">
                 <RefreshCw size={15} className="animate-spin" />
-                Analyse du fichier en cours…
+                {tr("safeMode.analyzing")}
               </div>
             )}
 
@@ -301,7 +304,7 @@ export function SafeModePage() {
               <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 dark:bg-red-900/20">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red-500" />
                 <p className="text-xs text-red-600 dark:text-red-400">
-                  {analyzeResult.message ?? "Fichier invalide ou non reconnu."}
+                  {analyzeResult.message ?? tr("safeMode.invalidFile")}
                 </p>
               </div>
             )}
@@ -311,14 +314,14 @@ export function SafeModePage() {
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 space-y-2 dark:border-emerald-700/30 dark:bg-emerald-900/10">
                 <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                   <CheckCircle2 size={15} />
-                  Pack reconnu
+                  {tr("safeMode.packRecognized")}
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[#374151] dark:text-white/70">
-                  <span className="font-medium text-[#6b7280] dark:text-white/40">Entreprise</span>
+                  <span className="font-medium text-[#6b7280] dark:text-white/40">{tr("safeMode.company")}</span>
                   <span>{analyzeResult.preview.company_name}</span>
-                  <span className="font-medium text-[#6b7280] dark:text-white/40">Exporté le</span>
+                  <span className="font-medium text-[#6b7280] dark:text-white/40">{tr("safeMode.exportedOn")}</span>
                   <span>{formatDate(analyzeResult.preview.exported_at)}</span>
-                  <span className="font-medium text-[#6b7280] dark:text-white/40">Version</span>
+                  <span className="font-medium text-[#6b7280] dark:text-white/40">{tr("safeMode.version")}</span>
                   <span>{analyzeResult.preview.version}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -338,10 +341,10 @@ export function SafeModePage() {
             {analyzeResult?.status === "ok" && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280] dark:text-white/40">
-                  Sections à restaurer
+                  {tr("safeMode.sectionsToRestore")}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {RESTORE_SECTIONS.map(({ key, label, icon }) => {
+                  {RESTORE_SECTIONS.map(({ key, tk, icon }) => {
                     const checked = selectedSections.includes(key);
                     return (
                       <button
@@ -355,7 +358,7 @@ export function SafeModePage() {
                         }`}
                       >
                         {icon}
-                        {label}
+                        {tr(tk)}
                         {checked && <CheckCircle2 size={12} className="text-emerald-500" />}
                       </button>
                     );
@@ -369,11 +372,11 @@ export function SafeModePage() {
               <div className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 dark:bg-emerald-900/20">
                 <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-600" />
                 <div className="text-xs text-emerald-700 dark:text-emerald-400">
-                  <p className="font-semibold">Restauration réussie</p>
+                  <p className="font-semibold">{tr("safeMode.restoreSuccess")}</p>
                   <ul className="mt-0.5 space-y-0.5">
                     {Object.entries(restoreResult.restored).map(([key, val]) => (
                       <li key={key}>
-                        {val} {key} restauré(s)
+                        {tr("safeMode.restored", { val, key })}
                       </li>
                     ))}
                   </ul>
@@ -396,12 +399,12 @@ export function SafeModePage() {
               {restoring ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  Restauration en cours…
+                  {tr("safeMode.restoring")}
                 </>
               ) : (
                 <>
                   <Upload size={16} />
-                  Restaurer les données sélectionnées
+                  {tr("safeMode.restoreSelected")}
                 </>
               )}
             </button>
