@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, CheckCircle2, Clock, AlertTriangle, CalendarDays, X } from "lucide-react";
 import type { FiscalDeadlineDto } from "../services/api";
@@ -16,7 +18,8 @@ const TAX_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 
 function taxBadge(taxType: string) {
   const cfg = TAX_TYPE_CONFIG[taxType.toUpperCase()] ?? TAX_TYPE_CONFIG.autre;
-  return <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${cfg.color}`}>{cfg.label}</span>;
+  const label = cfg === TAX_TYPE_CONFIG.autre ? i18n.t("fiscal.taxOther") : cfg.label;
+  return <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${cfg.color}`}>{label}</span>;
 }
 
 function daysUntil(dateStr: string): number {
@@ -33,8 +36,6 @@ function isUrgent(item: FiscalDeadlineDto): boolean {
   const d = daysUntil(item.due_date);
   return item.status !== "done" && d >= 0 && d < 7;
 }
-
-const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
 interface AddFormData {
   title: string;
@@ -81,12 +82,12 @@ function CalendarMini({ deadlines, year, month }: {
       <div className="mb-3 flex items-center gap-2">
         <CalendarDays size={15} className="text-emerald-600" />
         <span className="text-sm font-semibold text-[#17211f] dark:text-white">
-          {MONTH_NAMES[month]} {year}
+          {new Date(year, month, 1).toLocaleDateString(i18n.language, { month: "long", year: "numeric" })}
         </span>
       </div>
       <div className="grid grid-cols-7 gap-px text-center">
-        {["Lu","Ma","Me","Je","Ve","Sa","Di"].map((d) => (
-          <div key={d} className="py-1 text-[10px] font-bold uppercase text-[#717182] dark:text-white/40">{d}</div>
+        {Array.from({ length: 7 }, (_, wi) => new Date(2024, 0, 1 + wi).toLocaleDateString(i18n.language, { weekday: "short" }).slice(0, 2)).map((d, wi) => (
+          <div key={wi} className="py-1 text-[10px] font-bold uppercase text-[#717182] dark:text-white/40">{d}</div>
         ))}
         {cells.map((day, i) => {
           const items = day ? (dayMap[day] ?? []) : [];
@@ -127,6 +128,7 @@ function CalendarMini({ deadlines, year, month }: {
 }
 
 export function AgendaFiscalPage() {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const [filter, setFilter]     = useState<FilterType>("all");
   const [showModal, setShowModal] = useState(false);
@@ -186,10 +188,10 @@ export function AgendaFiscalPage() {
   }
 
   const FILTERS: { key: FilterType; label: string }[] = [
-    { key: "all",      label: "Tous" },
-    { key: "upcoming", label: "À venir" },
-    { key: "done",     label: "Fait" },
-    { key: "overdue",  label: "En retard" },
+    { key: "all",      label: tr("fiscal.filterAll") },
+    { key: "upcoming", label: tr("fiscal.filterUpcoming") },
+    { key: "done",     label: tr("fiscal.filterDone") },
+    { key: "overdue",  label: tr("fiscal.filterOverdue") },
   ];
 
   return (
@@ -197,8 +199,8 @@ export function AgendaFiscalPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black text-[#17211f] dark:text-white">Agenda fiscal</h1>
-          <p className="text-sm text-[#717182] dark:text-white/50">Suivi des échéances fiscales et sociales</p>
+          <h1 className="text-xl font-black text-[#17211f] dark:text-white">{tr("fiscal.title")}</h1>
+          <p className="text-sm text-[#717182] dark:text-white/50">{tr("fiscal.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -207,14 +209,14 @@ export function AgendaFiscalPage() {
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-1.5 text-sm font-semibold text-[#17211f] hover:bg-[#f5f5fa] transition dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white disabled:opacity-50"
           >
             <RefreshCw size={14} className={generateMut.isPending ? "animate-spin" : ""} />
-            Générer les échéances annuelles
+            {tr("fiscal.generateAnnual")}
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 transition"
           >
             <Plus size={15} />
-            Ajouter une échéance
+            {tr("fiscal.addDeadline")}
           </button>
         </div>
       </div>
@@ -250,7 +252,7 @@ export function AgendaFiscalPage() {
           ) : filtered.length === 0 ? (
             <div className="rounded-xl border border-black/[0.06] bg-white py-16 text-center dark:border-white/[0.08] dark:bg-[#1e2229]">
               <CalendarDays size={32} className="mx-auto mb-3 text-[#717182] dark:text-white/30" />
-              <p className="text-sm text-[#717182] dark:text-white/40">Aucune échéance dans cette catégorie</p>
+              <p className="text-sm text-[#717182] dark:text-white/40">{tr("fiscal.noDeadlines")}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -276,7 +278,7 @@ export function AgendaFiscalPage() {
                     <button
                       onClick={() => updateMut.mutate({ id: item.id, payload: { status: done ? "pending" : "done" } })}
                       className={`mt-0.5 shrink-0 transition ${done ? "text-emerald-500" : "text-[#717182] hover:text-emerald-500 dark:text-white/40"}`}
-                      title={done ? "Marquer en attente" : "Marquer comme fait"}
+                      title={done ? tr("fiscal.markPending") : tr("fiscal.markDone")}
                     >
                       <CheckCircle2 size={20} />
                     </button>
@@ -288,22 +290,22 @@ export function AgendaFiscalPage() {
                         {taxBadge(item.tax_type)}
                         {overdue && (
                           <span className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-400">
-                            <AlertTriangle size={10} /> En retard
+                            <AlertTriangle size={10} /> {tr("fiscal.overdue")}
                           </span>
                         )}
                         {urgent && !overdue && (
                           <span className="flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                            <Clock size={10} /> {days}j
+                            <Clock size={10} /> {tr("fiscal.daysShort", { days })}
                           </span>
                         )}
                         {done && (
                           <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                            Fait
+                            {tr("fiscal.done")}
                           </span>
                         )}
                       </div>
                       <p className="mt-0.5 text-xs text-[#717182] dark:text-white/40">
-                        Échéance : {new Date(item.due_date).toLocaleDateString("fr-FR")}
+                        {tr("fiscal.dueLabel", { date: new Date(item.due_date).toLocaleDateString(i18n.language) })}
                         {item.recurrence && item.recurrence !== "none" && ` · ${item.recurrence}`}
                         {item.description && ` · ${item.description}`}
                       </p>
@@ -328,7 +330,7 @@ export function AgendaFiscalPage() {
           />
           <div className="relative w-full max-w-md rounded-2xl border border-black/[0.06] bg-white p-6 shadow-2xl dark:border-white/[0.08] dark:bg-[#1e2229]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#17211f] dark:text-white">Nouvelle échéance fiscale</h2>
+              <h2 className="text-base font-bold text-[#17211f] dark:text-white">{tr("fiscal.modalTitle")}</h2>
               <button
                 onClick={() => { setShowModal(false); setForm(EMPTY_FORM); }}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:text-white/50 dark:hover:bg-white/[0.06]"
@@ -338,18 +340,18 @@ export function AgendaFiscalPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">Titre *</label>
+                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">{tr("fiscal.fTitle")}</label>
                 <input
                   required
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Ex: Déclaration TVA mars"
+                  placeholder={tr("fiscal.titlePlaceholder")}
                   className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/[0.08] dark:bg-[#111318] dark:text-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">Date limite *</label>
+                  <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">{tr("fiscal.dueDate")}</label>
                   <input
                     type="date"
                     required
@@ -359,7 +361,7 @@ export function AgendaFiscalPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">Type fiscal</label>
+                  <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">{tr("fiscal.taxType")}</label>
                   <select
                     value={form.tax_type}
                     onChange={(e) => setForm({ ...form, tax_type: e.target.value })}
@@ -369,30 +371,30 @@ export function AgendaFiscalPage() {
                     <option value="IS">IS</option>
                     <option value="CNSS">CNSS</option>
                     <option value="IRPP">IRPP</option>
-                    <option value="autre">Autre</option>
+                    <option value="autre">{tr("fiscal.taxOther")}</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">Récurrence</label>
+                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">{tr("fiscal.recurrence")}</label>
                 <select
                   value={form.recurrence}
                   onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
                   className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/[0.08] dark:bg-[#111318] dark:text-white"
                 >
-                  <option value="none">Ponctuelle</option>
-                  <option value="monthly">Mensuelle</option>
-                  <option value="quarterly">Trimestrielle</option>
-                  <option value="annual">Annuelle</option>
+                  <option value="none">{tr("fiscal.recNone")}</option>
+                  <option value="monthly">{tr("fiscal.recMonthly")}</option>
+                  <option value="quarterly">{tr("fiscal.recQuarterly")}</option>
+                  <option value="annual">{tr("fiscal.recAnnual")}</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">Description</label>
+                <label className="mb-1 block text-xs font-semibold text-[#717182] dark:text-white/50">{tr("fiscal.description")}</label>
                 <textarea
                   rows={2}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Détails ou notes complémentaires…"
+                  placeholder={tr("fiscal.descPlaceholder")}
                   className="w-full resize-none rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/[0.08] dark:bg-[#111318] dark:text-white"
                 />
               </div>
@@ -402,14 +404,14 @@ export function AgendaFiscalPage() {
                   onClick={() => { setShowModal(false); setForm(EMPTY_FORM); }}
                   className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm font-semibold text-[#17211f] hover:bg-[#f5f5fa] dark:border-white/[0.08] dark:text-white dark:hover:bg-white/[0.06]"
                 >
-                  Annuler
+                  {tr("common.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={createMut.isPending}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
                 >
-                  {createMut.isPending ? "Enregistrement…" : "Ajouter"}
+                  {createMut.isPending ? tr("fiscal.saving") : tr("fiscal.add")}
                 </button>
               </div>
             </form>
