@@ -223,6 +223,117 @@
       "noTitle": "(untitled)"
     }
   },
+  "documents": {
+    "docTypes": {
+      "contrat": "Contract",
+      "facture": "Invoice",
+      "releveBancaire": "Bank statement",
+      "bulletinPaie": "Payslip",
+      "declarationFiscale": "Tax filing",
+      "rapport": "Report",
+      "identite": "Identity",
+      "diplome": "Diploma",
+      "autre": "Other"
+    },
+    "size": {
+      "bytes": "{{value}} B",
+      "kb": "{{value}} KB",
+      "mb": "{{value}} MB"
+    },
+    "date": {
+      "notDefined": "Not defined"
+    },
+    "dropZone": {
+      "promptPrefix": "Drop a file or",
+      "browse": "browse",
+      "types": "Contract · Invoice · Bank statement · Payslip · Report · Identity…"
+    },
+    "chat": {
+      "title": "Limule chat · {{title}}",
+      "empty": "Ask Limule a question about this document…",
+      "placeholder": "Question about this document…"
+    },
+    "card": {
+      "confidence": "{{confidence}}% confidence",
+      "characters": "{{value}} chars",
+      "extractedData": "Extracted data",
+      "reanalyze": "Re-analyze",
+      "importTransactions": "Import transactions"
+    },
+    "filters": {
+      "allTypes": "All types",
+      "bankStatements": "Bank statements",
+      "invoices": "Invoices",
+      "contracts": "Contracts",
+      "payslips": "Payslips",
+      "taxFilings": "Tax filings",
+      "reports": "Reports",
+      "identities": "Identities",
+      "diplomas": "Diplomas",
+      "others": "Others"
+    },
+    "toast": {
+      "downloadError": "Unable to download the file: {{message}}"
+    },
+    "header": {
+      "eyebrow": "Company documents",
+      "title": "Smart library",
+      "subtitle": "Analyze all your documents with Limule — PDF, Excel, CSV, Word, Images (OCR)",
+      "transactions": "View transactions"
+    },
+    "kpi": {
+      "total": "Total documents",
+      "analyzed": "Analyzed by AI",
+      "bankDocs": "Bank statements",
+      "avgConfidence": "Avg. confidence"
+    },
+    "upload": {
+      "title": "Add a document",
+      "documentTitle": "Title",
+      "documentTitlePlaceholder": "Document name",
+      "linkEmployee": "Link to an employee (optional)",
+      "companyDocument": "Company document",
+      "analyzing": "AI analysis in progress…",
+      "submit": "Upload and analyze",
+      "extracting": "Limule extraction and classification…",
+      "success": "Document classified and analyzed"
+    },
+    "formats": {
+      "title": "Supported formats",
+      "pdf": {
+        "label": "PDF",
+        "desc": "pdfplumber extraction"
+      },
+      "excel": {
+        "label": "Excel / CSV",
+        "desc": "openpyxl + csv"
+      },
+      "images": {
+        "label": "Images (OCR)",
+        "desc": "PNG, JPG, HEIC…"
+      },
+      "word": {
+        "label": "Word",
+        "desc": "DOCX, DOC"
+      },
+      "text": {
+        "label": "Plain text",
+        "desc": "TXT, CSV"
+      }
+    },
+    "library": {
+      "searchPlaceholder": "Search title, tags…",
+      "clear": "Clear",
+      "count": "{{count}} docs",
+      "count_one": "{{count}} doc",
+      "count_other": "{{count}} docs",
+      "loading": "Loading documents…",
+      "emptyTitle": "No document",
+      "emptyFiltered": "No document matches your filters.",
+      "empty": "Add your first document by dropping it into the upload area.",
+      "refreshing": "Refreshing…"
+    }
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",

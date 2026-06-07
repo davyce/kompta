@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { useRef, useState, useMemo, FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowRight, BrainCircuit, CheckCircle2, ChevronDown, ChevronUp,
   Download, FileImage, FilePieChart, FileSpreadsheet, FileText, FileUp,
@@ -11,22 +13,27 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useToast } from "../components/ToastProvider";
 import type { CompanyDocument } from "../types/domain";
-import { shortDate } from "../utils/format";
+import i18n from "../i18n";
 import { LimuleIcon } from "../components/LimuleAvatar";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  contrat: "Contrat",
-  facture: "Facture",
-  releve_bancaire: "Relevé bancaire",
-  bulletin_paie: "Bulletin de paie",
-  declaration_fiscale: "Déclaration fiscale",
-  rapport: "Rapport",
-  identite: "Identité",
-  diplome: "Diplôme",
-  autre: "Autre",
+  contrat: "documents.docTypes.contrat",
+  facture: "documents.docTypes.facture",
+  releve_bancaire: "documents.docTypes.releveBancaire",
+  bulletin_paie: "documents.docTypes.bulletinPaie",
+  declaration_fiscale: "documents.docTypes.declarationFiscale",
+  rapport: "documents.docTypes.rapport",
+  identite: "documents.docTypes.identite",
+  diplome: "documents.docTypes.diplome",
+  autre: "documents.docTypes.autre",
 };
+
+function docTypeLabel(type: string, tr: TFunction): string {
+  const tk = DOC_TYPE_LABELS[type];
+  return tk ? tr(tk) : type;
+}
 
 function docTypeTone(type: string): string {
   const tones: Record<string, string> = {
@@ -64,15 +71,25 @@ function parseExtracted(raw?: string | null): Record<string, unknown> | null {
   catch { return null; }
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+function formatSize(bytes: number, tr: TFunction): string {
+  if (bytes < 1024) return tr("documents.size.bytes", { value: bytes });
+  if (bytes < 1024 * 1024) return tr("documents.size.kb", { value: (bytes / 1024).toFixed(0) });
+  return tr("documents.size.mb", { value: (bytes / (1024 * 1024)).toFixed(1) });
+}
+
+function documentDate(value: string | null, tr: TFunction): string {
+  if (!value) return tr("documents.date.notDefined");
+  return new Intl.DateTimeFormat(i18n.language, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 // ── Drop Zone ─────────────────────────────────────────────────────────────────
 
 function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
+  const { t: tr } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -100,10 +117,10 @@ function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
       </div>
       <div className="text-center">
         <p className="text-sm font-semibold text-[#17211f] dark:text-white">
-          Glissez un fichier ou <span className="text-emerald-600">parcourez</span>
+          {tr("documents.dropZone.promptPrefix")} <span className="text-emerald-600">{tr("documents.dropZone.browse")}</span>
         </p>
         <p className="mt-1 text-xs text-[#717182]">
-          Contrat · Facture · Relevé bancaire · Fiche de paie · Rapport · Identité…
+          {tr("documents.dropZone.types")}
         </p>
         <div className="mt-2 flex flex-wrap justify-center gap-1.5">
           {["PDF", "CSV", "XLSX", "PNG/JPG (OCR)", "DOCX", "TXT"].map((fmt) => (
@@ -118,6 +135,7 @@ function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
 // ── Document Chat Panel ────────────────────────────────────────────────────────
 
 function DocChatPanel({ doc, onClose }: { doc: CompanyDocument; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -157,14 +175,14 @@ function DocChatPanel({ doc, onClose }: { doc: CompanyDocument; onClose: () => v
       <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
           <LimuleIcon size={16} />
-          <span className="text-sm font-semibold text-[#17211f] dark:text-white">Chat Limule · {doc.title}</span>
+          <span className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("documents.chat.title", { title: doc.title })}</span>
         </div>
-        <button onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={14} /></button>
+        <button onClick={onClose} title={tr("common.close")} className="grid h-7 w-7 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={14} /></button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-xs text-center text-[#aaa] mt-4">
-            Posez une question sur ce document à Limule…
+            {tr("documents.chat.empty")}
           </p>
         )}
         {messages.map((m, i) => (
@@ -185,7 +203,7 @@ function DocChatPanel({ doc, onClose }: { doc: CompanyDocument; onClose: () => v
       <div className="flex gap-2 px-4 py-3 border-t border-black/[0.06] dark:border-white/[0.06] shrink-0">
         <input
           className="flex-1 rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
-          placeholder="Question sur ce document…"
+          placeholder={tr("documents.chat.placeholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
@@ -235,6 +253,7 @@ function DocumentCard({
   onDownload: () => void;
   analyzing: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -250,7 +269,7 @@ function DocumentCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-sm text-[#17211f] dark:text-white truncate">{doc.title}</p>
-          <p className="text-xs text-[#717182] truncate">{doc.filename} · {formatSize(doc.size_bytes)} · {shortDate(doc.created_at)}</p>
+          <p className="text-xs text-[#717182] truncate">{doc.filename} · {formatSize(doc.size_bytes, tr)} · {documentDate(doc.created_at, tr)}</p>
         </div>
         <button onClick={() => setExpanded((v) => !v)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -260,7 +279,7 @@ function DocumentCard({
       {/* Badges row */}
       <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${docTypeTone(doc.document_type)}`}>
-          {DOC_TYPE_LABELS[doc.document_type] ?? doc.document_type}
+          {docTypeLabel(doc.document_type, tr)}
         </span>
         {doc.confidence > 0 && (
           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
@@ -268,7 +287,7 @@ function DocumentCard({
             : doc.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
             : "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300"
           }`}>
-            {doc.confidence}% confiance
+            {tr("documents.card.confidence", { confidence: doc.confidence })}
           </span>
         )}
         {doc.parse_method && (
@@ -278,7 +297,7 @@ function DocumentCard({
         )}
         {doc.text_length != null && doc.text_length > 0 && (
           <span className="rounded-full bg-slate-100 dark:bg-white/[0.08] px-2.5 py-0.5 text-[10px] font-medium text-[#717182]">
-            {doc.text_length.toLocaleString()} car.
+            {tr("documents.card.characters", { value: doc.text_length.toLocaleString(i18n.language) })}
           </span>
         )}
       </div>
@@ -310,7 +329,7 @@ function DocumentCard({
           {extracted && Object.keys(extracted).length > 0 && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-[#717182] mb-2 flex items-center gap-1.5">
-                <BrainCircuit size={12} /> Données extraites
+                <BrainCircuit size={12} /> {tr("documents.card.extractedData")}
               </p>
               <ExtractedDataViewer data={extracted} />
             </div>
@@ -329,7 +348,7 @@ function DocumentCard({
           className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white hover:bg-[#f5f5fa] dark:hover:bg-white/[0.06] disabled:opacity-50 transition"
         >
           {analyzing ? <Loader2 size={12} className="animate-spin" /> : <LimuleIcon size={12} />}
-          Re-analyser
+          {tr("documents.card.reanalyze")}
         </button>
         <button
           onClick={onTerasAnalyze}
@@ -351,7 +370,7 @@ function DocumentCard({
             className="flex items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-600/40 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
           >
             <Landmark size={12} />
-            Import transactions
+            {tr("documents.card.importTransactions")}
             <ArrowRight size={11} />
           </button>
         )}
@@ -360,7 +379,7 @@ function DocumentCard({
           className="ml-auto flex items-center gap-1.5 rounded-lg bg-[#17211f] dark:bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white hover:bg-black transition"
         >
           <Download size={12} />
-          Télécharger
+          {tr("common.download")}
         </button>
       </div>
     </article>
@@ -370,19 +389,20 @@ function DocumentCard({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const DOC_TYPE_FILTERS = [
-  { value: "", label: "Tous les types" },
-  { value: "releve_bancaire", label: "Relevés bancaires" },
-  { value: "facture", label: "Factures" },
-  { value: "contrat", label: "Contrats" },
-  { value: "bulletin_paie", label: "Bulletins de paie" },
-  { value: "declaration_fiscale", label: "Déclarations fiscales" },
-  { value: "rapport", label: "Rapports" },
-  { value: "identite", label: "Identités" },
-  { value: "diplome", label: "Diplômes" },
-  { value: "autre", label: "Autres" },
+  { value: "", labelTk: "documents.filters.allTypes" },
+  { value: "releve_bancaire", labelTk: "documents.filters.bankStatements" },
+  { value: "facture", labelTk: "documents.filters.invoices" },
+  { value: "contrat", labelTk: "documents.filters.contracts" },
+  { value: "bulletin_paie", labelTk: "documents.filters.payslips" },
+  { value: "declaration_fiscale", labelTk: "documents.filters.taxFilings" },
+  { value: "rapport", labelTk: "documents.filters.reports" },
+  { value: "identite", labelTk: "documents.filters.identities" },
+  { value: "diplome", labelTk: "documents.filters.diplomas" },
+  { value: "autre", labelTk: "documents.filters.others" },
 ];
 
 export function DocumentsPage() {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -447,7 +467,7 @@ export function DocumentsPage() {
       a.href = url; a.download = filename; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (err) {
-      toast.error(`Impossible de télécharger le fichier : ${(err as Error).message}`);
+      toast.error(tr("documents.toast.downloadError", { message: (err as Error).message }));
     }
   }
 
@@ -476,13 +496,13 @@ export function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">Documents entreprise</p>
+          <p className="text-sm font-semibold text-emerald-600">{tr("documents.header.eyebrow")}</p>
           <h1 className="text-2xl font-black text-[#17211f] dark:text-white flex items-center gap-2">
             <FolderArchive size={24} className="text-emerald-600" />
-            Bibliothèque intelligente
+            {tr("documents.header.title")}
           </h1>
           <p className="mt-0.5 text-sm text-[#717182]">
-            Analysez tous vos documents avec Limule — PDF, Excel, CSV, Word, Images (OCR)
+            {tr("documents.header.subtitle")}
           </p>
         </div>
         <button
@@ -490,7 +510,7 @@ export function DocumentsPage() {
           className="flex items-center gap-2 rounded-lg border border-emerald-300 dark:border-emerald-600/40 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
         >
           <Landmark size={16} />
-          Voir les transactions
+          {tr("documents.header.transactions")}
           <ArrowRight size={14} />
         </button>
       </div>
@@ -498,12 +518,12 @@ export function DocumentsPage() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: "Total documents", value: total, color: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" },
-          { label: "Analysés par IA", value: analyzed, color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" },
-          { label: "Relevés bancaires", value: bankDocs, color: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400" },
-          { label: "Confiance moy.", value: `${avgConfidence}%`, color: "bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400" },
+          { key: "total", label: tr("documents.kpi.total"), value: total, color: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" },
+          { key: "analyzed", label: tr("documents.kpi.analyzed"), value: analyzed, color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" },
+          { key: "bankDocs", label: tr("documents.kpi.bankDocs"), value: bankDocs, color: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400" },
+          { key: "avgConfidence", label: tr("documents.kpi.avgConfidence"), value: `${avgConfidence}%`, color: "bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400" },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-4 flex gap-3 items-center">
+          <div key={kpi.key} className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-4 flex gap-3 items-center">
             <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-black ${kpi.color}`}>
               {typeof kpi.value === "number" ? kpi.value : kpi.value}
             </span>
@@ -522,7 +542,7 @@ export function DocumentsPage() {
           <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
             <h2 className="mb-4 text-sm font-bold text-[#17211f] dark:text-white flex items-center gap-2">
               <FileUp size={16} className="text-emerald-600" />
-              Ajouter un document
+              {tr("documents.upload.title")}
             </h2>
             <form onSubmit={submit} className="space-y-3">
               {/* Drop zone */}
@@ -533,7 +553,7 @@ export function DocumentsPage() {
                   <FileIcon filename={pendingFile.name} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{pendingFile.name}</p>
-                    <p className="text-xs text-[#717182]">{formatSize(pendingFile.size)}</p>
+                    <p className="text-xs text-[#717182]">{formatSize(pendingFile.size, tr)}</p>
                   </div>
                   <button type="button" onClick={() => setPendingFile(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
                     <X size={14} />
@@ -542,13 +562,13 @@ export function DocumentsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-[#717182] mb-1">Titre</label>
-                <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nom du document" />
+                <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.documentTitle")}</label>
+                <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("documents.upload.documentTitlePlaceholder")} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#717182] mb-1">Lier à un employé (optionnel)</label>
+                <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.linkEmployee")}</label>
                 <select className={inputCls} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-                  <option value="">Document entreprise</option>
+                  <option value="">{tr("documents.upload.companyDocument")}</option>
                   {employees.data?.map((emp) => (
                     <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
                   ))}
@@ -559,15 +579,15 @@ export function DocumentsPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-stone-300 dark:disabled:bg-stone-700 hover:bg-emerald-700 transition"
               >
                 {upload.isPending ? (
-                  <><Loader2 size={15} className="animate-spin" /> Analyse IA en cours…</>
+                  <><Loader2 size={15} className="animate-spin" /> {tr("documents.upload.analyzing")}</>
                 ) : (
-                  <><FileUp size={15} /> Uploader et analyser</>
+                  <><FileUp size={15} /> {tr("documents.upload.submit")}</>
                 )}
               </button>
               {upload.isPending && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs text-[#717182]">
-                    <span>Extraction et classification Limule…</span>
+                    <span>{tr("documents.upload.extracting")}</span>
                     <LimuleIcon size={13} className="animate-pulse" />
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-700">
@@ -577,7 +597,7 @@ export function DocumentsPage() {
               )}
               {upload.isSuccess && (
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                  <CheckCircle2 size={15} /> Document classé et analysé
+                  <CheckCircle2 size={15} /> {tr("documents.upload.success")}
                 </p>
               )}
               {upload.isError && (
@@ -588,19 +608,19 @@ export function DocumentsPage() {
 
           {/* Format guide */}
           <div className="rounded-xl border border-black/[0.06] bg-[#fafbff] dark:bg-[#1e2229] dark:border-white/[0.06] p-4 space-y-2">
-            <p className="text-xs font-bold text-[#717182] uppercase tracking-wide">Formats pris en charge</p>
+            <p className="text-xs font-bold text-[#717182] uppercase tracking-wide">{tr("documents.formats.title")}</p>
             {[
-              { icon: <FilePieChart size={14} className="text-red-500" />, label: "PDF", desc: "Extraction pdfplumber" },
-              { icon: <FileSpreadsheet size={14} className="text-green-600" />, label: "Excel / CSV", desc: "openpyxl + csv" },
-              { icon: <FileImage size={14} className="text-purple-500" />, label: "Images (OCR)", desc: "PNG, JPG, HEIC…" },
-              { icon: <FileText size={14} className="text-blue-600" />, label: "Word", desc: "DOCX, DOC" },
-              { icon: <FileText size={14} className="text-stone-500" />, label: "Texte brut", desc: "TXT, CSV" },
+              { icon: <FilePieChart size={14} className="text-red-500" />, labelTk: "documents.formats.pdf.label", descTk: "documents.formats.pdf.desc" },
+              { icon: <FileSpreadsheet size={14} className="text-green-600" />, labelTk: "documents.formats.excel.label", descTk: "documents.formats.excel.desc" },
+              { icon: <FileImage size={14} className="text-purple-500" />, labelTk: "documents.formats.images.label", descTk: "documents.formats.images.desc" },
+              { icon: <FileText size={14} className="text-blue-600" />, labelTk: "documents.formats.word.label", descTk: "documents.formats.word.desc" },
+              { icon: <FileText size={14} className="text-stone-500" />, labelTk: "documents.formats.text.label", descTk: "documents.formats.text.desc" },
             ].map((f) => (
-              <div key={f.label} className="flex items-center gap-2.5">
+              <div key={f.labelTk} className="flex items-center gap-2.5">
                 {f.icon}
                 <div>
-                  <span className="text-xs font-semibold text-[#17211f] dark:text-white">{f.label}</span>
-                  <span className="text-[10px] text-[#aaa] ml-1.5">{f.desc}</span>
+                  <span className="text-xs font-semibold text-[#17211f] dark:text-white">{tr(f.labelTk)}</span>
+                  <span className="text-[10px] text-[#aaa] ml-1.5">{tr(f.descTk)}</span>
                 </div>
               </div>
             ))}
@@ -615,7 +635,7 @@ export function DocumentsPage() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aaa]" />
               <input
                 className="w-full rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] dark:text-white py-2 pl-9 pr-3 text-sm placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none"
-                placeholder="Rechercher titre, tags…"
+                placeholder={tr("documents.library.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -628,7 +648,7 @@ export function DocumentsPage() {
                 onChange={(e) => setTypeFilter(e.target.value)}
               >
                 {DOC_TYPE_FILTERS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
+                  <option key={f.value} value={f.value}>{tr(f.labelTk)}</option>
                 ))}
               </select>
             </div>
@@ -637,23 +657,23 @@ export function DocumentsPage() {
                 onClick={() => { setSearch(""); setTypeFilter(""); }}
                 className="flex items-center gap-1 rounded-lg border border-black/[0.08] px-3 py-2 text-xs font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"
               >
-                <X size={11} /> Effacer
+                <X size={11} /> {tr("documents.library.clear")}
               </button>
             )}
-            <span className="ml-auto text-xs text-[#aaa]">{filtered.length} doc{filtered.length !== 1 ? "s" : ""}</span>
+            <span className="ml-auto text-xs text-[#aaa]">{tr("documents.library.count", { count: filtered.length })}</span>
           </div>
 
           {/* Document cards */}
           {documents.isFetching && !documents.data ? (
             <div className="flex items-center gap-2 rounded-xl bg-stone-50 dark:bg-[#1e2229] p-6 text-sm text-[#717182]">
-              <RefreshCcw className="animate-spin" size={16} /> Chargement des documents…
+              <RefreshCcw className="animate-spin" size={16} /> {tr("documents.library.loading")}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center text-[#717182] rounded-xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08]">
               <FileX size={40} className="mb-3 text-[#ccc]" />
-              <p className="text-sm font-semibold text-[#17211f] dark:text-white">Aucun document</p>
+              <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("documents.library.emptyTitle")}</p>
               <p className="text-xs mt-1 max-w-xs">
-                {search || typeFilter ? "Aucun document ne correspond à vos filtres." : "Ajoutez votre premier document en le glissant dans la zone d'upload."}
+                {search || typeFilter ? tr("documents.library.emptyFiltered") : tr("documents.library.empty")}
               </p>
             </div>
           ) : (
@@ -670,7 +690,7 @@ export function DocumentsPage() {
               ))}
               {documents.isFetching && (
                 <div className="flex items-center gap-2 rounded-lg p-3 text-xs text-[#717182]">
-                  <RefreshCcw size={13} className="animate-spin" /> Actualisation…
+                  <RefreshCcw size={13} className="animate-spin" /> {tr("documents.library.refreshing")}
                 </div>
               )}
             </div>

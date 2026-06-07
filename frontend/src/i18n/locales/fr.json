@@ -223,6 +223,117 @@
       "noTitle": "(sans titre)"
     }
   },
+  "documents": {
+    "docTypes": {
+      "contrat": "Contrat",
+      "facture": "Facture",
+      "releveBancaire": "Relevé bancaire",
+      "bulletinPaie": "Bulletin de paie",
+      "declarationFiscale": "Déclaration fiscale",
+      "rapport": "Rapport",
+      "identite": "Identité",
+      "diplome": "Diplôme",
+      "autre": "Autre"
+    },
+    "size": {
+      "bytes": "{{value}} o",
+      "kb": "{{value}} Ko",
+      "mb": "{{value}} Mo"
+    },
+    "date": {
+      "notDefined": "Non défini"
+    },
+    "dropZone": {
+      "promptPrefix": "Glissez un fichier ou",
+      "browse": "parcourez",
+      "types": "Contrat · Facture · Relevé bancaire · Fiche de paie · Rapport · Identité…"
+    },
+    "chat": {
+      "title": "Chat Limule · {{title}}",
+      "empty": "Posez une question sur ce document à Limule…",
+      "placeholder": "Question sur ce document…"
+    },
+    "card": {
+      "confidence": "{{confidence}}% confiance",
+      "characters": "{{value}} car.",
+      "extractedData": "Données extraites",
+      "reanalyze": "Re-analyser",
+      "importTransactions": "Import transactions"
+    },
+    "filters": {
+      "allTypes": "Tous les types",
+      "bankStatements": "Relevés bancaires",
+      "invoices": "Factures",
+      "contracts": "Contrats",
+      "payslips": "Bulletins de paie",
+      "taxFilings": "Déclarations fiscales",
+      "reports": "Rapports",
+      "identities": "Identités",
+      "diplomas": "Diplômes",
+      "others": "Autres"
+    },
+    "toast": {
+      "downloadError": "Impossible de télécharger le fichier : {{message}}"
+    },
+    "header": {
+      "eyebrow": "Documents entreprise",
+      "title": "Bibliothèque intelligente",
+      "subtitle": "Analysez tous vos documents avec Limule — PDF, Excel, CSV, Word, Images (OCR)",
+      "transactions": "Voir les transactions"
+    },
+    "kpi": {
+      "total": "Total documents",
+      "analyzed": "Analysés par IA",
+      "bankDocs": "Relevés bancaires",
+      "avgConfidence": "Confiance moy."
+    },
+    "upload": {
+      "title": "Ajouter un document",
+      "documentTitle": "Titre",
+      "documentTitlePlaceholder": "Nom du document",
+      "linkEmployee": "Lier à un employé (optionnel)",
+      "companyDocument": "Document entreprise",
+      "analyzing": "Analyse IA en cours…",
+      "submit": "Uploader et analyser",
+      "extracting": "Extraction et classification Limule…",
+      "success": "Document classé et analysé"
+    },
+    "formats": {
+      "title": "Formats pris en charge",
+      "pdf": {
+        "label": "PDF",
+        "desc": "Extraction pdfplumber"
+      },
+      "excel": {
+        "label": "Excel / CSV",
+        "desc": "openpyxl + csv"
+      },
+      "images": {
+        "label": "Images (OCR)",
+        "desc": "PNG, JPG, HEIC…"
+      },
+      "word": {
+        "label": "Word",
+        "desc": "DOCX, DOC"
+      },
+      "text": {
+        "label": "Texte brut",
+        "desc": "TXT, CSV"
+      }
+    },
+    "library": {
+      "searchPlaceholder": "Rechercher titre, tags…",
+      "clear": "Effacer",
+      "count": "{{count}} docs",
+      "count_one": "{{count}} doc",
+      "count_other": "{{count}} docs",
+      "loading": "Chargement des documents…",
+      "emptyTitle": "Aucun document",
+      "emptyFiltered": "Aucun document ne correspond à vos filtres.",
+      "empty": "Ajoutez votre premier document en le glissant dans la zone d'upload.",
+      "refreshing": "Actualisation…"
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",
