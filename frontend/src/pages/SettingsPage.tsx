@@ -6,6 +6,7 @@ import {
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
   Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, User, Wallet, X, Zap,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { api } from "../services/api";
 import { SubscriptionPanel } from "../components/SubscriptionPanel";
@@ -16,18 +17,19 @@ import { resetOnboardingTour } from "../components/GuidedTour";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import type { CurrencyCode } from "../utils/format";
+import i18n from "../i18n";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type Tab = "general" | "subscription" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
 
 const PROVIDERS = [
-  { key: "zola", label: "Zola / QR", icon: Wallet },
-  { key: "mobile_money", label: "Mobile money", icon: Smartphone },
-  { key: "card", label: "Carte / Stripe", icon: CreditCard },
-  { key: "cash", label: "Espèces", icon: Wallet },
-  { key: "bank", label: "Compte bancaire", icon: Landmark },
-  { key: "paypal", label: "PayPal", icon: CreditCard },
+  { key: "zola", tk: "settingsPage.providers.zola", icon: Wallet },
+  { key: "mobile_money", tk: "settingsPage.providers.mobileMoney", icon: Smartphone },
+  { key: "card", tk: "settingsPage.providers.card", icon: CreditCard },
+  { key: "cash", tk: "settingsPage.providers.cash", icon: Wallet },
+  { key: "bank", tk: "settingsPage.providers.bank", icon: Landmark },
+  { key: "paypal", tk: "settingsPage.providers.paypal", icon: CreditCard },
 ];
 
 const EMPTY_PAYMENT_FORM = {
@@ -80,28 +82,29 @@ function SettingRow({ icon: Icon, label, description, children }: {
   );
 }
 
-const MODULE_LABELS: Record<string, { label: string; desc: string }> = {
-  dashboard:    { label: "Tableau de bord", desc: "Vue globale pilotage" },
-  rh:           { label: "RH",              desc: "Dossiers et profils employés" },
-  payroll:      { label: "Paie",            desc: "Bulletins & cycles paie" },
-  accounting:   { label: "Comptabilité",    desc: "SYSCEMAC, journaux, bilan" },
-  billing:      { label: "Facturation",     desc: "Devis, factures, encaissements" },
-  pos:          { label: "POS / Caisse",    desc: "Vente directe + mobile money" },
-  inventory:    { label: "Inventaire",      desc: "Stock multi-sites, QR codes" },
-  projects:     { label: "Projets & boards", desc: "Kanban, milestones, budgets" },
-  chat:         { label: "Chat",            desc: "Messagerie temps réel" },
-  meetings:     { label: "Réunions",        desc: "Inclus dans Agenda" },
-  reports:      { label: "Rapports",        desc: "Tableaux de bord analytics" },
-  declarations: { label: "Déclarations",    desc: "TVA, CNSS, IS, obligations légales" },
-  assistants:   { label: "Rédaction IA",    desc: "Studio Limule · emails, courriers" },
-  teras:        { label: "TERAS Connect",   desc: "Score conformité IA" },
-  documents:    { label: "Documents",       desc: "Bibliothèque intelligente" },
-  calendar:     { label: "Agenda",          desc: "Calendrier, réunions, tâches" },
-  notes:        { label: "Notes IA",        desc: "Journal & notes Limule" },
-  settings:     { label: "Paramètres",      desc: "Configuration KOMPTA" },
+const MODULE_LABELS: Record<string, { labelTk: string; descTk: string }> = {
+  dashboard:    { labelTk: "settingsPage.modulesList.dashboard.label", descTk: "settingsPage.modulesList.dashboard.desc" },
+  rh:           { labelTk: "settingsPage.modulesList.rh.label", descTk: "settingsPage.modulesList.rh.desc" },
+  payroll:      { labelTk: "settingsPage.modulesList.payroll.label", descTk: "settingsPage.modulesList.payroll.desc" },
+  accounting:   { labelTk: "settingsPage.modulesList.accounting.label", descTk: "settingsPage.modulesList.accounting.desc" },
+  billing:      { labelTk: "settingsPage.modulesList.billing.label", descTk: "settingsPage.modulesList.billing.desc" },
+  pos:          { labelTk: "settingsPage.modulesList.pos.label", descTk: "settingsPage.modulesList.pos.desc" },
+  inventory:    { labelTk: "settingsPage.modulesList.inventory.label", descTk: "settingsPage.modulesList.inventory.desc" },
+  projects:     { labelTk: "settingsPage.modulesList.projects.label", descTk: "settingsPage.modulesList.projects.desc" },
+  chat:         { labelTk: "settingsPage.modulesList.chat.label", descTk: "settingsPage.modulesList.chat.desc" },
+  meetings:     { labelTk: "settingsPage.modulesList.meetings.label", descTk: "settingsPage.modulesList.meetings.desc" },
+  reports:      { labelTk: "settingsPage.modulesList.reports.label", descTk: "settingsPage.modulesList.reports.desc" },
+  declarations: { labelTk: "settingsPage.modulesList.declarations.label", descTk: "settingsPage.modulesList.declarations.desc" },
+  assistants:   { labelTk: "settingsPage.modulesList.assistants.label", descTk: "settingsPage.modulesList.assistants.desc" },
+  teras:        { labelTk: "settingsPage.modulesList.teras.label", descTk: "settingsPage.modulesList.teras.desc" },
+  documents:    { labelTk: "settingsPage.modulesList.documents.label", descTk: "settingsPage.modulesList.documents.desc" },
+  calendar:     { labelTk: "settingsPage.modulesList.calendar.label", descTk: "settingsPage.modulesList.calendar.desc" },
+  notes:        { labelTk: "settingsPage.modulesList.notes.label", descTk: "settingsPage.modulesList.notes.desc" },
+  settings:     { labelTk: "settingsPage.modulesList.settings.label", descTk: "settingsPage.modulesList.settings.desc" },
 };
 
 export function SettingsPage() {
+  const { t: tr } = useTranslation();
   const { theme, toggle: toggleTheme } = useTheme();
   const { user } = useAuth();
   const { currency: activeCurrency, setCurrency } = useCurrency();
@@ -174,9 +177,9 @@ export function SettingsPage() {
 
   async function handleDeletePaymentAccount(accountId: number, label: string) {
     const ok = await confirm({
-      title: "Supprimer ce compte de paiement ?",
+      title: tr("settingsPage.confirm.deletePaymentTitle"),
       message: label,
-      confirmLabel: "Supprimer",
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deletePaymentAccount.mutate(accountId);
@@ -184,11 +187,11 @@ export function SettingsPage() {
 
   async function handleResetWorkspace() {
     const ok = await confirm({
-      title: "Remettre l'espace à zéro ?",
-      message: "Les données métier locales seront supprimées. Le compte connecté et le canal général seront conservés.",
-      confirmLabel: "Réinitialiser",
+      title: tr("settingsPage.confirm.resetWorkspaceTitle"),
+      message: tr("settingsPage.confirm.resetWorkspaceMessage"),
+      confirmLabel: tr("settingsPage.security.reset"),
       danger: true,
-      requireAcknowledge: "Je comprends que cette action supprime les données de cet espace local.",
+      requireAcknowledge: tr("settingsPage.confirm.resetWorkspaceAcknowledge"),
     });
     if (ok) resetWorkspace.mutate();
   }
@@ -344,7 +347,7 @@ export function SettingsPage() {
       await api.twoFaVerify(twoFaCode);
       await api.twoFaEnable();
       setTwoFaStep("enabled");
-    } catch (e) { setTwoFaError("Code invalide ou expiré. Réessayez."); }
+    } catch (e) { setTwoFaError(tr("settingsPage.security.invalid2fa")); }
     finally { setTwoFaLoading(false); }
   }
 
@@ -363,7 +366,7 @@ export function SettingsPage() {
   }
 
   function exportInvoicesCsv() {
-    const lines = ["Numéro,Client,Statut,Montant,Date émission"];
+    const lines = [tr("settingsPage.billing.csvHeader")];
     for (const inv of myInvoices.data ?? []) {
       lines.push(`${inv.number},"${inv.customer_name}",${inv.status},${inv.total_amount},${inv.created_at}`);
     }
@@ -394,15 +397,15 @@ export function SettingsPage() {
   }
 
   const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "general",       label: "Général",       icon: Building2   },
-    { key: "subscription",  label: "Abonnement",    icon: Sparkles    },
-    { key: "modules",       label: "Modules",       icon: Zap         },
-    { key: "payments",      label: "Paiements",     icon: Wallet      },
-    { key: "security",      label: "Sécurité",      icon: Lock        },
-    { key: "notifications", label: "Notifications", icon: Bell        },
-    { key: "teras",         label: "TERAS",         icon: ShieldCheck },
-    { key: "billing",       label: "Facturation",   icon: CreditCard  },
-    { key: "audit",         label: "Journal audit", icon: FileText    },
+    { key: "general",       label: tr("settingsPage.tabs.general"),       icon: Building2   },
+    { key: "subscription",  label: tr("settingsPage.tabs.subscription"),  icon: Sparkles    },
+    { key: "modules",       label: tr("settingsPage.tabs.modules"),       icon: Zap         },
+    { key: "payments",      label: tr("settingsPage.tabs.payments"),      icon: Wallet      },
+    { key: "security",      label: tr("settingsPage.tabs.security"),      icon: Lock        },
+    { key: "notifications", label: tr("settingsPage.tabs.notifications"), icon: Bell        },
+    { key: "teras",         label: tr("settingsPage.tabs.teras"),         icon: ShieldCheck },
+    { key: "billing",       label: tr("settingsPage.tabs.billing"),       icon: CreditCard  },
+    { key: "audit",         label: tr("settingsPage.tabs.audit"),         icon: FileText    },
   ];
   const TABS = isEmployeeSelfService
     ? allTabs.filter((item) => ["general", "payments", "notifications", "security"].includes(item.key))
@@ -410,8 +413,10 @@ export function SettingsPage() {
 
   const modulesData = modulesQ.data ?? [];
   const filteredModules = modulesData.filter((mod) => {
-    const meta = MODULE_LABELS[mod.module_key] ?? { label: mod.module_key, desc: "" };
-    const haystack = `${meta.label} ${meta.desc} ${mod.module_key}`.toLowerCase();
+    const meta = MODULE_LABELS[mod.module_key];
+    const label = meta ? tr(meta.labelTk) : mod.module_key;
+    const desc = meta ? tr(meta.descTk) : "";
+    const haystack = `${label} ${desc} ${mod.module_key}`.toLowerCase();
     return haystack.includes(moduleSearch.trim().toLowerCase());
   });
   const activeModulesCount = modulesData.filter((mod) => mod.enabled).length;
@@ -420,16 +425,16 @@ export function SettingsPage() {
   const terasScore = overview.data?.kpis.teras_score ?? 0;
   const lastTerasAnalysis = useMemo(() => {
     // Approximation: last AI generation that's TERAS-related, or last alert created_at
-    return new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+    return new Date().toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" });
   }, []);
 
   return (
     <div data-tour="settings-content" className="space-y-6">
       <div>
-        <p className="text-sm font-semibold text-emerald-600">Administration</p>
-        <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Paramètres</h1>
+        <p className="text-sm font-semibold text-emerald-600">{tr("settingsPage.header.eyebrow")}</p>
+        <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">{tr("settingsPage.header.title")}</h1>
         <p className="mt-1 text-sm text-[#717182]">
-          {company.data?.name ?? "KOMPTA"} · Configuration de votre espace de travail
+          {tr("settingsPage.header.subtitle", { company: company.data?.name ?? "KOMPTA" })}
         </p>
       </div>
 
@@ -461,8 +466,8 @@ export function SettingsPage() {
           {tab === "general" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Général</h2>
-                <p className="text-sm text-[#717182]">Profil entreprise, apparence et langue</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.general.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.general.subtitle")}</p>
               </div>
               <div className="px-6 py-2">
                 <form
@@ -474,14 +479,14 @@ export function SettingsPage() {
                 >
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-[#17211f] dark:text-white">Identité & branding entreprise</p>
-                      <p className="text-xs text-[#717182]">Ces informations alimentent les factures, contrats, exports et écrans KOMPTA.</p>
+                      <p className="text-sm font-bold text-[#17211f] dark:text-white">{tr("settingsPage.general.identityTitle")}</p>
+                      <p className="text-xs text-[#717182]">{tr("settingsPage.general.identityDesc")}</p>
                     </div>
                     <button
                       disabled={updateCompany.isPending || isEmployeeSelfService}
                       className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      <Save size={15} /> {updateCompany.isPending ? "Sauvegarde..." : "Sauvegarder"}
+                      <Save size={15} /> {updateCompany.isPending ? tr("common.saving") : tr("common.save")}
                     </button>
                   </div>
                   <div className="grid gap-4 xl:grid-cols-[220px_1fr]">
@@ -491,7 +496,7 @@ export function SettingsPage() {
                         {(companyForm.name || "K")[0]}
                       </div>
                       <p className="mt-3 font-black text-[#17211f] dark:text-white">{companyForm.name || "KOMPTA"}</p>
-                      <p className="text-xs text-[#717182]">{companyForm.industry || "Activité"}</p>
+                      <p className="text-xs text-[#717182]">{companyForm.industry || tr("settingsPage.general.activityFallback")}</p>
                       <div className="mt-3 flex gap-2">
                         <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.primary_color }} />
                         <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.accent_color }} />
@@ -499,11 +504,11 @@ export function SettingsPage() {
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {[
-                        { label: "Nom commercial", key: "name", placeholder: "Ex : Mon Entreprise" },
-                        { label: "Raison sociale", key: "legal_name", placeholder: "Ex : Mon Entreprise SARL" },
-                        { label: "Activité", key: "industry", placeholder: "Ex : Commerce et services" },
-                        { label: "Forme / organisation", key: "organization_type", placeholder: "Ex : PME" },
-                        { label: "Pays principal", key: "country", placeholder: "Ex : République du Congo" },
+                        { label: tr("settingsPage.general.fields.tradeName"), key: "name", placeholder: tr("settingsPage.general.placeholders.tradeName") },
+                        { label: tr("settingsPage.general.fields.legalName"), key: "legal_name", placeholder: tr("settingsPage.general.placeholders.legalName") },
+                        { label: tr("settingsPage.general.fields.industry"), key: "industry", placeholder: tr("settingsPage.general.placeholders.industry") },
+                        { label: tr("settingsPage.general.fields.organizationType"), key: "organization_type", placeholder: tr("settingsPage.general.placeholders.organizationType") },
+                        { label: tr("settingsPage.general.fields.country"), key: "country", placeholder: tr("settingsPage.general.placeholders.country") },
                       ].map((field) => (
                         <label key={field.key} className="block text-xs font-bold uppercase text-[#717182]">
                           {field.label}
@@ -517,7 +522,7 @@ export function SettingsPage() {
                         </label>
                       ))}
                       <label className="block text-xs font-bold uppercase text-[#717182]">
-                        Couleur principale
+                        {tr("settingsPage.general.fields.primaryColor")}
                         <input
                           type="color"
                           value={companyForm.primary_color}
@@ -527,7 +532,7 @@ export function SettingsPage() {
                         />
                       </label>
                       <label className="block text-xs font-bold uppercase text-[#717182]">
-                        Couleur accent
+                        {tr("settingsPage.general.fields.accentColor")}
                         <input
                           type="color"
                           value={companyForm.accent_color}
@@ -537,7 +542,7 @@ export function SettingsPage() {
                         />
                       </label>
                       <label className="block text-xs font-bold uppercase text-[#717182] md:col-span-2">
-                        Seuil d'alerte trésorerie
+                        {tr("settingsPage.general.fields.cashThreshold")}
                         <div className="mt-1 flex items-center gap-2">
                           <input
                             type="number"
@@ -556,7 +561,7 @@ export function SettingsPage() {
                           <span className="shrink-0 text-sm font-semibold text-[#717182]">{activeCurrency}</span>
                         </div>
                         <span className="mt-1 block text-[11px] font-normal normal-case text-[#717182]">
-                          Limule t'alerte quand ta trésorerie passe sous ce montant. Mets 0 pour désactiver l'alerte.
+                          {tr("settingsPage.general.cashThresholdHint")}
                         </span>
                       </label>
                     </div>
@@ -564,46 +569,46 @@ export function SettingsPage() {
 
                   {/* ── Mentions légales & fiscales (OHADA / CEMAC) ── */}
                   <div className="mt-5 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-                    <p className="mb-1 text-sm font-black text-[#17211f] dark:text-white">⚖️ Mentions légales & fiscales</p>
-                    <p className="mb-3 text-xs text-[#717182]">Ces informations attestent que l'entreprise est immatriculée et en règle. Elles apparaissent sur les factures et contrats.</p>
+                    <p className="mb-1 text-sm font-black text-[#17211f] dark:text-white">{tr("settingsPage.general.legalTitle")}</p>
+                    <p className="mb-3 text-xs text-[#717182]">{tr("settingsPage.general.legalDesc")}</p>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      <label className="block text-xs font-bold uppercase text-[#717182]">Forme juridique
+                      <label className="block text-xs font-bold uppercase text-[#717182]">{tr("settingsPage.general.fields.legalForm")}
                         <select value={companyForm.legal_form} onChange={(e) => setCompanyForm({ ...companyForm, legal_form: e.target.value })} disabled={isEmployeeSelfService}
                           className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
-                          <option value="">— Choisir —</option>
-                          <option value="EI">Entreprise individuelle (EI)</option>
+                          <option value="">{tr("settingsPage.choose")}</option>
+                          <option value="EI">{tr("settingsPage.general.legalForms.ei")}</option>
                           <option value="SARL">SARL</option>
                           <option value="SUARL">SARL unipersonnelle (SUARL)</option>
-                          <option value="SA">Société Anonyme (SA)</option>
+                          <option value="SA">{tr("settingsPage.general.legalForms.sa")}</option>
                           <option value="SAS">SAS</option>
                           <option value="SNC">SNC</option>
                           <option value="GIE">GIE</option>
-                          <option value="Coopérative">Coopérative</option>
-                          <option value="Association">Association / ONG</option>
+                          <option value="Coopérative">{tr("settingsPage.general.legalForms.cooperative")}</option>
+                          <option value="Association">{tr("settingsPage.general.legalForms.association")}</option>
                         </select>
                       </label>
                       {[
                         { label: "RCCM", key: "rccm", ph: "Ex : CG-BZV-01-2024-B12-00123" },
-                        { label: "NIU / NIF (fiscal)", key: "niu", ph: "Identifiant fiscal unique" },
-                        { label: "N° CNSS employeur", key: "cnss_number", ph: "N° d'affiliation CNSS" },
-                        { label: "N° de patente", key: "patente_number", ph: "N° de patente / licence" },
-                        { label: "Capital social", key: "share_capital", ph: "Ex : 1 000 000 XAF" },
+                        { label: tr("settingsPage.general.fields.taxId"), key: "niu", ph: tr("settingsPage.general.placeholders.taxId") },
+                        { label: tr("settingsPage.general.fields.cnss"), key: "cnss_number", ph: tr("settingsPage.general.placeholders.cnss") },
+                        { label: tr("settingsPage.general.fields.patent"), key: "patente_number", ph: tr("settingsPage.general.placeholders.patent") },
+                        { label: tr("settingsPage.general.fields.shareCapital"), key: "share_capital", ph: tr("settingsPage.general.placeholders.shareCapital") },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
                           <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
                             className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                         </label>
                       ))}
-                      <label className="block text-xs font-bold uppercase text-[#717182]">Régime fiscal
+                      <label className="block text-xs font-bold uppercase text-[#717182]">{tr("settingsPage.general.fields.taxRegime")}
                         <select value={companyForm.tax_regime} onChange={(e) => setCompanyForm({ ...companyForm, tax_regime: e.target.value })} disabled={isEmployeeSelfService}
                           className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
-                          <option value="">— Choisir —</option>
-                          <option value="reel">Réel normal</option>
-                          <option value="simplifie">Réel simplifié</option>
-                          <option value="forfait">Forfait / micro</option>
+                          <option value="">{tr("settingsPage.choose")}</option>
+                          <option value="reel">{tr("settingsPage.general.taxRegimes.real")}</option>
+                          <option value="simplifie">{tr("settingsPage.general.taxRegimes.simplified")}</option>
+                          <option value="forfait">{tr("settingsPage.general.taxRegimes.flat")}</option>
                         </select>
                       </label>
-                      <label className="block text-xs font-bold uppercase text-[#717182]">Date de création
+                      <label className="block text-xs font-bold uppercase text-[#717182]">{tr("settingsPage.general.fields.foundedDate")}
                         <input type="date" value={companyForm.founded_date} onChange={(e) => setCompanyForm({ ...companyForm, founded_date: e.target.value })} disabled={isEmployeeSelfService}
                           className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                       </label>
@@ -612,14 +617,14 @@ export function SettingsPage() {
 
                   {/* ── Coordonnées ── */}
                   <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">📍 Coordonnées</p>
+                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">{tr("settingsPage.general.contactTitle")}</p>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {[
-                        { label: "Adresse (siège social)", key: "address", ph: "Ex : 12 av. de la Paix" },
-                        { label: "Ville", key: "city", ph: "Ex : Brazzaville" },
-                        { label: "Téléphone", key: "phone", ph: "+242 06 000 0000" },
-                        { label: "Email", key: "email", ph: "contact@entreprise.cg" },
-                        { label: "Site web", key: "website", ph: "https://…" },
+                        { label: tr("settingsPage.general.fields.address"), key: "address", ph: tr("settingsPage.general.placeholders.address") },
+                        { label: tr("settingsPage.general.fields.city"), key: "city", ph: tr("settingsPage.general.placeholders.city") },
+                        { label: tr("settingsPage.general.fields.phone"), key: "phone", ph: "+242 06 000 0000" },
+                        { label: tr("settingsPage.general.fields.email"), key: "email", ph: "contact@entreprise.cg" },
+                        { label: tr("settingsPage.general.fields.website"), key: "website", ph: "https://…" },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
                           <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
@@ -631,26 +636,26 @@ export function SettingsPage() {
 
                   {/* ── Représentant légal & banque ── */}
                   <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">👤 Représentant légal & banque</p>
+                    <p className="mb-3 text-sm font-black text-[#17211f] dark:text-white">{tr("settingsPage.general.representativeTitle")}</p>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      <label className="block text-xs font-bold uppercase text-[#717182]">Nom du dirigeant
-                        <input value={companyForm.manager_name} onChange={(e) => setCompanyForm({ ...companyForm, manager_name: e.target.value })} placeholder="Ex : Davy Okemba" disabled={isEmployeeSelfService}
+                      <label className="block text-xs font-bold uppercase text-[#717182]">{tr("settingsPage.general.fields.managerName")}
+                        <input value={companyForm.manager_name} onChange={(e) => setCompanyForm({ ...companyForm, manager_name: e.target.value })} placeholder={tr("settingsPage.general.placeholders.managerName")} disabled={isEmployeeSelfService}
                           className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                       </label>
-                      <label className="block text-xs font-bold uppercase text-[#717182]">Fonction
+                      <label className="block text-xs font-bold uppercase text-[#717182]">{tr("settingsPage.general.fields.managerTitle")}
                         <select value={companyForm.manager_title} onChange={(e) => setCompanyForm({ ...companyForm, manager_title: e.target.value })} disabled={isEmployeeSelfService}
                           className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
-                          <option value="">— Choisir —</option>
-                          <option value="Gérant">Gérant</option>
-                          <option value="Directeur Général">Directeur Général</option>
-                          <option value="Président">Président</option>
+                          <option value="">{tr("settingsPage.choose")}</option>
+                          <option value="Gérant">{tr("settingsPage.general.managerTitles.manager")}</option>
+                          <option value="Directeur Général">{tr("settingsPage.general.managerTitles.ceo")}</option>
+                          <option value="Président">{tr("settingsPage.general.managerTitles.president")}</option>
                           <option value="PDG">PDG</option>
-                          <option value="Promoteur">Promoteur</option>
+                          <option value="Promoteur">{tr("settingsPage.general.managerTitles.promoter")}</option>
                         </select>
                       </label>
                       {[
-                        { label: "Banque", key: "bank_name", ph: "Ex : BGFIBank Congo" },
-                        { label: "RIB / IBAN", key: "bank_account", ph: "Numéro de compte" },
+                        { label: tr("settingsPage.paymentFields.bank"), key: "bank_name", ph: tr("settingsPage.general.placeholders.bank") },
+                        { label: tr("settingsPage.paymentFields.bankAccount"), key: "bank_account", ph: tr("settingsPage.paymentFields.accountNumber") },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
                           <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
@@ -660,15 +665,15 @@ export function SettingsPage() {
                     </div>
                   </div>
 
-                  {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">Profil entreprise enregistré.</p>}
+                  {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">{tr("settingsPage.general.companySaved")}</p>}
                   {updateCompany.error && <p className="mt-3 text-xs font-bold text-red-600">{updateCompany.error.message}</p>}
                 </form>
-                <SettingRow icon={Palette} label="Thème d'affichage" description={theme === "dark" ? "Mode sombre activé" : "Mode clair activé"}>
+                <SettingRow icon={Palette} label={tr("settingsPage.general.displayTheme")} description={theme === "dark" ? tr("settingsPage.general.darkEnabled") : tr("settingsPage.general.lightEnabled")}>
                   <button onClick={toggleTheme} className="flex items-center gap-2 rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
-                    {theme === "dark" ? <><Sun size={15}/> Mode clair</> : <><Moon size={15}/> Mode sombre</>}
+                    {theme === "dark" ? <><Sun size={15}/> {tr("settingsPage.general.lightMode")}</> : <><Moon size={15}/> {tr("settingsPage.general.darkMode")}</>}
                   </button>
                 </SettingRow>
-                <SettingRow icon={Globe} label="Langue" description="Langue de l'interface KOMPTA">
+                <SettingRow icon={Globe} label={tr("settings.language")} description={tr("settingsPage.general.languageDesc")}>
                   <select
                     value={localPrefs.language}
                     onChange={(e) => {
@@ -676,11 +681,11 @@ export function SettingsPage() {
                       setLanguage(e.target.value as "fr" | "en");
                     }}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
-                    <option value="fr">Français</option>
+                    <option value="fr">{tr("settings.french")}</option>
                     <option value="en">English</option>
                   </select>
                 </SettingRow>
-                <SettingRow icon={Globe} label="Devise de référence" description="Monnaie affichée dans toute l'interface">
+                <SettingRow icon={Globe} label={tr("settingsPage.general.referenceCurrency")} description={tr("settingsPage.general.referenceCurrencyDesc")}>
                   <select
                     value={activeCurrency}
                     onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
@@ -690,10 +695,10 @@ export function SettingsPage() {
                     ))}
                   </select>
                 </SettingRow>
-                <SettingRow icon={User} label="Compte connecté" description={user?.email}>
+                <SettingRow icon={User} label={tr("settingsPage.general.connectedAccount")} description={user?.email}>
                   <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">{user?.role}</span>
                 </SettingRow>
-                <SettingRow icon={Zap} label="Visite guidée" description="Redécouvrir KOMPTA pas à pas">
+                <SettingRow icon={Zap} label={tr("settingsPage.general.guidedTour")} description={tr("settingsPage.general.guidedTourDesc")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -702,7 +707,7 @@ export function SettingsPage() {
                     }}
                     className="rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300"
                   >
-                    Relancer la visite guidée
+                    {tr("settingsPage.general.restartTour")}
                   </button>
                 </SettingRow>
               </div>
@@ -712,8 +717,8 @@ export function SettingsPage() {
           {/* ── ABONNEMENT ── */}
           {tab === "subscription" && (
             <div>
-              <h2 className="mb-1 text-lg font-black text-[#17211f] dark:text-white">Abonnement KOMPTA</h2>
-              <p className="mb-4 text-sm text-[#717182]">Choisissez votre formule et payez par carte, Mobile Money ou Zola.</p>
+              <h2 className="mb-1 text-lg font-black text-[#17211f] dark:text-white">{tr("settingsPage.subscription.title")}</h2>
+              <p className="mb-4 text-sm text-[#717182]">{tr("settingsPage.subscription.subtitle")}</p>
               <SubscriptionPanel />
             </div>
           )}
@@ -722,8 +727,8 @@ export function SettingsPage() {
           {tab === "modules" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Modules actifs</h2>
-                <p className="text-sm text-[#717182]">Activez ou désactivez les fonctionnalités de KOMPTA pour votre entreprise</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.modules.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.modules.subtitle")}</p>
               </div>
               <div className="border-b border-black/[0.05] px-6 py-4 dark:border-white/[0.05]">
                 <div className="flex flex-wrap items-center gap-3">
@@ -732,12 +737,12 @@ export function SettingsPage() {
                     <input
                       value={moduleSearch}
                       onChange={(event) => setModuleSearch(event.target.value)}
-                      placeholder="Rechercher un module..."
+                      placeholder={tr("settingsPage.modules.search")}
                       className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white"
                     />
                   </div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                    {activeModulesCount}/{modulesData.length || 0} actifs
+                    {tr("settingsPage.modules.activeCount", { active: activeModulesCount, total: modulesData.length || 0 })}
                   </span>
                   <button
                     type="button"
@@ -745,21 +750,23 @@ export function SettingsPage() {
                     onClick={enableAllModules}
                     className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
                   >
-                    {bulkEnabling ? "Activation…" : "Tout activer"}
+                    {bulkEnabling ? tr("settingsPage.modules.enabling") : tr("settingsPage.modules.enableAll")}
                   </button>
                 </div>
               </div>
               <div className="grid gap-3 p-6 sm:grid-cols-2">
                 {modulesData.length === 0 && modulesQ.isLoading && (
-                  <p className="col-span-2 text-sm text-[#717182]">Chargement…</p>
+                  <p className="col-span-2 text-sm text-[#717182]">{tr("common.loading")}</p>
                 )}
                 {filteredModules.map((mod) => {
-                  const meta = MODULE_LABELS[mod.module_key] ?? { label: mod.module_key, desc: "" };
+                  const meta = MODULE_LABELS[mod.module_key];
+                  const label = meta ? tr(meta.labelTk) : mod.module_key;
+                  const desc = meta ? tr(meta.descTk) : "";
                   return (
                     <div key={mod.module_key} className={`flex items-center justify-between rounded-xl border p-4 transition ${mod.enabled ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10" : "border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-[#252931]"}`}>
                       <div>
-                        <p className={`font-semibold ${mod.enabled ? "text-emerald-800 dark:text-emerald-200" : "text-[#17211f] dark:text-white"}`}>{meta.label}</p>
-                        <p className="text-xs text-[#717182]">{meta.desc}</p>
+                        <p className={`font-semibold ${mod.enabled ? "text-emerald-800 dark:text-emerald-200" : "text-[#17211f] dark:text-white"}`}>{label}</p>
+                        <p className="text-xs text-[#717182]">{desc}</p>
                       </div>
                       <Toggle
                         on={mod.enabled}
@@ -771,7 +778,7 @@ export function SettingsPage() {
                 })}
                 {!modulesQ.isLoading && filteredModules.length === 0 && (
                   <p className="col-span-2 rounded-xl border border-dashed border-black/[0.12] p-6 text-center text-sm text-[#717182] dark:border-white/[0.12]">
-                    Aucun module ne correspond à cette recherche.
+                    {tr("settingsPage.modules.noMatch")}
                   </p>
                 )}
               </div>
@@ -782,8 +789,8 @@ export function SettingsPage() {
           {tab === "payments" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Comptes de paiement</h2>
-                <p className="text-sm text-[#717182]">Configurez espèces, carte Stripe, Zola, mobile money, banque et PayPal pour la caisse et la paie.</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.payments.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.payments.subtitle")}</p>
               </div>
               {user?.employee_id && (
                 <div className="border-b border-black/[0.05] p-6 dark:border-white/[0.05]">
@@ -798,59 +805,59 @@ export function SettingsPage() {
                       <div>
                         <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
                           <CheckCircle2 size={18} />
-                          <h3 className="font-black">Réception de ma paie</h3>
+                          <h3 className="font-black">{tr("settingsPage.payments.myPayrollTitle")}</h3>
                         </div>
                         <p className="mt-1 text-sm text-[#717182]">
-                          Confirme ou modifie le compte sur lequel tu veux recevoir ton salaire.
+                          {tr("settingsPage.payments.myPayrollDesc")}
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-white/10 dark:text-emerald-200">
-                        {myPayout.data?.payout_phone || myPayout.data?.payout_account_number || myPayout.data?.payout_paypal_email ? "Coordonnées renseignées" : "À compléter"}
+                        {myPayout.data?.payout_phone || myPayout.data?.payout_account_number || myPayout.data?.payout_paypal_email ? tr("settingsPage.payments.detailsProvided") : tr("settingsPage.payments.toComplete")}
                       </span>
                     </div>
 
                     <div className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr]">
                       <label className="block text-xs font-bold uppercase text-[#717182]">
-                        Moyen
+                        {tr("settingsPage.payments.method")}
                         <select
                           value={myPayoutForm.payout_method}
                           onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_method: event.target.value })}
                           className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white"
                         >
-                          <option value="mobile_money">Mobile money</option>
+                          <option value="mobile_money">{tr("settingsPage.providers.mobileMoney")}</option>
                           <option value="zola">Zola</option>
-                          <option value="bank">Compte bancaire</option>
+                          <option value="bank">{tr("settingsPage.providers.bank")}</option>
                           <option value="paypal">PayPal</option>
                         </select>
                       </label>
                       {myPayoutForm.payout_method === "bank" ? (
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="block text-xs font-bold uppercase text-[#717182]">
-                            Banque
-                            <input value={myPayoutForm.payout_bank_name} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_bank_name: event.target.value })} placeholder="Nom de la banque" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                            {tr("settingsPage.paymentFields.bank")}
+                            <input value={myPayoutForm.payout_bank_name} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_bank_name: event.target.value })} placeholder={tr("settingsPage.payments.placeholders.bankName")} className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
                           </label>
                           <label className="block text-xs font-bold uppercase text-[#717182]">
-                            Numéro de compte
-                            <input value={myPayoutForm.payout_account_number} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_account_number: event.target.value })} placeholder="RIB / compte" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
+                            {tr("settingsPage.paymentFields.accountNumber")}
+                            <input value={myPayoutForm.payout_account_number} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_account_number: event.target.value })} placeholder={tr("settingsPage.paymentFields.bankAccount")} className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
                           </label>
                         </div>
                       ) : myPayoutForm.payout_method === "paypal" ? (
                         <label className="block text-xs font-bold uppercase text-[#717182]">
-                          Email PayPal
+                          {tr("settingsPage.paymentFields.paypalEmail")}
                           <input type="email" value={myPayoutForm.payout_paypal_email} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_paypal_email: event.target.value })} placeholder="monpaypal@email.com" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
                         </label>
                       ) : (
                         <label className="block text-xs font-bold uppercase text-[#717182]">
-                          Numéro Mobile Money / Zola
+                          {tr("settingsPage.paymentFields.mobileNumber")}
                           <input value={myPayoutForm.payout_phone} onChange={(event) => setMyPayoutForm({ ...myPayoutForm, payout_phone: event.target.value })} placeholder="+242 06..." className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none dark:border-emerald-500/30 dark:bg-[#1e2229] dark:text-white" />
                         </label>
                       )}
                     </div>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <button disabled={updateMyPayout.isPending || myPayout.isLoading} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-60">
-                        {updateMyPayout.isPending ? "Confirmation..." : "Confirmer pour ma paie"}
+                        {updateMyPayout.isPending ? tr("settingsPage.payments.confirming") : tr("settingsPage.payments.confirmPayroll")}
                       </button>
-                      {updateMyPayout.isSuccess && <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Coordonnées paie confirmées.</span>}
+                      {updateMyPayout.isSuccess && <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{tr("settingsPage.payments.payrollConfirmed")}</span>}
                       {updateMyPayout.error && <span className="text-sm font-bold text-rose-600">{updateMyPayout.error.message}</span>}
                     </div>
                   </form>
@@ -861,7 +868,7 @@ export function SettingsPage() {
                 <div className="space-y-3">
                   {(paymentAccounts.data ?? []).length === 0 && (
                     <div className="rounded-xl border border-dashed border-black/[0.12] p-6 text-sm text-[#717182] dark:border-white/[0.12]">
-                      Aucun compte configuré. Ajoutez un compte de paiement pour l'utiliser dans le POS et les cycles de paie.
+                      {tr("settingsPage.payments.noneConfigured")}
                     </div>
                   )}
                   {(paymentAccounts.data ?? []).map((account) => {
@@ -876,33 +883,33 @@ export function SettingsPage() {
                             </span>
                             <div>
                               <p className="font-bold text-[#17211f] dark:text-white">{account.label}</p>
-                              <p className="text-sm text-[#717182]">{provider.label} · {account.account_name || "Compte entreprise"}</p>
+                              <p className="text-sm text-[#717182]">{tr(provider.tk)} · {account.account_name || tr("settingsPage.payments.companyAccount")}</p>
                               <p className="mt-1 text-xs font-semibold text-[#717182]">
                                 {account.masked_identifier || account.bank_name || account.currency}
                               </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
-                            {account.is_default_pos && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Défaut caisse</span>}
-                            {account.is_default_payroll && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">Défaut paie</span>}
-                            {!account.enabled && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-500">Désactivé</span>}
+                            {account.is_default_pos && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">{tr("settingsPage.payments.defaultPos")}</span>}
+                            {account.is_default_payroll && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">{tr("settingsPage.payments.defaultPayroll")}</span>}
+                            {!account.enabled && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-500">{tr("settingsPage.disabled")}</span>}
                           </div>
                         </div>
                         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                           <button onClick={() => startPaymentEdit(account)} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-violet-50 dark:border-white/[0.08] dark:bg-white/[0.04]">
-                            Modifier
+                            {tr("common.edit")}
                           </button>
                           <button onClick={() => updatePaymentAccount.mutate({ id: account.id, payload: { enabled: !account.enabled } })} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-black/[0.04] dark:border-white/[0.08] dark:bg-white/[0.04]">
-                            {account.enabled ? "Désactiver" : "Activer"}
+                            {account.enabled ? tr("settingsPage.disable") : tr("settingsPage.enable")}
                           </button>
                           <button onClick={() => updatePaymentAccount.mutate({ id: account.id, payload: { use_for_pos: true, is_default_pos: true } })} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-emerald-50 dark:border-white/[0.08] dark:bg-white/[0.04]">
-                            Caisse par défaut
+                            {tr("settingsPage.payments.setDefaultPos")}
                           </button>
                           <button onClick={() => updatePaymentAccount.mutate({ id: account.id, payload: { use_for_payroll: true, is_default_payroll: true } })} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-sky-50 dark:border-white/[0.08] dark:bg-white/[0.04]">
-                            Paie par défaut
+                            {tr("settingsPage.payments.setDefaultPayroll")}
                           </button>
                           <button onClick={() => updatePaymentAccount.mutate({ id: account.id, payload: { use_for_pos: !account.use_for_pos, use_for_payroll: !account.use_for_payroll } })} className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold hover:bg-black/[0.04] dark:border-white/[0.08] dark:bg-white/[0.04]">
-                            Basculer usages
+                            {tr("settingsPage.payments.toggleUses")}
                           </button>
                         </div>
                         {editingPaymentId === account.id && (
@@ -917,45 +924,45 @@ export function SettingsPage() {
                             className="mt-4 rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-500/30 dark:bg-[#1e2229]"
                           >
                             <div className="mb-3 flex items-center justify-between gap-3">
-                              <h4 className="font-black text-[#17211f] dark:text-white">Modifier le compte</h4>
-                              <button type="button" onClick={() => setEditingPaymentId(null)} className="text-xs font-bold text-[#717182] hover:text-[#17211f] dark:hover:text-white">Fermer</button>
+                              <h4 className="font-black text-[#17211f] dark:text-white">{tr("settingsPage.payments.editAccount")}</h4>
+                              <button type="button" onClick={() => setEditingPaymentId(null)} className="text-xs font-bold text-[#717182] hover:text-[#17211f] dark:hover:text-white">{tr("common.close")}</button>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Libellé
+                                {tr("settingsPage.paymentFields.label")}
                                 <input value={paymentDraft.label} onChange={(event) => setPaymentDraft({ ...paymentDraft, label: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Titulaire
+                                {tr("settingsPage.paymentFields.holder")}
                                 <input value={paymentDraft.account_name} onChange={(event) => setPaymentDraft({ ...paymentDraft, account_name: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Téléphone / identifiant
+                                {tr("settingsPage.paymentFields.phoneOrId")}
                                 <input value={paymentDraft.phone_number} onChange={(event) => setPaymentDraft({ ...paymentDraft, phone_number: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Banque
+                                {tr("settingsPage.paymentFields.bank")}
                                 <input value={paymentDraft.bank_name} onChange={(event) => setPaymentDraft({ ...paymentDraft, bank_name: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Numéro compte
+                                {tr("settingsPage.paymentFields.accountNumber")}
                                 <input value={paymentDraft.account_number} onChange={(event) => setPaymentDraft({ ...paymentDraft, account_number: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="text-xs font-bold uppercase text-[#717182]">
-                                Email PayPal
+                                {tr("settingsPage.paymentFields.paypalEmail")}
                                 <input type="email" value={paymentDraft.paypal_email} onChange={(event) => setPaymentDraft({ ...paymentDraft, paypal_email: event.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                               <label className="md:col-span-2 text-xs font-bold uppercase text-[#717182]">
-                                Instructions
+                                {tr("settingsPage.paymentFields.instructions")}
                                 <textarea value={paymentDraft.instructions} onChange={(event) => setPaymentDraft({ ...paymentDraft, instructions: event.target.value })} rows={2} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                               </label>
                             </div>
                             <div className="mt-3 grid gap-2 text-xs font-bold text-[#17211f] dark:text-white sm:grid-cols-2 lg:grid-cols-4">
                               {[
-                                ["enabled", "Compte actif"],
-                                ["use_for_pos", "Utiliser caisse"],
-                                ["use_for_payroll", "Utiliser paie"],
-                                ["is_default_payroll", "Paie par défaut"],
+                                ["enabled", tr("settingsPage.payments.accountActive")],
+                                ["use_for_pos", tr("settingsPage.payments.usePos")],
+                                ["use_for_payroll", tr("settingsPage.payments.usePayroll")],
+                                ["is_default_payroll", tr("settingsPage.payments.defaultPayroll")],
                               ].map(([key, label]) => (
                                 <label key={key} className="flex items-center gap-2 rounded-lg border border-black/[0.06] p-2 dark:border-white/[0.08]">
                                   <input
@@ -969,7 +976,7 @@ export function SettingsPage() {
                             </div>
                             <div className="mt-4 flex flex-wrap gap-2">
                               <button disabled={updatePaymentAccount.isPending} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50">
-                                Enregistrer
+                                {tr("common.save")}
                               </button>
                               <button
                                 type="button"
@@ -977,7 +984,7 @@ export function SettingsPage() {
                                 disabled={deletePaymentAccount.isPending}
                                 className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50"
                               >
-                                Supprimer
+                                {tr("common.delete")}
                               </button>
                             </div>
                           </form>
@@ -997,73 +1004,73 @@ export function SettingsPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Plus size={17} className="text-emerald-600" />
-                    <h3 className="font-bold text-[#17211f] dark:text-white">Ajouter un compte</h3>
+                    <h3 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.payments.addAccount")}</h3>
                   </div>
                   <div className="mt-4 space-y-3">
                     <label className="block text-xs font-bold uppercase text-[#717182]">
-                      Type
+                      {tr("settingsPage.paymentFields.type")}
                       <select value={paymentForm.provider} onChange={(e) => setPaymentForm({ ...paymentForm, provider: e.target.value })} className="mt-1 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white">
-                        {PROVIDERS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                        {PROVIDERS.map((p) => <option key={p.key} value={p.key}>{tr(p.tk)}</option>)}
                       </select>
                     </label>
                     <label className="block text-xs font-bold uppercase text-[#717182]">
-                      Libellé
-                      <input required value={paymentForm.label} onChange={(e) => setPaymentForm({ ...paymentForm, label: e.target.value })} placeholder="Ex : Zola Boutique Plateau" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
+                      {tr("settingsPage.paymentFields.label")}
+                      <input required value={paymentForm.label} onChange={(e) => setPaymentForm({ ...paymentForm, label: e.target.value })} placeholder={tr("settingsPage.payments.placeholders.label")} className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                     </label>
                     <label className="block text-xs font-bold uppercase text-[#717182]">
-                      Titulaire
-                      <input value={paymentForm.account_name} onChange={(e) => setPaymentForm({ ...paymentForm, account_name: e.target.value })} placeholder="Nom du compte" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
+                      {tr("settingsPage.paymentFields.holder")}
+                      <input value={paymentForm.account_name} onChange={(e) => setPaymentForm({ ...paymentForm, account_name: e.target.value })} placeholder={tr("settingsPage.payments.placeholders.accountName")} className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                     </label>
                     {!["bank", "paypal", "cash", "card"].includes(paymentForm.provider) && (
                       <label className="block text-xs font-bold uppercase text-[#717182]">
-                        Téléphone / identifiant
+                        {tr("settingsPage.paymentFields.phoneOrId")}
                         <input value={paymentForm.phone_number} onChange={(e) => setPaymentForm({ ...paymentForm, phone_number: e.target.value })} placeholder="+242 06..." className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                       </label>
                     )}
                     {paymentForm.provider === "card" && (
                       <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                        La saisie carte du POS utilise Stripe.js et les clés Stripe du backend. Le Tap to Pay sans contact nécessite une app mobile Stripe Terminal ou un lecteur Terminal.
+                        {tr("settingsPage.payments.cardHint")}
                       </div>
                     )}
                     {paymentForm.provider === "cash" && (
                       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
-                        Utilisez ce compte pour identifier une caisse espèces précise dans le POS.
+                        {tr("settingsPage.payments.cashHint")}
                       </div>
                     )}
                     {paymentForm.provider === "bank" && (
                       <>
                         <label className="block text-xs font-bold uppercase text-[#717182]">
-                          Banque
-                          <input value={paymentForm.bank_name} onChange={(e) => setPaymentForm({ ...paymentForm, bank_name: e.target.value })} placeholder="Nom banque" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
+                          {tr("settingsPage.paymentFields.bank")}
+                          <input value={paymentForm.bank_name} onChange={(e) => setPaymentForm({ ...paymentForm, bank_name: e.target.value })} placeholder={tr("settingsPage.payments.placeholders.bankName")} className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                         </label>
                         <label className="block text-xs font-bold uppercase text-[#717182]">
-                          RIB / compte
-                          <input value={paymentForm.account_number} onChange={(e) => setPaymentForm({ ...paymentForm, account_number: e.target.value })} placeholder="Numéro compte" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
+                          {tr("settingsPage.paymentFields.bankAccount")}
+                          <input value={paymentForm.account_number} onChange={(e) => setPaymentForm({ ...paymentForm, account_number: e.target.value })} placeholder={tr("settingsPage.paymentFields.accountNumber")} className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                         </label>
                       </>
                     )}
                     {paymentForm.provider === "paypal" && (
                       <label className="block text-xs font-bold uppercase text-[#717182]">
-                        Email PayPal
+                        {tr("settingsPage.paymentFields.paypalEmail")}
                         <input type="email" value={paymentForm.paypal_email} onChange={(e) => setPaymentForm({ ...paymentForm, paypal_email: e.target.value })} placeholder="payments@entreprise.com" className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                       </label>
                     )}
                     <label className="block text-xs font-bold uppercase text-[#717182]">
-                      Instructions internes
-                      <textarea value={paymentForm.instructions} onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })} rows={3} placeholder="Ex : vérifier le reçu avant validation..." className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
+                      {tr("settingsPage.paymentFields.internalInstructions")}
+                      <textarea value={paymentForm.instructions} onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })} rows={3} placeholder={tr("settingsPage.payments.placeholders.instructions")} className="mt-1 w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" />
                     </label>
                     <div className="grid grid-cols-1 gap-2 text-xs font-semibold text-[#17211f] dark:text-white sm:grid-cols-2">
                       <label className="flex items-center gap-2 rounded-lg border border-black/[0.06] p-2 dark:border-white/[0.06]">
                         <input type="checkbox" checked={paymentForm.use_for_pos} onChange={(e) => setPaymentForm({ ...paymentForm, use_for_pos: e.target.checked })} />
-                        Caisse
+                        {tr("settingsPage.payments.cashbox")}
                       </label>
                       <label className="flex items-center gap-2 rounded-lg border border-black/[0.06] p-2 dark:border-white/[0.06]">
                         <input type="checkbox" checked={paymentForm.use_for_payroll} onChange={(e) => setPaymentForm({ ...paymentForm, use_for_payroll: e.target.checked })} />
-                        Paie
+                        {tr("settingsPage.payments.payroll")}
                       </label>
                     </div>
                     <button disabled={createPaymentAccount.isPending} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
-                      {createPaymentAccount.isPending ? "Ajout..." : "Ajouter le compte"}
+                      {createPaymentAccount.isPending ? tr("settingsPage.payments.adding") : tr("settingsPage.payments.addAccount")}
                     </button>
                     {createPaymentAccount.error && <p className="text-xs font-semibold text-red-600">{createPaymentAccount.error.message}</p>}
                   </div>
@@ -1077,8 +1084,8 @@ export function SettingsPage() {
           {tab === "security" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Sécurité &amp; accès</h2>
-                <p className="text-sm text-[#717182]">Authentification, sessions et permissions</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.security.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.security.subtitle")}</p>
               </div>
               <div className="px-6 py-2">
                 {/* 2FA Section */}
@@ -1090,16 +1097,16 @@ export function SettingsPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-[#17211f] dark:text-white">Authentification à deux facteurs (2FA)</p>
-                          <p className="text-xs text-[#717182]">Sécurisez votre compte avec une application TOTP (Google Authenticator, Authy…)</p>
+                          <p className="font-semibold text-[#17211f] dark:text-white">{tr("settingsPage.security.twoFaTitle")}</p>
+                          <p className="text-xs text-[#717182]">{tr("settingsPage.security.twoFaDesc")}</p>
                         </div>
                         {twoFaStep === "enabled" ? (
                           <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                            2FA Activé ✓
+                            {tr("settingsPage.security.twoFaEnabled")}
                           </span>
                         ) : (
                           <span className="rounded-full bg-stone-100 dark:bg-white/10 px-3 py-1 text-xs font-semibold text-[#717182]">
-                            Désactivé
+                            {tr("settingsPage.disabled")}
                           </span>
                         )}
                       </div>
@@ -1110,13 +1117,13 @@ export function SettingsPage() {
                           disabled={twoFaLoading}
                           className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                          <ShieldCheck size={15} /> {twoFaLoading ? "Chargement…" : "Activer le 2FA"}
+                          <ShieldCheck size={15} /> {twoFaLoading ? tr("common.loading") : tr("settingsPage.security.enable2fa")}
                         </button>
                       )}
 
                       {twoFaStep === "setup" && (
                         <div className="mt-4 space-y-4">
-                          <p className="text-sm text-[#717182]">Scannez ce QR code avec votre application TOTP :</p>
+                          <p className="text-sm text-[#717182]">{tr("settingsPage.security.scanQr")}</p>
                           <div className="flex justify-center rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white p-4 w-fit">
                             <QRCodeSVG value={twoFaQrUrl || "https://kompta.io"} size={160} />
                           </div>
@@ -1125,7 +1132,7 @@ export function SettingsPage() {
                               type="text"
                               value={twoFaCode}
                               onChange={(e) => setTwoFaCode(e.target.value)}
-                              placeholder="Code à 6 chiffres"
+                              placeholder={tr("settingsPage.security.codePlaceholder")}
                               maxLength={6}
                               className="w-full max-w-[12rem] rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500 font-mono tracking-widest"
                             />
@@ -1134,7 +1141,7 @@ export function SettingsPage() {
                               disabled={twoFaLoading || twoFaCode.length !== 6}
                               className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                             >
-                              <Check size={14} /> {twoFaLoading ? "Vérif…" : "Vérifier"}
+                              <Check size={14} /> {twoFaLoading ? tr("settingsPage.security.verifying") : tr("settingsPage.security.verify")}
                             </button>
                           </div>
                         </div>
@@ -1146,7 +1153,7 @@ export function SettingsPage() {
                           disabled={twoFaLoading}
                           className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
                         >
-                          <X size={14} /> {twoFaLoading ? "Désactivation…" : "Désactiver le 2FA"}
+                          <X size={14} /> {twoFaLoading ? tr("settingsPage.security.disabling") : tr("settingsPage.security.disable2fa")}
                         </button>
                       )}
 
@@ -1156,26 +1163,26 @@ export function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <SettingRow icon={Smartphone} label="Sessions" description="Tu peux te déconnecter depuis le menu en bas à gauche">
-                  <span className="text-sm text-[#717182]">{user?.account_status === "active" ? "Session active" : "—"}</span>
+                <SettingRow icon={Smartphone} label={tr("settingsPage.security.sessions")} description={tr("settingsPage.security.sessionsDesc")}>
+                  <span className="text-sm text-[#717182]">{user?.account_status === "active" ? tr("settingsPage.security.activeSession") : "—"}</span>
                 </SettingRow>
-                <SettingRow icon={Shield} label="Politique de mot de passe" description="Min. 8 caractères">
-                  <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">Actif</span>
+                <SettingRow icon={Shield} label={tr("settingsPage.security.passwordPolicy")} description={tr("settingsPage.security.passwordPolicyDesc")}>
+                  <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">{tr("settingsPage.active")}</span>
                 </SettingRow>
-                <SettingRow icon={User} label="Rôle de connexion" description="Permissions appliquées par RBAC">
+                <SettingRow icon={User} label={tr("settingsPage.security.loginRole")} description={tr("settingsPage.security.loginRoleDesc")}>
                   <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">{user?.role ?? "—"}</span>
                 </SettingRow>
                 <SettingRow
                   icon={Trash2}
-                  label="Remettre l'espace à zéro"
-                  description="Supprime employés, produits, ventes, documents, paie, tâches, notes, réunions et messages. Le compte connecté et le canal général sont conservés."
+                  label={tr("settingsPage.security.resetWorkspace")}
+                  description={tr("settingsPage.security.resetWorkspaceDesc")}
                 >
                   <button
                     onClick={handleResetWorkspace}
                     disabled={resetWorkspace.isPending || user?.role !== "admin_entreprise"}
                     className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {resetWorkspace.isPending ? "Reset..." : "Reset local"}
+                    {resetWorkspace.isPending ? tr("settingsPage.security.resetting") : tr("settingsPage.security.resetLocal")}
                   </button>
                 </SettingRow>
                 {resetWorkspace.isSuccess && (
@@ -1192,36 +1199,36 @@ export function SettingsPage() {
           {tab === "notifications" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Notifications</h2>
-                <p className="text-sm text-[#717182]">Choisissez quand et comment KOMPTA vous contacte</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.notifications.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.notifications.subtitle")}</p>
               </div>
               <div className="px-6 py-2">
-                <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">Canaux</p>
-                <SettingRow icon={Bell} label="Notifications email" description="Alertes et résumés par e-mail">
+                <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">{tr("settingsPage.notifications.channels")}</p>
+                <SettingRow icon={Bell} label={tr("settingsPage.notifications.email")} description={tr("settingsPage.notifications.emailDesc")}>
                   <Toggle on={localPrefs.notify_email} onChange={(v) => setPref("notify_email", v)} />
                 </SettingRow>
-                <SettingRow icon={Smartphone} label="Notifications chat" description="Mentions @ et messages directs">
+                <SettingRow icon={Smartphone} label={tr("settingsPage.notifications.chat")} description={tr("settingsPage.notifications.chatDesc")}>
                   <Toggle on={localPrefs.notify_chat} onChange={(v) => setPref("notify_chat", v)} />
                 </SettingRow>
-                <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">Événements</p>
-                <SettingRow icon={ShieldCheck} label="Alertes TERAS" description="Nouvelles anomalies détectées">
+                <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">{tr("settingsPage.notifications.events")}</p>
+                <SettingRow icon={ShieldCheck} label={tr("settingsPage.notifications.terasAlerts")} description={tr("settingsPage.notifications.terasAlertsDesc")}>
                   <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} />
                 </SettingRow>
-                <SettingRow icon={Bell} label="Rappels paie" description="Échéances et validations">
+                <SettingRow icon={Bell} label={tr("settingsPage.notifications.payrollReminders")} description={tr("settingsPage.notifications.payrollRemindersDesc")}>
                   <Toggle on={localPrefs.notify_payroll} onChange={(v) => setPref("notify_payroll", v)} />
                 </SettingRow>
-                <SettingRow icon={BrainCircuit} label="Fréquence des résumés Limule" description="Digest agrégé">
+                <SettingRow icon={BrainCircuit} label={tr("settingsPage.notifications.digestFrequency")} description={tr("settingsPage.notifications.digestDesc")}>
                   <select
                     value={localPrefs.digest_frequency}
                     onChange={(e) => setPref("digest_frequency", e.target.value)}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm">
-                    <option value="off">Désactivé</option>
-                    <option value="daily">Quotidien</option>
-                    <option value="weekly">Hebdomadaire</option>
+                    <option value="off">{tr("settingsPage.disabled")}</option>
+                    <option value="daily">{tr("settingsPage.notifications.daily")}</option>
+                    <option value="weekly">{tr("settingsPage.notifications.weekly")}</option>
                   </select>
                 </SettingRow>
-                {updatePrefs.isPending && <p className="pb-4 text-xs text-[#717182]">Enregistrement…</p>}
-                {updatePrefs.isSuccess && <p className="pb-4 text-xs text-emerald-600">✓ Préférences enregistrées</p>}
+                {updatePrefs.isPending && <p className="pb-4 text-xs text-[#717182]">{tr("common.saving")}</p>}
+                {updatePrefs.isSuccess && <p className="pb-4 text-xs text-emerald-600">{tr("settingsPage.notifications.saved")}</p>}
               </div>
             </div>
           )}
@@ -1234,21 +1241,21 @@ export function SettingsPage() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white"><ShieldCheck size={20} /></div>
                   <div>
                     <h2 className="font-bold text-[#17211f] dark:text-white">TERAS Connect</h2>
-                    <p className="text-sm text-[#717182]">Intelligence artificielle de conformité</p>
+                    <p className="text-sm text-[#717182]">{tr("settingsPage.teras.subtitle")}</p>
                   </div>
-                  <span className="ml-auto rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">Connecté</span>
+                  <span className="ml-auto rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">{tr("settingsPage.teras.connected")}</span>
                 </div>
               </div>
               <div className="px-6 py-2">
                 <div className="my-4 rounded-xl bg-gradient-to-br from-emerald-600/20 to-emerald-700/10 dark:from-emerald-600/30 dark:to-emerald-700/20 p-5">
-                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Score TERAS actuel</p>
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{tr("settingsPage.teras.currentScore")}</p>
                   <p className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-200">{terasScore} <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">/ 100</span></p>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/40 dark:bg-white/10">
                     <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all" style={{ width: `${terasScore}%` }} />
                   </div>
-                  <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400">Dernière analyse : {lastTerasAnalysis}</p>
+                  <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400">{tr("settingsPage.teras.lastAnalysis", { date: lastTerasAnalysis })}</p>
                 </div>
-                <SettingRow icon={Bell} label="Recevoir les alertes TERAS" description="Anomalies détectées par l'analyse">
+                <SettingRow icon={Bell} label={tr("settingsPage.teras.receiveAlerts")} description={tr("settingsPage.teras.receiveAlertsDesc")}>
                   <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} />
                 </SettingRow>
                 <div className="py-4">
@@ -1256,9 +1263,9 @@ export function SettingsPage() {
                     onClick={() => runTerasAnalysis.mutate()}
                     disabled={runTerasAnalysis.isPending}
                     className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50">
-                    {runTerasAnalysis.isPending ? "Analyse en cours…" : "Lancer une analyse TERAS maintenant"}
+                    {runTerasAnalysis.isPending ? tr("settingsPage.teras.analyzing") : tr("settingsPage.teras.runNow")}
                   </button>
-                  {runTerasAnalysis.isSuccess && <p className="mt-2 text-xs text-emerald-600">✓ Analyse terminée — score actualisé</p>}
+                  {runTerasAnalysis.isSuccess && <p className="mt-2 text-xs text-emerald-600">{tr("settingsPage.teras.done")}</p>}
                 </div>
               </div>
             </div>
@@ -1268,24 +1275,24 @@ export function SettingsPage() {
           {tab === "billing" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Facturation &amp; usage</h2>
-                <p className="text-sm text-[#717182]">Plan KOMPTA local · données calculées en temps réel</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.billing.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.billing.subtitle")}</p>
               </div>
               <div className="p-6 space-y-4">
                 <div className="rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 p-5 text-white">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-emerald-200">Plan actuel</p>
+                      <p className="text-sm font-semibold text-emerald-200">{tr("settingsPage.billing.currentPlan")}</p>
                       <p className="text-2xl font-extrabold">KOMPTA Local</p>
-                      <p className="text-sm text-emerald-200">{employeesCount} employés actifs</p>
+                      <p className="text-sm text-emerald-200">{tr("settingsPage.billing.activeEmployees", { count: employeesCount })}</p>
                     </div>
-                    <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">Actif</span>
+                    <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">{tr("settingsPage.active")}</span>
                   </div>
                 </div>
                 {[
-                  { label: "Employés",          used: employeesCount,         max: 100 },
-                  { label: "Factures émises",   used: myInvoices.data?.length ?? 0, max: 1000 },
-                  { label: "Requêtes Limule",   used: aiQueriesCount,         max: 1000 },
+                  { label: tr("settingsPage.billing.employees"),          used: employeesCount,         max: 100 },
+                  { label: tr("settingsPage.billing.issuedInvoices"),   used: myInvoices.data?.length ?? 0, max: 1000 },
+                  { label: tr("settingsPage.billing.limuleQueries"),   used: aiQueriesCount,         max: 1000 },
                 ].map((item) => (
                   <div key={item.label}>
                     <div className="mb-1 flex items-center justify-between text-sm">
@@ -1302,12 +1309,12 @@ export function SettingsPage() {
                     onClick={exportInvoicesCsv}
                     disabled={(myInvoices.data?.length ?? 0) === 0}
                     className="flex-1 min-w-[200px] rounded-xl border border-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition disabled:opacity-50">
-                    Télécharger factures (CSV)
+                    {tr("settingsPage.billing.downloadCsv")}
                   </button>
                   <a
                     href="mailto:contact@kompta.io?subject=Mise%20%C3%A0%20niveau%20KOMPTA"
                     className="flex-1 min-w-[200px] rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition text-center">
-                    Contacter pour mise à niveau
+                    {tr("settingsPage.billing.contactUpgrade")}
                   </a>
                 </div>
               </div>
@@ -1318,8 +1325,8 @@ export function SettingsPage() {
           {tab === "audit" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">
-                <h2 className="font-bold text-[#17211f] dark:text-white">Journal d'audit</h2>
-                <p className="text-sm text-[#717182]">Historique des actions importantes sur votre espace KOMPTA</p>
+                <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.audit.title")}</h2>
+                <p className="text-sm text-[#717182]">{tr("settingsPage.audit.subtitle")}</p>
               </div>
               <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                 {auditLogs.isLoading && (
@@ -1330,7 +1337,7 @@ export function SettingsPage() {
                 {!auditLogs.isLoading && (auditLogs.data?.length ?? 0) === 0 && (
                   <div className="py-12 text-center text-sm text-[#717182]">
                     <FileText size={24} className="mx-auto mb-2 text-stone-300" />
-                    Aucune action enregistrée.
+                    {tr("settingsPage.audit.empty")}
                   </div>
                 )}
                 {auditLogs.data?.map((log) => (
@@ -1342,12 +1349,12 @@ export function SettingsPage() {
                       <p className="text-sm font-semibold text-[#17211f] dark:text-white">{log.action}</p>
                       {log.details && <p className="text-xs text-[#717182] mt-0.5">{log.details}</p>}
                       <p className="mt-0.5 text-xs text-[#717182]">
-                        {log.actor && <span>Par <strong>{log.actor}</strong></span>}
-                        {log.employee && <span> · Employé : {log.employee}</span>}
+                        {log.actor && <span>{tr("settingsPage.audit.by")} <strong>{log.actor}</strong></span>}
+                        {log.employee && <span> · {tr("settingsPage.audit.employee", { name: log.employee })}</span>}
                       </p>
                     </div>
                     <p className="shrink-0 text-xs text-[#717182]">
-                      {new Date(log.created_at).toLocaleDateString("fr-FR", {
+                      {new Date(log.created_at).toLocaleDateString(i18n.language, {
                         day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
                       })}
                     </p>
