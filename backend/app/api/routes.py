@@ -1694,6 +1694,121 @@ def create_inventory_movement(
     }
 
 
+def _inventory_report_data(db: Session, company_id: int) -> dict:
+    """Agrège l'inventaire : produits (stock, valeur, entrées/sorties) + journal des mouvements."""
+    products = db.scalars(select(Product).where(Product.company_id == company_id).order_by(Product.name)).all()
+    movements = db.scalars(
+        select(InventoryMovement).where(InventoryMovement.company_id == company_id)
+        .order_by(InventoryMovement.created_at.desc())
+    ).all()
+    in_by_prod: dict[int, int] = {}
+    out_by_prod: dict[int, int] = {}
+    for m in movements:
+        (in_by_prod if m.movement_type == "in" else out_by_prod)[m.product_id] = \
+            (in_by_prod if m.movement_type == "in" else out_by_prod).get(m.product_id, 0) + (m.quantity or 0)
+    prod_rows = []
+    total_value = 0.0
+    for p in products:
+        value = (p.price or 0) * (p.stock_quantity or 0)
+        total_value += value
+        prod_rows.append({
+            "name": p.name, "sku": p.sku or "", "category": p.category or "",
+            "stock": p.stock_quantity or 0, "reorder_level": p.reorder_level or 0,
+            "unit_price": p.price or 0, "stock_value": value,
+            "entries": in_by_prod.get(p.id, 0), "exits": out_by_prod.get(p.id, 0),
+            "low": (p.stock_quantity or 0) <= (p.reorder_level or 0),
+        })
+    names = {p.id: p.name for p in products}
+    move_rows = [{
+        "date": m.created_at.isoformat() if m.created_at else "",
+        "product": names.get(m.product_id, f"#{m.product_id}"),
+        "type": "Entrée" if m.movement_type == "in" else "Sortie",
+        "quantity": m.quantity or 0, "reason": m.reason or "", "reference": m.reference or "",
+    } for m in movements]
+    return {
+        "products": prod_rows, "movements": move_rows,
+        "total_stock_value": total_value, "product_count": len(products),
+        "low_stock_count": sum(1 for r in prod_rows if r["low"]),
+        "total_entries": sum(in_by_prod.values()), "total_exits": sum(out_by_prod.values()),
+    }
+
+
+@router.get("/inventory/report")
+def inventory_report(format: str = "csv", db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)) -> Response:
+    """Rapport d'inventaire complet (produits + entrées/sorties) en CSV ou PDF."""
+    data = _inventory_report_data(db, current_user.company_id)
+    company = db.get(Company, current_user.company_id)
+    cname = (company.name if company else "KOMPTA")
+
+    if format == "json":
+        return data  # type: ignore[return-value]
+
+    if format == "csv":
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow([f"Rapport d'inventaire — {cname}"])
+        w.writerow([])
+        w.writerow(["PRODUITS"])
+        w.writerow(["Produit", "SKU", "Catégorie", "Stock", "Seuil", "Prix unitaire", "Valeur stock", "Entrées", "Sorties", "Statut"])
+        for r in data["products"]:
+            w.writerow([r["name"], r["sku"], r["category"], r["stock"], r["reorder_level"],
+                        r["unit_price"], r["stock_value"], r["entries"], r["exits"],
+                        "STOCK BAS" if r["low"] else "OK"])
+        w.writerow([])
+        w.writerow(["TOTAUX", "", "", "", "", "", data["total_stock_value"], data["total_entries"], data["total_exits"], ""])
+        w.writerow([])
+        w.writerow(["JOURNAL DES MOUVEMENTS (entrées / sorties)"])
+        w.writerow(["Date", "Produit", "Type", "Quantité", "Motif", "Référence"])
+        for m in data["movements"]:
+            w.writerow([m["date"][:19], m["product"], m["type"], m["quantity"], m["reason"], m["reference"]])
+        content = buf.getvalue().encode("utf-8-sig")
+        return Response(content=content, media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="rapport-inventaire.csv"'})
+
+    if format == "pdf":
+        from app.services.pdf_export import render_inventory_pdf
+        pdf = render_inventory_pdf(data, company)
+        return Response(content=pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="rapport-inventaire.pdf"'})
+
+    raise HTTPException(status_code=400, detail="format doit être csv | pdf | json")
+
+
+@router.post("/inventory/report/ai")
+async def inventory_ai_report(db: Session = Depends(get_db),
+                              current_user: User = Depends(get_current_user)) -> dict:
+    """Analyse d'inventaire générée par Limule (valeur, ruptures, rotation, recommandations)."""
+    data = _inventory_report_data(db, current_user.company_id)
+    company = db.get(Company, current_user.company_id)
+    top_lines = "\n".join(
+        f"- {r['name']} : stock {r['stock']} (seuil {r['reorder_level']}), "
+        f"entrées {r['entries']}, sorties {r['exits']}, valeur {r['stock_value']:.0f}"
+        + (" [STOCK BAS]" if r["low"] else "")
+        for r in data["products"][:40]
+    )
+    context = (
+        f"Entreprise : {company.name if company else 'KOMPTA'}\n"
+        f"Produits : {data['product_count']} | Valeur totale du stock : {data['total_stock_value']:.0f}\n"
+        f"Produits en stock bas : {data['low_stock_count']}\n"
+        f"Total entrées : {data['total_entries']} | Total sorties : {data['total_exits']}\n\n"
+        f"Détail produits :\n{top_lines}"
+    )
+    prompt = (
+        "Analyse cet inventaire : valorisation, produits en rupture/stock bas à réapprovisionner, "
+        "rotation (produits qui sortent vite vs dormants), risques et recommandations concrètes "
+        "d'achat et d'optimisation pour une PME."
+    )
+    from app.services.limule import limule_generate
+    content, _ = await limule_generate(kind="analysis", prompt=prompt, context=context,
+                                       db=db, company_id=current_user.company_id, user=current_user)
+    return {"content": content, "generated_at": datetime.utcnow().isoformat(), "stats": {
+        "product_count": data["product_count"], "total_stock_value": data["total_stock_value"],
+        "low_stock_count": data["low_stock_count"],
+        "total_entries": data["total_entries"], "total_exits": data["total_exits"],
+    }}
+
+
 @router.post("/pos/sales", status_code=201)
 def create_sale(
     payload: SaleCreate,

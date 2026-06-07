@@ -41,7 +41,7 @@ DEFAULT_PLANS = [
         "code": "pro", "name": "Pro", "price_cents": 1_500_000, "currency": "XAF",
         "period": "month", "trial_days": 14, "sort_order": 1,
         "description": "Pour les PME en croissance : paie, comptabilité, IA Limule.",
-        "features": ["Tout Starter", "Paie CNSS/IRPP", "Comptabilité SYSCOHADA", "IA Limule", "10 utilisateurs"],
+        "features": ["Tout Starter", "Paie CNSS/IRPP", "Comptabilité SYSCOHADA", "IA Limule", "Groupes & Organisations", "10 utilisateurs"],
     },
     {
         "code": "business", "name": "Business", "price_cents": 4_000_000, "currency": "XAF",

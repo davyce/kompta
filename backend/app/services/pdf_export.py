@@ -387,3 +387,80 @@ def render_payroll_pdf(run, company) -> bytes:
 
     doc.build(story)
     return buffer.getvalue()
+
+
+def render_inventory_pdf(data: dict, company) -> bytes:
+    """Rapport d'inventaire PDF : synthèse, produits (stock/valeur/entrées/sorties), mouvements."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.4 * cm, rightMargin=1.4 * cm,
+                            topMargin=1.4 * cm, bottomMargin=1.4 * cm)
+    base = getSampleStyleSheet()
+    s_title = ParagraphStyle("invTitle", parent=base["Title"], fontSize=20, textColor=TEAL, spaceAfter=2)
+    s_muted = ParagraphStyle("invMuted", parent=base["Normal"], fontSize=10, textColor=MUTED)
+    s_h2 = ParagraphStyle("invH2", parent=base["Heading2"], fontSize=13, textColor=INK, spaceBefore=10, spaceAfter=6)
+    s_cell = ParagraphStyle("invCell", parent=base["Normal"], fontSize=8, textColor=INK)
+
+    def _money(v: float) -> str:
+        return f"{v:,.0f}".replace(",", " ")
+
+    cname = company.name if company else "KOMPTA"
+    story = [
+        Paragraph(cname, s_title),
+        Paragraph("Rapport d'inventaire · généré le " + datetime.now().strftime("%d/%m/%Y %H:%M"), s_muted),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    # Synthèse
+    synth = [
+        ["Produits", "Valeur totale du stock", "Stock bas", "Total entrées", "Total sorties"],
+        [str(data["product_count"]), _money(data["total_stock_value"]) + " XAF",
+         str(data["low_stock_count"]), str(data["total_entries"]), str(data["total_exits"])],
+    ]
+    t = Table(synth, colWidths=[3 * cm, 5 * cm, 2.5 * cm, 3 * cm, 3 * cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), TEAL), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("GRID", (0, 0), (-1, -1), 0.25, BORDER),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [SOFT]), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t)
+
+    # Produits
+    story.append(Paragraph("Produits", s_h2))
+    head = ["Produit", "SKU", "Stock", "Seuil", "Prix U.", "Valeur", "Entrées", "Sorties", "Statut"]
+    rows = [head] + [[
+        Paragraph(r["name"], s_cell), r["sku"], str(r["stock"]), str(r["reorder_level"]),
+        _money(r["unit_price"]), _money(r["stock_value"]), str(r["entries"]), str(r["exits"]),
+        "Bas" if r["low"] else "OK",
+    ] for r in data["products"]]
+    pt = Table(rows, colWidths=[4.2 * cm, 2 * cm, 1.4 * cm, 1.4 * cm, 1.8 * cm, 2 * cm, 1.6 * cm, 1.6 * cm, 1.4 * cm], repeatRows=1)
+    pt.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), INK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.25, BORDER), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, SOFT]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (2, 1), (-1, -1), "CENTER"),
+    ]))
+    story.append(pt)
+
+    # Mouvements
+    if data["movements"]:
+        story.append(Paragraph("Journal des mouvements (entrées / sorties)", s_h2))
+        mhead = ["Date", "Produit", "Type", "Qté", "Motif", "Réf."]
+        mrows = [mhead] + [[
+            m["date"][:16].replace("T", " "), Paragraph(m["product"], s_cell), m["type"],
+            str(m["quantity"]), Paragraph(m["reason"], s_cell), m["reference"],
+        ] for m in data["movements"][:120]]
+        mt = Table(mrows, colWidths=[3 * cm, 4 * cm, 1.8 * cm, 1.2 * cm, 4.5 * cm, 2.5 * cm], repeatRows=1)
+        mt.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), INK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.25, BORDER), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, SOFT]),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        story.append(mt)
+
+    story.append(Spacer(1, 0.6 * cm))
+    story.append(Paragraph("KOMPTA · Document généré automatiquement", s_muted))
+    doc.build(story)
+    return buffer.getvalue()

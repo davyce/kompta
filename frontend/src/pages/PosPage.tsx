@@ -353,6 +353,7 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["posSales"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : "Erreur d'encaissement";

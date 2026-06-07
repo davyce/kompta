@@ -1024,6 +1024,17 @@ export const api = {
     });
   },
 
+  /* ── Inventory report (CSV / PDF / IA) ────────────────────── */
+  inventoryReport: (format: "csv" | "pdf") =>
+    fetch(`${API_URL}/inventory/report?format=${format}`, {
+      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      credentials: "include",
+    }),
+  inventoryReportAi: () =>
+    request<{ content: string; generated_at: string }>("/inventory/report/ai", {
+      method: "POST",
+    }),
+
   /* ── Inventory low stock ──────────────────────────────────── */
   lowStockProducts: () =>
     request<LowStockProductDto[]>("/inventory/low-stock"),

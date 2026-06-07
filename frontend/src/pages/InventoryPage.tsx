@@ -3,7 +3,7 @@ import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, FileDown, Filter,
-  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X,
+  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X, FileText, Sparkles, Loader2,
 } from "lucide-react";
 
 import { api } from "../services/api";
@@ -153,6 +153,38 @@ export function InventoryPage() {
   const [movementForm, setMovementForm] = useState(EMPTY_MOVEMENT);
   const [movementSuccess, setMovementSuccess] = useState("");
   const [movementError, setMovementError] = useState("");
+  const [reportBusy, setReportBusy] = useState<"csv" | "pdf" | null>(null);
+  const [aiReport, setAiReport] = useState<{ content: string; generated_at: string } | null>(null);
+  const [aiReportOpen, setAiReportOpen] = useState(false);
+
+  const downloadReport = async (format: "csv" | "pdf") => {
+    setReportBusy(format);
+    try {
+      const res = await api.inventoryReport(format);
+      if (!res.ok) throw new Error("Échec du téléchargement");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rapport_inventaire_${new Date().toISOString().slice(0, 10)}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Rapport téléchargé");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setReportBusy(null);
+    }
+  };
+
+  const aiReportMutation = useMutation({
+    mutationFn: api.inventoryReportAi,
+    onSuccess: (data) => {
+      setAiReport(data);
+      setAiReportOpen(true);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const createProduct = useMutation({
     mutationFn: api.createProduct,
@@ -345,6 +377,27 @@ export function InventoryPage() {
             className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
           >
             <RefreshCcw size={15} /> Mouvement
+          </button>
+          <button
+            onClick={() => downloadReport("pdf")}
+            disabled={reportBusy !== null}
+            className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
+          >
+            {reportBusy === "pdf" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />} Rapport PDF
+          </button>
+          <button
+            onClick={() => downloadReport("csv")}
+            disabled={reportBusy !== null}
+            className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
+          >
+            {reportBusy === "csv" ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} Rapport CSV
+          </button>
+          <button
+            onClick={() => aiReportMutation.mutate()}
+            disabled={aiReportMutation.isPending}
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+          >
+            {aiReportMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Rapport IA
           </button>
           {selected.length > 0 && (
             <button onClick={() => setTab("labels")} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
@@ -1148,6 +1201,58 @@ export function InventoryPage() {
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {aiReportOpen && aiReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAiReportOpen(false)}>
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl dark:bg-[#1a1f1e]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-emerald-600" />
+                <h2 className="text-lg font-semibold text-[#17211f] dark:text-white">Rapport d'inventaire IA</h2>
+              </div>
+              <button onClick={() => setAiReportOpen(false)} className="rounded-lg p-1 hover:bg-black/[0.04] dark:hover:bg-white/10">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <p className="mb-3 text-xs text-[#717182]">
+                Généré le {new Date(aiReport.generated_at).toLocaleString("fr-FR")} · par Limule IA
+              </p>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-[#17211f] dark:text-white/90">
+                {aiReport.content}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(aiReport.content);
+                  toast.success("Copié dans le presse-papier");
+                }}
+                className="rounded-lg border border-black/[0.08] bg-white px-4 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5"
+              >
+                Copier
+              </button>
+              <button
+                onClick={() => {
+                  const blob = new Blob([aiReport.content], { type: "text/plain;charset=utf-8" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `rapport_ia_inventaire_${new Date().toISOString().slice(0, 10)}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                Télécharger
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
