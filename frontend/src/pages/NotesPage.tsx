@@ -3,7 +3,9 @@ import {
   BookOpenText, Calendar, CheckCircle2, Clock, Download, FileText, Pin, PinOff,
   Plus, Save, Sparkles, Target, Trash2, X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 import { api, type DailyNoteDto, type MeetingDto } from "../services/api";
 import type { Task } from "../types/domain";
@@ -12,10 +14,10 @@ function dayKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 function longDate(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(date);
+  return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(date);
 }
 function shortDateLabel(iso: string) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(i18n.language, { day: "2-digit", month: "short" }).format(new Date(iso));
 }
 function downloadNote(note: DailyNoteDto) {
   const md = `# ${note.title || "Note"} — ${shortDateLabel(note.note_date)}\n\n${note.body}\n`;
@@ -36,7 +38,7 @@ function parseNoteSections(body: string) {
       continue;
     }
     if (!current) {
-      current = { title: "Synthèse", items: [] };
+      current = { title: i18n.t("notes.synthese"), items: [] };
       sections.push(current);
     }
     current.items.push(line.replace(/^- \[[ x]\]\s*/i, "").replace(/^-\s*/, ""));
@@ -45,6 +47,7 @@ function parseNoteSections(body: string) {
 }
 
 function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
+  const { t: tr } = useTranslation();
   if (!note) return null;
   const sections = parseNoteSections(note.body).slice(0, 4);
   return (
@@ -53,11 +56,11 @@ function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
         <div>
           <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
             <Sparkles size={18} />
-            <h2 className="font-black">Dernière note Limule</h2>
+            <h2 className="font-black">{tr("notes.latestLimuleNote")}</h2>
           </div>
           <p className="mt-1 text-sm text-[#717182]">{note.title} · {shortDateLabel(note.note_date)}</p>
         </div>
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-700 shadow-sm dark:bg-white/10 dark:text-violet-200">journal IA</span>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-700 shadow-sm dark:bg-white/10 dark:text-violet-200">{tr("notes.aiJournal")}</span>
       </div>
       <div className="grid gap-3 p-4 lg:grid-cols-4">
         {sections.map((section) => (
@@ -69,7 +72,7 @@ function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
                   {item.includes("_") ? item.replace(/_/g, "") : item}
                 </p>
               ))}
-              {!section.items.length && <p className="text-sm text-[#717182]">Aucun élément.</p>}
+              {!section.items.length && <p className="text-sm text-[#717182]">{tr("notes.noItems")}</p>}
             </div>
           </div>
         ))}
@@ -96,9 +99,9 @@ function buildAutoEntry(date: Date, tasks: Task[], meetings: MeetingDto[]) {
     meetings: dayMeetings,
     summary:
       due.length > 0 || dayMeetings.length > 0
-        ? `Limule note ${completed.length} tâche(s) terminée(s), ${planned.length} action(s) à suivre, ${urgent.length} priorité(s) haute(s) et ${dayMeetings.length} réunion(s) ce jour.`
-        : "Limule n'a pas trouvé d'activité planifiée pour cette date.",
-    next: focus?.title ?? "Vérifier les alertes TERAS et programmer les prochaines actions.",
+        ? i18n.t("notes.autoSummaryActivity", { completed: completed.length, planned: planned.length, urgent: urgent.length, meetings: dayMeetings.length })
+        : i18n.t("notes.autoSummaryNone"),
+    next: focus?.title ?? i18n.t("notes.nextDefault"),
   };
 }
 
@@ -108,6 +111,7 @@ function NoteEditor({ note, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const isEdit = note !== null;
   const [form, setForm] = useState({
     note_date: note?.note_date ?? new Date().toISOString().slice(0, 10),
@@ -134,7 +138,7 @@ function NoteEditor({ note, onClose, onSaved }: {
         className="w-full max-w-2xl rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] shadow-2xl">
         <div className="flex items-center justify-between border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.05]">
           <h3 className="font-bold text-[#17211f] dark:text-white">
-            {isEdit ? "Modifier la note" : "Nouvelle note"}
+            {isEdit ? tr("notes.editNote") : tr("notes.newNote")}
           </h3>
           <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04]"><X size={15} /></button>
         </div>
@@ -146,23 +150,23 @@ function NoteEditor({ note, onClose, onSaved }: {
             <button type="button" onClick={() => setForm({ ...form, pinned: !form.pinned })}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition ${form.pinned ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-200" : "border-black/[0.08] text-[#717182]"}`}>
               {form.pinned ? <Pin size={14} /> : <PinOff size={14} />}
-              {form.pinned ? "Épinglée" : "Épingler"}
+              {form.pinned ? tr("notes.pinned") : tr("notes.pin")}
             </button>
           </div>
-          <input placeholder="Titre (optionnel)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+          <input placeholder={tr("notes.titleOptional")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
             className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
-          <textarea required placeholder="Écris ta note ici… (markdown supporté)"
+          <textarea required placeholder={tr("notes.bodyPlaceholder")}
             value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={12}
             className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm font-mono leading-6" />
           {(create.isError || update.isError) && (
-            <p className="text-xs text-rose-600">Erreur lors de l'enregistrement.</p>
+            <p className="text-xs text-rose-600">{tr("notes.saveError")}</p>
           )}
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-black/[0.05] px-5 py-3 dark:border-white/[0.05]">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04]">Annuler</button>
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04]">{tr("common.cancel")}</button>
           <button type="submit" disabled={pending}
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
-            <Save size={14} /> {pending ? "Enregistrement…" : "Enregistrer"}
+            <Save size={14} /> {pending ? tr("notes.saving") : tr("notes.save")}
           </button>
         </div>
       </form>
@@ -172,6 +176,7 @@ function NoteEditor({ note, onClose, onSaved }: {
 
 /* ── Main component ───────────────────────────────────────────────── */
 export function NotesPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const tasks = useQuery({ queryKey: ["tasks"], queryFn: api.tasks });
   const notesQuery = useQuery({ queryKey: ["notes"], queryFn: api.notes });
@@ -215,21 +220,21 @@ export function NotesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-violet-600">Journal & Notes</p>
-          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Notes IA</h1>
-          <p className="mt-1 text-sm text-[#717182]">Écris tes notes ou laisse Limule synthétiser ta journée.</p>
+          <p className="text-sm font-semibold text-violet-600">{tr("notes.eyebrow")}</p>
+          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">{tr("notes.title")}</h1>
+          <p className="mt-1 text-sm text-[#717182]">{tr("notes.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
             className="flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 dark:bg-violet-500/15 dark:border-violet-500/30 dark:text-violet-200 hover:bg-violet-100 disabled:opacity-50">
-            <Sparkles size={15} /> {generate.isPending ? "Limule…" : "Journal Limule"}
+            <Sparkles size={15} /> {generate.isPending ? tr("notes.limuleLoading") : tr("notes.limuleBtn")}
           </button>
           <button
             onClick={() => setEditor({ open: true, note: null })}
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
-            <Plus size={15} /> Nouvelle note
+            <Plus size={15} /> {tr("notes.newNoteBtn")}
           </button>
         </div>
       </div>
@@ -237,10 +242,10 @@ export function NotesPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          { label: "Mes notes", value: allNotes.length, icon: FileText },
-          { label: "Épinglées", value: pinnedNotes.length, icon: Pin },
-          { label: "Tâches actives", value: activeTasks.length, icon: Target },
-          { label: "Tâches finies", value: completedTasks.length, icon: CheckCircle2 },
+          { label: tr("notes.kpiMyNotes"), value: allNotes.length, icon: FileText },
+          { label: tr("notes.kpiPinned"), value: pinnedNotes.length, icon: Pin },
+          { label: tr("notes.kpiActiveTasks"), value: activeTasks.length, icon: Target },
+          { label: tr("notes.kpiDoneTasks"), value: completedTasks.length, icon: CheckCircle2 },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -262,12 +267,12 @@ export function NotesPage() {
         <aside className="rounded-2xl border border-black/[0.06] bg-white p-3 dark:border-white/[0.08] dark:bg-[#1e2229] h-fit">
           <div className="mb-3 flex items-center gap-2 px-2 pt-1">
             <BookOpenText size={17} className="text-violet-600" />
-            <h2 className="font-bold text-[#17211f] dark:text-white">Mes notes</h2>
+            <h2 className="font-bold text-[#17211f] dark:text-white">{tr("notes.myNotes")}</h2>
           </div>
 
           {pinnedNotes.length > 0 && (
             <>
-              <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-600">📌 Épinglées</p>
+              <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-600">{tr("notes.pinnedSection")}</p>
               <div className="space-y-1.5 mb-3">
                 {pinnedNotes.map((n) => (
                   <NoteRow key={n.id} note={n} onSelect={() => setEditor({ open: true, note: n })}
@@ -278,13 +283,13 @@ export function NotesPage() {
             </>
           )}
 
-          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#717182]">Récentes</p>
+          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#717182]">{tr("notes.recent")}</p>
           <div className="space-y-1.5">
-            {notesQuery.isLoading && <p className="px-2 py-2 text-xs text-[#717182]">Chargement…</p>}
+            {notesQuery.isLoading && <p className="px-2 py-2 text-xs text-[#717182]">{tr("notes.loading")}</p>}
             {!notesQuery.isLoading && recentNotes.length === 0 && pinnedNotes.length === 0 && (
               <div className="rounded-xl border border-dashed border-black/[0.1] dark:border-white/[0.08] px-3 py-6 text-center">
-                <p className="text-sm text-[#717182]">Tu n'as pas encore de notes.</p>
-                <button onClick={() => setEditor({ open: true, note: null })} className="mt-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700">+ Créer ta première note</button>
+                <p className="text-sm text-[#717182]">{tr("notes.noNotesYet")}</p>
+                <button onClick={() => setEditor({ open: true, note: null })} className="mt-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700">{tr("notes.createFirst")}</button>
               </div>
             )}
             {recentNotes.map((n) => (
@@ -300,14 +305,14 @@ export function NotesPage() {
           <div className="border-b border-black/[0.05] px-6 py-5 dark:border-white/[0.06]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-violet-600">Journal automatique</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-violet-600">{tr("notes.autoJournal")}</p>
                 <h2 className="mt-1 text-2xl font-black text-[#17211f] dark:text-white">{longDate(selectedAuto.date)}</h2>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {autoEntries.map((e) => (
                   <button key={e.key} onClick={() => setSelectedKey(e.key)}
                     className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${selectedKey === e.key ? "bg-violet-600 text-white" : "bg-black/[0.04] text-[#717182] dark:bg-white/[0.06]"}`}>
-                    {e.date.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit" })}
+                    {e.date.toLocaleDateString(i18n.language, { weekday: "short", day: "2-digit" })}
                   </button>
                 ))}
               </div>
@@ -319,7 +324,7 @@ export function NotesPage() {
               <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-500/30 dark:bg-violet-500/10">
                 <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
                   <Sparkles size={18} />
-                  <h3 className="font-bold">Résumé du jour</h3>
+                  <h3 className="font-bold">{tr("notes.daySummary")}</h3>
                 </div>
                 <p className="mt-3 text-sm leading-7 text-[#17211f] dark:text-white">{selectedAuto.summary}</p>
               </div>
@@ -327,13 +332,13 @@ export function NotesPage() {
               {selectedAuto.meetings.length > 0 && (
                 <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-500/10">
                   <div className="flex items-center gap-2 text-sky-600 dark:text-sky-300">
-                    <Calendar size={17} /><h3 className="font-bold">Réunions</h3>
+                    <Calendar size={17} /><h3 className="font-bold">{tr("notes.meetings")}</h3>
                   </div>
                   <div className="mt-3 space-y-2">
                     {selectedAuto.meetings.map((m) => (
                       <div key={m.id} className="rounded-lg bg-white px-3 py-2 text-sm dark:bg-sky-500/10">
                         <p className="font-semibold text-[#17211f] dark:text-white">
-                          {m.start_at ? new Date(m.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""} — {m.title}
+                          {m.start_at ? new Date(m.start_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" }) : ""} — {m.title}
                         </p>
                         {m.tag && <p className="text-xs text-[#717182]">{m.tag}</p>}
                         {m.ai_summary && <p className="mt-1 text-xs text-[#717182] line-clamp-2">{m.ai_summary}</p>}
@@ -346,24 +351,24 @@ export function NotesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-black/[0.06] p-4 dark:border-white/10">
                   <div className="flex items-center gap-2 text-emerald-600">
-                    <CheckCircle2 size={17} /><h3 className="font-bold">Effectué</h3>
+                    <CheckCircle2 size={17} /><h3 className="font-bold">{tr("notes.doneSection")}</h3>
                   </div>
                   <div className="mt-3 space-y-2">
                     {selectedAuto.completed.map((task) => (
                       <p key={task.id} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{task.title}</p>
                     ))}
-                    {!selectedAuto.completed.length && <p className="text-sm text-[#717182]">Aucune tâche terminée.</p>}
+                    {!selectedAuto.completed.length && <p className="text-sm text-[#717182]">{tr("notes.noTaskDone")}</p>}
                   </div>
                 </div>
                 <div className="rounded-xl border border-black/[0.06] p-4 dark:border-white/10">
                   <div className="flex items-center gap-2 text-violet-600">
-                    <Clock size={17} /><h3 className="font-bold">Programmé</h3>
+                    <Clock size={17} /><h3 className="font-bold">{tr("notes.scheduled")}</h3>
                   </div>
                   <div className="mt-3 space-y-2">
                     {selectedAuto.planned.map((task) => (
                       <p key={task.id} className="rounded-lg bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">{task.title}</p>
                     ))}
-                    {!selectedAuto.planned.length && <p className="text-sm text-[#717182]">Rien de planifié.</p>}
+                    {!selectedAuto.planned.length && <p className="text-sm text-[#717182]">{tr("notes.nothingPlanned")}</p>}
                   </div>
                 </div>
               </div>
@@ -371,16 +376,16 @@ export function NotesPage() {
 
             <aside className="space-y-4">
               <div className="rounded-xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/10 dark:bg-white/5">
-                <h3 className="font-bold text-[#17211f] dark:text-white">Prochaine action</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white">{tr("notes.nextAction")}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#717182]">{selectedAuto.next}</p>
               </div>
               <div className="rounded-xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/10 dark:bg-white/5">
-                <h3 className="font-bold text-[#17211f] dark:text-white">Points de vigilance</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white">{tr("notes.watchPoints")}</h3>
                 <div className="mt-3 space-y-2">
                   {(selectedAuto.urgent.length ? selectedAuto.urgent : activeTasks.slice(0, 3)).map((task) => (
                     <p key={task.id} className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{task.title}</p>
                   ))}
-                  {!activeTasks.length && <p className="text-sm text-[#717182]">Aucune vigilance active.</p>}
+                  {!activeTasks.length && <p className="text-sm text-[#717182]">{tr("notes.noWatch")}</p>}
                 </div>
               </div>
             </aside>
@@ -406,6 +411,7 @@ function NoteRow({
   note: DailyNoteDto;
   onSelect: () => void; onPin: () => void; onDelete: () => void; onDownload: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const [showActions, setShowActions] = useState(false);
   return (
     <div
@@ -415,18 +421,18 @@ function NoteRow({
       onMouseLeave={() => setShowActions(false)}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="font-bold text-[#17211f] dark:text-white truncate">{note.title || "(sans titre)"}</p>
+        <p className="font-bold text-[#17211f] dark:text-white truncate">{note.title || tr("notes.untitled")}</p>
         <span className="text-[10px] font-bold text-[#717182] flex-shrink-0">{shortDateLabel(note.note_date)}</span>
       </div>
       <p className="mt-1 line-clamp-2 text-xs text-[#717182]">{note.body.slice(0, 140)}</p>
       <div className={`mt-2 flex gap-1 ${showActions ? "" : "opacity-0 group-hover:opacity-100"} transition`} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onPin} title={note.pinned ? "Désépingler" : "Épingler"}
+        <button onClick={onPin} title={note.pinned ? tr("notes.unpin") : tr("notes.pin")}
           className="grid h-6 w-6 place-items-center rounded text-[#717182] hover:bg-black/[0.04]">
           {note.pinned ? <Pin size={11} className="text-violet-600" /> : <PinOff size={11} />}
         </button>
-        <button onClick={onDownload} title="Télécharger"
+        <button onClick={onDownload} title={tr("notes.download")}
           className="grid h-6 w-6 place-items-center rounded text-[#717182] hover:bg-black/[0.04]"><Download size={11} /></button>
-        <button onClick={onDelete} title="Supprimer"
+        <button onClick={onDelete} title={tr("notes.delete")}
           className="grid h-6 w-6 place-items-center rounded text-rose-600 hover:bg-rose-50"><Trash2 size={11} /></button>
         {note.ai_generated && <span className="ml-auto rounded-full bg-violet-100 dark:bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-300">Limule</span>}
       </div>
