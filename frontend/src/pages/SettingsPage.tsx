@@ -14,6 +14,7 @@ import { useAuth } from "../app/AuthContext";
 import { useConfirm } from "../components/ConfirmProvider";
 import { resetOnboardingTour } from "../components/GuidedTour";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import type { CurrencyCode } from "../utils/format";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -104,6 +105,7 @@ export function SettingsPage() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { user } = useAuth();
   const { currency: activeCurrency, setCurrency } = useCurrency();
+  const { setLanguage } = useLanguage();
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
   const location = useLocation();
@@ -669,7 +671,10 @@ export function SettingsPage() {
                 <SettingRow icon={Globe} label="Langue" description="Langue de l'interface KOMPTA">
                   <select
                     value={localPrefs.language}
-                    onChange={(e) => setPref("language", e.target.value)}
+                    onChange={(e) => {
+                      setPref("language", e.target.value);
+                      setLanguage(e.target.value as "fr" | "en");
+                    }}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
                     <option value="fr">Français</option>
                     <option value="en">English</option>

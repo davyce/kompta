@@ -36,6 +36,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
@@ -236,7 +237,9 @@ const routeLabels: Record<string, { section: string; title: string }> = {
 };
 
 export function Shell() {
+  const { t } = useTranslation();
   const { user, setUser, logout } = useAuth();
+  const roleText = (role?: string) => (role ? t(`roles.${role}`, { defaultValue: roleLabel(role) }) : t("roles.session"));
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -401,7 +404,7 @@ export function Shell() {
             <button
               onClick={toggleCollapsed}
               className="grid h-7 w-7 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
-              title="Étendre la barre"
+              title={t("nav.expandSidebar")}
             >
               <ChevronRight size={16} />
             </button>
@@ -417,7 +420,7 @@ export function Shell() {
             </div>
             <div className="min-w-0 flex-1 text-left">
               <p className="truncate text-sm text-white font-semibold">{user?.branch ? `KOMPTA · ${user.branch}` : "KOMPTA"}</p>
-              <p className="truncate text-xs text-white/50">Plan local · {roleLabel(user?.role)}</p>
+              <p className="truncate text-xs text-white/50">{t("nav.localPlan")} · {roleText(user?.role)}</p>
             </div>
             <ChevronLeft size={14} className="text-white/45 shrink-0" />
           </button>
@@ -432,7 +435,7 @@ export function Shell() {
             className="flex w-full items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-left text-white/50 hover:bg-white/10 transition"
           >
             <Search size={15} />
-            <span className="min-w-0 flex-1 truncate text-sm">Recherche globale…</span>
+            <span className="min-w-0 flex-1 truncate text-sm">{t("nav.globalSearch")}</span>
             <kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-emerald-100">⌘K</kbd>
           </button>
         </div>
@@ -444,20 +447,21 @@ export function Shell() {
           <div key={section.label} className={collapsed ? "mt-3 space-y-0.5" : ""}>
             {!collapsed && (
               <p className="mb-1 px-2 pt-2 text-[10px] font-bold uppercase tracking-wider text-white/35">
-                {section.label}
+                {t(`nav.sections.${section.label}`, { defaultValue: section.label })}
               </p>
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const terasCount = terasModuleBadges[item.to] ?? 0;
                 const staticBadge = item.badge;
+                const itemLabel = t(`nav.items.${item.to}`, { defaultValue: item.label });
                 return (
                   <NavLink
                     key={`${item.label}-${item.to}`}
                     to={item.to}
                     end={item.to === "/"}
                     onClick={() => setMobileOpen(false)}
-                    title={collapsed ? item.label : undefined}
+                    title={collapsed ? itemLabel : undefined}
                     className={({ isActive }) =>
                       `relative flex items-center rounded-lg px-2 py-2 text-sm transition ${
                         collapsed ? "justify-center" : "gap-3"
@@ -476,7 +480,7 @@ export function Shell() {
                         <item.icon size={17} className="shrink-0" />
                         {!collapsed && (
                           <>
-                            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
                             {staticBadge && (
                               <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                                 staticBadge === "!" ? "bg-rose-500 text-white" : "bg-emerald-500/40 text-emerald-50"
@@ -512,10 +516,10 @@ export function Shell() {
               <p className="text-[9px] font-bold text-white/50 uppercase">TERAS</p>
               <p className="text-sm font-black text-white">{terasScore}</p>
             </div>
-            <button onClick={() => navigate("/help")} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title="Centre d'aide">
+            <button onClick={() => navigate("/help")} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title={t("nav.helpCenter")}>
               <HelpCircle size={17} />
             </button>
-            <button onClick={() => { logout(); navigate("/login"); }} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title="Déconnexion">
+            <button onClick={() => { logout(); navigate("/login"); }} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title={t("nav.logout")}>
               <LogOut size={17} />
             </button>
           </div>
@@ -524,7 +528,7 @@ export function Shell() {
             <div className="rounded-xl bg-gradient-to-br from-emerald-600/40 to-emerald-700/30 p-3">
               <div className="flex items-center gap-2 text-xs text-white/80">
                 <ShieldCheck size={15} />
-                <span className="font-semibold">Score TERAS</span>
+                <span className="font-semibold">{t("nav.terasScore")}</span>
               </div>
               <div className="mt-1 flex items-baseline gap-1">
                 <span className="text-white text-xl font-black">{terasScore}</span>
@@ -535,13 +539,13 @@ export function Shell() {
               </div>
             </div>
             <button onClick={() => navigate("/groups")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-violet-300 hover:bg-violet-500/20 hover:text-violet-200 border border-violet-500/30 transition">
-              <Users size={16} /> Mes Groupes & Orgs
+              <Users size={16} /> {t("nav.myGroups")}
             </button>
             <button onClick={() => navigate("/help")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
-              <HelpCircle size={16} /> Centre d'aide
+              <HelpCircle size={16} /> {t("nav.helpCenter")}
             </button>
             <button onClick={() => { logout(); navigate("/login"); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/65 hover:bg-white/[0.06] hover:text-white transition">
-              <LogOut size={16} /> Déconnexion
+              <LogOut size={16} /> {t("nav.logout")}
             </button>
           </>
         )}
@@ -588,7 +592,7 @@ export function Shell() {
               <div className="hidden min-w-0 items-center gap-1.5 text-sm text-[#717182] sm:flex">
                 <span>KOMPTA</span>
                 <ChevronRight size={14} className="opacity-50" />
-                <span>{currentRoute.section}</span>
+                <span>{t(`nav.sections.${currentRoute.section}`, { defaultValue: currentRoute.section })}</span>
                 <ChevronRight size={14} className="opacity-50" />
                 <span className="max-w-[220px] truncate text-[#17211f] font-medium dark:text-white">{currentRoute.title}</span>
               </div>
@@ -599,7 +603,7 @@ export function Shell() {
               className="hidden min-w-[260px] max-w-sm flex-1 items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-1.5 text-left text-[#717182] shadow-sm hover:bg-[#f5f5fa] xl:flex dark:border-white/10 dark:bg-white/5 dark:text-white/50"
             >
               <Search size={16} />
-              <span className="min-w-0 flex-1 truncate text-sm">Rechercher pages, actions, personnes…</span>
+              <span className="min-w-0 flex-1 truncate text-sm">{t("nav.searchPlaceholder")}</span>
               <kbd className="rounded bg-[#ececf0] px-1.5 py-0.5 text-[10px] font-bold text-[#717182] dark:bg-white/10 dark:text-white/50">⌘K</kbd>
             </button>
 
@@ -610,12 +614,12 @@ export function Shell() {
                 className="hidden items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 md:flex"
               >
                 <Plus size={16} />
-                Créer
+                {t("nav.createButton")}
               </button>
               <button
                 onClick={toggleTheme}
                 className="grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
-                title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+                title={theme === "dark" ? t("nav.lightMode") : t("nav.darkMode")}
               >
                 {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
               </button>
@@ -624,13 +628,13 @@ export function Shell() {
                 className={`grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition ${
                   compact ? "text-emerald-600 dark:text-emerald-400" : "text-[#717182] dark:text-white/60"
                 }`}
-                title={compact ? "Mode normal" : "Mode compact"}
+                title={compact ? t("nav.normalMode") : t("nav.compactMode")}
               >
                 <LayoutList size={17} />
               </button>
               <button
                 onClick={() => navigate("/work")}
-                title="Tâches"
+                title={t("nav.tasks")}
                 className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
               >
                 <CheckSquare size={17} />
@@ -638,7 +642,7 @@ export function Shell() {
               </button>
               <button
                 onClick={() => navigate("/chat")}
-                title="Messagerie"
+                title={t("nav.messaging")}
                 className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06] dark:text-white/60"
               >
                 <MessageSquare size={17} />
@@ -667,7 +671,7 @@ export function Shell() {
                 </div>
                 <div className="hidden lg:block">
                   <p className="text-sm font-semibold text-[#17211f] dark:text-white">{user?.full_name ?? firstName}</p>
-                  <p className="text-xs text-[#717182]">{roleLabel(user?.role)}</p>
+                  <p className="text-xs text-[#717182]">{roleText(user?.role)}</p>
                 </div>
               </div>
             </div>
@@ -683,17 +687,17 @@ export function Shell() {
       <nav data-tour="nav" className="fixed bottom-0 inset-x-0 z-40 flex lg:hidden items-center justify-around border-t border-black/[0.08] bg-white/95 backdrop-blur dark:border-white/[0.08] dark:bg-[#111318]/95 h-16 px-2 pb-[env(safe-area-inset-bottom)]">
         {(user?.role === "membre_groupe"
           ? [
-              { to: "/",        icon: LayoutDashboard, label: "Accueil"  },
-              { to: "/groups",  icon: Users,            label: "Groupes"  },
-              { to: "/chat",    icon: MessageSquare,    label: "Chat"     },
-              { to: "/settings",icon: Settings,         label: "Profil"   },
+              { to: "/",        icon: LayoutDashboard, label: t("nav.mobile.home")    },
+              { to: "/groups",  icon: Users,            label: t("nav.mobile.groups")  },
+              { to: "/chat",    icon: MessageSquare,    label: t("nav.mobile.chat")    },
+              { to: "/settings",icon: Settings,         label: t("nav.mobile.profile") },
             ]
           : [
-              { to: "/",           icon: LayoutDashboard, label: "Accueil"  },
-              { to: "/billing",    icon: ReceiptText,      label: "Factures" },
-              { to: "/pos",        icon: ShoppingCart,     label: "Caisse"   },
-              { to: "/chat",       icon: MessageSquare,    label: "Chat"     },
-              { to: "/settings",   icon: Settings,         label: "Params"   },
+              { to: "/",           icon: LayoutDashboard, label: t("nav.mobile.home")     },
+              { to: "/billing",    icon: ReceiptText,      label: t("nav.mobile.invoices") },
+              { to: "/pos",        icon: ShoppingCart,     label: t("nav.mobile.pos")      },
+              { to: "/chat",       icon: MessageSquare,    label: t("nav.mobile.chat")     },
+              { to: "/settings",   icon: Settings,         label: t("nav.mobile.params")   },
             ]
         ).map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -722,7 +726,7 @@ export function Shell() {
           className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[10px] sm:text-xs font-semibold text-[#717182] dark:text-white/50 hover:text-[#17211f] dark:hover:text-white transition min-w-0 flex-1"
         >
           <Search size={20} strokeWidth={2} />
-          <span className="truncate w-full text-center">Recherche</span>
+          <span className="truncate w-full text-center">{t("nav.mobile.search")}</span>
         </button>
       </nav>
 

@@ -6,7 +6,9 @@ import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./app/AuthContext";
 import { CompactProvider } from "./contexts/CompactContext";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import "./i18n";
 import { ToastProvider } from "./components/ToastProvider";
 import { ConfirmProvider } from "./components/ConfirmProvider";
 import { router } from "./app/routes";
@@ -43,13 +45,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CompactProvider>
-            <CurrencyProvider>
-              <ToastProvider>
-                <ConfirmProvider>
-                  <RouterProvider router={router} />
-                </ConfirmProvider>
-              </ToastProvider>
-            </CurrencyProvider>
+            <LanguageProvider>
+              <CurrencyProvider>
+                <ToastProvider>
+                  <ConfirmProvider>
+                    <RouterProvider router={router} />
+                  </ConfirmProvider>
+                </ToastProvider>
+              </CurrencyProvider>
+            </LanguageProvider>
           </CompactProvider>
         </AuthProvider>
       </QueryClientProvider>
