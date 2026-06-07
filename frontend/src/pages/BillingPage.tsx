@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bell, CheckCircle2, CreditCard, Download, FileSpreadsheet, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 import { TextInput } from "../components/FormField";
@@ -13,8 +14,8 @@ import { exportTableToExcel } from "../utils/export";
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
 type StatusFilter = "all" | "sent" | "paid" | "draft" | "overdue";
 
-const STATUS_LABELS: Record<string, string> = {
-  paid: "Payée", sent: "Envoyée", draft: "Brouillon", overdue: "En retard",
+const STATUS_TR: Record<string, string> = {
+  paid: "billing.statusPaid", sent: "billing.statusSent", draft: "billing.statusDraft", overdue: "billing.statusOverdue",
 };
 const STATUS_TONES: Record<string, "green" | "blue" | "amber" | "red"> = {
   paid: "green", sent: "blue", draft: "amber", overdue: "red",
@@ -47,6 +48,7 @@ function KpiCard({ label, value, hint, icon: Icon, tone = "emerald" }: {
 }
 
 export function BillingPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   useCurrency();
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
@@ -107,7 +109,7 @@ export function BillingPage() {
       api.relanceInvoice(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      setRelanceToast("Relance envoyée ✓");
+      setRelanceToast(tr("billing.relanceSent"));
       setTimeout(() => setRelanceToast(null), 4000);
     },
   });
@@ -172,7 +174,7 @@ export function BillingPage() {
   }
 
   function exportBillingExcel() {
-    const headers = ["N° Facture", "Client", "Date", "Montant", "Statut", "Relances"];
+    const headers = [tr("billing.excelNumber"), tr("billing.excelClient"), tr("billing.excelDate"), tr("billing.excelAmount"), tr("billing.excelStatus"), tr("billing.excelRelances")];
     const rows = filtered.map((inv) => [
       inv.number,
       inv.customer_name,
@@ -188,7 +190,7 @@ export function BillingPage() {
     e.preventDefault();
     if (lines.every((l) => !l.description.trim())) return;
     create.mutate({
-      customer_name: customerName.trim() || "Client anonyme",
+      customer_name: customerName.trim() || tr("billing.anonClient"),
       status: saveAsDraft ? "draft" : "sent",
       lines,
       ...(dueDate ? { due_date: dueDate } : {}),
@@ -197,11 +199,11 @@ export function BillingPage() {
   }
 
   const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-    { key: "all", label: "Toutes" },
-    { key: "sent", label: "Envoyées" },
-    { key: "paid", label: "Payées" },
-    { key: "overdue", label: "En retard" },
-    { key: "draft", label: "Brouillons" },
+    { key: "all", label: tr("billing.filterAll") },
+    { key: "sent", label: tr("billing.filterSent") },
+    { key: "paid", label: tr("billing.filterPaid") },
+    { key: "overdue", label: tr("billing.filterOverdue") },
+    { key: "draft", label: tr("billing.filterDraft") },
   ];
 
   return (
@@ -212,30 +214,30 @@ export function BillingPage() {
         </div>
       )}
       <div>
-        <p className="text-sm font-semibold text-emerald-600">Facturation et gestion commerciale</p>
-        <h1 className="text-3xl font-black text-ink dark:text-white">Clients, factures et encaissements</h1>
+        <p className="text-sm font-semibold text-emerald-600">{tr("billing.eyebrow")}</p>
+        <h1 className="text-3xl font-black text-ink dark:text-white">{tr("billing.title")}</h1>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Encaissé" value={compactMoney(kpis.totalPaid)} hint="factures payées" icon={CheckCircle2} tone="emerald" />
-        <KpiCard label="En attente" value={compactMoney(kpis.totalPending)} hint="à encaisser" icon={Clock} tone="sky" />
-        <KpiCard label="En retard" value={String(kpis.overdueCount)} hint={kpis.overdueCount > 0 ? "relance recommandée" : "aucun retard"} icon={AlertCircle} tone={kpis.overdueCount > 0 ? "red" : "emerald"} />
-        <KpiCard label="Total factures" value={String(kpis.totalInvoices)} hint="émises ce cycle" icon={ReceiptText} tone="amber" />
+        <KpiCard label={tr("billing.kpiCollected")} value={compactMoney(kpis.totalPaid)} hint={tr("billing.kpiCollectedHint")} icon={CheckCircle2} tone="emerald" />
+        <KpiCard label={tr("billing.kpiPending")} value={compactMoney(kpis.totalPending)} hint={tr("billing.kpiPendingHint")} icon={Clock} tone="sky" />
+        <KpiCard label={tr("billing.kpiOverdue")} value={String(kpis.overdueCount)} hint={kpis.overdueCount > 0 ? tr("billing.kpiOverdueHint") : tr("billing.kpiNoOverdue")} icon={AlertCircle} tone={kpis.overdueCount > 0 ? "red" : "emerald"} />
+        <KpiCard label={tr("billing.kpiTotal")} value={String(kpis.totalInvoices)} hint={tr("billing.kpiTotalHint")} icon={ReceiptText} tone="amber" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_0.7fr]">
         {/* Liste factures */}
-        <Panel title="Factures" action={
+        <Panel title={tr("billing.panelInvoices")} action={
           <div className="flex items-center gap-2">
             <button
               onClick={exportBillingExcel}
               className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
             >
-              <FileSpreadsheet size={13} /> Exporter Excel
+              <FileSpreadsheet size={13} /> {tr("billing.exportExcel")}
             </button>
             <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
-              <TrendingUp size={15} /> {filtered.length} résultats
+              <TrendingUp size={15} /> {tr("billing.results", { count: filtered.length })}
             </span>
           </div>
         }>
@@ -246,7 +248,7 @@ export function BillingPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Nº facture, client…"
+                placeholder={tr("billing.searchPlaceholder")}
                 className="bg-transparent text-sm outline-none min-w-0 flex-1"
               />
             </div>
@@ -267,7 +269,7 @@ export function BillingPage() {
             </div>
             {/* Sort controls */}
             <div className="flex gap-1 ml-auto">
-              {([["date","Date"],["amount","Montant"],["customer","Client"],["status","Statut"]] as [BillSortField, string][]).map(([f, label]) => (
+              {([["date",tr("billing.sortDate")],["amount",tr("billing.sortAmount")],["customer",tr("billing.sortCustomer")],["status",tr("billing.sortStatus")]] as [BillSortField, string][]).map(([f, label]) => (
                 <button
                   key={f}
                   onClick={() => toggleBillSort(f)}
@@ -292,20 +294,20 @@ export function BillingPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge
-                        label={STATUS_LABELS[displayStatus] ?? displayStatus}
+                        label={STATUS_TR[displayStatus] ? tr(STATUS_TR[displayStatus]) : displayStatus}
                         tone={STATUS_TONES[displayStatus] ?? "blue"}
                       />
                       <p className="font-semibold text-ink dark:text-white">{invoice.number} · {invoice.customer_name}</p>
                       {(invoice.relance_count ?? 0) > 0 && (
                         <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                          Relancée {invoice.relance_count} fois
+                          {tr("billing.relancedTimes", { count: invoice.relance_count })}
                         </span>
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-[#717182]">
                       {invoice.status === "paid"
-                        ? `Payée le ${invoice.paid_at ? shortDate(invoice.paid_at) : ""}${invoice.payment_account_label ? ` · ${invoice.payment_account_label}` : ""}`
-                        : `Échéance ${invoice.due_date ? shortDate(invoice.due_date) : "—"}`}
+                        ? `${tr("billing.paidOn", { date: invoice.paid_at ? shortDate(invoice.paid_at) : "" })}${invoice.payment_account_label ? ` · ${invoice.payment_account_label}` : ""}`
+                        : tr("billing.dueOn", { date: invoice.due_date ? shortDate(invoice.due_date) : "—" })}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -324,7 +326,7 @@ export function BillingPage() {
                         disabled={relance.isPending}
                         className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                       >
-                        <Bell size={13} /> Relancer
+                        <Bell size={13} /> {tr("billing.relancer")}
                       </button>
                     )}
                     {invoice.status !== "paid" && invoice.status !== "draft" && (
@@ -336,8 +338,8 @@ export function BillingPage() {
                             onChange={(e) => setPaymentChoice((c) => ({ ...c, [invoice.id]: e.target.value }))}
                             className="bg-transparent outline-none"
                           >
-                            <option value="method:cash">Espèces</option>
-                            <option value="method:card">Carte</option>
+                            <option value="method:cash">{tr("billing.optCash")}</option>
+                            <option value="method:card">{tr("billing.optCard")}</option>
                             {(paymentAccounts.data ?? []).filter((a) => a.enabled && a.use_for_pos).map((a) => (
                               <option key={a.id} value={`account:${a.id}`}>{a.label}</option>
                             ))}
@@ -348,7 +350,7 @@ export function BillingPage() {
                           disabled={markPaid.isPending}
                           className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-stone-300"
                         >
-                          <CheckCircle2 size={13} /> Encaisser
+                          <CheckCircle2 size={13} /> {tr("billing.charge")}
                         </button>
                       </div>
                     )}
@@ -358,7 +360,7 @@ export function BillingPage() {
             })}
             {!filtered.length && (
               <p className="py-8 text-center text-sm text-[#717182]">
-                {search || statusFilter !== "all" ? "Aucune facture correspondante." : "Aucune facture pour le moment."}
+                {search || statusFilter !== "all" ? tr("billing.noneMatch") : tr("billing.noneYet")}
               </p>
             )}
           </div>
@@ -366,17 +368,17 @@ export function BillingPage() {
 
         {/* Nouvelle facture multi-lignes */}
         <div data-tour="new-invoice">
-        <Panel title="Nouvelle facture">
+        <Panel title={tr("billing.panelNewInvoice")}>
           <form onSubmit={submit} className="space-y-3">
             <TextInput
-              label="Client (optionnel)"
+              label={tr("billing.clientOptional")}
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Nom du client ou entreprise — laisser vide si inconnu"
+              placeholder={tr("billing.clientPlaceholder")}
             />
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Date d'échéance</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.dueDate")}</span>
                 <input
                   type="date"
                   value={dueDate}
@@ -386,21 +388,21 @@ export function BillingPage() {
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <div className="flex-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Mode</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.mode")}</span>
                   <div className="mt-1 flex rounded-lg border border-black/[0.06] overflow-hidden text-sm font-semibold">
                     <button
                       type="button"
                       onClick={() => setSaveAsDraft(false)}
                       className={`flex-1 py-2 text-center transition ${!saveAsDraft ? "bg-emerald-600 text-white" : "bg-white text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:text-white/60"}`}
                     >
-                      Envoyer
+                      {tr("billing.send")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setSaveAsDraft(true)}
                       className={`flex-1 py-2 text-center transition ${saveAsDraft ? "bg-amber-500 text-white" : "bg-white text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:text-white/60"}`}
                     >
-                      Brouillon
+                      {tr("billing.draft")}
                     </button>
                   </div>
                 </div>
@@ -410,13 +412,13 @@ export function BillingPage() {
             {/* Lignes */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Lignes de facturation</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.billingLines")}</span>
                 <button
                   type="button"
                   onClick={addLine}
                   className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2 py-1 text-xs font-bold text-emerald-600 hover:bg-emerald-50"
                 >
-                  <Plus size={12} /> Ajouter
+                  <Plus size={12} /> {tr("billing.add")}
                 </button>
               </div>
               {lines.map((line, i) => (
@@ -424,12 +426,12 @@ export function BillingPage() {
                   <input
                     value={line.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}
-                    placeholder="Description du service / produit"
+                    placeholder={tr("billing.lineDescPlaceholder")}
                     className="mb-2 w-full rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
                   />
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto] items-center">
                     <div>
-                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">Qté</p>
+                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">{tr("billing.qty")}</p>
                       <input
                         type="number" min={1}
                         value={line.quantity}
@@ -438,7 +440,7 @@ export function BillingPage() {
                       />
                     </div>
                     <div>
-                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">Prix unit. ({currencyLabel()})</p>
+                      <p className="mb-1 text-[10px] font-bold uppercase text-[#717182]">{tr("billing.unitPrice", { cur: currencyLabel() })}</p>
                       <input
                         type="number" min={0}
                         value={line.unit_price}
@@ -464,19 +466,19 @@ export function BillingPage() {
 
             {/* Notes */}
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Notes (optionnel)</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.notesOptional")}</span>
               <textarea
                 value={invoiceNotes}
                 onChange={(e) => setInvoiceNotes(e.target.value)}
                 rows={2}
-                placeholder="Conditions de paiement, mentions légales, remerciements…"
+                placeholder={tr("billing.notesPlaceholder")}
                 className="mt-1 w-full rounded-lg border border-black/[0.06] bg-stone-50 px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
               />
             </label>
 
             {/* Total */}
             <div className="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
-              <span className="font-bold text-ink dark:text-white">Total HT</span>
+              <span className="font-bold text-ink dark:text-white">{tr("billing.totalHt")}</span>
               <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">{money(totalLines)}</span>
             </div>
 
@@ -488,11 +490,11 @@ export function BillingPage() {
               }`}
             >
               <FilePlus2 size={18} />
-              {create.isPending ? "Création…" : saveAsDraft ? "Enregistrer brouillon" : "Créer et envoyer"}
+              {create.isPending ? tr("billing.creating") : saveAsDraft ? tr("billing.saveDraft") : tr("billing.createSend")}
             </button>
             {create.isSuccess && (
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-                ✓ Facture créée avec succès
+                {tr("billing.created")}
               </p>
             )}
             {create.error && (
