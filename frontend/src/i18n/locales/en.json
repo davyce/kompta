@@ -1,4 +1,227 @@
 {
+  "employeesPage": {
+    "common": {
+      "notProvided": "Not provided",
+      "toComplete": "To complete",
+      "sms": "SMS"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "inactive": "Inactive",
+      "pending": "Pending"
+    },
+    "roles": {
+      "employee": "Standard employee",
+      "manager": "CEO / manager",
+      "hr": "Company HR",
+      "accountant": "Accountant",
+      "cashier": "Cashier / POS",
+      "admin": "Company admin"
+    },
+    "payout": {
+      "mobileMoney": "Mobile money",
+      "bank": "Bank transfer"
+    },
+    "drawer": {
+      "ariaLabel": "Create an employee",
+      "title": "New employee",
+      "subtitle": "Account + access generated automatically",
+      "sections": {
+        "identity": "Identity",
+        "position": "Role & structure",
+        "payment": "Payment",
+        "access": "Access & role"
+      },
+      "identity": {
+        "firstName": "First name *",
+        "lastName": "Last name *",
+        "email": "Email",
+        "phone": "Phone (SMS / notifications)",
+        "noteLabel": "Note:",
+        "noteText": "a login identifier and temporary password will be generated automatically when the employee is created."
+      },
+      "position": {
+        "jobTitle": "Role / Function *",
+        "jobPlaceholder": "E.g. Sales manager",
+        "department": "Service / Department",
+        "branch": "Branch / Site",
+        "manager": "CEO / reporting manager",
+        "managerPlaceholder": "Name of the reporting manager",
+        "contractType": "Contract type",
+        "salary": "Base salary ({{currency}})",
+        "salaryPlaceholder": "E.g. 350000"
+      },
+      "contractTypes": {
+        "cdi": "CDI — Permanent contract",
+        "cdd": "CDD — Fixed-term contract",
+        "mission": "Mission / Service contract",
+        "daily": "Daily worker / Contractor",
+        "internship": "Internship / Work-study"
+      },
+      "payment": {
+        "method": "Salary payout method",
+        "payoutPhone": "Payout phone",
+        "bank": "Bank",
+        "bankPlaceholder": "Bank name",
+        "accountNumber": "Account number / RIB",
+        "accountPlaceholder": "Employee bank account",
+        "info": "These details are used to prepare payroll payouts and flag incomplete files before validation."
+      },
+      "access": {
+        "roleLabel": "KOMPTA access role",
+        "options": {
+          "employee": "Standard employee — limited access to their space",
+          "manager": "CEO — team + tasks access",
+          "hr": "Company HR — files, contracts, payroll",
+          "accountant": "Accountant — finance, billing, journal entries",
+          "cashier": "Cashier / POS — checkout only",
+          "admin": "Company admin — full access"
+        },
+        "scopeTitle": "Data scope by role:",
+        "scopes": {
+          "employee": {
+            "profile": "✓ Their profile, tasks, and payslips",
+            "others": "✗ Other employees' data",
+            "accounting": "✗ Accounting, billing"
+          },
+          "manager": {
+            "team": "✓ Team, steering, and tasks",
+            "reports": "✓ Limited activity reports",
+            "payroll": "✗ Full payroll, accounting"
+          },
+          "hr": {
+            "files": "✓ All employee files",
+            "contracts": "✓ Contracts, leave, attendance",
+            "payroll": "✓ Payroll (read + validation)"
+          },
+          "accountant": {
+            "accounting": "✓ Accounting, billing, journal entries",
+            "reports": "✓ Financial reports",
+            "hr": "✗ Confidential HR"
+          },
+          "cashier": {
+            "pos": "✓ POS / checkout only",
+            "restricted": "✗ HR, accounting, admin"
+          },
+          "admin": {
+            "all": "✓ Full access to all modules",
+            "accounts": "✓ Account creation / management",
+            "settings": "✓ Company settings"
+          }
+        }
+      },
+      "actions": {
+        "previous": "← Previous",
+        "next": "Next →",
+        "creating": "Creating…",
+        "createAccess": "Create + generate access"
+      }
+    },
+    "toasts": {
+      "importErrors": ", {{count}} error",
+      "importErrors_one": ", {{count}} error",
+      "importErrors_other": ", {{count}} errors",
+      "importSuccess": "{{count}} employee imported{{suffix}}",
+      "importSuccess_one": "{{count}} employee imported{{suffix}}",
+      "importSuccess_other": "{{count}} employees imported{{suffix}}"
+    },
+    "contract": {
+      "defaultName": "Contract",
+      "loadError": "Unable to load the contract."
+    },
+    "provisioning": {
+      "clipboard": "Recommended login: {{login}}\nEmail: {{email}}\nPhone: {{phone}}\nTemporary password: {{password}}",
+      "accessReset": "Access reset",
+      "accountCreated": "Account created",
+      "warningStrong": "This password will not be shown again.",
+      "warningText": "Copy it now and send it to the employee through a secure channel.",
+      "loginLabel": "Recommended login",
+      "passwordLabel": "Temporary password",
+      "emailLabel": "Email (also accepted)",
+      "phoneLabel": "Phone (also accepted)",
+      "loginNote": "Login accepts the phone number with or without the country code (+242...).",
+      "copy": "Copy credentials",
+      "openContract": "Open contract",
+      "closeAfterCopy": "✓ I copied it, close"
+    },
+    "actions": {
+      "generating": "Generating…",
+      "viewProfile": "View profile",
+      "resetPasswordTitle": "Generate a new temporary password",
+      "resetPassword": "Reset pwd",
+      "printableContract": "Printable contract",
+      "employability": "TERAS employability",
+      "toggleStatus": "Suspend / reactivate",
+      "contract": "Contract"
+    },
+    "tabs": {
+      "employees": "Employees",
+      "presence": "Attendance",
+      "leaves": "Leave",
+      "contracts": "Contracts"
+    },
+    "header": {
+      "eyebrow": "HR and employee space",
+      "title": "Personnel files",
+      "csvTemplate": "CSV template",
+      "importCsv": "Import CSV",
+      "newEmployee": "New employee"
+    },
+    "csv": {
+      "template": "first_name,last_name,job_title,department,branch,salary,employment_type,phone,email\nJohn,Doe,Developer,Tech,Head Office,500000,CDI,+237600000000,john.doe@example.com",
+      "fileName": "employees_template.csv"
+    },
+    "panel": {
+      "title": "HR space",
+      "employeeCount": "{{count}} employee",
+      "employeeCount_one": "{{count}} employee",
+      "employeeCount_other": "{{count}} employees"
+    },
+    "search": {
+      "placeholder": "Search an employee, role, service…"
+    },
+    "table": {
+      "name": "Name",
+      "contact": "Contact",
+      "role": "Role",
+      "department": "Service",
+      "branch": "Branch",
+      "salary": "Salary",
+      "payment": "Payment",
+      "account": "Account",
+      "access": "Access",
+      "actions": "Actions"
+    },
+    "presence": {
+      "today": "Today's attendance — {{date}}",
+      "activeCount": "{{count}} active",
+      "activeCount_one": "{{count}} active",
+      "activeCount_other": "{{count}} active"
+    },
+    "leaves": {
+      "cdiActive": "Active CDI",
+      "cddWatch": "CDD — monitor",
+      "interns": "Interns"
+    },
+    "contracts": {
+      "activeContracts": "active contracts",
+      "cddRenew": "CDD · renew",
+      "internshipsMissions": "Internships / Missions",
+      "viewAiContract": "View AI contract"
+    },
+    "empty": {
+      "notFound": "No employee found",
+      "noEmployee": "No employee"
+    },
+    "contractModal": {
+      "title": "Contract — {{name}}",
+      "subtitle": "Generated by Limule AI · Legal value conditional on signature",
+      "downloadPrefix": "contract",
+      "download": "Download",
+      "iframeTitle": "Contract {{name}}"
+    }
+  },
   "payroll": {
     "months": {
       "jan": "January",

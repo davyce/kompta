@@ -1,4 +1,227 @@
 {
+  "employeesPage": {
+    "common": {
+      "notProvided": "Non renseigné",
+      "toComplete": "À compléter",
+      "sms": "SMS"
+    },
+    "status": {
+      "active": "Actif",
+      "suspended": "Suspendu",
+      "inactive": "Inactif",
+      "pending": "En attente"
+    },
+    "roles": {
+      "employee": "Employé standard",
+      "manager": "DG / manager",
+      "hr": "RH entreprise",
+      "accountant": "Comptable",
+      "cashier": "Caissier / POS",
+      "admin": "Admin entreprise"
+    },
+    "payout": {
+      "mobileMoney": "Mobile money",
+      "bank": "Virement bancaire"
+    },
+    "drawer": {
+      "ariaLabel": "Créer un employé",
+      "title": "Nouvel employé",
+      "subtitle": "Compte + accès générés automatiquement",
+      "sections": {
+        "identity": "Identité",
+        "position": "Poste & structure",
+        "payment": "Paiement",
+        "access": "Accès & rôle"
+      },
+      "identity": {
+        "firstName": "Prénom *",
+        "lastName": "Nom *",
+        "email": "Email",
+        "phone": "Téléphone (SMS / notifications)",
+        "noteLabel": "Note :",
+        "noteText": "un identifiant de connexion et un mot de passe temporaire seront générés automatiquement à la création."
+      },
+      "position": {
+        "jobTitle": "Poste / Fonction *",
+        "jobPlaceholder": "Ex : Responsable commercial",
+        "department": "Service / Département",
+        "branch": "Agence / Site",
+        "manager": "DG / responsable référent",
+        "managerPlaceholder": "Nom du responsable hiérarchique",
+        "contractType": "Type de contrat",
+        "salary": "Salaire de base ({{currency}})",
+        "salaryPlaceholder": "Ex : 350000"
+      },
+      "contractTypes": {
+        "cdi": "CDI — Contrat à durée indéterminée",
+        "cdd": "CDD — Contrat à durée déterminée",
+        "mission": "Mission / Prestation",
+        "daily": "Journalier / Vacataire",
+        "internship": "Stage / Alternance"
+      },
+      "payment": {
+        "method": "Mode de versement salaire",
+        "payoutPhone": "Téléphone de versement",
+        "bank": "Banque",
+        "bankPlaceholder": "Nom de la banque",
+        "accountNumber": "Numéro de compte / RIB",
+        "accountPlaceholder": "Compte bancaire de l'employé",
+        "info": "Ces informations servent à préparer les versements de paie et à signaler les dossiers incomplets avant validation."
+      },
+      "access": {
+        "roleLabel": "Rôle d'accès KOMPTA",
+        "options": {
+          "employee": "Employé standard — accès limité à son espace",
+          "manager": "DG — accès équipe + tâches",
+          "hr": "RH entreprise — dossiers, contrats, paie",
+          "accountant": "Comptable — finance, facturation, écritures",
+          "cashier": "Caissier / POS — caisse uniquement",
+          "admin": "Admin entreprise — accès complet"
+        },
+        "scopeTitle": "Périmètre de données par rôle :",
+        "scopes": {
+          "employee": {
+            "profile": "✓ Son profil, ses tâches, ses bulletins",
+            "others": "✗ Données des autres employés",
+            "accounting": "✗ Comptabilité, facturation"
+          },
+          "manager": {
+            "team": "✓ Équipe, pilotage et tâches",
+            "reports": "✓ Rapports d'activité limités",
+            "payroll": "✗ Paie complète, comptabilité"
+          },
+          "hr": {
+            "files": "✓ Tous les dossiers employés",
+            "contracts": "✓ Contrats, congés, présences",
+            "payroll": "✓ Paie (lecture + validation)"
+          },
+          "accountant": {
+            "accounting": "✓ Comptabilité, facturation, écritures",
+            "reports": "✓ Rapports financiers",
+            "hr": "✗ RH confidentiel"
+          },
+          "cashier": {
+            "pos": "✓ POS / Caisse uniquement",
+            "restricted": "✗ RH, comptabilité, admin"
+          },
+          "admin": {
+            "all": "✓ Accès complet à tous les modules",
+            "accounts": "✓ Création / gestion des comptes",
+            "settings": "✓ Paramètres entreprise"
+          }
+        }
+      },
+      "actions": {
+        "previous": "← Précédent",
+        "next": "Suivant →",
+        "creating": "Création…",
+        "createAccess": "Créer + générer accès"
+      }
+    },
+    "toasts": {
+      "importErrors": ", {{count}} erreur",
+      "importErrors_one": ", {{count}} erreur",
+      "importErrors_other": ", {{count}} erreurs",
+      "importSuccess": "{{count}} employé importé{{suffix}}",
+      "importSuccess_one": "{{count}} employé importé{{suffix}}",
+      "importSuccess_other": "{{count}} employés importés{{suffix}}"
+    },
+    "contract": {
+      "defaultName": "Contrat",
+      "loadError": "Impossible de charger le contrat."
+    },
+    "provisioning": {
+      "clipboard": "Identifiant recommandé : {{login}}\nEmail : {{email}}\nTéléphone : {{phone}}\nMot de passe temporaire : {{password}}",
+      "accessReset": "Accès réinitialisé",
+      "accountCreated": "Compte créé",
+      "warningStrong": "Ce mot de passe ne sera plus affiché.",
+      "warningText": "Copiez-le maintenant et transmettez-le à l'employé via un canal sécurisé.",
+      "loginLabel": "Identifiant recommandé",
+      "passwordLabel": "Mot de passe temporaire",
+      "emailLabel": "Email (aussi accepté)",
+      "phoneLabel": "Téléphone (aussi accepté)",
+      "loginNote": "Le login accepte le téléphone avec ou sans indicatif (+242...).",
+      "copy": "Copier les identifiants",
+      "openContract": "Ouvrir le contrat",
+      "closeAfterCopy": "✓ J'ai copié, fermer"
+    },
+    "actions": {
+      "generating": "Génération…",
+      "viewProfile": "Voir la fiche",
+      "resetPasswordTitle": "Générer un nouveau mot de passe temporaire",
+      "resetPassword": "Réinit. MDP",
+      "printableContract": "Contrat imprimable",
+      "employability": "Employabilité TERAS",
+      "toggleStatus": "Suspendre / réactiver",
+      "contract": "Contrat"
+    },
+    "tabs": {
+      "employees": "Employés",
+      "presence": "Présence",
+      "leaves": "Congés",
+      "contracts": "Contrats"
+    },
+    "header": {
+      "eyebrow": "RH et espace employé",
+      "title": "Dossiers du personnel",
+      "csvTemplate": "Modèle CSV",
+      "importCsv": "Importer CSV",
+      "newEmployee": "Nouvel employé"
+    },
+    "csv": {
+      "template": "first_name,last_name,job_title,department,branch,salary,employment_type,phone,email\nJean,Dupont,Développeur,Tech,Siège,500000,CDI,+237600000000,jean.dupont@example.com",
+      "fileName": "modele_employes.csv"
+    },
+    "panel": {
+      "title": "Espace RH",
+      "employeeCount": "{{count}} employé",
+      "employeeCount_one": "{{count}} employé",
+      "employeeCount_other": "{{count}} employés"
+    },
+    "search": {
+      "placeholder": "Rechercher un employé, un poste, un service…"
+    },
+    "table": {
+      "name": "Nom",
+      "contact": "Contact",
+      "role": "Rôle",
+      "department": "Service",
+      "branch": "Agence",
+      "salary": "Salaire",
+      "payment": "Paiement",
+      "account": "Compte",
+      "access": "Accès",
+      "actions": "Actions"
+    },
+    "presence": {
+      "today": "Présence du jour — {{date}}",
+      "activeCount": "{{count}} actif",
+      "activeCount_one": "{{count}} actif",
+      "activeCount_other": "{{count}} actifs"
+    },
+    "leaves": {
+      "cdiActive": "CDI actifs",
+      "cddWatch": "CDD — à surveiller",
+      "interns": "Stagiaires"
+    },
+    "contracts": {
+      "activeContracts": "contrats actifs",
+      "cddRenew": "CDD · à renouveler",
+      "internshipsMissions": "Stages / Missions",
+      "viewAiContract": "Voir contrat IA"
+    },
+    "empty": {
+      "notFound": "Aucun employé trouvé",
+      "noEmployee": "Aucun employé"
+    },
+    "contractModal": {
+      "title": "Contrat — {{name}}",
+      "subtitle": "Généré par Limule IA · Valeur juridique conditionnelle à la signature",
+      "downloadPrefix": "contrat",
+      "download": "Télécharger",
+      "iframeTitle": "Contrat {{name}}"
+    }
+  },
   "payroll": {
     "months": {
       "jan": "Janvier",

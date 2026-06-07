@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   Briefcase, CalendarDays, Clipboard, Clock3, ExternalLink, FileCheck2, FileDown, FileText,
@@ -12,6 +14,7 @@ import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
+import i18n from "../i18n";
 import { api } from "../services/api";
 import { money, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
@@ -35,6 +38,37 @@ const EMPTY_FORM = {
   payout_paypal_email: "",
 };
 
+function accountStatusLabel(status: string, tr: TFunction) {
+  if (status === "active") return tr("employeesPage.status.active");
+  if (status === "suspended") return tr("employeesPage.status.suspended");
+  if (status === "inactive") return tr("employeesPage.status.inactive");
+  if (status === "pending") return tr("employeesPage.status.pending");
+  return status;
+}
+
+function accessRoleLabel(role: string, tr: TFunction) {
+  const labels: Record<string, string> = {
+    employe: tr("employeesPage.roles.employee"),
+    manager_entreprise: tr("employeesPage.roles.manager"),
+    rh_entreprise: tr("employeesPage.roles.hr"),
+    comptable: tr("employeesPage.roles.accountant"),
+    caissier_pos: tr("employeesPage.roles.cashier"),
+    admin_entreprise: tr("employeesPage.roles.admin"),
+  };
+  return labels[role] ?? role;
+}
+
+function payoutMethodLabel(method: string | null | undefined, tr: TFunction) {
+  if (!method) return "—";
+  const labels: Record<string, string> = {
+    mobile_money: tr("employeesPage.payout.mobileMoney"),
+    zola: "Zola",
+    bank: tr("employeesPage.payout.bank"),
+    paypal: "PayPal",
+  };
+  return labels[method] ?? method;
+}
+
 /* ─── Drawer ───────────────────────────────────────────────────────────── */
 function EmployeeDrawer({
   open,
@@ -49,6 +83,7 @@ function EmployeeDrawer({
   isPending: boolean;
   error: string | null;
 }) {
+  const { t: tr } = useTranslation();
   const [form, setForm] = useState(EMPTY_FORM);
   const [section, setSection] = useState<"identity" | "position" | "payment" | "access">("identity");
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -74,10 +109,10 @@ function EmployeeDrawer({
   }
 
   const SECTIONS = [
-    { key: "identity", label: "Identité", icon: Users },
-    { key: "position", label: "Poste & structure", icon: Briefcase },
-    { key: "payment", label: "Paiement", icon: Wallet },
-    { key: "access", label: "Accès & rôle", icon: ShieldOff },
+    { key: "identity", tk: "employeesPage.drawer.sections.identity", icon: Users },
+    { key: "position", tk: "employeesPage.drawer.sections.position", icon: Briefcase },
+    { key: "payment", tk: "employeesPage.drawer.sections.payment", icon: Wallet },
+    { key: "access", tk: "employeesPage.drawer.sections.access", icon: ShieldOff },
   ] as const;
 
   return (
@@ -96,7 +131,7 @@ function EmployeeDrawer({
         ref={drawerRef}
         aria-modal="true"
         role="dialog"
-        aria-label="Créer un employé"
+        aria-label={tr("employeesPage.drawer.ariaLabel")}
         className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-2xl transition-transform duration-250 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
@@ -104,9 +139,9 @@ function EmployeeDrawer({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-5">
           <div>
-            <h2 className="text-lg font-black text-ink">Nouvel employé</h2>
+            <h2 className="text-lg font-black text-ink">{tr("employeesPage.drawer.title")}</h2>
             <p className="text-sm font-medium text-[#717182]">
-              Compte + accès générés automatiquement
+              {tr("employeesPage.drawer.subtitle")}
             </p>
           </div>
           <button
@@ -131,7 +166,7 @@ function EmployeeDrawer({
               }`}
             >
               <s.icon size={14} />
-              {s.label}
+              {tr(s.tk)}
             </button>
           ))}
         </div>
@@ -144,34 +179,34 @@ function EmployeeDrawer({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <TextInput
-                    label="Prénom *"
+                    label={tr("employeesPage.drawer.identity.firstName")}
                     value={form.first_name}
                     onChange={(e) => setForm({ ...form, first_name: e.target.value })}
                     required
                     autoFocus
                   />
                   <TextInput
-                    label="Nom *"
+                    label={tr("employeesPage.drawer.identity.lastName")}
                     value={form.last_name}
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                     required
                   />
                 </div>
                 <TextInput
-                  label="Email"
+                  label={tr("employeesPage.drawer.identity.email")}
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="employe@entreprise.com"
                 />
                 <TextInput
-                  label="Téléphone (SMS / notifications)"
+                  label={tr("employeesPage.drawer.identity.phone")}
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   placeholder="+242 06 XXX XX XX"
                 />
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-                  <strong>Note :</strong> un identifiant de connexion et un mot de passe temporaire seront générés automatiquement à la création.
+                  <strong>{tr("employeesPage.drawer.identity.noteLabel")}</strong> {tr("employeesPage.drawer.identity.noteText")}
                 </div>
               </div>
             )}
@@ -180,47 +215,47 @@ function EmployeeDrawer({
             {section === "position" && (
               <div className="space-y-4">
                 <TextInput
-                  label="Poste / Fonction *"
+                  label={tr("employeesPage.drawer.position.jobTitle")}
                   value={form.job_title}
                   onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-                  placeholder="Ex : Responsable commercial"
+                  placeholder={tr("employeesPage.drawer.position.jobPlaceholder")}
                   required
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <TextInput
-                    label="Service / Département"
+                    label={tr("employeesPage.drawer.position.department")}
                     value={form.department}
                     onChange={(e) => setForm({ ...form, department: e.target.value })}
                   />
                   <TextInput
-                    label="Agence / Site"
+                    label={tr("employeesPage.drawer.position.branch")}
                     value={form.branch}
                     onChange={(e) => setForm({ ...form, branch: e.target.value })}
                   />
                 </div>
                 <TextInput
-                  label="DG / responsable référent"
+                  label={tr("employeesPage.drawer.position.manager")}
                   value={form.manager_name}
                   onChange={(e) => setForm({ ...form, manager_name: e.target.value })}
-                  placeholder="Nom du responsable hiérarchique"
+                  placeholder={tr("employeesPage.drawer.position.managerPlaceholder")}
                 />
                 <SelectInput
-                  label="Type de contrat"
+                  label={tr("employeesPage.drawer.position.contractType")}
                   value={form.employment_type}
                   onChange={(e) => setForm({ ...form, employment_type: e.target.value })}
                 >
-                  <option value="CDI">CDI — Contrat à durée indéterminée</option>
-                  <option value="CDD">CDD — Contrat à durée déterminée</option>
-                  <option value="Mission">Mission / Prestation</option>
-                  <option value="Journalier">Journalier / Vacataire</option>
-                  <option value="Stage">Stage / Alternance</option>
+                  <option value="CDI">{tr("employeesPage.drawer.contractTypes.cdi")}</option>
+                  <option value="CDD">{tr("employeesPage.drawer.contractTypes.cdd")}</option>
+                  <option value="Mission">{tr("employeesPage.drawer.contractTypes.mission")}</option>
+                  <option value="Journalier">{tr("employeesPage.drawer.contractTypes.daily")}</option>
+                  <option value="Stage">{tr("employeesPage.drawer.contractTypes.internship")}</option>
                 </SelectInput>
                 <TextInput
-                  label={`Salaire de base (${currencyLabel()})`}
+                  label={tr("employeesPage.drawer.position.salary", { currency: currencyLabel() })}
                   type="number"
                   value={form.salary}
                   onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })}
-                  placeholder="Ex : 350000"
+                  placeholder={tr("employeesPage.drawer.position.salaryPlaceholder")}
                 />
               </div>
             )}
@@ -229,18 +264,18 @@ function EmployeeDrawer({
             {section === "payment" && (
               <div className="space-y-4">
                 <SelectInput
-                  label="Mode de versement salaire"
+                  label={tr("employeesPage.drawer.payment.method")}
                   value={form.payout_method}
                   onChange={(e) => setForm({ ...form, payout_method: e.target.value })}
                 >
                   <option value="mobile_money">Mobile money</option>
                   <option value="zola">Zola</option>
-                  <option value="bank">Virement bancaire</option>
+                  <option value="bank">{tr("employeesPage.payout.bank")}</option>
                   <option value="paypal">PayPal</option>
                 </SelectInput>
                 {(form.payout_method === "mobile_money" || form.payout_method === "zola") && (
                   <TextInput
-                    label="Téléphone de versement"
+                    label={tr("employeesPage.drawer.payment.payoutPhone")}
                     value={form.payout_phone}
                     onChange={(e) => setForm({ ...form, payout_phone: e.target.value })}
                     placeholder={form.phone || "+242 06 XXX XX XX"}
@@ -249,16 +284,16 @@ function EmployeeDrawer({
                 {form.payout_method === "bank" && (
                   <>
                     <TextInput
-                      label="Banque"
+                      label={tr("employeesPage.drawer.payment.bank")}
                       value={form.payout_bank_name}
                       onChange={(e) => setForm({ ...form, payout_bank_name: e.target.value })}
-                      placeholder="Nom de la banque"
+                      placeholder={tr("employeesPage.drawer.payment.bankPlaceholder")}
                     />
                     <TextInput
-                      label="Numéro de compte / RIB"
+                      label={tr("employeesPage.drawer.payment.accountNumber")}
                       value={form.payout_account_number}
                       onChange={(e) => setForm({ ...form, payout_account_number: e.target.value })}
-                      placeholder="Compte bancaire de l'employé"
+                      placeholder={tr("employeesPage.drawer.payment.accountPlaceholder")}
                     />
                   </>
                 )}
@@ -272,7 +307,7 @@ function EmployeeDrawer({
                   />
                 )}
                 <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
-                  Ces informations servent à préparer les versements de paie et à signaler les dossiers incomplets avant validation.
+                  {tr("employeesPage.drawer.payment.info")}
                 </div>
               </div>
             )}
@@ -281,60 +316,60 @@ function EmployeeDrawer({
             {section === "access" && (
               <div className="space-y-4">
                 <SelectInput
-                  label="Rôle d'accès KOMPTA"
+                  label={tr("employeesPage.drawer.access.roleLabel")}
                   value={form.access_role}
                   onChange={(e) => setForm({ ...form, access_role: e.target.value })}
                 >
-                  <option value="employe">Employé standard — accès limité à son espace</option>
-                  <option value="manager_entreprise">DG — accès équipe + tâches</option>
-                  <option value="rh_entreprise">RH entreprise — dossiers, contrats, paie</option>
-                  <option value="comptable">Comptable — finance, facturation, écritures</option>
-                  <option value="caissier_pos">Caissier / POS — caisse uniquement</option>
-                  <option value="admin_entreprise">Admin entreprise — accès complet</option>
+                  <option value="employe">{tr("employeesPage.drawer.access.options.employee")}</option>
+                  <option value="manager_entreprise">{tr("employeesPage.drawer.access.options.manager")}</option>
+                  <option value="rh_entreprise">{tr("employeesPage.drawer.access.options.hr")}</option>
+                  <option value="comptable">{tr("employeesPage.drawer.access.options.accountant")}</option>
+                  <option value="caissier_pos">{tr("employeesPage.drawer.access.options.cashier")}</option>
+                  <option value="admin_entreprise">{tr("employeesPage.drawer.access.options.admin")}</option>
                 </SelectInput>
 
                 <div className="space-y-2 rounded-lg border border-black/[0.05] bg-stone-50 p-4 text-sm">
-                  <p className="font-semibold text-ink">Périmètre de données par rôle :</p>
+                  <p className="font-semibold text-ink">{tr("employeesPage.drawer.access.scopeTitle")}</p>
                   <ul className="space-y-1 text-[#17211f]">
                     {form.access_role === "employe" && (
                       <>
-                        <li>✓ Son profil, ses tâches, ses bulletins</li>
-                        <li>✗ Données des autres employés</li>
-                        <li>✗ Comptabilité, facturation</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.employee.profile")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.employee.others")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.employee.accounting")}</li>
                       </>
                     )}
                     {form.access_role === "manager_entreprise" && (
                       <>
-                        <li>✓ Équipe, pilotage et tâches</li>
-                        <li>✓ Rapports d'activité limités</li>
-                        <li>✗ Paie complète, comptabilité</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.manager.team")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.manager.reports")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.manager.payroll")}</li>
                       </>
                     )}
                     {form.access_role === "rh_entreprise" && (
                       <>
-                        <li>✓ Tous les dossiers employés</li>
-                        <li>✓ Contrats, congés, présences</li>
-                        <li>✓ Paie (lecture + validation)</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.hr.files")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.hr.contracts")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.hr.payroll")}</li>
                       </>
                     )}
                     {form.access_role === "comptable" && (
                       <>
-                        <li>✓ Comptabilité, facturation, écritures</li>
-                        <li>✓ Rapports financiers</li>
-                        <li>✗ RH confidentiel</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.accountant.accounting")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.accountant.reports")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.accountant.hr")}</li>
                       </>
                     )}
                     {form.access_role === "caissier_pos" && (
                       <>
-                        <li>✓ POS / Caisse uniquement</li>
-                        <li>✗ RH, comptabilité, admin</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.cashier.pos")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.cashier.restricted")}</li>
                       </>
                     )}
                     {form.access_role === "admin_entreprise" && (
                       <>
-                        <li>✓ Accès complet à tous les modules</li>
-                        <li>✓ Création / gestion des comptes</li>
-                        <li>✓ Paramètres entreprise</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.admin.all")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.admin.accounts")}</li>
+                        <li>{tr("employeesPage.drawer.access.scopes.admin.settings")}</li>
                       </>
                     )}
                   </ul>
@@ -361,7 +396,7 @@ function EmployeeDrawer({
                     }
                     className="rounded-lg border border-black/[0.06] bg-white px-4 py-2.5 text-sm font-semibold text-[#17211f] hover:bg-stone-50"
                   >
-                    ← Précédent
+                    {tr("employeesPage.drawer.actions.previous")}
                   </button>
                 )}
                 {section !== "access" && (
@@ -372,7 +407,7 @@ function EmployeeDrawer({
                     }
                     className="rounded-lg border border-black/[0.06] bg-white px-4 py-2.5 text-sm font-semibold text-[#17211f] hover:bg-stone-50"
                   >
-                    Suivant →
+                    {tr("employeesPage.drawer.actions.next")}
                   </button>
                 )}
               </div>
@@ -382,7 +417,7 @@ function EmployeeDrawer({
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:bg-stone-300"
               >
                 <UserPlus size={17} />
-                {isPending ? "Création…" : "Créer + générer accès"}
+                {isPending ? tr("employeesPage.drawer.actions.creating") : tr("employeesPage.drawer.actions.createAccess")}
               </button>
             </div>
           </div>
@@ -394,6 +429,7 @@ function EmployeeDrawer({
 
 /* ─── Page principale ──────────────────────────────────────────────────── */
 export function EmployeesPage() {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   useCurrency();
@@ -483,8 +519,8 @@ export function EmployeesPage() {
     mutationFn: api.importEmployeesCsv,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      const suffix = result.errors.length ? `, ${result.errors.length} erreur(s)` : "";
-      toast.success(`${result.imported} employé(s) importé(s)${suffix}`);
+      const suffix = result.errors.length ? tr("employeesPage.toasts.importErrors", { count: result.errors.length }) : "";
+      toast.success(tr("employeesPage.toasts.importSuccess", { count: result.imported, suffix }));
     },
   });
 
@@ -494,9 +530,9 @@ export function EmployeesPage() {
     try {
       const blob = await api.downloadEmployeeContract(employeeId);
       const html = await blob.text();
-      setContractModal({ html, name: employeeName ?? "Contrat" });
+      setContractModal({ html, name: employeeName ?? tr("employeesPage.contract.defaultName") });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Impossible de charger le contrat.";
+      const msg = err instanceof Error ? err.message : tr("employeesPage.contract.loadError");
       setContractError(msg);
     } finally {
       setContractLoading(null);
@@ -506,7 +542,12 @@ export function EmployeesPage() {
   function copyProvisioning() {
     if (!provisioning) return;
     navigator.clipboard.writeText(
-      `Identifiant recommandé : ${provisioning.login}\nEmail : ${provisioning.email}\nTéléphone : ${provisioning.phone || "Non renseigné"}\nMot de passe temporaire : ${provisioning.password}`
+      tr("employeesPage.provisioning.clipboard", {
+        login: provisioning.login,
+        email: provisioning.email,
+        phone: provisioning.phone || tr("employeesPage.common.notProvided"),
+        password: provisioning.password,
+      })
     );
   }
 
@@ -529,16 +570,16 @@ export function EmployeesPage() {
       if (typeof va === "number" && typeof vb === "number") {
         return sortDir === "asc" ? va - vb : vb - va;
       }
-      const cmp = String(va).localeCompare(String(vb), "fr");
+      const cmp = String(va).localeCompare(String(vb), i18n.language);
       return sortDir === "asc" ? cmp : -cmp;
     });
   })();
 
   const TABS = [
-    { key: "list", label: "Employés", icon: Users },
-    { key: "presence", label: "Présence", icon: Clock3 },
-    { key: "leaves", label: "Congés", icon: CalendarDays },
-    { key: "contracts", label: "Contrats", icon: FileCheck2 },
+    { key: "list", tk: "employeesPage.tabs.employees", icon: Users },
+    { key: "presence", tk: "employeesPage.tabs.presence", icon: Clock3 },
+    { key: "leaves", tk: "employeesPage.tabs.leaves", icon: CalendarDays },
+    { key: "contracts", tk: "employeesPage.tabs.contracts", icon: FileCheck2 },
   ] as const;
 
   return (
@@ -546,27 +587,27 @@ export function EmployeesPage() {
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-emerald-600">RH et espace employé</p>
-            <h1 className="text-3xl font-black text-ink">Dossiers du personnel</h1>
+            <p className="text-sm font-semibold text-emerald-600">{tr("employeesPage.header.eyebrow")}</p>
+            <h1 className="text-3xl font-black text-ink">{tr("employeesPage.header.title")}</h1>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                const csv = "first_name,last_name,job_title,department,branch,salary,employment_type,phone,email\nJean,Dupont,Développeur,Tech,Siège,500000,CDI,+237600000000,jean.dupont@example.com";
+                const csv = tr("employeesPage.csv.template");
                 const blob = new Blob([csv], { type: "text/csv" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                a.href = url; a.download = "modele_employes.csv"; a.click();
+                a.href = url; a.download = tr("employeesPage.csv.fileName"); a.click();
                 URL.revokeObjectURL(url);
               }}
               className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-stone-50 dark:bg-white/5 dark:border-white/[0.08]"
             >
               <FileDown size={15} />
-              Modèle CSV
+              {tr("employeesPage.header.csvTemplate")}
             </button>
             <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white dark:border-white/[0.08]">
               <Upload size={15} />
-              Importer CSV
+              {tr("employeesPage.header.importCsv")}
               <input type="file" accept=".csv" className="hidden" onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) importCsv.mutate(file);
@@ -578,7 +619,7 @@ export function EmployeesPage() {
               className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
             >
               <UserPlus size={18} />
-              Nouvel employé
+              {tr("employeesPage.header.newEmployee")}
             </button>
           </div>
         </div>
@@ -590,7 +631,7 @@ export function EmployeesPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
-                    {provisioning.isReset ? "Accès réinitialisé" : "Compte créé"}
+                    {provisioning.isReset ? tr("employeesPage.provisioning.accessReset") : tr("employeesPage.provisioning.accountCreated")}
                   </span>
                   <p className="font-bold text-emerald-900">{provisioning.employeeName}</p>
                 </div>
@@ -598,30 +639,30 @@ export function EmployeesPage() {
                 {/* ⚠️ One-time warning */}
                 <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   <span className="text-base">⚠️</span>
-                  <p><strong>Ce mot de passe ne sera plus affiché.</strong> Copiez-le maintenant et transmettez-le à l'employé via un canal sécurisé.</p>
+                  <p><strong>{tr("employeesPage.provisioning.warningStrong")}</strong> {tr("employeesPage.provisioning.warningText")}</p>
                 </div>
 
                 {/* Credentials grid */}
                 <div className="mt-3 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Identifiant recommandé</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">{tr("employeesPage.provisioning.loginLabel")}</p>
                     <p className="mt-0.5 break-all font-mono font-bold text-emerald-700 text-base">{provisioning.login}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Mot de passe temporaire</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">{tr("employeesPage.provisioning.passwordLabel")}</p>
                     <p className="mt-0.5 break-all font-mono font-bold text-rose-600 text-base">{provisioning.password}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Email (aussi accepté)</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">{tr("employeesPage.provisioning.emailLabel")}</p>
                     <p className="mt-0.5 font-mono text-ink">{provisioning.email}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase text-stone-400">Téléphone (aussi accepté)</p>
-                    <p className="mt-0.5 font-mono text-ink">{provisioning.phone || "Non renseigné"}</p>
+                    <p className="text-xs font-bold uppercase text-stone-400">{tr("employeesPage.provisioning.phoneLabel")}</p>
+                    <p className="mt-0.5 font-mono text-ink">{provisioning.phone || tr("employeesPage.common.notProvided")}</p>
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-emerald-700">
-                  {provisioning.note} Le login accepte le téléphone avec ou sans indicatif (+242...).
+                  {provisioning.note} {tr("employeesPage.provisioning.loginNote")}
                 </p>
               </div>
               <button onClick={() => setProvisioning(null)} className="shrink-0 text-emerald-600 hover:text-emerald-900">
@@ -634,7 +675,7 @@ export function EmployeesPage() {
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"
               >
                 <Clipboard size={15} />
-                Copier les identifiants
+                {tr("employeesPage.provisioning.copy")}
               </button>
               <button
                 onClick={() => openContract(provisioning.employeeId, provisioning.employeeName)}
@@ -642,22 +683,22 @@ export function EmployeesPage() {
                 className="flex items-center gap-2 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {contractLoading === provisioning.employeeId ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
-                {contractLoading === provisioning.employeeId ? "Génération…" : "Ouvrir le contrat"}
+                {contractLoading === provisioning.employeeId ? tr("employeesPage.actions.generating") : tr("employeesPage.provisioning.openContract")}
               </button>
               <button
                 onClick={() => setProvisioning(null)}
                 className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
               >
-                ✓ J'ai copié, fermer
+                {tr("employeesPage.provisioning.closeAfterCopy")}
               </button>
             </div>
           </div>
         )}
 
         <Panel
-          title="Espace RH"
+          title={tr("employeesPage.panel.title")}
           action={
-            <StatusBadge label={`${employees.data?.length ?? 0} employés`} tone="blue" />
+            <StatusBadge label={tr("employeesPage.panel.employeeCount", { count: employees.data?.length ?? 0 })} tone="blue" />
           }
         >
           {/* Tabs */}
@@ -673,7 +714,7 @@ export function EmployeesPage() {
                 }`}
               >
                 <t.icon size={16} />
-                {t.label}
+                {tr(t.tk)}
               </button>
             ))}
           </div>
@@ -684,7 +725,7 @@ export function EmployeesPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un employé, un poste, un service…"
+              placeholder={tr("employeesPage.search.placeholder")}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </div>
@@ -697,30 +738,30 @@ export function EmployeesPage() {
                   <tr>
                     <th className="pb-2">
                       <button onClick={() => toggleSort("name")} className="flex items-center hover:text-emerald-600 transition">
-                        Nom <SortIcon field="name" />
+                        {tr("employeesPage.table.name")} <SortIcon field="name" />
                       </button>
                     </th>
-                    <th className="pb-2">Contact</th>
-                    <th className="pb-2">Rôle</th>
+                    <th className="pb-2">{tr("employeesPage.table.contact")}</th>
+                    <th className="pb-2">{tr("employeesPage.table.role")}</th>
                     <th className="pb-2">
                       <button onClick={() => toggleSort("department")} className="flex items-center hover:text-emerald-600 transition">
-                        Service <SortIcon field="department" />
+                        {tr("employeesPage.table.department")} <SortIcon field="department" />
                       </button>
                     </th>
                     <th className="pb-2">
                       <button onClick={() => toggleSort("branch")} className="flex items-center hover:text-emerald-600 transition">
-                        Agence <SortIcon field="branch" />
+                        {tr("employeesPage.table.branch")} <SortIcon field="branch" />
                       </button>
                     </th>
                     <th className="pb-2">
                       <button onClick={() => toggleSort("salary")} className="flex items-center hover:text-emerald-600 transition">
-                        Salaire <SortIcon field="salary" />
+                        {tr("employeesPage.table.salary")} <SortIcon field="salary" />
                       </button>
                     </th>
-                    <th className="pb-2">Paiement</th>
-                    <th className="pb-2">Compte</th>
-                    <th className="pb-2">Accès</th>
-                    <th className="pb-2">Actions</th>
+                    <th className="pb-2">{tr("employeesPage.table.payment")}</th>
+                    <th className="pb-2">{tr("employeesPage.table.account")}</th>
+                    <th className="pb-2">{tr("employeesPage.table.access")}</th>
+                    <th className="pb-2">{tr("employeesPage.table.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -741,47 +782,47 @@ export function EmployeesPage() {
                         </div>
                       </td>
                       <td>
-                        <p>{emp.phone || "Non renseigné"}</p>
-                        <p className="text-xs text-[#717182]">SMS</p>
+                        <p>{emp.phone || tr("employeesPage.common.notProvided")}</p>
+                        <p className="text-xs text-[#717182]">{tr("employeesPage.common.sms")}</p>
                       </td>
                       <td className="font-medium">{emp.job_title}</td>
                       <td>{emp.department}</td>
                       <td>{emp.branch}</td>
                       <td className="font-semibold text-emerald-600">{money(emp.salary)}</td>
                       <td>
-                        <p className="font-medium">{emp.payout_method || "—"}</p>
+                        <p className="font-medium">{payoutMethodLabel(emp.payout_method, tr)}</p>
                         <p className="text-xs text-[#717182]">
-                          {emp.payout_phone || emp.payout_bank_name || emp.payout_paypal_email || "À compléter"}
+                          {emp.payout_phone || emp.payout_bank_name || emp.payout_paypal_email || tr("employeesPage.common.toComplete")}
                         </p>
                       </td>
                       <td>
                         <StatusBadge
-                          label={emp.account_status}
+                          label={accountStatusLabel(emp.account_status, tr)}
                           tone={emp.account_status === "active" ? "green" : emp.account_status === "suspended" ? "red" : "amber"}
                         />
                       </td>
                       <td>
-                        <p className="font-medium">{emp.access_role}</p>
+                        <p className="font-medium">{accessRoleLabel(emp.access_role, tr)}</p>
                         <p className="text-xs text-[#717182]">{emp.access_scope}</p>
                       </td>
                       <td>
                         <div className="flex items-center gap-1.5">
-                          <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Voir la fiche"><ExternalLink size={15} /></Link>
+                          <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.viewProfile")}><ExternalLink size={15} /></Link>
                           <button
                             onClick={() => resetAccess.mutate(emp.id)}
                             disabled={resetAccess.isPending}
                             className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#17211f] hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
-                            title="Générer un nouveau mot de passe temporaire"
+                            title={tr("employeesPage.actions.resetPasswordTitle")}
                           >
                             {resetAccess.isPending ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                            Réinit. MDP
+                            {tr("employeesPage.actions.resetPassword")}
                           </button>
-                          <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title="Contrat imprimable">{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
-                          <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title="Employabilité TERAS"><Send size={15} /></button>
+                          <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title={tr("employeesPage.actions.printableContract")}>{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
+                          <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.employability")}><Send size={15} /></button>
                           <button
                             onClick={() => updateStatus.mutate({ employeeId: emp.id, status: emp.account_status === "suspended" ? "active" : "suspended" })}
                             className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-rose-500 hover:text-rose-600"
-                            title="Suspendre / réactiver"
+                            title={tr("employeesPage.actions.toggleStatus")}
                           >
                             <ShieldOff size={15} />
                           </button>
@@ -795,8 +836,16 @@ export function EmployeesPage() {
           ) : tab === "presence" ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2 text-sm">
-                <span className="font-semibold text-ink">Présence du jour — {new Intl.DateTimeFormat("fr-FR", { dateStyle: "full" }).format(new Date())}</span>
-                <span className="font-bold text-emerald-600">{(filteredEmployees ?? []).filter((e) => e.account_status === "active").length} actifs</span>
+                <span className="font-semibold text-ink">
+                  {tr("employeesPage.presence.today", {
+                    date: new Intl.DateTimeFormat(i18n.language, { dateStyle: "full" }).format(new Date()),
+                  })}
+                </span>
+                <span className="font-bold text-emerald-600">
+                  {tr("employeesPage.presence.activeCount", {
+                    count: (filteredEmployees ?? []).filter((e) => e.account_status === "active").length,
+                  })}
+                </span>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {(filteredEmployees ?? []).map((emp) => {
@@ -814,29 +863,33 @@ export function EmployeesPage() {
                         </div>
                       </div>
                       <StatusBadge
-                        label={isSuspended ? "suspendu" : isActive ? "actif" : "inactif"}
+                        label={isSuspended
+                          ? tr("employeesPage.status.suspended")
+                          : isActive
+                            ? tr("employeesPage.status.active")
+                            : tr("employeesPage.status.inactive")}
                         tone={isSuspended ? "red" : isActive ? "green" : "amber"}
                       />
                     </article>
                   );
                 })}
               </div>
-              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title="Aucun employé trouvé" />}
+              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title={tr("employeesPage.empty.notFound")} />}
             </div>
           ) : tab === "leaves" ? (
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-3 mb-2">
                 <div className="rounded-lg border border-black/[0.05] bg-stone-50 p-3 text-center">
                   <p className="text-2xl font-black text-ink">{(employees.data ?? []).filter((e) => e.employment_type === "CDI").length}</p>
-                  <p className="text-xs text-[#717182]">CDI actifs</p>
+                  <p className="text-xs text-[#717182]">{tr("employeesPage.leaves.cdiActive")}</p>
                 </div>
                 <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-center">
                   <p className="text-2xl font-black text-amber-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDD").length}</p>
-                  <p className="text-xs text-amber-700">CDD — à surveiller</p>
+                  <p className="text-xs text-amber-700">{tr("employeesPage.leaves.cddWatch")}</p>
                 </div>
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
                   <p className="text-2xl font-black text-emerald-600">{(employees.data ?? []).filter((e) => e.employment_type === "Stage").length}</p>
-                  <p className="text-xs text-emerald-700">Stagiaires</p>
+                  <p className="text-xs text-emerald-700">{tr("employeesPage.leaves.interns")}</p>
                 </div>
               </div>
               {(filteredEmployees ?? []).map((emp) => (
@@ -861,19 +914,19 @@ export function EmployeesPage() {
                       className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-stone-50 disabled:opacity-50"
                     >
                       {contractLoading === emp.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
-                      Contrat
+                      {tr("employeesPage.actions.contract")}
                     </button>
                   </div>
                 </article>
               ))}
-              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title="Aucun employé trouvé" />}
+              {!(filteredEmployees ?? []).length && <EmptyState icon={Users} title={tr("employeesPage.empty.notFound")} />}
             </div>
           ) : tab === "contracts" ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-black/[0.05] bg-stone-50 p-4">
                   <p className="text-2xl font-black text-ink">{employees.data?.length ?? 0}</p>
-                  <p className="text-sm font-medium text-[#717182]">contrats actifs</p>
+                  <p className="text-sm font-medium text-[#717182]">{tr("employeesPage.contracts.activeContracts")}</p>
                 </div>
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-2xl font-black text-emerald-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDI").length}</p>
@@ -881,11 +934,11 @@ export function EmployeesPage() {
                 </div>
                 <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
                   <p className="text-2xl font-black text-amber-700">{(employees.data ?? []).filter((e) => e.employment_type === "CDD").length}</p>
-                  <p className="text-sm font-medium text-amber-800">CDD · à renouveler</p>
+                  <p className="text-sm font-medium text-amber-800">{tr("employeesPage.contracts.cddRenew")}</p>
                 </div>
                 <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
                   <p className="text-2xl font-black text-sky-700">{(employees.data ?? []).filter((e) => e.employment_type === "Stage" || e.employment_type === "Mission").length}</p>
-                  <p className="text-sm font-medium text-sky-700">Stages / Missions</p>
+                  <p className="text-sm font-medium text-sky-700">{tr("employeesPage.contracts.internshipsMissions")}</p>
                 </div>
               </div>
               <div className="space-y-2">
@@ -911,7 +964,7 @@ export function EmployeesPage() {
                         className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                       >
                         {contractLoading === emp.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
-                        {contractLoading === emp.id ? "Génération…" : "Voir contrat IA"}
+                        {contractLoading === emp.id ? tr("employeesPage.actions.generating") : tr("employeesPage.contracts.viewAiContract")}
                       </button>
                     </div>
                   </div>
@@ -919,7 +972,7 @@ export function EmployeesPage() {
               </div>
             </div>
           ) : (
-            <EmptyState icon={Users} title="Aucun employé" />
+            <EmptyState icon={Users} title={tr("employeesPage.empty.noEmployee")} />
           )}
         </Panel>
       </div>
@@ -956,8 +1009,8 @@ export function EmployeesPage() {
                   <FileText size={18} className="text-emerald-700" />
                 </div>
                 <div>
-                  <p className="font-bold text-ink">Contrat — {contractModal.name}</p>
-                  <p className="text-xs text-[#717182]">Généré par Limule IA · Valeur juridique conditionnelle à la signature</p>
+                  <p className="font-bold text-ink">{tr("employeesPage.contractModal.title", { name: contractModal.name })}</p>
+                  <p className="text-xs text-[#717182]">{tr("employeesPage.contractModal.subtitle")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -967,15 +1020,15 @@ export function EmployeesPage() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `contrat_${contractModal.name.replace(/\s+/g, "_")}.html`;
+                    a.download = `${tr("employeesPage.contractModal.downloadPrefix")}_${contractModal.name.replace(/\s+/g, "_")}.html`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
                   className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-stone-50 px-3 py-1.5 text-sm font-semibold text-ink hover:bg-stone-100"
-                  title="Télécharger"
+                  title={tr("employeesPage.contractModal.download")}
                 >
                   <Maximize2 size={15} />
-                  Télécharger
+                  {tr("employeesPage.contractModal.download")}
                 </button>
                 <button
                   onClick={() => setContractModal(null)}
@@ -990,7 +1043,7 @@ export function EmployeesPage() {
             <div className="flex-1 overflow-hidden">
               <iframe
                 srcDoc={contractModal.html}
-                title={`Contrat ${contractModal.name}`}
+                title={tr("employeesPage.contractModal.iframeTitle", { name: contractModal.name })}
                 className="h-full w-full border-0"
                 sandbox="allow-same-origin"
               />
