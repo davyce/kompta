@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../app/AuthContext";
 import { api, type LoginResponse } from "../services/api";
+import i18n from "../i18n";
 
 // Google Identity Services — typage minimal
 type GsiId = {
@@ -22,7 +24,7 @@ function loadGsi(): Promise<void> {
     s.async = true;
     s.defer = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Google Sign-In indisponible"));
+    s.onerror = () => reject(new Error("google_sign_in_unavailable"));
     document.head.appendChild(s);
   });
   return _gsiPromise;
@@ -39,6 +41,7 @@ export function GoogleSignInButton({
   onSuccess: (resp: LoginResponse) => void;
   onError: (msg: string) => void;
 }) {
+  const { t: tr } = useTranslation();
   const { loginWithGoogle } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
@@ -59,7 +62,7 @@ export function GoogleSignInButton({
             try {
               onSuccess(await loginWithGoogle(r.credential));
             } catch (e) {
-              onError(e instanceof Error ? e.message : "Connexion Google impossible.");
+              onError(e instanceof Error ? e.message : tr("components.googleSignIn.errors.loginImpossible"));
             }
           },
         });
@@ -68,7 +71,7 @@ export function GoogleSignInButton({
           size: "large",
           width: 320,
           text: "signin_with",
-          locale: "fr",
+          locale: i18n.language,
           shape: "pill",
         });
       } catch {
@@ -85,7 +88,7 @@ export function GoogleSignInButton({
   return (
     <div className="mt-4 flex flex-col items-center gap-3">
       <div className="flex w-full items-center gap-3 text-xs text-stone-400">
-        <div className="h-px flex-1 bg-stone-200 dark:bg-white/10" /> ou
+        <div className="h-px flex-1 bg-stone-200 dark:bg-white/10" /> {tr("components.googleSignIn.or")}
         <div className="h-px flex-1 bg-stone-200 dark:bg-white/10" />
       </div>
       <div ref={ref} />

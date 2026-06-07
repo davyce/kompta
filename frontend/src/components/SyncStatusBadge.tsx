@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CloudOff, Cloud, CloudUpload } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { listPending } from "../lib/offlineQueue";
 
@@ -14,6 +15,7 @@ type Status = "online" | "pending" | "offline";
  * Polling toutes les 30 secondes + écoute des events online/offline.
  */
 export function SyncStatusBadge({ compact = false, onClick }: { compact?: boolean; onClick?: () => void }) {
+  const { t: tr } = useTranslation();
   const [online, setOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [pending, setPending] = useState<number>(0);
 
@@ -48,32 +50,32 @@ export function SyncStatusBadge({ compact = false, onClick }: { compact?: boolea
 
   const config = {
     online: {
-      label: "En ligne",
+      label: tr("components.sync.online"),
       icon: Cloud,
       dot: "bg-emerald-500",
       ring: "border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
-      title: "Synchronisation à jour",
+      title: tr("components.sync.upToDate"),
     },
     pending: {
-      label: `${pending} en attente`,
+      label: tr("components.sync.pending", { count: pending }),
       icon: CloudUpload,
       dot: "bg-amber-500",
       ring: "border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
-      title: `${pending} vente${pending > 1 ? "s" : ""} en file d'attente locale`,
+      title: tr("components.sync.pendingTitle", { count: pending }),
     },
     offline: {
-      label: "Hors-ligne",
+      label: tr("components.sync.offline"),
       icon: CloudOff,
       dot: "bg-rose-500",
       ring: "border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
-      title: "Aucune connexion — les ventes seront synchronisées au retour",
+      title: tr("components.sync.offlineTitle"),
     },
   }[status];
 
   const Icon = config.icon;
   const interactive = typeof onClick === "function";
   const hint = interactive
-    ? `${config.title} — cliquer pour voir la caisse${pending > 0 ? " et synchroniser" : ""}`
+    ? `${config.title} — ${pending > 0 ? tr("components.sync.clickCashboxAndSync") : tr("components.sync.clickCashbox")}`
     : config.title;
 
   if (compact) {

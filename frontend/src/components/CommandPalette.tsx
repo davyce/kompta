@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { api } from "../services/api";
 import { useAuth } from "../app/AuthContext";
@@ -39,35 +40,41 @@ type CommandItem = {
   path?: string;
   group: string;
 };
+type StaticCommandItem = Omit<CommandItem, "label" | "hint" | "group"> & {
+  labelTk: string;
+  hintTk: string;
+  groupTk: string;
+};
 
 /* Static pages and quick actions */
-const staticItems: CommandItem[] = [
-  { type: "page", label: "Tableau de bord", hint: "Pilotage temps réel", icon: LayoutDashboard, path: "/", group: "Pages" },
-  { type: "page", label: "Entreprise", hint: "Profil, structure, paramètres", icon: Building2, path: "/company", group: "Pages" },
-  { type: "page", label: "Ressources humaines", hint: "Employés, contrats, accès", icon: Users, path: "/employees", group: "Pages" },
-  { type: "page", label: "Documents", hint: "Classement IA et contrats", icon: FolderArchive, path: "/documents", group: "Pages" },
-  { type: "page", label: "Paie", hint: "Cycles, bulletins, validation", icon: HandCoins, path: "/payroll", group: "Pages" },
-  { type: "page", label: "Comptabilité", hint: "Finance et SYSCEMAC", icon: Calculator, path: "/accounting", group: "Pages" },
-  { type: "page", label: "Facturation", hint: "Clients, factures, encaissements", icon: ReceiptText, path: "/billing", group: "Pages" },
-  { type: "page", label: "POS / Caisse", hint: "Caisse, panier, encaissement", icon: ShoppingCart, path: "/pos", group: "Pages" },
-  { type: "page", label: "Inventaire", hint: "Stock, produits, QR codes", icon: Boxes, path: "/inventory", group: "Pages" },
-  { type: "page", label: "Projets & boards", hint: "Suivi équipe et budgets", icon: CheckSquare, path: "/projects", group: "Pages" },
-  { type: "page", label: "Chat", hint: "Messages et mentions", icon: MessageSquare, path: "/chat", group: "Pages" },
-  { type: "page", label: "Agenda", hint: "Calendrier, réunions, tâches et comptes-rendus Limule", icon: CalendarDays, path: "/calendar", group: "Pages" },
-  { type: "page", label: "Notes IA", hint: "Journal automatique des tâches", icon: FileText, path: "/notes", group: "Pages" },
-  { type: "page", label: "Rapports", hint: "Hub d'analyses", icon: ChartNoAxesCombined, path: "/reports", group: "Pages" },
-  { type: "page", label: "Déclarations", hint: "Fiscal, social, bailleur, TERAS", icon: ClipboardList, path: "/declarations", group: "Pages" },
-  { type: "page", label: "Rédaction IA", hint: "Studio Limule · emails, courriers", icon: Bot, path: "/assistants", group: "Pages" },
-  { type: "page", label: "TERAS Connect", hint: "Scoring, risques, conformité", icon: ShieldCheck, path: "/reports-teras", group: "Pages" },
-  { type: "page", label: "Paramètres", hint: "Modules et configuration", icon: Settings, path: "/settings", group: "Pages" },
-  { type: "action", label: "Créer une facture", hint: "Nouveau client ou ligne de vente", icon: Plus, path: "/billing", group: "Actions rapides" },
-  { type: "action", label: "Lancer la paie", hint: "Générer les bulletins du mois", icon: HandCoins, path: "/payroll", group: "Actions rapides" },
-  { type: "action", label: "Ajouter un employé", hint: "Création rapide RH + accès", icon: Users, path: "/employees", group: "Actions rapides" },
-  { type: "action", label: "Uploader un document", hint: "Classement IA automatique", icon: FileText, path: "/documents", group: "Actions rapides" },
-  { type: "action", label: "Demander à TERAS", hint: "Analyse risque et recommandations", icon: Sparkles, path: "/reports-teras", group: "Actions rapides" },
+const staticItems: StaticCommandItem[] = [
+  { type: "page", labelTk: "components.command.pages.dashboard.label", hintTk: "components.command.pages.dashboard.hint", icon: LayoutDashboard, path: "/", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.company.label", hintTk: "components.command.pages.company.hint", icon: Building2, path: "/company", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.hr.label", hintTk: "components.command.pages.hr.hint", icon: Users, path: "/employees", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.documents.label", hintTk: "components.command.pages.documents.hint", icon: FolderArchive, path: "/documents", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.payroll.label", hintTk: "components.command.pages.payroll.hint", icon: HandCoins, path: "/payroll", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.accounting.label", hintTk: "components.command.pages.accounting.hint", icon: Calculator, path: "/accounting", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.billing.label", hintTk: "components.command.pages.billing.hint", icon: ReceiptText, path: "/billing", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.pos.label", hintTk: "components.command.pages.pos.hint", icon: ShoppingCart, path: "/pos", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.inventory.label", hintTk: "components.command.pages.inventory.hint", icon: Boxes, path: "/inventory", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.projects.label", hintTk: "components.command.pages.projects.hint", icon: CheckSquare, path: "/projects", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.chat.label", hintTk: "components.command.pages.chat.hint", icon: MessageSquare, path: "/chat", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.calendar.label", hintTk: "components.command.pages.calendar.hint", icon: CalendarDays, path: "/calendar", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.notes.label", hintTk: "components.command.pages.notes.hint", icon: FileText, path: "/notes", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.reports.label", hintTk: "components.command.pages.reports.hint", icon: ChartNoAxesCombined, path: "/reports", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.declarations.label", hintTk: "components.command.pages.declarations.hint", icon: ClipboardList, path: "/declarations", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.assistants.label", hintTk: "components.command.pages.assistants.hint", icon: Bot, path: "/assistants", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.teras.label", hintTk: "components.command.pages.teras.hint", icon: ShieldCheck, path: "/reports-teras", groupTk: "components.command.groups.pages" },
+  { type: "page", labelTk: "components.command.pages.settings.label", hintTk: "components.command.pages.settings.hint", icon: Settings, path: "/settings", groupTk: "components.command.groups.pages" },
+  { type: "action", labelTk: "components.command.actions.createInvoice.label", hintTk: "components.command.actions.createInvoice.hint", icon: Plus, path: "/billing", groupTk: "components.command.groups.quickActions" },
+  { type: "action", labelTk: "components.command.actions.runPayroll.label", hintTk: "components.command.actions.runPayroll.hint", icon: HandCoins, path: "/payroll", groupTk: "components.command.groups.quickActions" },
+  { type: "action", labelTk: "components.command.actions.addEmployee.label", hintTk: "components.command.actions.addEmployee.hint", icon: Users, path: "/employees", groupTk: "components.command.groups.quickActions" },
+  { type: "action", labelTk: "components.command.actions.uploadDocument.label", hintTk: "components.command.actions.uploadDocument.hint", icon: FileText, path: "/documents", groupTk: "components.command.groups.quickActions" },
+  { type: "action", labelTk: "components.command.actions.askTeras.label", hintTk: "components.command.actions.askTeras.hint", icon: Sparkles, path: "/reports-teras", groupTk: "components.command.groups.quickActions" },
 ];
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [rawQuery, setRawQuery] = useState("");
@@ -92,6 +99,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   /* Build full searchable list from real data */
   const allItems = useMemo<CommandItem[]>(() => {
     const dynamic: CommandItem[] = [];
+    const localizedStatic = staticItems.map((item) => ({
+      ...item,
+      label: tr(item.labelTk),
+      hint: tr(item.hintTk),
+      group: tr(item.groupTk),
+    }));
     employees.data?.forEach((e) => {
       dynamic.push({
         type: "person",
@@ -99,37 +112,37 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         hint: `${e.job_title || "—"} · ${e.department || "—"}`,
         icon: Users,
         path: "/employees",
-        group: "Personnes",
+        group: tr("components.command.groups.people"),
       });
     });
     invoices.data?.forEach((inv) => {
       dynamic.push({
         type: "invoice",
         label: `${inv.number} · ${inv.customer_name}`,
-        hint: `Facture · ${inv.status}`,
+        hint: tr("components.command.dynamic.invoiceHint", { status: inv.status }),
         icon: ReceiptText,
         path: "/billing",
-        group: "Factures",
+        group: tr("components.command.groups.invoices"),
       });
     });
     products.data?.forEach((p) => {
       dynamic.push({
         type: "product",
         label: p.name,
-        hint: `Stock : ${p.stock_quantity} · ${p.category || "—"}`,
+        hint: tr("components.command.dynamic.stockHint", { stock: p.stock_quantity, category: p.category || "—" }),
         icon: Package,
         path: "/inventory",
-        group: "Produits",
+        group: tr("components.command.groups.products"),
       });
     });
     clients.data?.forEach((c) => {
       dynamic.push({
         type: "client",
         label: c.name,
-        hint: `Client · ${c.city || c.country || c.email || "—"}`,
+        hint: tr("components.command.dynamic.clientHint", { detail: c.city || c.country || c.email || "—" }),
         icon: Users,
         path: "/clients",
-        group: "Clients",
+        group: tr("components.command.groups.clients"),
       });
     });
     tasks.data?.forEach((t) => {
@@ -139,11 +152,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         hint: `${t.status} · ${t.priority}`,
         icon: CheckSquare,
         path: "/work",
-        group: "Tâches",
+        group: tr("components.command.groups.tasks"),
       });
     });
-    return [...staticItems, ...dynamic];
-  }, [employees.data, invoices.data, products.data, tasks.data, clients.data]);
+    return [...localizedStatic, ...dynamic];
+  }, [employees.data, invoices.data, products.data, tasks.data, clients.data, tr]);
 
   const filtered = useMemo(() => {
     const lowered = query.trim().toLowerCase();
@@ -206,15 +219,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             autoFocus
             value={rawQuery}
             onChange={(event) => setRawQuery(event.target.value)}
-            placeholder="Rechercher pages, factures, produits, employés, tâches…"
+            placeholder={tr("components.command.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-stone-400"
           />
-          {isLoading && <span className="text-xs text-stone-400">Chargement…</span>}
+          {isLoading && <span className="text-xs text-stone-400">{tr("common.loading")}</span>}
           <span className="rounded-md bg-black/[0.04] px-2 py-1 text-xs font-bold text-[#717182]">ESC</span>
         </div>
         <div className="max-h-[28rem] overflow-y-auto p-2">
           {filtered.length === 0 && !isLoading ? (
-            <div className="px-4 py-10 text-center text-sm font-medium text-[#717182]">Aucun résultat pour "{query}"</div>
+            <div className="px-4 py-10 text-center text-sm font-medium text-[#717182]">{tr("components.command.noResult", { query })}</div>
           ) : null}
           {groups.map((group) => (
             <div key={group} className="mb-2">
@@ -247,9 +260,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           ))}
         </div>
         <div className="flex items-center gap-3 border-t border-black/[0.05] px-4 py-2 text-[11px] font-semibold text-[#717182]">
-          <span>↑↓ naviguer</span>
-          <span>↵ ouvrir</span>
-          <span className="ml-auto flex items-center gap-1 text-emerald-600"><Sparkles size={13} /> Recherche live</span>
+          <span>{tr("components.command.footer.navigate")}</span>
+          <span>{tr("components.command.footer.open")}</span>
+          <span className="ml-auto flex items-center gap-1 text-emerald-600"><Sparkles size={13} /> {tr("components.command.footer.liveSearch")}</span>
         </div>
       </div>
     </div>

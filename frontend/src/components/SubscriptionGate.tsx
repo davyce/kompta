@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
@@ -11,6 +12,7 @@ import { SubscriptionPanel } from "./SubscriptionPanel";
  * (Le backend bloque déjà les routes métier en 402 ; ceci est la couche UX.)
  */
 export function SubscriptionGate() {
+  const { t: tr } = useTranslation();
   const { user } = useAuth();
   const me = useQuery({
     queryKey: ["mySubscription"],
@@ -31,9 +33,9 @@ export function SubscriptionGate() {
               <Lock size={22} className="text-rose-600" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-[#17211f] dark:text-white">Accès suspendu</h2>
+              <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("components.subscriptionGate.title")}</h2>
               <p className="text-sm text-[#717182]">
-                Votre abonnement KOMPTA est suspendu. Réglez-le pour réactiver immédiatement votre espace.
+                {tr("components.subscriptionGate.message")}
               </p>
             </div>
           </div>

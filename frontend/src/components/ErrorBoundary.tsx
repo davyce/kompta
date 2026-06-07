@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
+import i18n from "../i18n";
 
 interface Props { children: ReactNode; fallback?: ReactNode; }
 interface State { error: Error | null; }
@@ -23,14 +24,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-xl border border-red-100 bg-red-50 p-8 text-center dark:border-red-500/20 dark:bg-red-500/10">
           <AlertTriangle size={36} className="text-red-500" />
           <div>
-            <p className="text-base font-bold text-red-700 dark:text-red-400">Une erreur inattendue s'est produite</p>
+            <p className="text-base font-bold text-red-700 dark:text-red-400">{i18n.t("components.errorBoundary.title")}</p>
             <p className="mt-1 max-w-sm text-sm text-red-600 dark:text-red-300">{this.state.error.message}</p>
           </div>
           <button
             onClick={this.reset}
             className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
           >
-            <RefreshCcw size={14} /> Réessayer
+            <RefreshCcw size={14} /> {i18n.t("components.payments.retry")}
           </button>
         </div>
       );

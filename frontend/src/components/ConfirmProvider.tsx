@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export interface ConfirmOptions {
   title: string;
@@ -30,6 +31,7 @@ const ConfirmContext = createContext<ConfirmContextValue>({
 });
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const { t: tr } = useTranslation();
   const [opts, setOpts] = useState<ConfirmOptions | null>(null);
   const [ack, setAck] = useState(false);
   const [reason, setReason] = useState("");
@@ -91,7 +93,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-indigo-500 resize-none"
-                    placeholder="Motif obligatoire…"
+                    placeholder={tr("components.confirm.reasonPlaceholder")}
                   />
                 </div>
               )}
@@ -109,7 +111,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 onClick={() => settle(false)}
                 className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition"
               >
-                {opts.cancelLabel ?? "Annuler"}
+                {opts.cancelLabel ?? tr("common.cancel")}
               </button>
               <button
                 onClick={() => settle(true)}
@@ -120,7 +122,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                     : "bg-indigo-600 hover:bg-indigo-700"
                 }`}
               >
-                {opts.confirmLabel ?? "Confirmer"}
+                {opts.confirmLabel ?? tr("common.confirm")}
               </button>
             </div>
           </div>

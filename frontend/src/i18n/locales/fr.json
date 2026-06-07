@@ -1,4 +1,563 @@
 {
+  "components": {
+    "command": {
+      "groups": {
+        "pages": "Pages",
+        "quickActions": "Actions rapides",
+        "people": "Collaborateurs",
+        "invoices": "Factures",
+        "products": "Produits",
+        "clients": "Clients",
+        "tasks": "Tâches"
+      },
+      "pages": {
+        "dashboard": {
+          "label": "Tableau de bord",
+          "hint": "Vue globale de l'entreprise"
+        },
+        "company": {
+          "label": "Entreprise",
+          "hint": "Profil, activité et coordonnées"
+        },
+        "hr": {
+          "label": "RH",
+          "hint": "Employés, rôles et dossiers"
+        },
+        "documents": {
+          "label": "Documents",
+          "hint": "GED, pièces et analyses"
+        },
+        "payroll": {
+          "label": "Paie",
+          "hint": "Bulletins, salaires et conformité"
+        },
+        "accounting": {
+          "label": "Comptabilité",
+          "hint": "Journaux, écritures et rapprochement"
+        },
+        "billing": {
+          "label": "Facturation",
+          "hint": "Devis, factures et encaissements"
+        },
+        "pos": {
+          "label": "POS / Caisse",
+          "hint": "Ventes, panier et paiements"
+        },
+        "inventory": {
+          "label": "Stock",
+          "hint": "Produits, seuils et mouvements"
+        },
+        "projects": {
+          "label": "Projets",
+          "hint": "Tâches, kanban et suivi"
+        },
+        "chat": {
+          "label": "Chat",
+          "hint": "Canaux et messages d'équipe"
+        },
+        "calendar": {
+          "label": "Calendrier",
+          "hint": "Événements et échéances"
+        },
+        "notes": {
+          "label": "Notes",
+          "hint": "Mémos, idées et brouillons"
+        },
+        "reports": {
+          "label": "Rapports",
+          "hint": "Synthèses et exports"
+        },
+        "declarations": {
+          "label": "Déclarations",
+          "hint": "TVA, CNSS, IRPP et obligations"
+        },
+        "assistants": {
+          "label": "Rédaction IA",
+          "hint": "Emails, clauses et documents"
+        },
+        "teras": {
+          "label": "TERAS",
+          "hint": "Risques, conformité et alertes"
+        },
+        "settings": {
+          "label": "Paramètres",
+          "hint": "Préférences, sécurité et abonnement"
+        }
+      },
+      "actions": {
+        "createInvoice": {
+          "label": "Créer une facture",
+          "hint": "Ouvrir la facturation"
+        },
+        "runPayroll": {
+          "label": "Lancer la paie",
+          "hint": "Préparer les bulletins"
+        },
+        "addEmployee": {
+          "label": "Ajouter un employé",
+          "hint": "Ouvrir le module RH"
+        },
+        "uploadDocument": {
+          "label": "Téléverser un document",
+          "hint": "Ajouter une pièce à la GED"
+        },
+        "askTeras": {
+          "label": "Interroger TERAS",
+          "hint": "Analyser les risques"
+        }
+      },
+      "dynamic": {
+        "invoiceHint": "Statut : {{status}}",
+        "stockHint": "Stock : {{stock}} · {{category}}",
+        "clientHint": "Client · {{detail}}"
+      },
+      "searchPlaceholder": "Rechercher une page, une action, un client…",
+      "noResult": "Aucun résultat pour « {{query}} »",
+      "footer": {
+        "navigate": "Naviguer",
+        "open": "Ouvrir",
+        "liveSearch": "Recherche directe"
+      }
+    },
+    "confirm": {
+      "reasonPlaceholder": "Motif obligatoire…"
+    },
+    "currency": {
+      "swap": "Inverser les devises",
+      "refresh": "Actualiser le taux",
+      "estimatedTitle": "Taux estimé hors production",
+      "estimated": "estimé"
+    },
+    "errorBoundary": {
+      "title": "Une erreur est survenue."
+    },
+    "googleSignIn": {
+      "or": "ou",
+      "errors": {
+        "loginImpossible": "Connexion Google impossible."
+      }
+    },
+    "guidedTour": {
+      "stepCount": "Étape {{current}}/{{total}}",
+      "skip": "Passer",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "finish": "Terminer",
+      "steps": {
+        "welcome": {
+          "title": "Bienvenue dans KOMPTA",
+          "body": "Limule vous accompagne dans les workflows clés : ventes, factures, stock, paie et conformité."
+        },
+        "menu": {
+          "title": "Navigation principale",
+          "body": "Passez d'un module à l'autre depuis le menu latéral, avec vos accès adaptés à votre rôle."
+        },
+        "dashboard": {
+          "title": "Pilotage en temps réel",
+          "body": "Le tableau de bord regroupe chiffre d'affaires, trésorerie, alertes et tâches prioritaires."
+        },
+        "pos": {
+          "title": "Caisse et paiements",
+          "body": "Encaissez en point de vente, suivez le panier et synchronisez les paiements réels."
+        },
+        "invoice": {
+          "title": "Facturation",
+          "body": "Créez vos factures, relancez les clients et suivez les règlements."
+        },
+        "stock": {
+          "title": "Stock",
+          "body": "Surveillez les seuils, les mouvements et les ruptures avant qu'elles bloquent la vente."
+        },
+        "limule": {
+          "title": "Assistant Limule",
+          "body": "Posez des questions sur vos données et transformez les réponses en actions concrètes."
+        },
+        "settings": {
+          "title": "Paramètres",
+          "body": "Configurez la langue, la sécurité, l'entreprise et les préférences de travail."
+        }
+      }
+    },
+    "momo": {
+      "title": "Paiement Mobile Money",
+      "amountToCollect": "Montant à encaisser",
+      "clientNumber": "Numéro client",
+      "sendRequest": "Envoyer la demande",
+      "awaiting": "En attente de validation",
+      "pinHint": "Le client doit confirmer avec son code PIN Mobile Money.",
+      "errors": {
+        "phoneRequired": "Le numéro Mobile Money est obligatoire.",
+        "requestFailed": "Impossible d'envoyer la demande Mobile Money.",
+        "refused": "Paiement refusé.",
+        "timeout": "Paiement non confirmé à temps."
+      }
+    },
+    "payments": {
+      "payment": "Paiement",
+      "confirmed": "Paiement confirmé",
+      "failed": "Paiement échoué.",
+      "refused": "Paiement refusé.",
+      "retry": "Réessayer"
+    },
+    "stripe": {
+      "title": "Paiement par carte",
+      "secureConnection": "Connexion sécurisée",
+      "connecting": "Connexion à Stripe…",
+      "cardInfo": "Informations de carte",
+      "testMode": "Mode test :",
+      "testCard": "utilisez",
+      "futureDate": "date future",
+      "cvc": "CVC au choix",
+      "encrypted": "Données chiffrées par Stripe",
+      "bankConfirmation": "Confirmation bancaire…",
+      "payAmount": "Payer {{amount}}",
+      "saleWillBeRecorded": "La vente sera enregistrée automatiquement.",
+      "configurePrefix": "Configurez",
+      "configureAnd": "et",
+      "configureSuffix": "pour activer le paiement carte.",
+      "poweredBy": "Propulsé par",
+      "errors": {
+        "unavailable": "Stripe est indisponible.",
+        "loadFailed": "Impossible de charger Stripe.js.",
+        "cardUnavailable": "Paiement carte indisponible.",
+        "transactionMissing": "Transaction introuvable.",
+        "serverConfirmation": "Confirmation serveur impossible.",
+        "unexpectedStatus": "Statut inattendu, réessayez.",
+        "refusedByStripe": "Paiement refusé par Stripe.",
+        "serverUnavailable": "Serveur indisponible.",
+        "waitingServer": "En attente de confirmation serveur.",
+        "connectionImpossible": "Connexion paiement impossible."
+      }
+    },
+    "qr": {
+      "title": "Scanner un QR code",
+      "pointCamera": "Pointez la caméra vers le QR code",
+      "unavailable": "Caméra indisponible",
+      "takePhoto": "Prendre une photo",
+      "importHint": "Vous pouvez aussi importer une image contenant le QR code.",
+      "importImage": "Importer une image",
+      "errors": {
+        "cameraDenied": "Accès caméra refusé ou indisponible.",
+        "noCode": "Aucun QR code détecté dans l'image.",
+        "imageRead": "Impossible de lire cette image."
+      }
+    },
+    "subscriptionGate": {
+      "title": "Abonnement suspendu",
+      "message": "Réglez ou renouvelez l'abonnement pour réactiver l'accès aux modules métier."
+    },
+    "sync": {
+      "online": "En ligne",
+      "upToDate": "Synchronisation à jour",
+      "pending": "{{count}} en attente",
+      "pending_one": "{{count}} en attente",
+      "pending_other": "{{count}} en attente",
+      "pendingTitle": "{{count}} opération POS attend la synchronisation",
+      "pendingTitle_one": "{{count}} opération POS attend la synchronisation",
+      "pendingTitle_other": "{{count}} opérations POS attendent la synchronisation",
+      "offline": "Hors ligne",
+      "offlineTitle": "Mode hors ligne actif",
+      "clickCashboxAndSync": "ouvrez la caisse pour synchroniser",
+      "clickCashbox": "ouvrez la caisse"
+    },
+    "notifications": {
+      "close": "Fermer les notifications",
+      "title": "Notifications",
+      "summary": "{{unread}} non lue(s) · {{total}} au total",
+      "all": "Toutes",
+      "unread": "Non lues",
+      "markAllRead": "Tout marquer lu",
+      "clearHistory": "Effacer l'historique",
+      "noUnread": "Aucune notification non lue",
+      "empty": "Aucune notification",
+      "emptyHint": "Les alertes importantes apparaîtront ici.",
+      "now": "À l'instant",
+      "minutesAgo": "il y a {{count}} min",
+      "minutesAgo_one": "il y a {{count}} min",
+      "minutesAgo_other": "il y a {{count}} min",
+      "hoursAgo": "il y a {{count}} h",
+      "hoursAgo_one": "il y a {{count}} h",
+      "hoursAgo_other": "il y a {{count}} h",
+      "daysAgo": "il y a {{count}} j",
+      "daysAgo_one": "il y a {{count}} j",
+      "daysAgo_other": "il y a {{count}} j"
+    },
+    "subscriptionPanel": {
+      "mySubscription": "Mon abonnement",
+      "expiredOn": "Expiré le",
+      "validUntil": "Valable jusqu'au",
+      "current": "ACTUEL",
+      "free": "Gratuit",
+      "period": {
+        "year": "an",
+        "month": "mois"
+      },
+      "status": {
+        "active": "Actif",
+        "trialing": "Essai",
+        "pastDue": "Échu — à renouveler",
+        "suspended": "Suspendu",
+        "none": "Aucun abonnement",
+        "cancelled": "Annulé"
+      },
+      "buttons": {
+        "active": "Abonnement actif",
+        "activate": "Activer",
+        "renew": "Renouveler",
+        "choose": "Choisir ce plan"
+      },
+      "checkout": {
+        "billedIn": " (facturé en {{currency}})",
+        "promoCode": "Code promo",
+        "optional": "Optionnel",
+        "promoApplied": "Promo appliquée → {{amount}}",
+        "invalidCode": "Code invalide.",
+        "methods": {
+          "card": "Carte",
+          "momo": "MoMo",
+          "zola": "Zola"
+        },
+        "mobileMoneyPlaceholder": "Numéro Mobile Money (+242…)",
+        "activateFree": "Activer gratuitement",
+        "pay": "Payer {{amount}}",
+        "confirming": "Confirmation du paiement…",
+        "reference": "Réf : {{reference}}",
+        "zolaNote": "Après paiement Zola, l'administrateur KOMPTA validera votre abonnement.",
+        "activated": "Abonnement activé !"
+      },
+      "errors": {
+        "stripeUnavailable": "Stripe.js indisponible.",
+        "cardConfig": "Configuration carte indisponible.",
+        "payment": "Erreur de paiement.",
+        "unexpectedStatus": "Statut inattendu, réessayez.",
+        "timeout": "Paiement non confirmé à temps. Si le montant a été débité, contactez le support."
+      },
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "Pour démarrer avec les opérations essentielles.",
+          "features": [
+            "POS / Caisse",
+            "Facturation TVA",
+            "2 utilisateurs",
+            "Support communautaire"
+          ]
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Pour gérer paie, comptabilité, IA et organisations.",
+          "features": [
+            "Tout Starter",
+            "Paie CNSS/IRPP",
+            "Comptabilité SYSCOHADA",
+            "IA Limule",
+            "Groupes & Organisations",
+            "10 utilisateurs"
+          ]
+        },
+        "business": {
+          "name": "Business",
+          "description": "Pour équipes avancées avec conformité et support prioritaire.",
+          "features": [
+            "Tout Pro",
+            "Groupes & Organisations",
+            "TERAS Connect",
+            "Utilisateurs illimités",
+            "Support prioritaire"
+          ]
+        }
+      }
+    },
+    "copilot": {
+      "intro": "**Bonjour. Je suis Limule — votre conseiller stratégique IA.**\n\nConnecté en temps réel à toutes les données de votre entreprise, je peux :\n\n**🔮 Prédictions économiques** — prévisions de CA, trésorerie, tendances 30/60/90 jours\n**💰 Conseils d'investissement** — embauche, stock, expansion : je chiffre l'impact et le retour\n**📊 Analyse sectorielle** — benchmarks PME, conjoncture CEMAC, risques de marché\n**⚠️ Risques & conformité TERAS** — alertes, score, actions correctives prioritaires\n**👥 RH & masse salariale** — coûts, conformité CNPS, prévisions de paie\n**📄 Rédaction professionnelle** — emails, notes, clauses, courriers prêts à envoyer\n\nPosez votre question — j'analyse vos données réelles pour vous répondre.",
+      "openLimule": "Ouvrir Limule",
+      "aiActive": "IA active",
+      "subtitle": "Grand Sage V1.1 · Conseiller stratégique",
+      "reduce": "Réduire",
+      "fullscreen": "Plein écran",
+      "newChat": "Nouveau",
+      "realtime": "Temps réel",
+      "inputPlaceholder": "Posez votre question à Limule…",
+      "stop": "Arrêter",
+      "sources": "Sources : {{sources}}",
+      "weekSummary": "Cette semaine : {{summary}}",
+      "weekItem": "{{count}} {{intent}}",
+      "alerts": {
+        "pdfUnavailableTxt": "Génération PDF indisponible — le rapport a été exporté en texte (.txt)."
+      },
+      "errors": {
+        "backend": "Erreur : {{message}}. Vérifiez que le backend est lancé."
+      },
+      "report": {
+        "title": "Rapport Limule"
+      },
+      "pdf": {
+        "defaultTitle": "Réponse Limule"
+      },
+      "history": {
+        "title": "Historique",
+        "searchPlaceholder": "Rechercher dans l'historique…",
+        "select": "Sélectionner",
+        "done": "Terminer",
+        "selectAll": "Tout sélectionner",
+        "deselectAll": "Désélectionner tout",
+        "selected": "{{count}} sélectionné",
+        "selected_one": "{{count}} sélectionné",
+        "selected_other": "{{count}} sélectionnés",
+        "clearConfirm": "Effacer tout l'historique ?",
+        "clearAll": "Tout effacer",
+        "empty": "Aucun échange enregistré",
+        "emptyHint": "Posez votre première question à Limule",
+        "noResult": "Aucun résultat pour « {{query}} »",
+        "results": "{{count}} résultat",
+        "results_one": "{{count}} résultat",
+        "results_other": "{{count}} résultats",
+        "deleteOne": "Supprimer cet échange",
+        "deleteSelected": "Supprimer {{count}} échange",
+        "deleteSelected_one": "Supprimer {{count}} échange",
+        "deleteSelected_other": "Supprimer {{count}} échanges",
+        "today": "Aujourd'hui",
+        "yesterday": "Hier",
+        "unknownDate": "Inconnu"
+      },
+      "pinned": {
+        "short": "Épinglés ({{count}})",
+        "short_one": "Épinglé ({{count}})",
+        "short_other": "Épinglés ({{count}})",
+        "title": "Messages épinglés"
+      },
+      "actions": {
+        "copied": "Copié",
+        "pin": "Épingler",
+        "unpin": "Désépingler",
+        "viewReport": "Voir rapport",
+        "viewFullscreen": "Voir en plein écran",
+        "report": "Rapport",
+        "task": "Tâche",
+        "writeEmail": "Rédiger un email"
+      },
+      "branch": {
+        "title": "Repartir de ce point — les messages suivants seront effacés",
+        "resumeHere": "Reprendre ici",
+        "banner": "Repartir de ce point — tapez votre question"
+      },
+      "rating": {
+        "useful": "Utile",
+        "notUseful": "Pas utile"
+      },
+      "streaming": {
+        "analyzing": "Limule analyse…",
+        "deep": "Analyse approfondie · 15-25s attendues",
+        "crossingData": "Croisement des données en cours"
+      },
+      "intents": {
+        "prediction": "Prévision",
+        "investment": "Investissement",
+        "sector": "Secteur",
+        "cash": "Trésorerie",
+        "risk": "Risque",
+        "summary": "Résumé",
+        "task": "Tâche",
+        "drafting": "Rédaction",
+        "payroll": "Paie",
+        "operations": "Opérations",
+        "document": "Document",
+        "question": "Question",
+        "analysis": "Analyse"
+      },
+      "suggestions": {
+        "dailySummary": "Résumé direction du jour",
+        "cashForecast30": "Prévisions trésorerie 30 jours",
+        "terasUrgent": "Score TERAS et actions urgentes",
+        "payrollStatus": "État des bulletins de ce mois",
+        "cnpsCompliance": "Vérifier la conformité CNPS",
+        "payrollForecast": "Prévisions masse salariale",
+        "payrollMass": "Analyser la masse salariale",
+        "employeesAtRisk": "Quels employés sont à risque ?",
+        "hrSummary": "Résumé RH complet",
+        "bestSalesHour": "Meilleure heure de vente ?",
+        "restockProducts": "Produits à réassortir ?",
+        "posTarget": "CA POS vs objectif",
+        "criticalStock": "Produits sous seuil critique",
+        "stockValue": "Valeur du stock actuel",
+        "restockRecommendations": "Recommandations réassort",
+        "fixUrgent": "Que corriger en urgence ?",
+        "compliancePlan": "Plan d'action conformité",
+        "taxRisks": "Risques fiscaux identifiés",
+        "cashflowAnalysis": "Analyse du cash-flow",
+        "cashRisks": "Risques de trésorerie ?",
+        "syscemacReconcile": "Rapprochement SYSCEMAC",
+        "overdueInvoices": "Factures en retard ?",
+        "collectionForecast": "Prévisions encaissements",
+        "followupsToSend": "Relances à envoyer",
+        "urgentLateTasks": "Tâches en retard urgentes",
+        "projectsSummary": "Résumé des projets",
+        "weekPriorities": "Priorisation de la semaine",
+        "missingDocs": "Pièces manquantes ?",
+        "declarationRisks": "Risques de déclaration",
+        "declarationChecklist": "Checklist déclarative",
+        "lowTrustDocs": "Documents à confiance faible",
+        "analyzeContracts": "Analyser les contrats",
+        "missingDocsShort": "Pièces manquantes",
+        "investOrHire": "Devrais-je investir ou embaucher ?",
+        "sectorPositioning": "Analyse sectorielle et positionnement",
+        "priorityRisks": "Quels sont les risques prioritaires ?"
+      },
+      "quickReplies": {
+        "pessimisticScenario": "Détaille le scénario pessimiste",
+        "salesUp20": "Et si les ventes augmentent de 20% ?",
+        "indicatorsToWatch": "Quels indicateurs surveiller ?",
+        "paybackDelay": "Quel est le délai de retour ?",
+        "choiceRisks": "Quels sont les risques de ce choix ?",
+        "compareAlternatives": "Montre les alternatives comparées",
+        "directCompetitors": "Quels sont mes concurrents directs ?",
+        "differentiate": "Comment me différencier ?",
+        "opportunitiesNow": "Opportunités à saisir maintenant ?",
+        "improveBalance": "Que faire pour améliorer le solde ?",
+        "forecast60": "Prévision sur 60 jours",
+        "cashBreakRisk": "Risques de rupture ?",
+        "mostUrgentRisk": "Quel risque est le plus urgent ?",
+        "fixPriority": "Comment corriger en priorité ?",
+        "createCorrectiveTasks": "Créer les tâches correctives",
+        "blockingPayslips": "Quels bulletins sont bloquants ?",
+        "transferStatus": "État des virements",
+        "goDeeper": "Approfondis un point",
+        "priorityActions": "Quelles actions en priorité ?",
+        "fullReport": "Générer un rapport complet",
+        "moreDetails": "Donne plus de détails",
+        "recommendedActions": "Quelles actions recommandes-tu ?",
+        "threePointSummary": "Résumé en 3 points"
+      },
+      "task": {
+        "title": "Créer une tâche",
+        "prefilled": "Pré-rempli depuis la réponse de Limule",
+        "created": "Tâche créée !",
+        "viewTask": "Voir la tâche",
+        "titleLabel": "Titre *",
+        "titlePlaceholder": "Titre de la tâche…",
+        "priority": "Priorité",
+        "detectedByAi": "Détecté par IA",
+        "priorities": {
+          "low": "Faible",
+          "normal": "Normal",
+          "high": "Haute"
+        },
+        "assignee": "Responsable",
+        "noEmployee": "Aucun employé trouvé",
+        "unassigned": "— Non assigné —",
+        "dueDate": "Échéance",
+        "time": "Heure",
+        "description": "Description",
+        "done": "✓ Terminé",
+        "descriptionPlaceholder": "Description optionnelle…",
+        "noDescription": "Aucune description — cliquez sur « Modifier » pour en ajouter une.",
+        "proofRequired": "Preuve requise",
+        "proofHint": "Le responsable doit joindre un justificatif",
+        "creating": "Création en cours…",
+        "create": "Créer la tâche"
+      }
+    }
+  },
   "groupPages": {
     "layout": {
       "closeMenu": "Fermer le menu",
@@ -600,20 +1159,62 @@
       "exchangeGuide": {
         "title": "Suffixes par bourse — recherche directe par ticker",
         "items": [
-          { "label": "🇫🇷 Euronext Paris", "hint": ".PA  (TTE.PA, BNP.PA, MC.PA)" },
-          { "label": "🇬🇧 London Stock Exch.", "hint": ".L   (BP.L, SHEL.L, AZN.L)" },
-          { "label": "🇩🇪 Frankfurt XETRA", "hint": ".DE  (SAP.DE, VOW.DE, BMW.DE)" },
-          { "label": "🇳🇱 Euronext Amsterdam", "hint": ".AS  (ASML.AS, MT.AS)" },
-          { "label": "🇨🇭 SIX Zurich", "hint": ".SW  (NESN.SW, NOVN.SW)" },
-          { "label": "🇪🇸 Madrid (BME)", "hint": ".MC  (SAN.MC, BBVA.MC)" },
-          { "label": "🇮🇹 Borsa Italiana", "hint": ".MI  (ENI.MI, ISP.MI)" },
-          { "label": "🇿🇦 Johannesburg (JSE)", "hint": ".JO  (NPN.JO, AGL.JO)" },
-          { "label": "🇯🇵 Tokyo (TSE)", "hint": ".T   (7203.T Toyota)" },
-          { "label": "🇭🇰 Hong Kong (HKEX)", "hint": ".HK  (0700.HK Tencent)" },
-          { "label": "🇨🇦 Toronto (TSX)", "hint": ".TO  (TD.TO, SHOP.TO)" },
-          { "label": "🇧🇷 B3 Brésil", "hint": ".SA  (PETR4.SA, VALE3.SA)" },
-          { "label": "🌍 BRVM Afrique Ouest", "hint": "Rechercher : SGBC, ONATEL…" },
-          { "label": "🇺🇸 NYSE / NASDAQ", "hint": "Pas de suffixe (AAPL, TSLA)" }
+          {
+            "label": "🇫🇷 Euronext Paris",
+            "hint": ".PA  (TTE.PA, BNP.PA, MC.PA)"
+          },
+          {
+            "label": "🇬🇧 London Stock Exch.",
+            "hint": ".L   (BP.L, SHEL.L, AZN.L)"
+          },
+          {
+            "label": "🇩🇪 Frankfurt XETRA",
+            "hint": ".DE  (SAP.DE, VOW.DE, BMW.DE)"
+          },
+          {
+            "label": "🇳🇱 Euronext Amsterdam",
+            "hint": ".AS  (ASML.AS, MT.AS)"
+          },
+          {
+            "label": "🇨🇭 SIX Zurich",
+            "hint": ".SW  (NESN.SW, NOVN.SW)"
+          },
+          {
+            "label": "🇪🇸 Madrid (BME)",
+            "hint": ".MC  (SAN.MC, BBVA.MC)"
+          },
+          {
+            "label": "🇮🇹 Borsa Italiana",
+            "hint": ".MI  (ENI.MI, ISP.MI)"
+          },
+          {
+            "label": "🇿🇦 Johannesburg (JSE)",
+            "hint": ".JO  (NPN.JO, AGL.JO)"
+          },
+          {
+            "label": "🇯🇵 Tokyo (TSE)",
+            "hint": ".T   (7203.T Toyota)"
+          },
+          {
+            "label": "🇭🇰 Hong Kong (HKEX)",
+            "hint": ".HK  (0700.HK Tencent)"
+          },
+          {
+            "label": "🇨🇦 Toronto (TSX)",
+            "hint": ".TO  (TD.TO, SHOP.TO)"
+          },
+          {
+            "label": "🇧🇷 B3 Brésil",
+            "hint": ".SA  (PETR4.SA, VALE3.SA)"
+          },
+          {
+            "label": "🌍 BRVM Afrique Ouest",
+            "hint": "Rechercher : SGBC, ONATEL…"
+          },
+          {
+            "label": "🇺🇸 NYSE / NASDAQ",
+            "hint": "Pas de suffixe (AAPL, TSLA)"
+          }
         ]
       }
     },
@@ -2041,24 +2642,78 @@
       "noMatch": "Aucun module ne correspond à cette recherche."
     },
     "modulesList": {
-      "dashboard": { "label": "Tableau de bord", "desc": "Vue globale pilotage" },
-      "rh": { "label": "RH", "desc": "Dossiers et profils employés" },
-      "payroll": { "label": "Paie", "desc": "Bulletins & cycles paie" },
-      "accounting": { "label": "Comptabilité", "desc": "SYSCEMAC, journaux, bilan" },
-      "billing": { "label": "Facturation", "desc": "Devis, factures, encaissements" },
-      "pos": { "label": "POS / Caisse", "desc": "Vente directe + mobile money" },
-      "inventory": { "label": "Inventaire", "desc": "Stock multi-sites, QR codes" },
-      "projects": { "label": "Projets & boards", "desc": "Kanban, milestones, budgets" },
-      "chat": { "label": "Chat", "desc": "Messagerie temps réel" },
-      "meetings": { "label": "Réunions", "desc": "Inclus dans Agenda" },
-      "reports": { "label": "Rapports", "desc": "Tableaux de bord analytics" },
-      "declarations": { "label": "Déclarations", "desc": "TVA, CNSS, IS, obligations légales" },
-      "assistants": { "label": "Rédaction IA", "desc": "Studio Limule · emails, courriers" },
-      "teras": { "label": "TERAS Connect", "desc": "Score conformité IA" },
-      "documents": { "label": "Documents", "desc": "Bibliothèque intelligente" },
-      "calendar": { "label": "Agenda", "desc": "Calendrier, réunions, tâches" },
-      "notes": { "label": "Notes IA", "desc": "Journal & notes Limule" },
-      "settings": { "label": "Paramètres", "desc": "Configuration KOMPTA" }
+      "dashboard": {
+        "label": "Tableau de bord",
+        "desc": "Vue globale pilotage"
+      },
+      "rh": {
+        "label": "RH",
+        "desc": "Dossiers et profils employés"
+      },
+      "payroll": {
+        "label": "Paie",
+        "desc": "Bulletins & cycles paie"
+      },
+      "accounting": {
+        "label": "Comptabilité",
+        "desc": "SYSCEMAC, journaux, bilan"
+      },
+      "billing": {
+        "label": "Facturation",
+        "desc": "Devis, factures, encaissements"
+      },
+      "pos": {
+        "label": "POS / Caisse",
+        "desc": "Vente directe + mobile money"
+      },
+      "inventory": {
+        "label": "Inventaire",
+        "desc": "Stock multi-sites, QR codes"
+      },
+      "projects": {
+        "label": "Projets & boards",
+        "desc": "Kanban, milestones, budgets"
+      },
+      "chat": {
+        "label": "Chat",
+        "desc": "Messagerie temps réel"
+      },
+      "meetings": {
+        "label": "Réunions",
+        "desc": "Inclus dans Agenda"
+      },
+      "reports": {
+        "label": "Rapports",
+        "desc": "Tableaux de bord analytics"
+      },
+      "declarations": {
+        "label": "Déclarations",
+        "desc": "TVA, CNSS, IS, obligations légales"
+      },
+      "assistants": {
+        "label": "Rédaction IA",
+        "desc": "Studio Limule · emails, courriers"
+      },
+      "teras": {
+        "label": "TERAS Connect",
+        "desc": "Score conformité IA"
+      },
+      "documents": {
+        "label": "Documents",
+        "desc": "Bibliothèque intelligente"
+      },
+      "calendar": {
+        "label": "Agenda",
+        "desc": "Calendrier, réunions, tâches"
+      },
+      "notes": {
+        "label": "Notes IA",
+        "desc": "Journal & notes Limule"
+      },
+      "settings": {
+        "label": "Paramètres",
+        "desc": "Configuration KOMPTA"
+      }
     },
     "paymentFields": {
       "type": "Type",
@@ -2385,20 +3040,98 @@
     "guidesStep": "Guides pas-à-pas",
     "myTickets": "Mes tickets",
     "faq": [
-      { "q": "Comment créer une facture multi-lignes ?", "a": "Dans l'onglet Facturation, remplissez le nom du client puis cliquez sur « Ajouter » pour insérer autant de lignes que nécessaire. Chaque ligne comporte une description, une quantité et un prix unitaire. Le total HT se calcule automatiquement.", "tag": "Facturation" },
-      { "q": "Comment encaisser une vente au point de vente ?", "a": "Ouvrez l'onglet Caisse (POS), sélectionnez les produits pour les ajouter au panier, choisissez le mode de paiement (Espèces, Carte, Mobile Money, Zola…) et cliquez sur « Encaisser ». En mode hors-ligne, la vente est sauvegardée et synchronisée à la reconnexion.", "tag": "POS" },
-      { "q": "Comment ajouter un employé et gérer sa paie ?", "a": "Dans l'onglet Employés, cliquez sur « Nouvel employé » et remplissez les informations (nom, poste, type de contrat, salaire brut). Allez ensuite dans Paie > Lancer un cycle pour générer les bulletins de salaire automatiquement.", "tag": "RH" },
-      { "q": "Qu'est-ce que le score TERAS ?", "a": "TERAS (Tableau d'Évaluation du Risque et d'Alignement Stratégique) est le moteur de conformité local de KOMPTA. Il analyse la complétude de votre profil, la régularité des déclarations et la santé financière pour attribuer un score sur 100.", "tag": "Conformité" },
-      { "q": "Comment connecter un compte Mobile Money ou Zola ?", "a": "Dans Paramètres > Paiements, cliquez sur « Ajouter un compte ». Sélectionnez le fournisseur (Zola, Airtel Money, Orange Money…), renseignez le numéro masqué et activez « Utiliser au POS » pour qu'il apparaisse dans la caisse.", "tag": "Paramètres" },
-      { "q": "Comment exporter mes ventes en CSV ?", "a": "Dans l'onglet Caisse (POS), la barre supérieure propose un export CSV. Sélectionnez la plage de dates souhaitée et cliquez sur « Télécharger CSV ».", "tag": "POS" },
-      { "q": "Comment télécharger une facture en PDF ?", "a": "Dans Facturation, retrouvez la facture souhaitée et cliquez sur le bouton « PDF » à droite. Le fichier se télécharge automatiquement avec le numéro de facture comme nom de fichier.", "tag": "Facturation" },
-      { "q": "Limule / Grand Sage 1.0 n'est pas disponible. Que faire ?", "a": "Vérifiez que le backend est démarré et que la clé API DeepSeek est configurée dans le fichier .env (DEEPSEEK_API_KEY). Si le problème persiste, ouvrez un ticket de support — notre équipe vous assistera.", "tag": "IA" }
+      {
+        "q": "Comment créer une facture multi-lignes ?",
+        "a": "Dans l'onglet Facturation, remplissez le nom du client puis cliquez sur « Ajouter » pour insérer autant de lignes que nécessaire. Chaque ligne comporte une description, une quantité et un prix unitaire. Le total HT se calcule automatiquement.",
+        "tag": "Facturation"
+      },
+      {
+        "q": "Comment encaisser une vente au point de vente ?",
+        "a": "Ouvrez l'onglet Caisse (POS), sélectionnez les produits pour les ajouter au panier, choisissez le mode de paiement (Espèces, Carte, Mobile Money, Zola…) et cliquez sur « Encaisser ». En mode hors-ligne, la vente est sauvegardée et synchronisée à la reconnexion.",
+        "tag": "POS"
+      },
+      {
+        "q": "Comment ajouter un employé et gérer sa paie ?",
+        "a": "Dans l'onglet Employés, cliquez sur « Nouvel employé » et remplissez les informations (nom, poste, type de contrat, salaire brut). Allez ensuite dans Paie > Lancer un cycle pour générer les bulletins de salaire automatiquement.",
+        "tag": "RH"
+      },
+      {
+        "q": "Qu'est-ce que le score TERAS ?",
+        "a": "TERAS (Tableau d'Évaluation du Risque et d'Alignement Stratégique) est le moteur de conformité local de KOMPTA. Il analyse la complétude de votre profil, la régularité des déclarations et la santé financière pour attribuer un score sur 100.",
+        "tag": "Conformité"
+      },
+      {
+        "q": "Comment connecter un compte Mobile Money ou Zola ?",
+        "a": "Dans Paramètres > Paiements, cliquez sur « Ajouter un compte ». Sélectionnez le fournisseur (Zola, Airtel Money, Orange Money…), renseignez le numéro masqué et activez « Utiliser au POS » pour qu'il apparaisse dans la caisse.",
+        "tag": "Paramètres"
+      },
+      {
+        "q": "Comment exporter mes ventes en CSV ?",
+        "a": "Dans l'onglet Caisse (POS), la barre supérieure propose un export CSV. Sélectionnez la plage de dates souhaitée et cliquez sur « Télécharger CSV ».",
+        "tag": "POS"
+      },
+      {
+        "q": "Comment télécharger une facture en PDF ?",
+        "a": "Dans Facturation, retrouvez la facture souhaitée et cliquez sur le bouton « PDF » à droite. Le fichier se télécharge automatiquement avec le numéro de facture comme nom de fichier.",
+        "tag": "Facturation"
+      },
+      {
+        "q": "Limule / Grand Sage 1.0 n'est pas disponible. Que faire ?",
+        "a": "Vérifiez que le backend est démarré et que la clé API DeepSeek est configurée dans le fichier .env (DEEPSEEK_API_KEY). Si le problème persiste, ouvrez un ticket de support — notre équipe vous assistera.",
+        "tag": "IA"
+      }
     ],
     "guides": [
-      { "title": "Démarrage rapide en 5 étapes", "desc": "De la création du compte à la première facture envoyée.", "steps": ["Remplir le profil entreprise", "Ajouter vos employés", "Configurer les comptes de paiement", "Créer votre premier produit ou service", "Émettre et encaisser votre première facture"], "tag": "Démarrage", "icon": "🚀" },
-      { "title": "Configurer le cycle de paie", "desc": "Lancer un cycle mensuel, générer les bulletins et déclencher les versements.", "steps": ["Vérifier les données employés (salaire, type contrat)", "Paie > Nouveau cycle > sélectionner le mois", "Vérifier les anomalies détectées par Limule", "Valider les bulletins et télécharger les PDF", "Enregistrer les versements"], "tag": "Paie", "icon": "💼" },
-      { "title": "Gérer les stocks et alertes IA", "desc": "Surveiller les niveaux de stock et réapprovisionner en un clic.", "steps": ["Stocks > onglet Alertes IA", "Consulter les produits sous le seuil de réapprovisionnement", "Cliquer sur « Agir » pour commander la quantité recommandée", "Suivre les mouvements dans l'onglet Mouvements"], "tag": "Stocks", "icon": "📦" },
-      { "title": "Comprendre et améliorer son score TERAS", "desc": "Les critères clés et les actions pour atteindre 80+.", "steps": ["Compléter le profil légal (RCCM, NIF, secteur…)", "Maintenir un score TERAS > 70 pour éviter les alertes", "Soumettre vos déclarations fiscales dans Déclarations", "Activer les modules manquants dans Tableau de bord"], "tag": "Conformité", "icon": "🛡️" }
+      {
+        "title": "Démarrage rapide en 5 étapes",
+        "desc": "De la création du compte à la première facture envoyée.",
+        "steps": [
+          "Remplir le profil entreprise",
+          "Ajouter vos employés",
+          "Configurer les comptes de paiement",
+          "Créer votre premier produit ou service",
+          "Émettre et encaisser votre première facture"
+        ],
+        "tag": "Démarrage",
+        "icon": "🚀"
+      },
+      {
+        "title": "Configurer le cycle de paie",
+        "desc": "Lancer un cycle mensuel, générer les bulletins et déclencher les versements.",
+        "steps": [
+          "Vérifier les données employés (salaire, type contrat)",
+          "Paie > Nouveau cycle > sélectionner le mois",
+          "Vérifier les anomalies détectées par Limule",
+          "Valider les bulletins et télécharger les PDF",
+          "Enregistrer les versements"
+        ],
+        "tag": "Paie",
+        "icon": "💼"
+      },
+      {
+        "title": "Gérer les stocks et alertes IA",
+        "desc": "Surveiller les niveaux de stock et réapprovisionner en un clic.",
+        "steps": [
+          "Stocks > onglet Alertes IA",
+          "Consulter les produits sous le seuil de réapprovisionnement",
+          "Cliquer sur « Agir » pour commander la quantité recommandée",
+          "Suivre les mouvements dans l'onglet Mouvements"
+        ],
+        "tag": "Stocks",
+        "icon": "📦"
+      },
+      {
+        "title": "Comprendre et améliorer son score TERAS",
+        "desc": "Les critères clés et les actions pour atteindre 80+.",
+        "steps": [
+          "Compléter le profil légal (RCCM, NIF, secteur…)",
+          "Maintenir un score TERAS > 70 pour éviter les alertes",
+          "Soumettre vos déclarations fiscales dans Déclarations",
+          "Activer les modules manquants dans Tableau de bord"
+        ],
+        "tag": "Conformité",
+        "icon": "🛡️"
+      }
     ]
   },
   "registerGroup": {

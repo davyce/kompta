@@ -9,6 +9,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   AlertTriangle, BarChart3, Bell, CalendarDays, Check, CheckCircle2,
   ChevronDown, Clock3, Copy, Download, FileText, GitBranch, ListTodo,
@@ -17,6 +19,7 @@ import {
 } from "lucide-react";
 import { api, type LimuleChatHistoryItem, type LimuleSignal } from "../services/api";
 import { LimuleAvatar, LimuleIcon } from "./LimuleAvatar";
+import i18n from "../i18n";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type Signal = LimuleSignal;
@@ -49,67 +52,56 @@ type TaskDraft = {
 };
 
 /* ─── Message d'intro ─────────────────────────────────────────────────────── */
-function mkIntro(): Message {
+function mkIntro(tr: TFunction): Message {
   return {
     id: "intro",
     author: "ai",
-    text: `**Bonjour. Je suis Limule — votre conseiller stratégique IA.**
-
-Connecté en temps réel à toutes les données de votre entreprise, je peux :
-
-**🔮 Prédictions économiques** — prévisions de CA, trésorerie, tendances 30/60/90 jours
-**💰 Conseils d'investissement** — embauche, stock, expansion : je chiffre l'impact et le retour
-**📊 Analyse sectorielle** — benchmarks PME, conjoncture CEMAC, risques de marché
-**⚠️ Risques & conformité TERAS** — alertes, score, actions correctives prioritaires
-**👥 RH & masse salariale** — coûts, conformité CNPS, prévisions de paie
-**📄 Rédaction professionnelle** — emails, notes, clauses, courriers prêts à envoyer
-
-Posez votre question — j'analyse vos données réelles pour vous répondre.`,
+    text: tr("components.copilot.intro"),
   };
 }
 
 /* ─── Suggestions contextuelles (#3) ─────────────────────────────────────── */
-type Chip = { label: string; icon: React.ElementType };
+type Chip = { tk: string; icon: React.ElementType };
 const PAGE_SUGGESTIONS: Record<string, Chip[]> = {
-  "/":            [{ label: "Résumé direction du jour", icon: FileText }, { label: "Prévisions trésorerie 30 jours", icon: TrendingUp }, { label: "Score TERAS et actions urgentes", icon: ShieldCheck }],
-  "/dashboard":   [{ label: "Résumé direction du jour", icon: FileText }, { label: "Prévisions trésorerie 30 jours", icon: TrendingUp }, { label: "Score TERAS et actions urgentes", icon: ShieldCheck }],
-  "/payroll":     [{ label: "État des bulletins de ce mois", icon: FileText }, { label: "Vérifier la conformité CNPS", icon: ShieldCheck }, { label: "Prévisions masse salariale", icon: TrendingUp }],
-  "/employees":   [{ label: "Analyser la masse salariale", icon: TrendingUp }, { label: "Quels employés sont à risque ?", icon: AlertTriangle }, { label: "Résumé RH complet", icon: FileText }],
-  "/pos":         [{ label: "Meilleure heure de vente ?", icon: BarChart3 }, { label: "Produits à réassortir ?", icon: AlertTriangle }, { label: "CA POS vs objectif", icon: TrendingUp }],
-  "/inventory":   [{ label: "Produits sous seuil critique", icon: AlertTriangle }, { label: "Valeur du stock actuel", icon: Wallet }, { label: "Recommandations réassort", icon: FileText }],
-  "/reports-teras": [{ label: "Que corriger en urgence ?", icon: ShieldCheck }, { label: "Plan d'action conformité", icon: FileText }, { label: "Risques fiscaux identifiés", icon: AlertTriangle }],
-  "/accounting":  [{ label: "Analyse du cash-flow", icon: TrendingUp }, { label: "Risques de trésorerie ?", icon: AlertTriangle }, { label: "Rapprochement SYSCEMAC", icon: FileText }],
-  "/billing":     [{ label: "Factures en retard ?", icon: AlertTriangle }, { label: "Prévisions encaissements", icon: TrendingUp }, { label: "Relances à envoyer", icon: Wand2 }],
-  "/work":        [{ label: "Tâches en retard urgentes", icon: AlertTriangle }, { label: "Résumé des projets", icon: FileText }, { label: "Priorisation de la semaine", icon: TrendingUp }],
-  "/declarations":[{ label: "Pièces manquantes ?", icon: AlertTriangle }, { label: "Risques de déclaration", icon: ShieldCheck }, { label: "Checklist déclarative", icon: FileText }],
-  "/documents":   [{ label: "Documents à confiance faible", icon: AlertTriangle }, { label: "Analyser les contrats", icon: FileText }, { label: "Pièces manquantes", icon: ShieldCheck }],
+  "/":            [{ tk: "components.copilot.suggestions.dailySummary", icon: FileText }, { tk: "components.copilot.suggestions.cashForecast30", icon: TrendingUp }, { tk: "components.copilot.suggestions.terasUrgent", icon: ShieldCheck }],
+  "/dashboard":   [{ tk: "components.copilot.suggestions.dailySummary", icon: FileText }, { tk: "components.copilot.suggestions.cashForecast30", icon: TrendingUp }, { tk: "components.copilot.suggestions.terasUrgent", icon: ShieldCheck }],
+  "/payroll":     [{ tk: "components.copilot.suggestions.payrollStatus", icon: FileText }, { tk: "components.copilot.suggestions.cnpsCompliance", icon: ShieldCheck }, { tk: "components.copilot.suggestions.payrollForecast", icon: TrendingUp }],
+  "/employees":   [{ tk: "components.copilot.suggestions.payrollMass", icon: TrendingUp }, { tk: "components.copilot.suggestions.employeesAtRisk", icon: AlertTriangle }, { tk: "components.copilot.suggestions.hrSummary", icon: FileText }],
+  "/pos":         [{ tk: "components.copilot.suggestions.bestSalesHour", icon: BarChart3 }, { tk: "components.copilot.suggestions.restockProducts", icon: AlertTriangle }, { tk: "components.copilot.suggestions.posTarget", icon: TrendingUp }],
+  "/inventory":   [{ tk: "components.copilot.suggestions.criticalStock", icon: AlertTriangle }, { tk: "components.copilot.suggestions.stockValue", icon: Wallet }, { tk: "components.copilot.suggestions.restockRecommendations", icon: FileText }],
+  "/reports-teras": [{ tk: "components.copilot.suggestions.fixUrgent", icon: ShieldCheck }, { tk: "components.copilot.suggestions.compliancePlan", icon: FileText }, { tk: "components.copilot.suggestions.taxRisks", icon: AlertTriangle }],
+  "/accounting":  [{ tk: "components.copilot.suggestions.cashflowAnalysis", icon: TrendingUp }, { tk: "components.copilot.suggestions.cashRisks", icon: AlertTriangle }, { tk: "components.copilot.suggestions.syscemacReconcile", icon: FileText }],
+  "/billing":     [{ tk: "components.copilot.suggestions.overdueInvoices", icon: AlertTriangle }, { tk: "components.copilot.suggestions.collectionForecast", icon: TrendingUp }, { tk: "components.copilot.suggestions.followupsToSend", icon: Wand2 }],
+  "/work":        [{ tk: "components.copilot.suggestions.urgentLateTasks", icon: AlertTriangle }, { tk: "components.copilot.suggestions.projectsSummary", icon: FileText }, { tk: "components.copilot.suggestions.weekPriorities", icon: TrendingUp }],
+  "/declarations":[{ tk: "components.copilot.suggestions.missingDocs", icon: AlertTriangle }, { tk: "components.copilot.suggestions.declarationRisks", icon: ShieldCheck }, { tk: "components.copilot.suggestions.declarationChecklist", icon: FileText }],
+  "/documents":   [{ tk: "components.copilot.suggestions.lowTrustDocs", icon: AlertTriangle }, { tk: "components.copilot.suggestions.analyzeContracts", icon: FileText }, { tk: "components.copilot.suggestions.missingDocsShort", icon: ShieldCheck }],
 };
 const DEFAULT_CHIPS: Chip[] = [
-  { label: "Prévisions trésorerie 30 jours", icon: TrendingUp },
-  { label: "Devrais-je investir ou embaucher ?", icon: Wallet },
-  { label: "Analyse sectorielle et positionnement", icon: BarChart3 },
-  { label: "Quels sont les risques prioritaires ?", icon: AlertTriangle },
-  { label: "Score TERAS et actions urgentes", icon: ShieldCheck },
-  { label: "Résumé direction du jour", icon: FileText },
+  { tk: "components.copilot.suggestions.cashForecast30", icon: TrendingUp },
+  { tk: "components.copilot.suggestions.investOrHire", icon: Wallet },
+  { tk: "components.copilot.suggestions.sectorPositioning", icon: BarChart3 },
+  { tk: "components.copilot.suggestions.priorityRisks", icon: AlertTriangle },
+  { tk: "components.copilot.suggestions.terasUrgent", icon: ShieldCheck },
+  { tk: "components.copilot.suggestions.dailySummary", icon: FileText },
 ];
 
 /* ─── Quick replies par intention (#7) ───────────────────────────────────── */
-const QUICK_REPLIES: Record<string, string[]> = {
-  prediction_economique:  ["Détaille le scénario pessimiste", "Et si les ventes augmentent de 20% ?", "Quels indicateurs surveiller ?"],
-  conseil_investissement: ["Quel est le délai de retour ?", "Quels sont les risques de ce choix ?", "Montre les alternatives comparées"],
-  analyse_secteur:        ["Quels sont mes concurrents directs ?", "Comment me différencier ?", "Opportunités à saisir maintenant ?"],
-  tresorerie:             ["Que faire pour améliorer le solde ?", "Prévision sur 60 jours", "Risques de rupture ?"],
-  risk_analysis:          ["Quel risque est le plus urgent ?", "Comment corriger en priorité ?", "Créer les tâches correctives"],
-  payroll_support:        ["Quels bulletins sont bloquants ?", "Vérifier la conformité CNPS", "État des virements"],
-  summary:                ["Approfondis un point", "Quelles actions en priorité ?", "Générer un rapport complet"],
-  question:               ["Donne plus de détails", "Quelles actions recommandes-tu ?", "Résumé en 3 points"],
+const QUICK_REPLY_KEYS: Record<string, string[]> = {
+  prediction_economique:  ["pessimisticScenario", "salesUp20", "indicatorsToWatch"],
+  conseil_investissement: ["paybackDelay", "choiceRisks", "compareAlternatives"],
+  analyse_secteur:        ["directCompetitors", "differentiate", "opportunitiesNow"],
+  tresorerie:             ["improveBalance", "forecast60", "cashBreakRisk"],
+  risk_analysis:          ["mostUrgentRisk", "fixPriority", "createCorrectiveTasks"],
+  payroll_support:        ["blockingPayslips", "cnpsCompliance", "transferStatus"],
+  summary:                ["goDeeper", "priorityActions", "fullReport"],
+  question:               ["moreDetails", "recommendedActions", "threePointSummary"],
 };
 
 /* ─── Indicateur de durée attendue (#4) ──────────────────────────────────── */
 const HEAVY_INTENTS = new Set(["prediction_economique", "conseil_investissement", "analyse_secteur", "tresorerie", "risk_analysis"]);
 function detectHeavy(text: string): boolean {
   const t = text.toLowerCase();
-  return ["prévision", "investir", "secteur", "trésorerie", "risque", "analyse", "prédiction", "tendance"].some((w) => t.includes(w));
+  return ["prévision", "forecast", "investir", "invest", "secteur", "sector", "trésorerie", "cash", "risque", "risk", "analyse", "analysis", "prédiction", "prediction", "tendance", "trend"].some((w) => t.includes(w));
 }
 
 /* ─── Helpers tâche inline ────────────────────────────────────────────────── */
@@ -232,6 +224,7 @@ function MsgContent({ text, streaming }: { text: string; streaming?: boolean }) 
 
 /* ─── Report modal (#10) ─────────────────────────────────────────────────── */
 function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   async function download() {
     // Si l'interaction a un ID backend → télécharger le PDF généré par le serveur
     if (msg.interactionId) {
@@ -247,7 +240,7 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
       } catch { /* on tente le PDF client-side ci-dessous */ }
     }
     // Fallback : PDF client-side via service
-    const blob = await _buildClientPdf(msg.text, msg.intent ?? "rapport");
+    const blob = await _buildClientPdf(msg.text, msg.intent ?? "report");
     const isPdf = blob.type === "application/pdf";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -257,7 +250,7 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     if (!isPdf) {
       // Échec EXPLICITE : la génération PDF a échoué, on exporte le texte brut.
-      window.alert("Génération PDF indisponible — le rapport a été exporté en texte (.txt).");
+      window.alert(tr("components.copilot.alerts.pdfUnavailableTxt"));
     }
   }
   return (
@@ -268,11 +261,11 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
             <LimuleIcon size={20} />
           </div>
           <div className="flex-1">
-            <p className="font-black text-[#17211f] dark:text-white">Rapport Limule</p>
-            <p className="text-xs text-stone-400">Grand Sage V1.1 · {msg.intent ?? "analyse"}</p>
+            <p className="font-black text-[#17211f] dark:text-white">{tr("components.copilot.report.title")}</p>
+            <p className="text-xs text-stone-400">{tr("components.copilot.subtitle")} · {msg.intent ? tr(INTENT_LABELS[msg.intent] ?? "components.copilot.intents.question", { defaultValue: msg.intent }) : tr("components.copilot.intents.analysis")}</p>
           </div>
           <button onClick={download} className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] px-3 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:border-white/10 dark:text-white dark:hover:bg-white/5">
-            <Download size={13} /> Télécharger
+            <Download size={13} /> {tr("common.download")}
           </button>
           <button onClick={onClose} className="ml-1 grid h-8 w-8 place-items-center rounded-lg hover:bg-stone-100 dark:hover:bg-white/10">
             <X size={16} />
@@ -282,7 +275,7 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
           <MsgContent text={msg.text} />
           {msg.sources?.length ? (
             <p className="mt-6 text-[11px] text-stone-400 border-t border-black/[0.05] pt-3 dark:border-white/10">
-              Sources : {msg.sources.join(", ")}
+              {tr("components.copilot.sources", { sources: msg.sources.join(", ") })}
             </p>
           ) : null}
         </div>
@@ -297,29 +290,29 @@ function uid() { return Math.random().toString(36).slice(2); }
 /** Heure courte : "14:32" */
 function msgTime(v: string | null | undefined) {
   if (!v) return "";
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(v));
+  return new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(v));
 }
 
 /** Label relatif : "Aujourd'hui", "Hier", "Lun 28 avr.", … */
-function relativeDay(v: string | null) {
-  if (!v) return "Inconnu";
+function relativeDay(v: string | null, tr: TFunction) {
+  if (!v) return tr("components.copilot.history.unknownDate");
   const d = new Date(v);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
   const itemDay = new Date(d); itemDay.setHours(0, 0, 0, 0);
-  if (itemDay.getTime() === today.getTime()) return "Aujourd'hui";
-  if (itemDay.getTime() === yesterday.getTime()) return "Hier";
+  if (itemDay.getTime() === today.getTime()) return tr("components.copilot.history.today");
+  if (itemDay.getTime() === yesterday.getTime()) return tr("components.copilot.history.yesterday");
   const diffDays = Math.floor((today.getTime() - itemDay.getTime()) / 86400000);
-  if (diffDays < 7) return new Intl.DateTimeFormat("fr-FR", { weekday: "long" }).format(d);
-  if (diffDays < 30) return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(d);
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(d);
+  if (diffDays < 7) return new Intl.DateTimeFormat(i18n.language, { weekday: "long" }).format(d);
+  if (diffDays < 30) return new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "short" }).format(d);
+  return new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short", year: "numeric" }).format(d);
 }
 
 /** Groupe les items d'historique par bucket de date */
-function groupByDate(items: LimuleChatHistoryItem[]): { label: string; items: LimuleChatHistoryItem[] }[] {
+function groupByDate(items: LimuleChatHistoryItem[], tr: TFunction): { label: string; items: LimuleChatHistoryItem[] }[] {
   const buckets = new Map<string, LimuleChatHistoryItem[]>();
   for (const item of items) {
-    const label = relativeDay(item.created_at);
+    const label = relativeDay(item.created_at, tr);
     if (!buckets.has(label)) buckets.set(label, []);
     buckets.get(label)!.push(item);
   }
@@ -327,18 +320,18 @@ function groupByDate(items: LimuleChatHistoryItem[]): { label: string; items: Li
 }
 
 const INTENT_LABELS: Record<string, string> = {
-  prediction_economique: "Prévision",
-  conseil_investissement: "Investissement",
-  analyse_secteur: "Secteur",
-  tresorerie: "Trésorerie",
-  risk_analysis: "Risque",
-  summary: "Résumé",
-  task_creation: "Tâche",
-  drafting: "Rédaction",
-  payroll_support: "Paie",
-  operations_support: "Opérations",
-  document_analysis: "Document",
-  question: "Question",
+  prediction_economique: "components.copilot.intents.prediction",
+  conseil_investissement: "components.copilot.intents.investment",
+  analyse_secteur: "components.copilot.intents.sector",
+  tresorerie: "components.copilot.intents.cash",
+  risk_analysis: "components.copilot.intents.risk",
+  summary: "components.copilot.intents.summary",
+  task_creation: "components.copilot.intents.task",
+  drafting: "components.copilot.intents.drafting",
+  payroll_support: "components.copilot.intents.payroll",
+  operations_support: "components.copilot.intents.operations",
+  document_analysis: "components.copilot.intents.document",
+  question: "components.copilot.intents.question",
 };
 
 const INTENT_COLORS: Record<string, string> = {
@@ -361,7 +354,7 @@ const SEV: Record<string, string> = { critical: "text-red-500", high: "text-oran
 /* ─── Helper PDF fallback (via endpoint backend) ─────────────────────────── */
 async function _buildClientPdf(text: string, kind = "text"): Promise<Blob> {
   // Extraire un titre depuis la première ligne non vide
-  const firstLine = text.split("\n").find((l) => l.trim()) ?? "Réponse Limule";
+  const firstLine = text.split("\n").find((l) => l.trim()) ?? i18n.t("components.copilot.pdf.defaultTitle");
   const title = firstLine.replace(/^#+\s*/, "").replace(/\*\*/g, "").slice(0, 80);
   try {
     return await api.aiContentPdf({ title, content: text, kind });
@@ -373,6 +366,7 @@ async function _buildClientPdf(text: string, kind = "text"): Promise<Blob> {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export function Copilot() {
+  const { t: tr } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -380,7 +374,7 @@ export function Copilot() {
   const [open, setOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([mkIntro()]);
+  const [messages, setMessages] = useState<Message[]>(() => [mkIntro(tr)]);
   const [aiStatus, setAiStatus] = useState<{ provider: string; model: string; key_configured: boolean } | null>(null);
 
   /* ── Branchement (#8) ───────────────────────────────────────────────────── */
@@ -433,6 +427,10 @@ export function Copilot() {
     api.aiStatus().then(setAiStatus).catch(() => setAiStatus(null));
   }, []);
 
+  useEffect(() => {
+    setMessages((current) => current.map((m) => m.id === "intro" ? mkIntro(tr) : m));
+  }, [tr]);
+
   /* Alertes proactives désactivées — l'utilisateur consulte TERAS depuis la page dédiée */
 
   /* ── Historique ─────────────────────────────────────────────────────────── */
@@ -449,8 +447,8 @@ export function Copilot() {
           const counts: Record<string, number> = {};
           week.forEach((item) => { counts[item.intent] = (counts[item.intent] ?? 0) + 1; });
           const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3)
-            .map(([k, v]) => `${v} ${k.replace(/_/g, " ")}`).join(" · ");
-          setWeekSummary(`Cette semaine : ${top}`);
+            .map(([k, v]) => tr("components.copilot.weekItem", { count: v, intent: tr(INTENT_LABELS[k] ?? "components.copilot.intents.question", { defaultValue: k.replace(/_/g, " ") }) })).join(" · ");
+          setWeekSummary(tr("components.copilot.weekSummary", { summary: top }));
         }
       })
       .catch(() => undefined)
@@ -586,7 +584,7 @@ export function Copilot() {
         if (aborted) return;
         setMessages((c) => c.map((m) =>
           m.id === aiId
-            ? { ...m, text: `Erreur : ${err.message}. Vérifie que le backend est lancé.`, isStreaming: false }
+            ? { ...m, text: tr("components.copilot.errors.backend", { message: err.message }), isStreaming: false }
             : m
         ));
         setIsStreaming(false);
@@ -719,7 +717,7 @@ export function Copilot() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     if (!isPdf) {
-      window.alert("Génération PDF indisponible — le rapport a été exporté en texte (.txt).");
+      window.alert(tr("components.copilot.alerts.pdfUnavailableTxt"));
     }
   }
 
@@ -738,9 +736,9 @@ export function Copilot() {
   }
 
   /* ── Nouveau chat / ouvrir historique ───────────────────────────────────── */
-  function startNewChat() { setMessages([mkIntro()]); setInput(""); setShowHistory(false); setPinnedIds(new Set()); }
+  function startNewChat() { setMessages([mkIntro(tr)]); setInput(""); setShowHistory(false); setPinnedIds(new Set()); }
   function openHistoryItem(item: LimuleChatHistoryItem) {
-    setMessages([mkIntro(),
+    setMessages([mkIntro(tr),
       { id: uid(), author: "user", text: item.prompt, createdAt: item.created_at },
       { id: uid(), author: "ai", text: item.response, interactionId: item.id, intent: item.intent, sources: item.sources, signals: item.signals, createdAt: item.created_at },
     ]);
@@ -752,11 +750,12 @@ export function Copilot() {
     ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]"
     : "fixed right-5 z-40 flex h-[min(38rem,calc(100vh-12rem))] w-[calc(100vw-2rem)] max-w-[26rem] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229] bottom-[calc(9rem+env(safe-area-inset-bottom))] lg:bottom-24";
 
-  const suggestions = PAGE_SUGGESTIONS[location.pathname] ?? DEFAULT_CHIPS;
+  const suggestions = (PAGE_SUGGESTIONS[location.pathname] ?? DEFAULT_CHIPS).map((s) => ({ ...s, label: tr(s.tk) }));
   const pinnedMsgs = messages.filter((m) => pinnedIds.has(m.id));
   const quickReplies = (() => {
     const last = [...messages].reverse().find((m) => m.author === "ai" && m.id !== "intro" && !m.isStreaming);
-    return last?.intent ? (QUICK_REPLIES[last.intent] ?? QUICK_REPLIES["question"]) : [];
+    const keys = last?.intent ? (QUICK_REPLY_KEYS[last.intent] ?? QUICK_REPLY_KEYS.question) : [];
+    return keys.map((key) => tr(`components.copilot.quickReplies.${key}`));
   })();
 
   /* ══════════════════════════════════════════════════════════════════════════ */
@@ -768,7 +767,7 @@ export function Copilot() {
           data-tour="limule"
           onClick={() => setOpen(true)}
           className="relative rounded-full p-0 transition hover:scale-[1.06] focus:outline-none"
-          aria-label="Ouvrir Limule"
+          aria-label={tr("components.copilot.openLimule")}
           style={{ background: "none", border: "none" }}
         >
           <LimuleAvatar state={isStreaming ? "thinking" : "idle"} size={56} />
@@ -790,13 +789,13 @@ export function Copilot() {
                 {aiStatus?.key_configured && (
                   <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    IA active
+                    {tr("components.copilot.aiActive")}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-white/60">Grand Sage V1.1 · Conseiller stratégique</p>
+              <p className="text-xs text-white/60">{tr("components.copilot.subtitle")}</p>
             </div>
-            <button onClick={() => setFullscreen((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition" title={fullscreen ? "Réduire" : "Plein écran"}>
+            <button onClick={() => setFullscreen((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition" title={fullscreen ? tr("components.copilot.reduce") : tr("components.copilot.fullscreen")}>
               {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
             <button onClick={() => { setOpen(false); setFullscreen(false); }} className="grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition">
@@ -807,19 +806,19 @@ export function Copilot() {
           {/* ── Barre outils ─────────────────────────────────────────────── */}
           <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-black/[0.05] bg-white px-3 py-2 dark:border-white/10 dark:bg-[#1e2229]">
             <button type="button" onClick={startNewChat} className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2 py-1 text-[11px] font-bold text-[#17211f] hover:bg-violet-50 hover:text-violet-700 transition dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10">
-              <Plus size={11} /> Nouveau
+              <Plus size={11} /> {tr("components.copilot.newChat")}
             </button>
             <button type="button" onClick={() => { setShowHistory((v) => !v); if (!historyLoaded) void loadHistory(); exitSelectionMode(); }} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${showHistory ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200" : "border-black/[0.06] text-[#17211f] hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-white dark:hover:bg-violet-500/10"}`}>
-              <Clock3 size={11} /> Historique{historyItems.length ? ` (${historyItems.length})` : ""}
+              <Clock3 size={11} /> {tr("components.copilot.history.title")}{historyItems.length ? ` (${historyItems.length})` : ""}
             </button>
             {pinnedMsgs.length > 0 && (
               <button type="button" onClick={() => setShowPinned((v) => !v)} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${showPinned ? "border-amber-300 bg-amber-50 text-amber-700" : "border-black/[0.06] text-[#17211f] hover:bg-amber-50 hover:text-amber-700 dark:border-white/10 dark:text-white"}`}>
-                <Pin size={11} /> Épinglés ({pinnedMsgs.length})
+                <Pin size={11} /> {tr("components.copilot.pinned.short", { count: pinnedMsgs.length })}
               </button>
             )}
             <div className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-stone-400">
               <Sparkles size={10} className="text-violet-400" />
-              Temps réel
+              {tr("components.copilot.realtime")}
             </div>
           </div>
 
@@ -844,7 +843,7 @@ export function Copilot() {
                       autoFocus={!selectionMode}
                       value={historySearch}
                       onChange={(e) => setHistorySearch(e.target.value)}
-                      placeholder="Rechercher dans l'historique…"
+                      placeholder={tr("components.copilot.history.searchPlaceholder")}
                       className="min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white placeholder:text-stone-400"
                     />
                     {historySearch && (
@@ -864,7 +863,7 @@ export function Copilot() {
                           : "border-black/[0.06] text-stone-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:text-stone-400 dark:hover:bg-violet-500/10"
                       }`}
                     >
-                      {selectionMode ? "Terminer" : "Sélectionner"}
+                      {selectionMode ? tr("components.copilot.history.done") : tr("components.copilot.history.select")}
                     </button>
                   )}
                 </div>
@@ -885,22 +884,22 @@ export function Copilot() {
                           }}
                           className="text-[11px] font-semibold text-violet-600 hover:underline dark:text-violet-400"
                         >
-                          {[...historyItems].every((it) => selectedIds.has(it.id)) ? "Désélectionner tout" : "Tout sélectionner"}
+                          {[...historyItems].every((it) => selectedIds.has(it.id)) ? tr("components.copilot.history.deselectAll") : tr("components.copilot.history.selectAll")}
                         </button>
                         {selectedIds.size > 0 && (
                           <>
                             <span className="text-stone-300 dark:text-stone-600">·</span>
                             <span className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">
-                              {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
+                              {tr("components.copilot.history.selected", { count: selectedIds.size })}
                             </span>
                           </>
                         )}
                       </>
                     ) : clearConfirm ? (
                       <div className="flex w-full items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 dark:border-red-500/20 dark:bg-red-500/10">
-                        <p className="flex-1 text-[11px] font-semibold text-red-700 dark:text-red-300">Effacer tout l'historique ?</p>
-                        <button onClick={clearHistory} className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-700 transition">Confirmer</button>
-                        <button onClick={() => setClearConfirm(false)} className="rounded-md px-2 py-1 text-[11px] font-bold text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10 transition">Annuler</button>
+                        <p className="flex-1 text-[11px] font-semibold text-red-700 dark:text-red-300">{tr("components.copilot.history.clearConfirm")}</p>
+                        <button onClick={clearHistory} className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-700 transition">{tr("common.confirm")}</button>
+                        <button onClick={() => setClearConfirm(false)} className="rounded-md px-2 py-1 text-[11px] font-bold text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10 transition">{tr("common.cancel")}</button>
                       </div>
                     ) : (
                       <button
@@ -908,7 +907,7 @@ export function Copilot() {
                         onClick={() => setClearConfirm(true)}
                         className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-stone-400 hover:bg-red-50 hover:text-red-600 transition dark:hover:bg-red-500/10 dark:hover:text-red-400"
                       >
-                        <Trash2 size={11} /> Tout effacer
+                        <Trash2 size={11} /> {tr("components.copilot.history.clearAll")}
                       </button>
                     )}
                   </div>
@@ -920,13 +919,13 @@ export function Copilot() {
                 {historyLoading ? (
                   <div className="flex flex-col items-center gap-3 py-12 text-stone-400">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
-                    <p className="text-xs">Chargement…</p>
+                    <p className="text-xs">{tr("common.loading")}</p>
                   </div>
                 ) : historyItems.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-12 text-stone-400">
                     <Clock3 size={28} className="opacity-30" />
-                    <p className="text-xs font-semibold">Aucun échange enregistré</p>
-                    <p className="text-[11px] text-stone-300">Posez votre première question à Limule</p>
+                    <p className="text-xs font-semibold">{tr("components.copilot.history.empty")}</p>
+                    <p className="text-[11px] text-stone-300">{tr("components.copilot.history.emptyHint")}</p>
                   </div>
                 ) : (() => {
                   const q = historySearch.toLowerCase();
@@ -937,10 +936,10 @@ export function Copilot() {
                     : [...historyItems].reverse();
 
                   if (filtered.length === 0) return (
-                    <p className="py-8 text-center text-xs text-stone-400">Aucun résultat pour « {historySearch} »</p>
+                    <p className="py-8 text-center text-xs text-stone-400">{tr("components.copilot.history.noResult", { query: historySearch })}</p>
                   );
 
-                  const groups = q ? [{ label: `${filtered.length} résultat${filtered.length > 1 ? "s" : ""}`, items: filtered }] : groupByDate(filtered);
+                  const groups = q ? [{ label: tr("components.copilot.history.results", { count: filtered.length }), items: filtered }] : groupByDate(filtered, tr);
 
                   return (
                     <div className="space-y-5">
@@ -951,7 +950,7 @@ export function Copilot() {
                           </p>
                           <div className="space-y-1.5">
                             {group.items.map((item) => {
-                              const intentLabel = INTENT_LABELS[item.intent] ?? item.intent;
+                              const intentLabel = tr(INTENT_LABELS[item.intent] ?? "components.copilot.intents.question", { defaultValue: item.intent });
                               const intentCls = INTENT_COLORS[item.intent] ?? INTENT_COLORS.question;
                               const isSelected = selectedIds.has(item.id);
                               return (
@@ -996,7 +995,7 @@ export function Copilot() {
                                       {!selectionMode && (
                                         <button
                                           onClick={(e) => deleteInteraction(item.id, e)}
-                                          title="Supprimer cet échange"
+                                          title={tr("components.copilot.history.deleteOne")}
                                           className="ml-1 grid h-5 w-5 place-items-center rounded-md text-stone-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                                         >
                                           <Trash2 size={11} />
@@ -1034,7 +1033,7 @@ export function Copilot() {
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700"
                   >
                     <Trash2 size={14} />
-                    Supprimer {selectedIds.size} échange{selectedIds.size > 1 ? "s" : ""}
+                    {tr("components.copilot.history.deleteSelected", { count: selectedIds.size })}
                   </button>
                 </div>
               )}
@@ -1044,14 +1043,14 @@ export function Copilot() {
           {/* ── Messages épinglés (#5) ───────────────────────────────────── */}
           {showPinned && pinnedMsgs.length > 0 && (
             <div className="max-h-52 shrink-0 overflow-y-auto border-b border-black/[0.05] bg-amber-50/50 p-3 dark:border-white/10 dark:bg-amber-500/5">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-amber-600">Messages épinglés</p>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-amber-600">{tr("components.copilot.pinned.title")}</p>
               <div className="space-y-1.5">
                 {pinnedMsgs.map((m) => (
                   <div key={m.id} className="rounded-xl border border-amber-200 bg-white px-3 py-2 dark:border-amber-500/20 dark:bg-white/5">
                     <p className="text-xs font-semibold text-[#17211f] dark:text-white line-clamp-3">{m.text.slice(0, 200)}{m.text.length > 200 ? "…" : ""}</p>
                     <div className="mt-1.5 flex gap-1.5">
-                      <button onClick={() => setReportMsg(m)} className="text-[10px] text-violet-500 hover:underline">Voir rapport</button>
-                      <button onClick={() => togglePin(m.id)} className="text-[10px] text-stone-400 hover:underline">Désépingler</button>
+                      <button onClick={() => setReportMsg(m)} className="text-[10px] text-violet-500 hover:underline">{tr("components.copilot.actions.viewReport")}</button>
+                      <button onClick={() => togglePin(m.id)} className="text-[10px] text-stone-400 hover:underline">{tr("components.copilot.actions.unpin")}</button>
                     </div>
                   </div>
                 ))}
@@ -1068,10 +1067,10 @@ export function Copilot() {
                   <ListTodo size={14} className="text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-black text-[#17211f] dark:text-white">Créer une tâche</p>
-                  <p className="text-[10px] text-stone-400">Pré-rempli depuis la réponse de Limule</p>
+                  <p className="text-sm font-black text-[#17211f] dark:text-white">{tr("components.copilot.task.title")}</p>
+                  <p className="text-[10px] text-stone-400">{tr("components.copilot.task.prefilled")}</p>
                 </div>
-                <button onClick={() => setTaskDraft(null)} className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition dark:hover:bg-white/10" title="Fermer">
+                <button onClick={() => setTaskDraft(null)} className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition dark:hover:bg-white/10" title={tr("common.close")}>
                   <X size={14} />
                 </button>
               </div>
@@ -1083,7 +1082,7 @@ export function Copilot() {
                     <CheckCircle2 size={36} className="text-emerald-500" />
                   </div>
                   <div className="text-center">
-                    <p className="text-base font-black text-[#17211f] dark:text-white">Tâche créée !</p>
+                    <p className="text-base font-black text-[#17211f] dark:text-white">{tr("components.copilot.task.created")}</p>
                     <p className="mt-1 max-w-[220px] text-sm text-stone-500 dark:text-stone-400 line-clamp-2">
                       « {taskCreated.title} »
                     </p>
@@ -1093,13 +1092,13 @@ export function Copilot() {
                       onClick={() => { navigate("/work"); setOpen(false); setTaskDraft(null); }}
                       className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
                     >
-                      <ListTodo size={14} /> Voir la tâche
+                      <ListTodo size={14} /> {tr("components.copilot.task.viewTask")}
                     </button>
                     <button
                       onClick={() => setTaskDraft(null)}
                       className="rounded-xl border border-black/[0.06] px-4 py-2.5 text-sm font-bold text-[#17211f] transition hover:bg-stone-50 dark:border-white/10 dark:text-white dark:hover:bg-white/5"
                     >
-                      Fermer
+                      {tr("common.close")}
                     </button>
                   </div>
                 </div>
@@ -1109,12 +1108,12 @@ export function Copilot() {
 
                   {/* Titre */}
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Titre *</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">{tr("components.copilot.task.titleLabel")}</label>
                     <input
                       autoFocus
                       value={taskDraft.title}
                       onChange={(e) => setTaskDraft({ ...taskDraft, title: e.target.value })}
-                      placeholder="Titre de la tâche…"
+                      placeholder={tr("components.copilot.task.titlePlaceholder")}
                       className="w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm font-semibold text-[#17211f] outline-none focus:border-emerald-400 transition dark:border-white/10 dark:bg-white/5 dark:text-white"
                     />
                   </div>
@@ -1122,16 +1121,20 @@ export function Copilot() {
                   {/* Priorité */}
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">Priorité</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("components.copilot.task.priority")}</span>
                       {taskDraft.priority === taskDraft.autoDetectedPriority && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-                          <Sparkles size={9} /> Détecté par IA
+                          <Sparkles size={9} /> {tr("components.copilot.task.detectedByAi")}
                         </span>
                       )}
                     </div>
                     <div className="flex gap-2">
                       {(["low", "normal", "high"] as const).map((p) => {
-                        const labels = { low: "Faible", normal: "Normal", high: "Haute" };
+                        const labels = {
+                          low: tr("components.copilot.task.priorities.low"),
+                          normal: tr("components.copilot.task.priorities.normal"),
+                          high: tr("components.copilot.task.priorities.high"),
+                        };
                         const activeCls = {
                           low: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-300",
                           normal: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300",
@@ -1156,15 +1159,15 @@ export function Copilot() {
                   {/* Responsable */}
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wide text-stone-400">Responsable</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("components.copilot.task.assignee")}</label>
                       {!taskEmployeesLoaded && (
                         <span className="flex items-center gap-1 text-[10px] text-stone-400">
                           <div className="h-2.5 w-2.5 animate-spin rounded-full border border-stone-300 border-t-stone-500" />
-                          Chargement…
+                          {tr("common.loading")}
                         </span>
                       )}
                       {taskEmployeesLoaded && taskEmployees.length === 0 && (
-                        <span className="text-[10px] text-amber-500">Aucun employé trouvé</span>
+                        <span className="text-[10px] text-amber-500">{tr("components.copilot.task.noEmployee")}</span>
                       )}
                     </div>
                     <div className="relative">
@@ -1175,7 +1178,7 @@ export function Copilot() {
                         disabled={!taskEmployeesLoaded}
                         className="w-full appearance-none rounded-xl border border-black/[0.08] bg-white py-2.5 pl-8 pr-3 text-sm text-[#17211f] outline-none focus:border-emerald-400 transition disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
                       >
-                        <option value="">— Non assigné —</option>
+                        <option value="">{tr("components.copilot.task.unassigned")}</option>
                         {taskEmployees.map((emp) => (
                           <option key={emp.name} value={emp.name}>{emp.name}</option>
                         ))}
@@ -1186,7 +1189,7 @@ export function Copilot() {
                   {/* Date + Heure d'échéance */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Échéance</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">{tr("components.copilot.task.dueDate")}</label>
                       <div className="relative">
                         <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
                         <input
@@ -1198,7 +1201,7 @@ export function Copilot() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">Heure</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1.5">{tr("components.copilot.task.time")}</label>
                       <div className="relative">
                         <Clock3 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
                         <input
@@ -1220,7 +1223,7 @@ export function Copilot() {
                         onClick={() => { setTaskDescOpen((v) => !v); if (taskDescOpen) setTaskDescEditing(false); }}
                         className="flex flex-1 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400 hover:text-stone-600 transition"
                       >
-                        <span className="flex-1 text-left">Description</span>
+                        <span className="flex-1 text-left">{tr("components.copilot.task.description")}</span>
                         <ChevronDown size={11} className={`transition-transform ${taskDescOpen ? "" : "-rotate-180"}`} />
                       </button>
                       {taskDescOpen && (
@@ -1230,7 +1233,7 @@ export function Copilot() {
                             onClick={() => setTaskDescEditing(false)}
                             className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 transition dark:bg-emerald-500/10 dark:text-emerald-400"
                           >
-                            ✓ Terminé
+                            {tr("components.copilot.task.done")}
                           </button>
                         ) : (
                           <button
@@ -1238,7 +1241,7 @@ export function Copilot() {
                             onClick={() => setTaskDescEditing(true)}
                             className="shrink-0 rounded-md border border-black/[0.06] px-2 py-0.5 text-[10px] font-semibold text-stone-400 hover:border-stone-300 hover:text-stone-600 transition dark:border-white/10 dark:hover:text-white"
                           >
-                            Modifier
+                            {tr("common.edit")}
                           </button>
                         )
                       )}
@@ -1252,7 +1255,7 @@ export function Copilot() {
                           value={taskDraft.description}
                           onChange={(e) => setTaskDraft({ ...taskDraft, description: e.target.value })}
                           rows={5}
-                          placeholder="Description optionnelle…"
+                          placeholder={tr("components.copilot.task.descriptionPlaceholder")}
                           className="w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 text-xs text-[#17211f] outline-none transition resize-none dark:border-emerald-500/40 dark:bg-white/5 dark:text-white"
                         />
                       ) : (
@@ -1272,7 +1275,7 @@ export function Copilot() {
                               )}
                             </div>
                           ) : (
-                            <p className="text-xs italic text-stone-400">Aucune description — cliquez sur « Modifier » pour en ajouter une.</p>
+                            <p className="text-xs italic text-stone-400">{tr("components.copilot.task.noDescription")}</p>
                           )}
                         </div>
                       )
@@ -1282,8 +1285,8 @@ export function Copilot() {
                   {/* Preuve requise */}
                   <div className="flex items-center justify-between rounded-xl border border-black/[0.05] bg-white px-3.5 py-3 dark:border-white/10 dark:bg-white/[0.03]">
                     <div>
-                      <p className="text-xs font-bold text-[#17211f] dark:text-white">Preuve requise</p>
-                      <p className="text-[10px] text-stone-400">Le responsable doit joindre un justificatif</p>
+                      <p className="text-xs font-bold text-[#17211f] dark:text-white">{tr("components.copilot.task.proofRequired")}</p>
+                      <p className="text-[10px] text-stone-400">{tr("components.copilot.task.proofHint")}</p>
                     </div>
                     <button
                       type="button"
@@ -1310,7 +1313,7 @@ export function Copilot() {
                     ) : (
                       <CheckCircle2 size={15} />
                     )}
-                    {taskSaving ? "Création en cours…" : "Créer la tâche"}
+                    {taskSaving ? tr("components.copilot.task.creating") : tr("components.copilot.task.create")}
                   </button>
                 </div>
               )}
@@ -1347,7 +1350,7 @@ export function Copilot() {
                       {msg.author === "ai" && msg.intent && msg.intent !== "question" && msg.id !== "intro" && !msg.isStreaming && (
                         <div className="mt-2 flex items-center gap-1.5 border-t border-black/[0.05] pt-2 dark:border-white/10">
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${INTENT_COLORS[msg.intent] ?? INTENT_COLORS.question}`}>
-                            {INTENT_LABELS[msg.intent] ?? msg.intent}
+                            {tr(INTENT_LABELS[msg.intent] ?? "components.copilot.intents.question", { defaultValue: msg.intent })}
                           </span>
                           {/* Signaux */}
                           {msg.signals?.slice(0, 1).map((s, i) => (
@@ -1377,45 +1380,45 @@ export function Copilot() {
                     {msg.author === "ai" && !msg.isStreaming && msg.id !== "intro" && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-0.5 rounded-xl border border-black/[0.05] bg-white px-2 py-1 shadow-sm dark:border-white/10 dark:bg-white/5">
                         {/* Copier */}
-                        <button onClick={() => copyMsg(msg)} title="Copier" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10 dark:hover:text-white">
+                        <button onClick={() => copyMsg(msg)} title={tr("common.copy")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10 dark:hover:text-white">
                           {copiedId === msg.id ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} />}
-                          {copiedId === msg.id ? "Copié" : "Copier"}
+                          {copiedId === msg.id ? tr("components.copilot.actions.copied") : tr("common.copy")}
                         </button>
                         {/* Épingler */}
-                        <button onClick={() => togglePin(msg.id)} title={pinnedIds.has(msg.id) ? "Désépingler" : "Épingler"} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${pinnedIds.has(msg.id) ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10" : "text-stone-500 hover:bg-stone-100 hover:text-amber-600 dark:hover:bg-white/10"}`}>
+                        <button onClick={() => togglePin(msg.id)} title={pinnedIds.has(msg.id) ? tr("components.copilot.actions.unpin") : tr("components.copilot.actions.pin")} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${pinnedIds.has(msg.id) ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10" : "text-stone-500 hover:bg-stone-100 hover:text-amber-600 dark:hover:bg-white/10"}`}>
                           {pinnedIds.has(msg.id) ? <PinOff size={10} /> : <Pin size={10} />}
-                          {pinnedIds.has(msg.id) ? "Désépingler" : "Épingler"}
+                          {pinnedIds.has(msg.id) ? tr("components.copilot.actions.unpin") : tr("components.copilot.actions.pin")}
                         </button>
                         {/* Rapport (longues réponses) */}
                         {msg.text.length > 350 && (
-                          <button onClick={() => setReportMsg(msg)} title="Voir en plein écran" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-violet-50 hover:text-violet-700 transition dark:hover:bg-violet-500/10">
-                            <ZoomIn size={10} /> Rapport
+                          <button onClick={() => setReportMsg(msg)} title={tr("components.copilot.actions.viewFullscreen")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-violet-50 hover:text-violet-700 transition dark:hover:bg-violet-500/10">
+                            <ZoomIn size={10} /> {tr("components.copilot.actions.report")}
                           </button>
                         )}
                         {/* Séparateur */}
                         <span className="mx-0.5 h-3 w-px bg-stone-200 dark:bg-white/10" />
                         {/* Tâche */}
-                        <button onClick={() => actionTask(msg)} title="Créer une tâche" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-emerald-50 hover:text-emerald-700 transition dark:hover:bg-emerald-500/10">
-                          <CheckCircle2 size={10} /> Tâche
+                        <button onClick={() => actionTask(msg)} title={tr("components.copilot.task.title")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-emerald-50 hover:text-emerald-700 transition dark:hover:bg-emerald-500/10">
+                          <CheckCircle2 size={10} /> {tr("components.copilot.actions.task")}
                         </button>
                         {/* Email */}
-                        <button onClick={() => actionAssistant(msg)} title="Rédiger un email" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-blue-50 hover:text-blue-700 transition dark:hover:bg-blue-500/10">
+                        <button onClick={() => actionAssistant(msg)} title={tr("components.copilot.actions.writeEmail")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-blue-50 hover:text-blue-700 transition dark:hover:bg-blue-500/10">
                           <Wand2 size={10} /> Email
                         </button>
                         {/* Export */}
-                        <button onClick={() => actionExport(msg)} title="Exporter" className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10">
-                          <Download size={10} /> Export
+                        <button onClick={() => actionExport(msg)} title={tr("common.export")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10">
+                          <Download size={10} /> {tr("common.export")}
                         </button>
                         {/* Branchement */}
-                        <button onClick={() => reprendreIci(msg)} title="Repartir de ce point — les messages suivants seront effacés" className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${branchAnchorId === msg.id ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300" : "text-stone-500 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-500/10"}`}>
-                          <GitBranch size={10} /> Reprendre ici
+                        <button onClick={() => reprendreIci(msg)} title={tr("components.copilot.branch.title")} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${branchAnchorId === msg.id ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300" : "text-stone-500 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-500/10"}`}>
+                          <GitBranch size={10} /> {tr("components.copilot.branch.resumeHere")}
                         </button>
                         {/* Rating 👍 / 👎 */}
                         {msg.interactionId && (
                           <>
                             <span className="mx-0.5 h-3 w-px bg-stone-200 dark:bg-white/10" />
-                            <button onClick={() => rate(msg.interactionId!, 5)} title="Utile" className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition dark:hover:bg-emerald-500/10">👍</button>
-                            <button onClick={() => rate(msg.interactionId!, 1)} title="Pas utile" className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-red-50 hover:text-red-500 transition dark:hover:bg-red-500/10">👎</button>
+                            <button onClick={() => rate(msg.interactionId!, 5)} title={tr("components.copilot.rating.useful")} className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition dark:hover:bg-emerald-500/10">👍</button>
+                            <button onClick={() => rate(msg.interactionId!, 1)} title={tr("components.copilot.rating.notUseful")} className="rounded-lg px-1.5 py-1 text-[12px] text-stone-400 hover:bg-red-50 hover:text-red-500 transition dark:hover:bg-red-500/10">👎</button>
                           </>
                         )}
                       </div>
@@ -1441,8 +1444,8 @@ export function Copilot() {
               <div className="flex items-center gap-2.5 py-1">
                 <LimuleAvatar state="thinking" size={26} />
                 <div>
-                  <p className="text-xs font-semibold text-[#17211f] dark:text-white">Limule analyse…</p>
-                  <p className="text-[10px] text-stone-400">{isHeavy ? "Analyse approfondie · 15-25s attendues" : "Croisement des données en cours"}</p>
+                  <p className="text-xs font-semibold text-[#17211f] dark:text-white">{tr("components.copilot.streaming.analyzing")}</p>
+                  <p className="text-[10px] text-stone-400">{isHeavy ? tr("components.copilot.streaming.deep") : tr("components.copilot.streaming.crossingData")}</p>
                 </div>
               </div>
             )}
@@ -1454,7 +1457,7 @@ export function Copilot() {
           {!showHistory && !taskDraft && (
           <div className="shrink-0 flex flex-wrap gap-1 border-t border-black/[0.05] bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#1e2229]">
             {suggestions.slice(0, fullscreen ? 6 : 3).map((s) => (
-              <button key={s.label} onClick={() => send(s.label)} disabled={isStreaming} className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10">
+              <button key={s.tk} onClick={() => send(s.label)} disabled={isStreaming} className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#17211f] transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-violet-500/10">
                 <s.icon size={11} className="text-violet-500" />
                 {s.label}
               </button>
@@ -1467,9 +1470,9 @@ export function Copilot() {
             <div className="shrink-0 flex items-center gap-2 border-t border-indigo-100 bg-indigo-50 px-3 py-1.5 dark:border-indigo-500/20 dark:bg-indigo-500/10">
               <GitBranch size={11} className="shrink-0 text-indigo-500" />
               <p className="flex-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
-                Repartir de ce point — tapez votre question
+                {tr("components.copilot.branch.banner")}
               </p>
-              <button onClick={() => setBranchAnchorId(null)} className="rounded p-0.5 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-700 dark:hover:bg-indigo-500/20" title="Annuler">
+              <button onClick={() => setBranchAnchorId(null)} className="rounded p-0.5 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-700 dark:hover:bg-indigo-500/20" title={tr("common.cancel")}>
                 <X size={12} />
               </button>
             </div>
@@ -1484,12 +1487,12 @@ export function Copilot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-                placeholder="Posez votre question à Limule…"
+                placeholder={tr("components.copilot.inputPlaceholder")}
                 disabled={isStreaming}
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white placeholder:text-stone-400 disabled:opacity-50"
               />
               {isStreaming ? (
-                <button onClick={() => { streamAbortRef.current?.(); setIsStreaming(false); }} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition" title="Arrêter">
+                <button onClick={() => { streamAbortRef.current?.(); setIsStreaming(false); }} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition" title={tr("components.copilot.stop")}>
                   <X size={14} />
                 </button>
               ) : (

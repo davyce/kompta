@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface QrScannerModalProps {
   title?: string;
@@ -22,7 +23,8 @@ declare global {
   }
 }
 
-export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, onClose }: QrScannerModalProps) {
+export function QrScannerModal({ title, onScan, onClose }: QrScannerModalProps) {
+  const { t: tr } = useTranslation();
   const videoRef  = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef    = useRef<number>(0);
@@ -73,7 +75,7 @@ export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, 
         };
         rafRef.current = requestAnimationFrame(scan);
       } catch {
-        setError("Accès caméra refusé. Autorisez la caméra dans votre navigateur et réessayez.");
+        setError(tr("components.qr.errors.cameraDenied"));
       }
     })();
 
@@ -99,10 +101,10 @@ export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, 
       if (results.length > 0) {
         onScan(results[0].rawValue);
       } else {
-        setError("Aucun code détecté dans cette image. Réessayez avec une photo nette.");
+        setError(tr("components.qr.errors.noCode"));
       }
     } catch {
-      setError("Impossible de lire l'image.");
+      setError(tr("components.qr.errors.imageRead"));
     }
   }
 
@@ -112,7 +114,7 @@ export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, 
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-black/80">
-          <p className="text-white font-semibold text-sm">{title}</p>
+          <p className="text-white font-semibold text-sm">{title ?? tr("components.qr.title")}</p>
           <button onClick={onClose} className="text-white/70 hover:text-white transition">
             <X size={18} />
           </button>
@@ -140,17 +142,17 @@ export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, 
               </div>
             </div>
             <p className="absolute bottom-3 inset-x-0 text-center text-white/60 text-xs px-4">
-              Pointez la caméra vers le QR code ou code-barres
+              {tr("components.qr.pointCamera")}
             </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 py-10 px-6 text-center bg-[#1e2229]">
             <Camera size={40} className="text-[#717182]" />
             <p className="text-sm text-white/80">
-              {error ?? "Scanner caméra non disponible sur ce navigateur."}
+              {error ?? tr("components.qr.unavailable")}
             </p>
             <label className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white cursor-pointer transition">
-              <Camera size={15} /> Prendre une photo
+              <Camera size={15} /> {tr("components.qr.takePhoto")}
               <input
                 type="file"
                 accept="image/*"
@@ -160,9 +162,9 @@ export function QrScannerModal({ title = "Scanner un QR / code-barres", onScan, 
                 onChange={handleFileInput}
               />
             </label>
-            <p className="text-xs text-white/40">ou importez une image du code à scanner</p>
+            <p className="text-xs text-white/40">{tr("components.qr.importHint")}</p>
             <label className="text-xs text-emerald-400 underline cursor-pointer">
-              Importer une image
+              {tr("components.qr.importImage")}
               <input type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
             </label>
           </div>

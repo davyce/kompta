@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CreditCard, Loader2, CheckCircle2, AlertTriangle, X, Lock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
 import { money } from "../utils/format";
 
@@ -20,7 +21,7 @@ function loadStripeJs(): Promise<void> {
     const s = document.createElement("script");
     s.src = "https://js.stripe.com/v3/";
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Impossible de charger Stripe.js"));
+    s.onerror = () => reject(new Error("stripe_js_load_failed"));
     document.head.appendChild(s);
   });
   return _stripePromise;
@@ -39,6 +40,7 @@ interface StripeCardPaymentModalProps {
 }
 
 export function StripeCardPaymentModal({ amountCents, currency = "XAF", description, saleId, invoiceId, onSuccess, onClose }: StripeCardPaymentModalProps) {
+  const { t: tr } = useTranslation();
   const cardMountRef   = useRef<HTMLDivElement>(null);
   const cardElementRef = useRef<StripeCardElement | null>(null);
   const stripeRef      = useRef<StripeInstance | null>(null);
@@ -59,7 +61,7 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         setClientSecret(intent.client_secret);
         setTxnId(intent.transaction_id);
         setStripeMode(intent.publishable_key?.startsWith("pk_test") ? "test" : intent.publishable_key ? "live" : "unknown");
-        if (!window.Stripe) throw new Error("Stripe.js n'est pas disponible.");
+        if (!window.Stripe) throw new Error(tr("components.stripe.errors.unavailable"));
         const stripe = window.Stripe!(intent.publishable_key);
         stripeRef.current = stripe;
         // Le montage de l'élément carte se fait dans un useEffect dédié (ci-dessous),
@@ -67,7 +69,7 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         setPhase("form");
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Paiement carte indisponible.");
+        setError(e instanceof Error && e.message === "stripe_js_load_failed" ? tr("components.stripe.errors.loadFailed") : e instanceof Error ? e.message : tr("components.stripe.errors.cardUnavailable"));
         setPhase("failed");
       }
     })();
@@ -96,19 +98,19 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     if (!stripeRef.current || !clientSecret || !cardElementRef.current) return;
     setPhase("processing"); setError(null);
     const result = await stripeRef.current.confirmCardPayment(clientSecret, { payment_method: { card: cardElementRef.current as unknown as object } });
-    if (result.error) { setPhase("form"); setError(result.error.message ?? "Paiement refusé."); }
+    if (result.error) { setPhase("form"); setError(result.error.message ?? tr("components.payments.refused")); }
     else if (result.paymentIntent?.status === "succeeded") {
-      if (!txnId) { setPhase("form"); setError("Transaction KOMPTA introuvable."); return; }
+      if (!txnId) { setPhase("form"); setError(tr("components.stripe.errors.transactionMissing")); return; }
       try {
         await waitForServerConfirmation(txnId);
         setPhase("succeeded");
         setTimeout(() => onSuccess(txnId), 900);
       } catch (e) {
         setPhase("form");
-        setError(e instanceof Error ? e.message : "Confirmation serveur impossible.");
+        setError(e instanceof Error ? e.message : tr("components.stripe.errors.serverConfirmation"));
       }
     }
-    else { setPhase("form"); setError("Statut inattendu, réessayez."); }
+    else { setPhase("form"); setError(tr("components.stripe.errors.unexpectedStatus")); }
   }
 
   async function waitForServerConfirmation(transactionId: number) {
@@ -118,15 +120,15 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         const status = await api.paymentStatus(transactionId);
         if (status.status === "succeeded") return;
         if (status.status === "failed" || status.status === "cancelled") {
-          lastError = status.failure_reason || "Paiement refusé par Stripe.";
+          lastError = status.failure_reason || tr("components.stripe.errors.refusedByStripe");
           break;
         }
       } catch (e) {
-        lastError = e instanceof Error ? e.message : "Confirmation serveur indisponible.";
+        lastError = e instanceof Error ? e.message : tr("components.stripe.errors.serverUnavailable");
       }
       await new Promise((resolve) => setTimeout(resolve, 900));
     }
-    throw new Error(lastError || "Paiement confirmé côté carte, mais pas encore confirmé côté serveur KOMPTA.");
+    throw new Error(lastError || tr("components.stripe.errors.waitingServer"));
   }
 
   return (
@@ -135,20 +137,20 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div className="flex items-center gap-2">
             <CreditCard size={16} className="text-blue-500" />
-            <h3 className="font-bold text-[#17211f] dark:text-white">Paiement par carte</h3>
-            <Lock size={11} className="text-[#aaaabc]" aria-label="Connexion sécurisée Stripe" />
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("components.stripe.title")}</h3>
+            <Lock size={11} className="text-[#aaaabc]" aria-label={tr("components.stripe.secureConnection")} />
           </div>
           <button onClick={onClose} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white"><X size={18} /></button>
         </div>
         <div className="px-5 py-6 space-y-4">
           <div className="text-center">
             <p className="text-2xl font-extrabold text-[#17211f] dark:text-white">{money(Math.round(amountCents / 100))}</p>
-            <p className="text-xs text-[#717182]">{description || "Paiement"}</p>
+            <p className="text-xs text-[#717182]">{description || tr("components.payments.payment")}</p>
           </div>
           {phase === "loading" && (
             <div className="flex flex-col items-center gap-2 py-8">
               <Loader2 size={28} className="animate-spin text-blue-500" />
-              <p className="text-xs text-[#717182]">Connexion au paiement carte sécurisé…</p>
+              <p className="text-xs text-[#717182]">{tr("components.stripe.connecting")}</p>
             </div>
           )}
 
@@ -156,20 +158,20 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
           {(phase === "form" || phase === "processing") && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-2">Informations de la carte</label>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-2">{tr("components.stripe.cardInfo")}</label>
                 <div ref={cardMountRef} className="rounded-xl border border-black/[0.10] dark:border-white/[0.10] bg-white dark:bg-[#252931] px-4 py-3.5 min-h-[46px] transition focus-within:border-blue-400" />
                 {cardError && <p className="mt-1.5 text-xs text-rose-500">{cardError}</p>}
                 {error && <p className="mt-1.5 text-xs text-rose-500">{error}</p>}
               </div>
               {stripeMode === "test" && (
                 <div className="rounded-lg border border-blue-100 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10 px-3 py-2 text-[11px] text-blue-700 dark:text-blue-300">
-                  <span className="font-bold">Mode test ·</span> Carte test : <span className="font-mono">4242 4242 4242 4242</span> · date future · CVC 3 chiffres
+                  <span className="font-bold">{tr("components.stripe.testMode")}</span> {tr("components.stripe.testCard")} <span className="font-mono">4242 4242 4242 4242</span> · {tr("components.stripe.futureDate")} · {tr("components.stripe.cvc")}
                 </div>
               )}
-              <div className="flex items-center gap-1.5 text-[10px] text-[#aaaabc]"><Lock size={10} /> Données carte chiffrées par Stripe — jamais visibles par KOMPTA</div>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#aaaabc]"><Lock size={10} /> {tr("components.stripe.encrypted")}</div>
               <button onClick={handlePay} disabled={phase === "processing" || !!cardError}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white transition disabled:opacity-50">
-                {phase === "processing" ? <><Loader2 size={15} className="animate-spin" /> Confirmation bancaire…</> : <><CreditCard size={15} /> Payer {money(Math.round(amountCents / 100))}</>}
+                {phase === "processing" ? <><Loader2 size={15} className="animate-spin" /> {tr("components.stripe.bankConfirmation")}</> : <><CreditCard size={15} /> {tr("components.stripe.payAmount", { amount: money(Math.round(amountCents / 100)) })}</>}
               </button>
             </>
           )}
@@ -177,23 +179,23 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
           {phase === "succeeded" && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <CheckCircle2 size={44} className="text-emerald-500" />
-              <p className="font-bold text-emerald-700 dark:text-emerald-400">Paiement confirmé !</p>
-              <p className="text-xs text-[#717182]">La vente va être enregistrée…</p>
+              <p className="font-bold text-emerald-700 dark:text-emerald-400">{tr("components.payments.confirmed")}</p>
+              <p className="text-xs text-[#717182]">{tr("components.stripe.saleWillBeRecorded")}</p>
             </div>
           )}
           {phase === "failed" && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <AlertTriangle size={32} className="text-rose-500" />
-              <p className="text-sm font-semibold text-rose-600">{error ?? "Connexion Stripe impossible."}</p>
+              <p className="text-sm font-semibold text-rose-600">{error ?? tr("components.stripe.errors.connectionImpossible")}</p>
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                Configurez <span className="font-mono">STRIPE_SECRET_KEY</span>, <span className="font-mono">STRIPE_PUBLISHABLE_KEY</span> et <span className="font-mono">STRIPE_WEBHOOK_SECRET</span> côté backend. Le Tap to Pay sans contact nécessite une app mobile Stripe Terminal ou un lecteur Terminal; il ne peut pas être simulé par le navigateur web.
+                {tr("components.stripe.configurePrefix")} <span className="font-mono">STRIPE_SECRET_KEY</span>, <span className="font-mono">STRIPE_PUBLISHABLE_KEY</span> {tr("components.stripe.configureAnd")} <span className="font-mono">STRIPE_WEBHOOK_SECRET</span> {tr("components.stripe.configureSuffix")}
               </div>
-              <button onClick={onClose} className="rounded-xl bg-[#17211f] px-4 py-2 text-sm font-bold text-white hover:bg-black">Fermer</button>
+              <button onClick={onClose} className="rounded-xl bg-[#17211f] px-4 py-2 text-sm font-bold text-white hover:bg-black">{tr("common.close")}</button>
             </div>
           )}
         </div>
         <div className="flex items-center justify-center gap-1.5 pb-4 text-[10px] text-[#aaaabc]">
-          <Lock size={9} /> <span>Propulsé par</span>
+          <Lock size={9} /> <span>{tr("components.stripe.poweredBy")}</span>
           <span className="font-extrabold text-[#635BFF]">stripe</span>
         </div>
       </div>

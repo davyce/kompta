@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, RefreshCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
+import i18n from "../i18n";
 
 const DEFAULT_CURRENCIES = ["XAF", "EUR", "USD", "GBP", "CAD"];
 
@@ -25,6 +27,7 @@ export function CurrencyConverter({
   compact = false,
   className = "",
 }: Props) {
+  const { t: tr } = useTranslation();
   const [amount, setAmount] = useState<number>(defaultAmount);
   const [from, setFrom] = useState<string>(defaultFrom);
   const [to, setTo] = useState<string>(defaultTo);
@@ -93,7 +96,7 @@ export function CurrencyConverter({
           type="button"
           onClick={swap}
           className="grid h-7 w-7 place-items-center rounded-md text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-          title="Inverser"
+          title={tr("components.currency.swap")}
         >
           <ArrowRight size={14} />
         </button>
@@ -112,7 +115,7 @@ export function CurrencyConverter({
           type="button"
           onClick={fetchRate}
           className="grid h-7 w-7 place-items-center rounded-md text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-          title="Rafraîchir"
+          title={tr("components.currency.refresh")}
           disabled={loading}
         >
           <RefreshCcw size={13} className={loading ? "animate-spin" : ""} />
@@ -125,11 +128,11 @@ export function CurrencyConverter({
         ) : converted !== null ? (
           <>
             <span className={`font-mono font-bold text-[#17211f] dark:text-white ${compact ? "text-sm" : "text-lg"}`}>
-              {converted.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} {to}
+              {converted.toLocaleString(i18n.language, { maximumFractionDigits: 2 })} {to}
             </span>
             {rate !== null && (
               <span className="text-[11px] text-[#717182]">
-                1 {from} = {rate.toLocaleString("fr-FR", { maximumFractionDigits: 6 })} {to}
+                1 {from} = {rate.toLocaleString(i18n.language, { maximumFractionDigits: 6 })} {to}
               </span>
             )}
             {source && (
@@ -140,14 +143,14 @@ export function CurrencyConverter({
             {!certified && (
               <span
                 className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                title="Taux estimé hors-ligne — non certifié temps réel"
+                title={tr("components.currency.estimatedTitle")}
               >
-                ⚠ taux estimé
+                {tr("components.currency.estimated")}
               </span>
             )}
           </>
         ) : (
-          <span className="text-xs text-[#717182]">Chargement…</span>
+          <span className="text-xs text-[#717182]">{tr("common.loading")}</span>
         )}
       </div>
     </div>

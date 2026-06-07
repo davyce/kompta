@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Smartphone, X, AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
 import { money } from "../utils/format";
 
@@ -23,6 +24,7 @@ interface MoMoPaymentModalProps {
 export function MoMoPaymentModal({
   amountCents, currency = "XAF", description, saleId, invoiceId, onSuccess, onClose,
 }: MoMoPaymentModalProps) {
+  const { t: tr } = useTranslation();
   const [phone, setPhone]   = useState("");
   const [phase, setPhase]   = useState<Phase>("input");
   const [error, setError]   = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function MoMoPaymentModal({
 
   async function startPayment() {
     setError(null);
-    if (!phone.trim()) { setError("Saisissez le numéro du client."); return; }
+    if (!phone.trim()) { setError(tr("components.momo.errors.phoneRequired")); return; }
     setPhase("pending");
     try {
       const res = await api.createMomoRequest({
@@ -45,7 +47,7 @@ export function MoMoPaymentModal({
       poll(res.transaction_id);
     } catch (e) {
       setPhase("failed");
-      setError(e instanceof Error ? e.message : "Échec de la demande de paiement.");
+      setError(e instanceof Error ? e.message : tr("components.momo.errors.requestFailed"));
     }
   }
 
@@ -60,13 +62,13 @@ export function MoMoPaymentModal({
           setTimeout(() => onSuccess(id), 900);
         } else if (st.status === "failed" || st.status === "cancelled") {
           stopPoll(); setPhase("failed");
-          setError(st.failure_reason || "Paiement refusé par le client ou expiré.");
+          setError(st.failure_reason || tr("components.momo.errors.refused"));
         }
       } catch { /* réseau momentané — on continue */ }
       // ~90s max (30 × 3s)
       if (attemptsRef.current >= 30) {
         stopPoll(); setPhase("failed");
-        setError("Délai dépassé. Le client n'a pas validé le paiement.");
+        setError(tr("components.momo.errors.timeout"));
       }
     }, 3000);
   }
@@ -79,7 +81,7 @@ export function MoMoPaymentModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div className="flex items-center gap-2">
             <Smartphone size={16} className="text-amber-500" />
-            <h3 className="font-bold text-[#17211f] dark:text-white">Paiement Mobile Money</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("components.momo.title")}</h3>
           </div>
           <button onClick={() => { stopPoll(); onClose(); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
             <X size={18} />
@@ -89,13 +91,13 @@ export function MoMoPaymentModal({
         <div className="px-5 py-6 space-y-4">
           <div className="text-center">
             <p className="text-2xl font-extrabold text-[#17211f] dark:text-white">{money(Math.round(amountCents / 100))}</p>
-            <p className="text-xs text-[#717182]">Montant à encaisser</p>
+            <p className="text-xs text-[#717182]">{tr("components.momo.amountToCollect")}</p>
           </div>
 
           {phase === "input" && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Numéro du client (MSISDN)</label>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("components.momo.clientNumber")}</label>
                 <input
                   type="tel" value={phone} autoFocus
                   onChange={(e) => setPhone(e.target.value)}
@@ -105,7 +107,7 @@ export function MoMoPaymentModal({
               </div>
               {error && <p className="text-xs text-rose-600">{error}</p>}
               <button onClick={startPayment} className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-bold text-white transition">
-                Envoyer la demande de paiement
+                {tr("components.momo.sendRequest")}
               </button>
             </>
           )}
@@ -113,24 +115,24 @@ export function MoMoPaymentModal({
           {phase === "pending" && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <Loader2 size={32} className="animate-spin text-amber-500" />
-              <p className="text-sm font-semibold text-[#17211f] dark:text-white">En attente de validation du client…</p>
-              <p className="text-xs text-[#717182]">Le client doit confirmer sur son téléphone (code PIN MoMo).</p>
+              <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("components.momo.awaiting")}</p>
+              <p className="text-xs text-[#717182]">{tr("components.momo.pinHint")}</p>
             </div>
           )}
 
           {phase === "succeeded" && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <CheckCircle2 size={36} className="text-emerald-500" />
-              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Paiement confirmé !</p>
+              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{tr("components.payments.confirmed")}</p>
             </div>
           )}
 
           {phase === "failed" && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <AlertTriangle size={32} className="text-rose-500" />
-              <p className="text-sm font-semibold text-rose-600">{error ?? "Paiement échoué."}</p>
+              <p className="text-sm font-semibold text-rose-600">{error ?? tr("components.payments.failed")}</p>
               <button onClick={() => { setPhase("input"); setError(null); }} className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-4 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05]">
-                Réessayer
+                {tr("components.payments.retry")}
               </button>
             </div>
           )}

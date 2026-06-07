@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Sparkles, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
@@ -17,51 +18,51 @@ import { LimuleIcon } from "./LimuleAvatar";
 type TourStep = {
   route?: string;       // page à ouvrir avant l'étape
   selector?: string;    // élément à surligner (data-tour)
-  title: string;
-  body: string;
+  titleTk: string;
+  bodyTk: string;
   limule?: boolean;
 };
 
 const STEPS: TourStep[] = [
   {
-    title: "Bienvenue dans KOMPTA 👋",
-    body: "Faisons le tour ensemble : je vais te montrer où sont les fonctions clés et comment t'en servir. (≈ 1 min) — tu peux passer à tout moment.",
+    titleTk: "components.guidedTour.steps.welcome.title",
+    bodyTk: "components.guidedTour.steps.welcome.body",
   },
   {
     route: "/", selector: "[data-tour='nav']",
-    title: "Le menu principal",
-    body: "Tout est ici : Tableau de bord, Caisse, Factures, Stock, Paie, Comptabilité… Sur mobile, le menu est en bas de l'écran.",
+    titleTk: "components.guidedTour.steps.menu.title",
+    bodyTk: "components.guidedTour.steps.menu.body",
   },
   {
     route: "/", selector: "[data-tour='kpis']",
-    title: "Ton tableau de bord",
-    body: "D'un coup d'œil : chiffre d'affaires, trésorerie et alertes. Tout se met à jour automatiquement après chaque vente ou facture.",
+    titleTk: "components.guidedTour.steps.dashboard.title",
+    bodyTk: "components.guidedTour.steps.dashboard.body",
   },
   {
     route: "/pos", selector: "[data-tour='pos-checkout']",
-    title: "Encaisser une vente (Caisse)",
-    body: "Ajoute des produits au panier, choisis le mode de paiement (espèces, carte, Mobile Money) puis appuie sur Encaisser. La caisse marche même hors-ligne.",
+    titleTk: "components.guidedTour.steps.pos.title",
+    bodyTk: "components.guidedTour.steps.pos.body",
   },
   {
     route: "/billing", selector: "[data-tour='new-invoice']",
-    title: "Créer une facture",
-    body: "Crée une facture avec TVA, envoie-la et suis le paiement. Le RCCM et le NIU de ton entreprise apparaissent automatiquement en bas.",
+    titleTk: "components.guidedTour.steps.invoice.title",
+    bodyTk: "components.guidedTour.steps.invoice.body",
   },
   {
     route: "/inventory", selector: "[data-tour='add-product']",
-    title: "Gérer ton stock",
-    body: "Ajoute tes produits et suis le stock en temps réel. Tu es alerté quand un article passe sous son seuil.",
+    titleTk: "components.guidedTour.steps.stock.title",
+    bodyTk: "components.guidedTour.steps.stock.body",
   },
   {
     route: "/", selector: "[data-tour='limule']",
-    title: "Limule, ton assistant IA",
-    body: "Clique sur Limule pour poser n'importe quelle question sur ton entreprise — paie, fiscalité, trésorerie. Il analyse tes données et te conseille.",
+    titleTk: "components.guidedTour.steps.limule.title",
+    bodyTk: "components.guidedTour.steps.limule.body",
     limule: true,
   },
   {
     route: "/settings?tab=subscription", selector: "[data-tour='settings-content']",
-    title: "Réglages & abonnement",
-    body: "Configure ton entreprise (logo, RCCM, NIU…), choisis ton abonnement et règle-le par carte, Mobile Money ou Zola. Tu es prêt ! 🚀",
+    titleTk: "components.guidedTour.steps.settings.title",
+    bodyTk: "components.guidedTour.steps.settings.body",
   },
 ];
 
@@ -79,6 +80,7 @@ function findVisible(selector?: string): HTMLElement | null {
 }
 
 export function GuidedTour() {
+  const { t: tr } = useTranslation();
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [active, setActive] = useState(false);
@@ -209,31 +211,31 @@ export function GuidedTour() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">
-              Étape {idx + 1} / {STEPS.length}
+              {tr("components.guidedTour.stepCount", { current: idx + 1, total: STEPS.length })}
             </p>
-            <h3 className="text-base font-black leading-tight">{step.title}</h3>
+            <h3 className="text-base font-black leading-tight">{tr(step.titleTk)}</h3>
           </div>
-          <button onClick={finish} aria-label="Fermer" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/15">
+          <button onClick={finish} aria-label={tr("common.close")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/15">
             <X size={15} />
           </button>
         </div>
         <div className="px-5 py-4">
-          <p className="text-sm leading-relaxed text-[#3f4a55] dark:text-white/75">{step.body}</p>
+          <p className="text-sm leading-relaxed text-[#3f4a55] dark:text-white/75">{tr(step.bodyTk)}</p>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-white/10">
             <div className="h-full rounded-full bg-emerald-600 transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
           <div className="mt-3 flex items-center justify-between">
             <button onClick={finish} className="text-xs font-semibold text-[#717182] hover:text-[#17211f] dark:hover:text-white">
-              Passer la visite
+              {tr("components.guidedTour.skip")}
             </button>
             <div className="flex items-center gap-2">
               {idx > 0 && (
                 <button onClick={prev} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
-                  Précédent
+                  {tr("components.guidedTour.previous")}
                 </button>
               )}
               <button onClick={next} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700">
-                {isLast ? "Terminer" : "Suivant"}
+                {isLast ? tr("components.guidedTour.finish") : tr("components.guidedTour.next")}
                 <ArrowRight size={15} />
               </button>
             </div>
