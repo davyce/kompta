@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
@@ -51,14 +52,14 @@ function levelColors(level: "info" | "warning" | "error") {
   return { icon: "text-indigo-500 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-500/15", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200", dot: "bg-indigo-400", line: "bg-indigo-300 dark:bg-indigo-500/30" };
 }
 
-function relativeTime(dateStr: string | null): string {
+function relativeTime(dateStr: string | null, tr: (key: string, options?: Record<string, unknown>) => string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "à l'instant";
-  if (mins < 60) return `il y a ${mins}m`;
+  if (mins < 1) return tr("admin.dashboard.now");
+  if (mins < 60) return tr("admin.dashboard.minutesAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `il y a ${hrs}h`;
+  if (hrs < 24) return tr("admin.dashboard.hoursAgo", { count: hrs });
   return shortDate(dateStr);
 }
 
@@ -104,6 +105,7 @@ function exportLogs(logs: LogEntry[], format: "json" | "csv") {
 }
 
 export function AdminLogsPage() {
+  const { t: tr } = useTranslation();
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<"all" | "info" | "warning" | "error">("all");
   const [dateRange, setDateRange] = useState<"today" | "7d" | "30d" | "all">("all");
@@ -150,9 +152,9 @@ export function AdminLogsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Observabilité</p>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Audit & logs</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Journal centralisé des actions sensibles et opérations support.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{tr("admin.logs.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.logs.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.logs.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <div
@@ -176,7 +178,7 @@ export function AdminLogsPage() {
           </button>
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-center dark:border-white/10 dark:bg-white/5">
             <p className="text-2xl font-black text-slate-900 dark:text-white">{filtered.length}</p>
-            <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">événements</p>
+            <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">{tr("admin.logs.events")}</p>
           </div>
         </div>
       </div>
@@ -188,7 +190,7 @@ export function AdminLogsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrer action, acteur, détails..."
+            placeholder={tr("admin.logs.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
@@ -197,7 +199,7 @@ export function AdminLogsPage() {
           onChange={(e) => setLevelFilter(e.target.value as typeof levelFilter)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
-          <option value="all">Tous niveaux</option>
+          <option value="all">{tr("admin.logs.allLevels")}</option>
           <option value="info">Info</option>
           <option value="warning">Warning</option>
           <option value="error">Error</option>
@@ -207,17 +209,17 @@ export function AdminLogsPage() {
           onChange={(e) => setDateRange(e.target.value as typeof dateRange)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
         >
-          <option value="all">Toutes dates</option>
-          <option value="today">Aujourd'hui</option>
-          <option value="7d">7 jours</option>
-          <option value="30d">30 jours</option>
+          <option value="all">{tr("admin.logs.allDates")}</option>
+          <option value="today">{tr("admin.logs.today")}</option>
+          <option value="7d">{tr("admin.logs.sevenDays")}</option>
+          <option value="30d">{tr("admin.logs.thirtyDays")}</option>
         </select>
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-white/10 dark:bg-white/5">
           <Search size={14} className="text-slate-400 shrink-0 dark:text-white/40" />
           <input
             value={actorFilter}
             onChange={(e) => setActorFilter(e.target.value)}
-            placeholder="Acteur / entreprise..."
+            placeholder={tr("admin.logs.actorPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
@@ -264,7 +266,7 @@ export function AdminLogsPage() {
                       <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 dark:text-white/35">
                         <span>tenant #{log.company_id}</span>
                         <span>·</span>
-                        <span>{relativeTime(log.created_at)}</span>
+                        <span>{relativeTime(log.created_at, tr)}</span>
                       </div>
                     </div>
                     {log.details && (
@@ -275,7 +277,7 @@ export function AdminLogsPage() {
               );
             })}
             {pageData.length === 0 && (
-              <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">Aucun log disponible.</p>
+              <p className="py-12 text-center text-sm font-semibold text-slate-400 dark:text-white/40">{tr("admin.logs.empty")}</p>
             )}
           </div>
 
@@ -283,7 +285,7 @@ export function AdminLogsPage() {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-white/10">
               <span className="text-xs font-bold text-slate-500 dark:text-white/45">
-                Page {page + 1} / {totalPages} ({filtered.length} entrées)
+                {tr("admin.logs.pageInfo", { page: page + 1, total: totalPages, count: filtered.length })}
               </span>
               <div className="flex gap-2">
                 <button
@@ -291,14 +293,14 @@ export function AdminLogsPage() {
                   onClick={() => setPage((p) => p - 1)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                 >
-                  Précédent
+                  {tr("common.previous")}
                 </button>
                 <button
                   disabled={page >= totalPages - 1}
                   onClick={() => setPage((p) => p + 1)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
                 >
-                  Suivant
+                  {tr("common.next")}
                 </button>
               </div>
             </div>

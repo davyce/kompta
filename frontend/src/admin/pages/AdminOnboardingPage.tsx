@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Building2, CheckCircle2, FileText, MessageSquare, ShoppingCart, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { api } from "../../services/api";
@@ -49,11 +50,12 @@ function BoolBadge({ ok }: { ok: boolean }) {
 
 // ── Donut chart
 function ScoreDonut({ advanced, medium, low }: { advanced: number; medium: number; low: number }) {
+  const { t: tr } = useTranslation();
   const total = advanced + medium + low;
   const data = [
-    { name: "Avancé (>80%)", value: advanced, color: "#10b981" },
-    { name: "Moyen (50-80%)", value: medium, color: "#f59e0b" },
-    { name: "Faible (<50%)", value: low, color: "#f43f5e" },
+    { name: tr("admin.onboarding.levelAdvancedLong"), value: advanced, color: "#10b981" },
+    { name: tr("admin.onboarding.levelMediumLong"), value: medium, color: "#f59e0b" },
+    { name: tr("admin.onboarding.levelLowLong"), value: low, color: "#f43f5e" },
   ];
   return (
     <div className="flex flex-col items-center">
@@ -73,7 +75,7 @@ function ScoreDonut({ advanced, medium, low }: { advanced: number; medium: numbe
             ))}
           </Pie>
           <Tooltip
-            formatter={(value, name) => [`${value} entreprise(s)`, String(name)]}
+            formatter={(value, name) => [tr("admin.analytics.companiesCount", { count: Number(value) }), String(name)]}
             contentStyle={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff" }}
           />
         </PieChart>
@@ -94,7 +96,8 @@ function ScoreDonut({ advanced, medium, low }: { advanced: number; medium: numbe
 }
 
 // ── Broadcast modal trigger (opens broadcast page with pre-filled company)
-function RappelButton({ company }: { company: OnboardingCompany }) {
+function ReminderButton({ company }: { company: OnboardingCompany }) {
+  const { t: tr } = useTranslation();
   // Navigate to broadcast page with pre-filled company
   const handleClick = () => {
     // Store in sessionStorage so broadcast page can pick it up
@@ -106,12 +109,13 @@ function RappelButton({ company }: { company: OnboardingCompany }) {
       onClick={handleClick}
       className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-600/10 px-2.5 py-1 text-xs font-bold text-indigo-200 hover:bg-indigo-600/20"
     >
-      <MessageSquare size={11} /> Rappel
+      <MessageSquare size={11} /> {tr("admin.onboarding.reminder")}
     </button>
   );
 }
 
 export function AdminOnboardingPage() {
+  const { t: tr } = useTranslation();
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [search, setSearch] = useState("");
 
@@ -142,9 +146,9 @@ export function AdminOnboardingPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Activation</p>
-        <h1 className="text-3xl font-black">Onboarding entreprises</h1>
-        <p className="mt-1 text-sm text-white/60">Suivi du taux d'adoption et des modules activés par entreprise.</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">{tr("admin.onboarding.eyebrow")}</p>
+        <h1 className="text-3xl font-black">{tr("admin.onboarding.title")}</h1>
+        <p className="mt-1 text-sm text-white/60">{tr("admin.onboarding.subtitle")}</p>
       </div>
 
       {/* KPIs + donut */}
@@ -152,28 +156,28 @@ export function AdminOnboardingPage() {
         {/* KPI cards */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-white/5 p-5 col-span-2">
-            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">Total entreprises</p>
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">{tr("admin.onboarding.totalCompanies")}</p>
             <p className="text-4xl font-black">{total}</p>
           </div>
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
             <p className="text-3xl font-black text-emerald-300">{advanced}</p>
-            <p className="mt-1 text-xs font-bold uppercase text-emerald-200/70">Avancé &gt;80%</p>
+            <p className="mt-1 text-xs font-bold uppercase text-emerald-200/70">{tr("admin.onboarding.levelAdvanced")}</p>
             {total > 0 && (
-              <p className="mt-1 text-xs text-emerald-300/50">{Math.round((advanced / total) * 100)}% du total</p>
+              <p className="mt-1 text-xs text-emerald-300/50">{tr("admin.onboarding.percentOfTotal", { percent: Math.round((advanced / total) * 100) })}</p>
             )}
           </div>
           <div className="rounded-xl border border-indigo-600/30 bg-indigo-600/10 p-4">
             <p className="text-3xl font-black text-indigo-300">{medium}</p>
-            <p className="mt-1 text-xs font-bold uppercase text-indigo-200/70">Moyen 50-80%</p>
+            <p className="mt-1 text-xs font-bold uppercase text-indigo-200/70">{tr("admin.onboarding.levelMedium")}</p>
             {total > 0 && (
-              <p className="mt-1 text-xs text-indigo-300/50">{Math.round((medium / total) * 100)}% du total</p>
+              <p className="mt-1 text-xs text-indigo-300/50">{tr("admin.onboarding.percentOfTotal", { percent: Math.round((medium / total) * 100) })}</p>
             )}
           </div>
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 col-span-2">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-3xl font-black text-rose-300">{low}</p>
-                <p className="mt-1 text-xs font-bold uppercase text-rose-200/70">Faible &lt;50%</p>
+                <p className="mt-1 text-xs font-bold uppercase text-rose-200/70">{tr("admin.onboarding.levelLow")}</p>
               </div>
               {total > 0 && (
                 <p className="text-2xl font-black text-rose-400/60">{Math.round((low / total) * 100)}%</p>
@@ -184,7 +188,7 @@ export function AdminOnboardingPage() {
 
         {/* Donut */}
         <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <h3 className="mb-2 font-black">Répartition par niveau</h3>
+          <h3 className="mb-2 font-black">{tr("admin.onboarding.levelBreakdown")}</h3>
           {stats.isLoading ? (
             <div className="flex h-48 items-center justify-center">
               <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
@@ -202,7 +206,7 @@ export function AdminOnboardingPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher une entreprise..."
+            placeholder={tr("admin.onboarding.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
           />
         </div>
@@ -216,7 +220,7 @@ export function AdminOnboardingPage() {
                 : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
             }`}
           >
-            {l === "all" ? "Tous" : l === "advanced" ? "Avancé" : l === "medium" ? "Moyen" : "Faible"}
+            {l === "all" ? tr("common.all") : l === "advanced" ? tr("admin.onboarding.filterAdvanced") : l === "medium" ? tr("admin.onboarding.filterMedium") : tr("admin.onboarding.filterLow")}
           </button>
         ))}
       </div>
@@ -233,13 +237,13 @@ export function AdminOnboardingPage() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b border-white/10 text-xs font-bold uppercase text-white/40">
-                <th className="px-4 py-3 text-left">Entreprise</th>
-                <th className="px-4 py-3 text-center" title="Employés"><Users size={13} className="mx-auto" /></th>
-                <th className="px-4 py-3 text-center" title="Factures"><FileText size={13} className="mx-auto" /></th>
+                <th className="px-4 py-3 text-left">{tr("admin.dashboard.company")}</th>
+                <th className="px-4 py-3 text-center" title={tr("admin.onboarding.employees")}><Users size={13} className="mx-auto" /></th>
+                <th className="px-4 py-3 text-center" title={tr("admin.onboarding.invoices")}><FileText size={13} className="mx-auto" /></th>
                 <th className="px-4 py-3 text-center" title="POS"><ShoppingCart size={13} className="mx-auto" /></th>
                 <th className="px-4 py-3 text-center" title="Documents"><FileText size={13} className="mx-auto" /></th>
                 <th className="px-4 py-3 text-left">Score</th>
-                <th className="px-4 py-3 text-left hidden lg:table-cell">Dernière activité</th>
+                <th className="px-4 py-3 text-left hidden lg:table-cell">{tr("admin.onboarding.lastActivity")}</th>
                 <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
@@ -275,14 +279,14 @@ export function AdminOnboardingPage() {
                     {company.last_activity ? shortDate(company.last_activity) : "–"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <RappelButton company={company} />
+                    <ReminderButton company={company} />
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-sm text-white/35">
-                    Aucune entreprise trouvée.
+                    {tr("admin.onboarding.noCompany")}
                   </td>
                 </tr>
               )}
