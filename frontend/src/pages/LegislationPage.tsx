@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   BookOpen, CheckCircle2, FileSpreadsheet, FileText, FileType2,
   Loader2, Plus, RefreshCcw, Tag, Trash2, Upload, X,
@@ -12,15 +14,18 @@ import { shortDate } from "../utils/format";
 
 /* ── Catégories ─────────────────────────────────────────── */
 const CATEGORIES = [
-  { key: "fiscal",   label: "Fiscalité & Impôts",      color: "text-red-600",    bg: "bg-red-50 dark:bg-red-500/10",    border: "border-red-200 dark:border-red-500/30" },
-  { key: "social",   label: "Droit social & CNPS",     color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-500/10",  border: "border-blue-200 dark:border-blue-500/30" },
-  { key: "commerce", label: "Droit commercial",        color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10", border: "border-violet-200 dark:border-violet-500/30" },
-  { key: "finance",  label: "Finances & Banque",       color: "text-emerald-600",bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/30" },
-  { key: "general",  label: "Général",                 color: "text-stone-600",  bg: "bg-stone-50 dark:bg-stone-500/10", border: "border-stone-200 dark:border-stone-500/30" },
+  { key: "fiscal",   tk: "legislation.catFiscal",   color: "text-red-600",    bg: "bg-red-50 dark:bg-red-500/10",    border: "border-red-200 dark:border-red-500/30" },
+  { key: "social",   tk: "legislation.catSocial",   color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-500/10",  border: "border-blue-200 dark:border-blue-500/30" },
+  { key: "commerce", tk: "legislation.catCommerce", color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10", border: "border-violet-200 dark:border-violet-500/30" },
+  { key: "finance",  tk: "legislation.catFinance",  color: "text-emerald-600",bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/30" },
+  { key: "general",  tk: "legislation.catGeneral",  color: "text-stone-600",  bg: "bg-stone-50 dark:bg-stone-500/10", border: "border-stone-200 dark:border-stone-500/30" },
 ];
 
 function catInfo(key: string) {
   return CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[4];
+}
+function catLabel(key: string, tr: TFunction) {
+  return tr(catInfo(key).tk);
 }
 
 function FileIcon({ mime }: { mime: string }) {
@@ -40,6 +45,7 @@ function fmtSize(bytes: number) {
 
 /* ── Modal aperçu analyse ─────────────────────────────── */
 function SummaryModal({ doc, onClose }: { doc: LegislationDocumentDto; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const tags: string[] = (() => {
     try { return JSON.parse(doc.ai_tags); } catch { return []; }
   })();
@@ -54,7 +60,7 @@ function SummaryModal({ doc, onClose }: { doc: LegislationDocumentDto; onClose: 
             </span>
             <div>
               <p className="font-bold text-[#17211f] dark:text-white text-sm">{doc.title}</p>
-              <p className="text-xs text-[#717182]">{catInfo(doc.doc_category).label} · {doc.country_scope}</p>
+              <p className="text-xs text-[#717182]">{catLabel(doc.doc_category, tr)} · {doc.country_scope}</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]">
@@ -72,7 +78,7 @@ function SummaryModal({ doc, onClose }: { doc: LegislationDocumentDto; onClose: 
             </div>
           )}
           <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-[#17211f] dark:text-white whitespace-pre-wrap leading-relaxed">
-            {doc.ai_summary || "Aucune analyse disponible."}
+            {doc.ai_summary || tr("legislation.noAnalysis")}
           </div>
         </div>
       </div>
@@ -82,6 +88,7 @@ function SummaryModal({ doc, onClose }: { doc: LegislationDocumentDto; onClose: 
 
 /* ── Page principale ──────────────────────────────────── */
 export default function LegislationPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [filterCat, setFilterCat] = useState<string>("");
@@ -104,7 +111,7 @@ export default function LegislationPage() {
 
   const upload = useMutation({
     mutationFn: async () => {
-      if (!selectedFile) throw new Error("Aucun fichier sélectionné");
+      if (!selectedFile) throw new Error(tr("legislation.noFileSelected"));
       const fd = new FormData();
       fd.append("file", selectedFile);
       fd.append("title", form.title || selectedFile.name);
@@ -147,27 +154,27 @@ export default function LegislationPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-[#17211f] dark:text-white">Base législative</h1>
+          <h1 className="text-2xl font-black text-[#17211f] dark:text-white">{tr("legislation.title")}</h1>
           <p className="text-sm text-[#717182] mt-0.5">
-            Documents de référence analysés par Limule — enrichissent les conseils sur toute la plateforme.
+            {tr("legislation.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] px-4 py-2">
           <LimuleIcon size={20} />
           <span className="text-sm font-bold text-[#17211f] dark:text-white">
-            {analyzedCount} doc{analyzedCount !== 1 ? "s" : ""} analysé{analyzedCount !== 1 ? "s" : ""}
+            {tr("legislation.docsAnalyzed", { count: analyzedCount })}
           </span>
-          <span className="text-xs text-[#717182]">· contexte actif pour Limule</span>
+          <span className="text-xs text-[#717182]">{tr("legislation.ctxActive")}</span>
         </div>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total documents", value: allDocs.length, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-500/10" },
-          { label: "Analysés",        value: analyzedCount,  color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
-          { label: "En attente",      value: allDocs.length - analyzedCount, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-500/10" },
-          { label: "Contexte Limule", value: ctxQuery.data?.doc_count ?? 0, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10" },
+          { label: tr("legislation.kpiTotal"), value: allDocs.length, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-500/10" },
+          { label: tr("legislation.kpiAnalyzed"), value: analyzedCount,  color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+          { label: tr("legislation.kpiPending"), value: allDocs.length - analyzedCount, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-500/10" },
+          { label: tr("legislation.kpiContext"), value: ctxQuery.data?.doc_count ?? 0, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-500/10" },
         ].map((k) => (
           <div key={k.label} className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{k.label}</p>
@@ -179,7 +186,7 @@ export default function LegislationPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ── Colonne gauche : Upload ── */}
         <div className="space-y-4">
-          <Panel title="Ajouter un document">
+          <Panel title={tr("legislation.addDoc")}>
             <div className="space-y-3">
               {/* Zone de drop */}
               <div
@@ -190,8 +197,8 @@ export default function LegislationPage() {
                 {selectedFile
                   ? <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{selectedFile.name}</p>
                   : <>
-                    <p className="text-sm font-semibold text-[#17211f] dark:text-white">Cliquer pour choisir</p>
-                    <p className="text-xs text-[#717182]">PDF, Word, Excel, CSV, TXT — max 30 Mo</p>
+                    <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("legislation.clickToChoose")}</p>
+                    <p className="text-xs text-[#717182]">{tr("legislation.fileTypes")}</p>
                   </>
                 }
               </div>
@@ -212,13 +219,13 @@ export default function LegislationPage() {
               <input
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="Titre du document *"
+                placeholder={tr("legislation.titlePlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <input
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="Description (optionnel)"
+                placeholder={tr("legislation.descPlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <select
@@ -227,13 +234,13 @@ export default function LegislationPage() {
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 {CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>{c.label}</option>
+                  <option key={c.key} value={c.key}>{tr(c.tk)}</option>
                 ))}
               </select>
               <input
                 value={form.country_scope}
                 onChange={(e) => setForm((p) => ({ ...p, country_scope: e.target.value }))}
-                placeholder="Pays / portée géographique"
+                placeholder={tr("legislation.countryPlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <button
@@ -242,11 +249,11 @@ export default function LegislationPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
               >
                 {upload.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-                {upload.isPending ? "Envoi en cours…" : "Ajouter le document"}
+                {upload.isPending ? tr("legislation.sending") : tr("legislation.addDocBtn")}
               </button>
               {upload.isSuccess && (
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 size={12} /> Document ajouté — cliquez Analyser pour l'activer.
+                  <CheckCircle2 size={12} /> {tr("legislation.docAdded")}
                 </p>
               )}
               {upload.isError && (
@@ -260,17 +267,16 @@ export default function LegislationPage() {
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 p-3 space-y-1.5">
               <div className="flex items-center gap-2">
                 <LimuleIcon size={16} />
-                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200">Contexte Limule actif</p>
+                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200">{tr("legislation.ctxLimuleActive")}</p>
               </div>
               <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                {ctxQuery.data.doc_count} document{ctxQuery.data.doc_count > 1 ? "s" : ""} analysé{ctxQuery.data.doc_count > 1 ? "s" : ""} enrichissent
-                les conseils Limule sur toute la plateforme.
+                {tr("legislation.ctxDesc", { count: ctxQuery.data.doc_count })}
               </p>
               {ctxQuery.data.categories.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {ctxQuery.data.categories.map((c) => (
                     <span key={c} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${catInfo(c).bg} ${catInfo(c).color}`}>
-                      {catInfo(c).label}
+                      {catLabel(c, tr)}
                     </span>
                   ))}
                 </div>
@@ -287,7 +293,7 @@ export default function LegislationPage() {
               onClick={() => setFilterCat("")}
               className={`rounded-full px-3 py-1 text-xs font-semibold transition border ${!filterCat ? "bg-[#17211f] text-white border-[#17211f] dark:bg-white dark:text-[#17211f] dark:border-white" : "border-black/[0.08] dark:border-white/[0.08] text-[#717182] hover:bg-black/[0.03]"}`}
             >
-              Tous ({allDocs.length})
+              {tr("legislation.allFilter", { count: allDocs.length })}
             </button>
             {CATEGORIES.map((c) => {
               const count = allDocs.filter((d) => d.doc_category === c.key).length;
@@ -298,7 +304,7 @@ export default function LegislationPage() {
                   onClick={() => setFilterCat(c.key)}
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition border ${filterCat === c.key ? `${c.bg} ${c.color} ${c.border}` : "border-black/[0.08] dark:border-white/[0.08] text-[#717182] hover:bg-black/[0.03]"}`}
                 >
-                  {c.label} ({count})
+                  {tr("legislation.catCount", { label: tr(c.tk), count })}
                 </button>
               );
             })}
@@ -306,15 +312,15 @@ export default function LegislationPage() {
 
           {docs.isLoading && (
             <div className="flex items-center justify-center gap-2 py-12 text-[#717182]">
-              <Loader2 size={18} className="animate-spin" /> Chargement…
+              <Loader2 size={18} className="animate-spin" /> {tr("legislation.loading")}
             </div>
           )}
 
           {!docs.isLoading && allDocs.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] py-16">
               <BookOpen size={32} className="text-[#717182]" />
-              <p className="text-sm font-semibold text-[#717182]">Aucun document législatif</p>
-              <p className="text-xs text-[#aaa]">Uploadez des lois, décrets, circulaires pour que Limule les intègre.</p>
+              <p className="text-sm font-semibold text-[#717182]">{tr("legislation.noDocs")}</p>
+              <p className="text-xs text-[#aaa]">{tr("legislation.noDocsDesc")}</p>
             </div>
           )}
 
@@ -339,12 +345,12 @@ export default function LegislationPage() {
                         )}
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${cat.bg} ${cat.color} ${cat.border}`}>
-                            {cat.label}
+                            {tr(cat.tk)}
                           </span>
                           <span className="text-[10px] text-[#aaa]">{doc.country_scope}</span>
                           {doc.analyzed
-                            ? <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600"><CheckCircle2 size={10} /> Analysé</span>
-                            : <span className="text-[10px] text-amber-600 font-semibold">Non analysé</span>
+                            ? <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600"><CheckCircle2 size={10} /> {tr("legislation.analyzed")}</span>
+                            : <span className="text-[10px] text-amber-600 font-semibold">{tr("legislation.notAnalyzed")}</span>
                           }
                         </div>
                         {tags.length > 0 && (
@@ -362,7 +368,7 @@ export default function LegislationPage() {
                           onClick={() => setViewDoc(doc)}
                           className="flex items-center gap-1 rounded-lg bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 px-2 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition"
                         >
-                          <BookOpen size={11} /> Voir
+                          <BookOpen size={11} /> {tr("legislation.view")}
                         </button>
                       )}
                       <button
@@ -374,7 +380,7 @@ export default function LegislationPage() {
                           ? <Loader2 size={11} className="animate-spin" />
                           : <LimuleIcon size={12} />
                         }
-                        {doc.analyzed ? "Ré-analyser" : "Analyser"}
+                        {doc.analyzed ? tr("legislation.reanalyze") : tr("legislation.analyze")}
                       </button>
                       <button
                         onClick={() => del.mutate(doc.id)}
