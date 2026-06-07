@@ -2393,7 +2393,8 @@
     "name": "Name",
     "actions": "Actions",
     "total": "Total",
-    "new": "New"
+    "new": "New",
+    "notDefined": "Not defined"
   },
   "nav": {
     "globalSearch": "Global search…",
@@ -4214,5 +4215,142 @@
     "trustEncrypted": "Encrypted",
     "trustMultitenant": "Multi-tenant",
     "footer": "KOMPTA · v2.0 · Powered by Limule"
+  },
+  "projectsPage": {
+    "header": {
+      "eyebrow": "Projects",
+      "title": "Boards & Projects"
+    },
+    "status": {
+      "todo": "To do",
+      "doing": "In progress",
+      "review": "Review",
+      "done": "Done",
+      "doneShort": "Done"
+    },
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "highBadge": "High priority"
+    },
+    "sources": {
+      "teras": "TERAS",
+      "limule": "Limule",
+      "manual": "General",
+      "projectBoard": "Project",
+      "hr": "HR",
+      "payroll": "Payroll",
+      "production": "Production",
+      "compliance": "Compliance",
+      "sales": "Sales",
+      "finance": "Finance",
+      "tech": "Tech"
+    },
+    "common": {
+      "unassigned": "— Unassigned —",
+      "readOnly": "Read only",
+      "read": "Read"
+    },
+    "badges": {
+      "mine": "Mine",
+      "late": "Overdue",
+      "lateShort": "Late"
+    },
+    "fields": {
+      "assignee": "Assignee",
+      "dueDate": "Due date",
+      "source": "Source",
+      "descriptionInstructions": "Description & Instructions",
+      "title": "Title *",
+      "priority": "Priority",
+      "time": "Time",
+      "timeShort": "time",
+      "timeOptional": "Time (optional)",
+      "optionalParen": "(optional)"
+    },
+    "description": {
+      "empty": "No description provided."
+    },
+    "proof": {
+      "justification": "Proof",
+      "depositedShort": "Proof ✓",
+      "requiredDoc": "Proof required",
+      "required": "Required",
+      "deposited": "Proof uploaded",
+      "viewPdf": "View PDF document →",
+      "alt": "Proof",
+      "replace": "Replace proof",
+      "attachRequired": "Attach proof (required)",
+      "attachFile": "Attach a file",
+      "previewAlt": "Preview",
+      "photoImage": "Photo / Image",
+      "video": "Video",
+      "uploading": "Uploading…",
+      "send": "Send",
+      "acceptedFormats": "Accepted formats: image (JPG, PNG, GIF), video (MP4, MOV, WebM) or PDF · max 50 MB",
+      "requiredShort": "Proof",
+      "requiredToggle": "Proof required",
+      "requiredHint": "The assignee must attach supporting proof"
+    },
+    "actions": {
+      "markDone": "Mark done",
+      "moveToReview": "Move to Review",
+      "start": "Start",
+      "advance": "→ Advance",
+      "viewDetail": "View detail",
+      "view": "View",
+      "assign": "Assign",
+      "agenda": "Calendar",
+      "newTask": "New task",
+      "adding": "Adding…",
+      "addInline": "+ Add",
+      "openLimuleStudio": "Open Limule studio"
+    },
+    "filters": {
+      "title": "Filters",
+      "priority": "Priority:",
+      "all": "All"
+    },
+    "search": {
+      "placeholder": "Search for a task…"
+    },
+    "kpi": {
+      "total": "{{count}} task",
+      "total_one": "{{count}} task",
+      "total_other": "{{count}} tasks",
+      "inProgress": "{{count}} in progress",
+      "inProgress_one": "{{count}} in progress",
+      "inProgress_other": "{{count}} in progress",
+      "inReview": "{{count}} in review",
+      "inReview_one": "{{count}} in review",
+      "inReview_other": "{{count}} in review",
+      "done": "{{count}} done",
+      "done_one": "{{count}} done",
+      "done_other": "{{count}} done",
+      "late": "{{count}} overdue",
+      "late_one": "{{count}} overdue",
+      "late_other": "{{count}} overdue"
+    },
+    "form": {
+      "titlePlaceholder": "Task title…",
+      "assigneePlaceholder": "Assignee…",
+      "assignedToMe": "Assigned to me",
+      "descriptionPlaceholder": "Instructions, guidelines, context…"
+    },
+    "empty": {
+      "column": "No task"
+    },
+    "edit": {
+      "title": "Edit task",
+      "subtitle": "Every change is tracked in the audit log.",
+      "save": "Save changes"
+    },
+    "errors": {
+      "upload": "Error while uploading the file."
+    },
+    "confirmDelete": {
+      "title": "Delete this task?"
+    }
   }
 }

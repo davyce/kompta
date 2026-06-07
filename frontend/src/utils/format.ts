@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 export type CurrencyCode = "XAF" | "EUR" | "USD" | "XOF" | "GBP" | "CNY";
 
 /* ── Formatters ────────────────────────────────────────────────── */
@@ -119,8 +121,8 @@ export function currencyLabel(): string {
 
 /* ── Date helpers ──────────────────────────────────────────────── */
 export function shortDate(value: string | null): string {
-  if (!value) return "Non défini";
-  return new Intl.DateTimeFormat("fr-FR", {
+  if (!value) return i18n.t("common.notDefined", { defaultValue: "Non défini" });
+  return new Intl.DateTimeFormat(i18n.language, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -129,14 +131,18 @@ export function shortDate(value: string | null): string {
 
 /** Affiche la date avec l'heure si fournie : "06 mai 2026 · 14h30" */
 export function shortDateTime(date: string | null, time?: string | null): string {
-  if (!date) return "Non défini";
-  const datePart = new Intl.DateTimeFormat("fr-FR", {
+  if (!date) return i18n.t("common.notDefined", { defaultValue: "Non défini" });
+  const datePart = new Intl.DateTimeFormat(i18n.language, {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(new Date(date));
   if (!time) return datePart;
-  return `${datePart} · ${time.slice(0, 5).replace(":", "h")}`;
+  const timePart = new Intl.DateTimeFormat(i18n.language, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(`${date}T${time}`));
+  return `${datePart} · ${timePart}`;
 }
 
 export function initials(name: string): string {

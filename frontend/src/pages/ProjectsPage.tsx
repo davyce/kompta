@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ChevronDown,
@@ -13,7 +15,7 @@ import { useConfirm } from "../components/ConfirmProvider";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
-import { shortDate, shortDateTime } from "../utils/format";
+import { shortDateTime } from "../utils/format";
 import type { Employee, Task } from "../types/domain";
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -36,7 +38,7 @@ function isOverdue(due: string | null | undefined, status: string) {
 /* ── Columns ─────────────────────────────────────────────────────────── */
 type ColDef = {
   key: string;
-  label: string;
+  labelTk: string;
   accent: string;         // top border
   badgeBg: string;        // header badge bg
   badgeText: string;      // header badge text
@@ -46,7 +48,7 @@ type ColDef = {
 const COLUMNS: ColDef[] = [
   {
     key: "todo",
-    label: "À faire",
+    labelTk: "projectsPage.status.todo",
     accent: "border-t-slate-400",
     badgeBg: "bg-slate-100 dark:bg-white/10",
     badgeText: "text-slate-600 dark:text-slate-300",
@@ -55,7 +57,7 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "doing",
-    label: "En cours",
+    labelTk: "projectsPage.status.doing",
     accent: "border-t-blue-500",
     badgeBg: "bg-blue-50 dark:bg-blue-500/15",
     badgeText: "text-blue-700 dark:text-blue-300",
@@ -64,7 +66,7 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "review",
-    label: "Revue",
+    labelTk: "projectsPage.status.review",
     accent: "border-t-amber-400",
     badgeBg: "bg-amber-50 dark:bg-amber-500/15",
     badgeText: "text-amber-700 dark:text-amber-300",
@@ -73,7 +75,7 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "done",
-    label: "Terminé",
+    labelTk: "projectsPage.status.done",
     accent: "border-t-emerald-500",
     badgeBg: "bg-emerald-50 dark:bg-emerald-500/15",
     badgeText: "text-emerald-700 dark:text-emerald-300",
@@ -98,18 +100,28 @@ const CAT_COLORS: Record<string, string> = {
 function catColor(cat: string) {
   return CAT_COLORS[cat] ?? "bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-stone-300";
 }
-function catLabel(source: string) {
+function catLabel(source: string, tr: TFunction) {
   const MAP: Record<string, string> = {
-    teras: "TERAS", limule: "Limule", manual: "Général",
-    project_board: "Projet", rh: "RH", payroll: "Paie",
+    teras: "projectsPage.sources.teras",
+    limule: "projectsPage.sources.limule",
+    manual: "projectsPage.sources.manual",
+    project_board: "projectsPage.sources.projectBoard",
+    rh: "projectsPage.sources.hr",
+    payroll: "projectsPage.sources.payroll",
+    Production: "projectsPage.sources.production",
+    Conformité: "projectsPage.sources.compliance",
+    Vente: "projectsPage.sources.sales",
+    RH: "projectsPage.sources.hr",
+    Finance: "projectsPage.sources.finance",
+    Tech: "projectsPage.sources.tech",
   };
-  return MAP[source] ?? source ?? "Général";
+  return MAP[source] ? tr(MAP[source]) : source || tr("projectsPage.sources.manual");
 }
 
 /* ── Description renderer ───────────────────────────────────────────── */
-function renderDescription(text: string) {
+function renderDescription(text: string, tr: TFunction) {
   if (!text?.trim())
-    return <p className="text-sm italic text-stone-400">Aucune description fournie.</p>;
+    return <p className="text-sm italic text-stone-400">{tr("projectsPage.description.empty")}</p>;
   return (
     <div className="space-y-1.5">
       {text.split("\n").map((line, i) =>
@@ -146,6 +158,7 @@ function TaskDetailModal({
   onAdvance: (id: number, status: string) => void;
   onProofUploaded: (updated: Task) => void;
 }) {
+  const { t: tr } = useTranslation();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -154,7 +167,7 @@ function TaskDetailModal({
   const nextStatus: Record<string, string> = { todo: "doing", doing: "review", review: "done" };
   const canMove = Boolean(nextStatus[task.status]) && task.can_update;
   const overdue = isOverdue(task.due_date, task.status);
-  const assigneeName = task.assignee_name || "Non assigné";
+  const assigneeName = task.assignee_name || tr("projectsPage.common.unassigned");
 
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -172,7 +185,7 @@ function TaskDetailModal({
       setProofFile(null);
       setProofPreview(null);
     } catch {
-      toast.error("Erreur lors de l'envoi du fichier.");
+      toast.error(tr("projectsPage.errors.upload"));
     } finally {
       setProofUploading(false);
     }
@@ -201,24 +214,24 @@ function TaskDetailModal({
                 const col = COLUMNS.find((c) => c.key === task.status);
                 return col ? (
                   <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${col.badgeBg} ${col.badgeText}`}>
-                    {col.label}
+                    {tr(col.labelTk)}
                   </span>
                 ) : null;
               })()}
               <PriorityBadge priority={task.priority} />
               {task.assigned_to_me && (
-                <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">À moi</span>
+                <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">{tr("projectsPage.badges.mine")}</span>
               )}
               {overdue && (
                 <span className="flex items-center gap-0.5 rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                  <AlertTriangle size={9} /> En retard
+                  <AlertTriangle size={9} /> {tr("projectsPage.badges.late")}
                 </span>
               )}
               {task.proof_url && (
-                <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">Preuve ✓</span>
+                <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">{tr("projectsPage.proof.depositedShort")}</span>
               )}
               {task.proof_required && !task.proof_url && (
-                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">Justificatif requis</span>
+                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">{tr("projectsPage.proof.requiredDoc")}</span>
               )}
             </div>
             <p className="text-base font-black leading-snug text-[#17211f] dark:text-white">{task.title}</p>
@@ -228,7 +241,7 @@ function TaskDetailModal({
               <button
                 onClick={() => { onClose(); onEdit(task); }}
                 className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-violet-50 hover:text-violet-600 transition"
-                title="Modifier"
+                title={tr("common.edit")}
               >
                 <Edit3 size={15} />
               </button>
@@ -250,7 +263,7 @@ function TaskDetailModal({
             <div className="flex items-center gap-2 rounded-xl border border-black/[0.05] bg-stone-50 px-3 py-2.5 dark:border-white/[0.05] dark:bg-white/[0.03]">
               <User2 size={14} className="shrink-0 text-stone-400" />
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Responsable</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.assignee")}</p>
                 <p className="truncate text-sm font-semibold text-[#17211f] dark:text-white">{assigneeName}</p>
               </div>
             </div>
@@ -260,7 +273,7 @@ function TaskDetailModal({
               }`}>
                 <CalendarDays size={14} className={`shrink-0 ${overdue ? "text-red-400" : "text-stone-400"}`} />
                 <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${overdue ? "text-red-400" : "text-stone-400"}`}>Échéance</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${overdue ? "text-red-400" : "text-stone-400"}`}>{tr("projectsPage.fields.dueDate")}</p>
                   <p className={`text-sm font-semibold ${overdue ? "text-red-700" : "text-[#17211f] dark:text-white"}`}>
                     {shortDateTime(task.due_date, task.due_time)}
                   </p>
@@ -271,8 +284,8 @@ function TaskDetailModal({
               <div className="flex items-center gap-2 rounded-xl border border-black/[0.05] bg-stone-50 px-3 py-2.5 dark:border-white/[0.05] dark:bg-white/[0.03]">
                 <FileText size={14} className="shrink-0 text-stone-400" />
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Source</p>
-                  <p className="text-sm font-semibold capitalize text-[#17211f] dark:text-white">{catLabel(task.source)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.source")}</p>
+                  <p className="text-sm font-semibold capitalize text-[#17211f] dark:text-white">{catLabel(task.source, tr)}</p>
                 </div>
               </div>
             )}
@@ -284,9 +297,9 @@ function TaskDetailModal({
               }`}>
                 <ShieldCheck size={14} className={`shrink-0 ${task.proof_url ? "text-emerald-500" : "text-amber-500"}`} />
                 <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${task.proof_url ? "text-emerald-500" : "text-amber-500"}`}>Justificatif</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${task.proof_url ? "text-emerald-500" : "text-amber-500"}`}>{tr("projectsPage.proof.justification")}</p>
                   <p className={`text-sm font-semibold ${task.proof_url ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
-                    {task.proof_url ? "Preuve déposée ✓" : "Obligatoire"}
+                    {task.proof_url ? tr("projectsPage.proof.depositedShort") : tr("projectsPage.proof.required")}
                   </p>
                 </div>
               </div>
@@ -295,16 +308,16 @@ function TaskDetailModal({
 
           {/* Description */}
           <div>
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">Description & Consignes</p>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">{tr("projectsPage.fields.descriptionInstructions")}</p>
             <div className="rounded-xl border border-black/[0.06] bg-stone-50 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.02]">
-              {renderDescription(task.description)}
+              {renderDescription(task.description, tr)}
             </div>
           </div>
 
           {/* Preuve déjà déposée */}
           {task.proof_url && (
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">Preuve déposée</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">{tr("projectsPage.proof.deposited")}</p>
               <div className="overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                 {fileIsVideo(task.proof_url) ? (
                   <video src={`${API_BASE}${task.proof_url}`} controls className="max-h-52 w-full object-contain" />
@@ -313,11 +326,11 @@ function TaskDetailModal({
                     <FileText size={22} className="text-emerald-600" />
                     <a href={`${API_BASE}${task.proof_url}`} target="_blank" rel="noopener noreferrer"
                       className="text-sm font-semibold text-emerald-700 hover:underline">
-                      Voir le document PDF →
+                      {tr("projectsPage.proof.viewPdf")}
                     </a>
                   </div>
                 ) : (
-                  <img src={`${API_BASE}${task.proof_url}`} alt="Preuve" className="max-h-52 w-full object-contain" />
+                  <img src={`${API_BASE}${task.proof_url}`} alt={tr("projectsPage.proof.alt")} className="max-h-52 w-full object-contain" />
                 )}
               </div>
             </div>
@@ -327,7 +340,7 @@ function TaskDetailModal({
           {(task.assigned_to_me || task.can_update) && (
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">
-                {task.proof_url ? "Remplacer la preuve" : task.proof_required ? "Joindre une preuve (obligatoire)" : "Joindre un fichier"}
+                {task.proof_url ? tr("projectsPage.proof.replace") : task.proof_required ? tr("projectsPage.proof.attachRequired") : tr("projectsPage.proof.attachFile")}
               </p>
 
               {/* Prévisualisation */}
@@ -341,7 +354,7 @@ function TaskDetailModal({
                       <span className="truncate text-sm font-semibold text-[#17211f] dark:text-white">{proofFile.name}</span>
                     </div>
                   ) : (
-                    <img src={proofPreview} alt="Prévisualisation" className="max-h-40 w-full object-contain" />
+                    <img src={proofPreview} alt={tr("projectsPage.proof.previewAlt")} className="max-h-40 w-full object-contain" />
                   )}
                 </div>
               )}
@@ -354,9 +367,9 @@ function TaskDetailModal({
                   onClick={() => fileInputRef.current?.click()}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.10] bg-stone-50 py-3 text-sm font-semibold text-stone-500 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 dark:border-white/[0.08] dark:bg-white/[0.02]"
                 >
-                  <Image size={15} />Photo / Image
+                  <Image size={15} />{tr("projectsPage.proof.photoImage")}
                   <span className="text-stone-300">·</span>
-                  <Video size={15} />Vidéo
+                  <Video size={15} />{tr("projectsPage.proof.video")}
                   <span className="text-stone-300">·</span>
                   <FileText size={15} />PDF
                 </button>
@@ -370,11 +383,11 @@ function TaskDetailModal({
                     {proofUploading
                       ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                       : <Upload size={15} />}
-                    {proofUploading ? "Envoi…" : "Envoyer"}
+                    {proofUploading ? tr("projectsPage.proof.uploading") : tr("projectsPage.proof.send")}
                   </button>
                 )}
               </div>
-              <p className="mt-1.5 text-[10px] text-stone-400">Formats acceptés : image (JPG, PNG, GIF), vidéo (MP4, MOV, WebM) ou PDF · max 50 Mo</p>
+              <p className="mt-1.5 text-[10px] text-stone-400">{tr("projectsPage.proof.acceptedFormats")}</p>
             </div>
           )}
         </div>
@@ -383,7 +396,7 @@ function TaskDetailModal({
         <div className="shrink-0 flex gap-2 border-t border-black/[0.05] bg-white px-5 py-3 dark:border-white/[0.06] dark:bg-[#1e2229]">
           {!task.can_update && (
             <p className="mr-auto flex items-center gap-1 text-xs font-semibold text-stone-400">
-              <Lock size={12} /> Lecture seule
+              <Lock size={12} /> {tr("projectsPage.common.readOnly")}
             </p>
           )}
           {canMove && (
@@ -392,10 +405,10 @@ function TaskDetailModal({
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
             >
               {task.status === "review"
-                ? <><CheckCircle2 size={15} /> Marquer terminé</>
+                ? <><CheckCircle2 size={15} /> {tr("projectsPage.actions.markDone")}</>
                 : task.status === "doing"
-                  ? <><ArrowRight size={15} /> Passer en Revue</>
-                  : <><ArrowRight size={15} /> Démarrer</>
+                  ? <><ArrowRight size={15} /> {tr("projectsPage.actions.moveToReview")}</>
+                  : <><ArrowRight size={15} /> {tr("projectsPage.actions.start")}</>
               }
             </button>
           )}
@@ -403,7 +416,7 @@ function TaskDetailModal({
             onClick={onClose}
             className="flex items-center justify-center rounded-xl border border-black/[0.06] px-4 py-2.5 text-sm font-bold text-stone-600 transition hover:bg-stone-50 dark:border-white/[0.08] dark:text-white dark:hover:bg-white/5"
           >
-            Fermer
+            {tr("common.close")}
           </button>
         </div>
       </div>
@@ -413,10 +426,11 @@ function TaskDetailModal({
 
 /* ── Priority badge ──────────────────────────────────────────────────── */
 function PriorityBadge({ priority }: { priority: string }) {
+  const { t: tr } = useTranslation();
   if (priority === "high")
-    return <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">Priorité haute</span>;
+    return <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">{tr("projectsPage.priority.highBadge")}</span>;
   if (priority === "low")
-    return <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500">Basse</span>;
+    return <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500">{tr("projectsPage.priority.low")}</span>;
   return null;
 }
 
@@ -436,6 +450,7 @@ function TaskCard({
   onDelete: (task: TaskEx) => void;
   onView: (task: TaskEx) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [showAssign, setShowAssign] = useState(false);
   const nextStatus: Record<string, string> = { todo: "doing", doing: "review", review: "done" };
   const cat = task.source || "manual";
@@ -464,27 +479,27 @@ function TaskCard({
         {/* Tags row */}
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
           <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${catColor(cat)}`}>
-            {catLabel(cat)}
+            {catLabel(cat, tr)}
           </span>
           {task.assigned_to_me && (
-            <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">À moi</span>
+            <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">{tr("projectsPage.badges.mine")}</span>
           )}
           <PriorityBadge priority={task.priority} />
           {locked && (
             <span className="flex items-center gap-0.5 rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-400">
-              <Lock size={9} /> Lecture
+              <Lock size={9} /> {tr("projectsPage.common.read")}
             </span>
           )}
           {overdue && (
             <span className="ml-auto flex items-center gap-0.5 rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-              <AlertTriangle size={9} /> Retard
+              <AlertTriangle size={9} /> {tr("projectsPage.badges.lateShort")}
             </span>
           )}
           {task.proof_required && !task.proof_url && (
-            <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">Justif.</span>
+            <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">{tr("projectsPage.proof.requiredShort")}</span>
           )}
           {task.proof_url && (
-            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">Preuve ✓</span>
+            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">{tr("projectsPage.proof.depositedShort")}</span>
           )}
         </div>
 
@@ -507,7 +522,7 @@ function TaskCard({
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-[#17211f] dark:text-white">
-              {task.assignee_name || <span className="text-stone-400 font-normal italic">Non assigné</span>}
+              {task.assignee_name || <span className="text-stone-400 font-normal italic">{tr("projectsPage.common.unassigned")}</span>}
             </p>
             {task.due_date && (
               <p className={`text-[10px] flex items-center gap-0.5 font-medium ${overdue ? "text-red-500" : "text-stone-400"}`}>
@@ -520,12 +535,12 @@ function TaskCard({
               onClick={(e) => { e.stopPropagation(); onMove(task.id, nextStatus[task.status]);  }}
               className="shrink-0 flex items-center gap-1 rounded-lg border border-black/[0.07] px-2 py-1 text-[11px] font-semibold text-stone-500 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 transition dark:border-white/[0.08] dark:text-white/50"
             >
-              → Avancer
+              {tr("projectsPage.actions.advance")}
             </button>
           )}
           {!canMove && task.status === "done" && (
             <span className="shrink-0 flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-              <CheckCircle2 size={10} /> Fait
+              <CheckCircle2 size={10} /> {tr("projectsPage.status.doneShort")}
             </span>
           )}
         </div>
@@ -537,9 +552,9 @@ function TaskCard({
             <button
               onClick={(e) => { e.stopPropagation(); onView(task); }}
               className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2 py-1 text-[10px] font-semibold text-stone-500 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 transition"
-              title="Voir le détail"
+              title={tr("projectsPage.actions.viewDetail")}
             >
-              <Eye size={10} /> Voir
+              <Eye size={10} /> {tr("projectsPage.actions.view")}
             </button>
             {/* Assigner */}
             <div className="relative">
@@ -548,7 +563,7 @@ function TaskCard({
                 disabled={!task.can_delete}
                 className="flex items-center gap-1 rounded-lg border border-black/[0.06] px-2 py-1 text-[10px] font-semibold text-stone-500 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
               >
-                <UserPlus size={10} /> Assigner <ChevronDown size={9} />
+                <UserPlus size={10} /> {tr("projectsPage.actions.assign")} <ChevronDown size={9} />
               </button>
               {showAssign && (
                 <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-black/[0.08] bg-white shadow-xl dark:border-white/10 dark:bg-[#1e2229]">
@@ -557,7 +572,7 @@ function TaskCard({
                       onClick={(e) => { e.stopPropagation(); onAssign(task.id, ""); setShowAssign(false); }}
                       className="w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-500 hover:bg-stone-50"
                     >
-                      — Non assigné
+                      {tr("projectsPage.common.unassigned")}
                     </button>
                     {employees.map((emp) => {
                       const name = `${emp.first_name} ${emp.last_name}`.trim();
@@ -584,14 +599,14 @@ function TaskCard({
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit(task); }}
                   className="grid h-6 w-6 place-items-center rounded-lg border border-black/[0.06] text-stone-400 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600 transition"
-                  title="Modifier"
+                  title={tr("common.edit")}
                 >
                   <Edit3 size={11} />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onDelete(task); }}
                   className="grid h-6 w-6 place-items-center rounded-lg border border-black/[0.06] text-stone-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition"
-                  title="Supprimer"
+                  title={tr("common.delete")}
                 >
                   <Trash2 size={11} />
                 </button>
@@ -608,6 +623,7 @@ function TaskCard({
 /* ── Main page ──────────────────────────────────────────────────────── */
 /* ══════════════════════════════════════════════════════════════════════ */
 export function ProjectsPage() {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -663,9 +679,9 @@ export function ProjectsPage() {
   }
   async function confirmDelete(task: TaskEx) {
     const ok = await confirm({
-      title: "Supprimer cette tâche ?",
+      title: tr("projectsPage.confirmDelete.title"),
       message: task.title,
-      confirmLabel: "Supprimer",
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (!ok) return;
@@ -694,8 +710,8 @@ export function ProjectsPage() {
         {/* Title row */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
-            <p className="text-sm font-semibold text-emerald-600">Projets</p>
-            <h1 className="text-3xl font-black text-[#17211f] dark:text-white">Boards &amp; Projets</h1>
+            <p className="text-sm font-semibold text-emerald-600">{tr("projectsPage.header.eyebrow")}</p>
+            <h1 className="text-3xl font-black text-[#17211f] dark:text-white">{tr("projectsPage.header.title")}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Search */}
@@ -704,7 +720,7 @@ export function ProjectsPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher une tâche…"
+                placeholder={tr("projectsPage.search.placeholder")}
                 className="w-40 bg-transparent text-sm text-[#17211f] outline-none placeholder:text-stone-400 dark:text-white"
               />
               {search && <button onClick={() => setSearch("")} className="text-stone-400 hover:text-stone-600"><X size={12} /></button>}
@@ -718,7 +734,7 @@ export function ProjectsPage() {
                   : "border-black/[0.08] bg-white text-stone-600 hover:border-emerald-200 hover:bg-emerald-50 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
               }`}
             >
-              <Filter size={14} /> Filtres
+              <Filter size={14} /> {tr("projectsPage.filters.title")}
               {priorityFilter && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">1</span>}
             </button>
             {/* Agenda */}
@@ -726,7 +742,7 @@ export function ProjectsPage() {
               onClick={() => navigate("/calendar")}
               className="flex items-center gap-2 rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-50 transition dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
             >
-              <CalendarDays size={14} /> Agenda
+              <CalendarDays size={14} /> {tr("projectsPage.actions.agenda")}
             </button>
             {/* New task */}
             <button
@@ -734,7 +750,7 @@ export function ProjectsPage() {
               disabled={!canManageTasks && !user?.employee_id}
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition disabled:bg-stone-300"
             >
-              <Plus size={15} /> Nouvelle tâche
+              <Plus size={15} /> {tr("projectsPage.actions.newTask")}
             </button>
           </div>
         </div>
@@ -742,8 +758,13 @@ export function ProjectsPage() {
         {/* Filters panel */}
         {showFilters && (
           <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-black/[0.06] bg-white px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-[#252931]">
-            <span className="self-center text-[11px] font-bold uppercase tracking-wide text-stone-400">Priorité :</span>
-            {[["", "Toutes"], ["high", "Haute"], ["normal", "Normale"], ["low", "Basse"]].map(([val, label]) => (
+            <span className="self-center text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.filters.priority")}</span>
+            {[
+              ["", tr("projectsPage.filters.all")],
+              ["high", tr("projectsPage.priority.high")],
+              ["normal", tr("projectsPage.priority.normal")],
+              ["low", tr("projectsPage.priority.low")],
+            ].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setPriorityFilter(val)}
@@ -762,24 +783,24 @@ export function ProjectsPage() {
         {/* KPI chips */}
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white px-3.5 py-2 shadow-sm dark:border-white/[0.06] dark:bg-[#252931]">
-            <span className="text-xs font-semibold text-stone-500">{total} tâches</span>
+            <span className="text-xs font-semibold text-stone-500">{tr("projectsPage.kpi.total", { count: total })}</span>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2 dark:border-blue-500/20 dark:bg-blue-500/10">
             <span className="h-2 w-2 rounded-full bg-blue-500" />
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{inProgress} en cours</span>
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{tr("projectsPage.kpi.inProgress", { count: inProgress })}</span>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-2 dark:border-amber-500/20 dark:bg-amber-500/10">
             <span className="h-2 w-2 rounded-full bg-amber-400" />
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{inReview} en revue</span>
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{tr("projectsPage.kpi.inReview", { count: inReview })}</span>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2 dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{done} terminé</span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{tr("projectsPage.kpi.done", { count: done })}</span>
           </div>
           {late > 0 && (
             <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2 dark:border-red-500/20 dark:bg-red-500/10">
               <AlertTriangle size={12} className="text-red-500" />
-              <span className="text-xs font-bold text-red-700 dark:text-red-300">{late} en retard</span>
+              <span className="text-xs font-bold text-red-700 dark:text-red-300">{tr("projectsPage.kpi.late", { count: late })}</span>
             </div>
           )}
         </div>
@@ -799,7 +820,7 @@ export function ProjectsPage() {
               <div className={`flex shrink-0 items-center justify-between px-4 py-3 ${col.headerBg}`}>
                 <div className="flex items-center gap-2">
                   <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${col.badgeBg} ${col.badgeText}`}>
-                    {col.label}
+                    {tr(col.labelTk)}
                   </span>
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.07] text-[11px] font-bold text-stone-600 dark:bg-white/10 dark:text-white/60">
                     {cards.length}
@@ -827,7 +848,7 @@ export function ProjectsPage() {
                         if (e.key === "Enter" && newTitle.trim()) createTask.mutate({ title: newTitle.trim(), status: col.key });
                         if (e.key === "Escape") { setNewTaskCol(null); setNewTitle(""); }
                       }}
-                      placeholder="Titre de la tâche…"
+                      placeholder={tr("projectsPage.form.titlePlaceholder")}
                       className="w-full bg-transparent text-sm font-semibold text-[#17211f] outline-none placeholder:font-normal placeholder:text-stone-400 dark:text-white"
                     />
                     <div className="mt-3 space-y-2">
@@ -837,7 +858,7 @@ export function ProjectsPage() {
                         disabled={!canManageTasks}
                         className="w-full rounded-xl border border-black/[0.08] bg-stone-50 px-3 py-1.5 text-xs font-semibold text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                       >
-                        <option value="">{canManageTasks ? "Responsable…" : "Assigné à moi"}</option>
+                        <option value="">{canManageTasks ? tr("projectsPage.form.assigneePlaceholder") : tr("projectsPage.form.assignedToMe")}</option>
                         {(employees.data ?? []).map((emp) => {
                           const name = `${emp.first_name} ${emp.last_name}`.trim();
                           return <option key={emp.id} value={name}>{name}</option>;
@@ -849,16 +870,16 @@ export function ProjectsPage() {
                           onChange={(e) => setNewPriority(e.target.value)}
                           className="rounded-xl border border-black/[0.08] bg-stone-50 px-2 py-1.5 text-xs font-semibold text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                         >
-                          <option value="low">Basse</option>
-                          <option value="normal">Normale</option>
-                          <option value="high">Haute</option>
+                          <option value="low">{tr("projectsPage.priority.low")}</option>
+                          <option value="normal">{tr("projectsPage.priority.normal")}</option>
+                          <option value="high">{tr("projectsPage.priority.high")}</option>
                         </select>
                         <input
                           type="date"
                           value={newDueDate}
                           onChange={(e) => setNewDueDate(e.target.value)}
                           className="rounded-xl border border-black/[0.08] bg-stone-50 px-2 py-1.5 text-xs outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
-                          placeholder="Échéance"
+                          placeholder={tr("projectsPage.fields.dueDate")}
                         />
                       </div>
                       {newDueDate && (
@@ -869,9 +890,9 @@ export function ProjectsPage() {
                             value={newDueTime}
                             onChange={(e) => setNewDueTime(e.target.value)}
                             className="flex-1 bg-transparent text-xs text-[#17211f] outline-none dark:text-white"
-                            placeholder="Heure (optionnel)"
+                            placeholder={tr("projectsPage.fields.timeOptional")}
                           />
-                          <span className="text-[10px] text-stone-400">heure</span>
+                          <span className="text-[10px] text-stone-400">{tr("projectsPage.fields.timeShort")}</span>
                         </div>
                       )}
                     </div>
@@ -881,7 +902,7 @@ export function ProjectsPage() {
                         disabled={createTask.isPending || !newTitle.trim()}
                         className="flex-1 rounded-xl bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40 transition"
                       >
-                        {createTask.isPending ? "Ajout…" : "Ajouter"}
+                        {createTask.isPending ? tr("projectsPage.actions.adding") : tr("common.add")}
                       </button>
                       <button
                         onClick={() => { setNewTaskCol(null); setNewTitle(""); }}
@@ -911,12 +932,12 @@ export function ProjectsPage() {
                 {cards.length === 0 && newTaskCol !== col.key && (
                   <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-black/[0.08] p-8 text-center dark:border-white/[0.08]">
                     <EmptyIcon size={20} className="text-stone-300" />
-                    <p className="text-xs text-stone-400">Aucune tâche</p>
+                    <p className="text-xs text-stone-400">{tr("projectsPage.empty.column")}</p>
                     <button
                       onClick={() => setNewTaskCol(col.key)}
                       className="text-xs font-semibold text-emerald-600 hover:underline"
                     >
-                      + Ajouter
+                      {tr("projectsPage.actions.addInline")}
                     </button>
                   </div>
                 )}
@@ -957,8 +978,8 @@ export function ProjectsPage() {
                 <Edit3 size={16} className="text-violet-600 dark:text-violet-400" />
               </div>
               <div className="flex-1">
-                <p className="font-black text-[#17211f] dark:text-white">Modifier la tâche</p>
-                <p className="text-xs text-stone-400">Chaque modification est tracée dans le journal d'audit.</p>
+                <p className="font-black text-[#17211f] dark:text-white">{tr("projectsPage.edit.title")}</p>
+                <p className="text-xs text-stone-400">{tr("projectsPage.edit.subtitle")}</p>
               </div>
               <button onClick={() => setEditingTask(null)} className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-stone-100 transition dark:hover:bg-white/10">
                 <X size={15} />
@@ -969,7 +990,7 @@ export function ProjectsPage() {
             <div className="space-y-4 p-6">
               {/* Titre */}
               <div>
-                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Titre *</label>
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.title")}</label>
                 <input
                   autoFocus
                   value={editForm.title}
@@ -980,25 +1001,25 @@ export function ProjectsPage() {
 
               {/* Description */}
               <div>
-                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Description / Consignes</label>
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.descriptionInstructions")}</label>
                 <textarea
                   rows={3}
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  placeholder="Instructions, consignes, contexte…"
+                  placeholder={tr("projectsPage.form.descriptionPlaceholder")}
                   className="w-full rounded-xl border border-black/[0.08] px-3 py-2.5 text-sm text-[#17211f] outline-none focus:border-violet-400 transition resize-none dark:border-white/[0.08] dark:bg-white/5 dark:text-white"
                 />
               </div>
 
               {/* Assigné */}
               <div>
-                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Responsable</label>
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.assignee")}</label>
                 <select
                   value={editForm.assignee_name}
                   onChange={(e) => setEditForm({ ...editForm, assignee_name: e.target.value })}
                   className="w-full rounded-xl border border-black/[0.08] px-3 py-2.5 text-sm text-[#17211f] outline-none focus:border-violet-400 transition dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                 >
-                  <option value="">— Non assigné —</option>
+                  <option value="">{tr("projectsPage.common.unassigned")}</option>
                   {(employees.data ?? []).map((emp) => {
                     const name = `${emp.first_name} ${emp.last_name}`.trim();
                     return <option key={emp.id} value={name}>{name}</option>;
@@ -1009,25 +1030,25 @@ export function ProjectsPage() {
               {/* Statut / Priorité */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Statut</label>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("common.status")}</label>
                   <select
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                     className="w-full rounded-xl border border-black/[0.08] px-3 py-2.5 text-sm text-[#17211f] outline-none focus:border-violet-400 transition dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                   >
-                    {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    {COLUMNS.map((c) => <option key={c.key} value={c.key}>{tr(c.labelTk)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Priorité</label>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.priority")}</label>
                   <select
                     value={editForm.priority}
                     onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
                     className="w-full rounded-xl border border-black/[0.08] px-3 py-2.5 text-sm text-[#17211f] outline-none focus:border-violet-400 transition dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                   >
-                    <option value="low">Basse</option>
-                    <option value="normal">Normale</option>
-                    <option value="high">Haute</option>
+                    <option value="low">{tr("projectsPage.priority.low")}</option>
+                    <option value="normal">{tr("projectsPage.priority.normal")}</option>
+                    <option value="high">{tr("projectsPage.priority.high")}</option>
                   </select>
                 </div>
               </div>
@@ -1035,7 +1056,7 @@ export function ProjectsPage() {
               {/* Échéance + Heure */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Échéance</label>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.dueDate")}</label>
                   <input
                     type="date"
                     value={editForm.due_date}
@@ -1044,7 +1065,7 @@ export function ProjectsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">Heure <span className="normal-case font-normal">(optionnel)</span></label>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("projectsPage.fields.time")} <span className="normal-case font-normal">{tr("projectsPage.fields.optionalParen")}</span></label>
                   <div className="flex items-center gap-2 rounded-xl border border-black/[0.08] px-3 py-2.5 focus-within:border-violet-400 transition dark:border-white/[0.08] dark:bg-[#1e2229]">
                     <Clock3 size={13} className="shrink-0 text-stone-400" />
                     <input
@@ -1065,8 +1086,8 @@ export function ProjectsPage() {
                 }`}
               >
                 <div>
-                  <p className="text-sm font-bold text-[#17211f] dark:text-white">Preuve requise</p>
-                  <p className="text-xs text-stone-400">Le responsable doit joindre un justificatif</p>
+                  <p className="text-sm font-bold text-[#17211f] dark:text-white">{tr("projectsPage.proof.requiredToggle")}</p>
+                  <p className="text-xs text-stone-400">{tr("projectsPage.proof.requiredHint")}</p>
                 </div>
                 <div className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${editForm.proof_required ? "bg-amber-500" : "bg-stone-200 dark:bg-white/20"}`}>
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${editForm.proof_required ? "translate-x-4" : "translate-x-0"}`} />
@@ -1080,7 +1101,7 @@ export function ProjectsPage() {
                 disabled={!editForm.title.trim() || updateTask.isPending}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-40"
               >
-                {updateTask.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
+                {updateTask.isPending ? tr("common.saving") : tr("projectsPage.edit.save")}
               </button>
             </div>
           </div>
@@ -1090,7 +1111,7 @@ export function ProjectsPage() {
       {/* ── Limule FAB ────────────────────────────────────────────────── */}
       <button
         onClick={() => navigate("/assistants")}
-        title="Ouvrir le studio Limule"
+        title={tr("projectsPage.actions.openLimuleStudio")}
         className="fixed right-6 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#0b1f3a] shadow-lg transition hover:scale-105 hover:shadow-xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       >
         <LimuleIcon size={24} />

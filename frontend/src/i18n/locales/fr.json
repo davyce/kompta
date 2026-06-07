@@ -2393,7 +2393,8 @@
     "name": "Nom",
     "actions": "Actions",
     "total": "Total",
-    "new": "Nouveau"
+    "new": "Nouveau",
+    "notDefined": "Non défini"
   },
   "nav": {
     "globalSearch": "Recherche globale…",
@@ -4214,5 +4215,142 @@
     "trustEncrypted": "Chiffré",
     "trustMultitenant": "Multi-tenant",
     "footer": "KOMPTA · v2.0 · Propulsé par Limule"
+  },
+  "projectsPage": {
+    "header": {
+      "eyebrow": "Projets",
+      "title": "Boards & Projets"
+    },
+    "status": {
+      "todo": "À faire",
+      "doing": "En cours",
+      "review": "Revue",
+      "done": "Terminé",
+      "doneShort": "Fait"
+    },
+    "priority": {
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute",
+      "highBadge": "Priorité haute"
+    },
+    "sources": {
+      "teras": "TERAS",
+      "limule": "Limule",
+      "manual": "Général",
+      "projectBoard": "Projet",
+      "hr": "RH",
+      "payroll": "Paie",
+      "production": "Production",
+      "compliance": "Conformité",
+      "sales": "Vente",
+      "finance": "Finance",
+      "tech": "Tech"
+    },
+    "common": {
+      "unassigned": "— Non assigné —",
+      "readOnly": "Lecture seule",
+      "read": "Lecture"
+    },
+    "badges": {
+      "mine": "À moi",
+      "late": "En retard",
+      "lateShort": "Retard"
+    },
+    "fields": {
+      "assignee": "Responsable",
+      "dueDate": "Échéance",
+      "source": "Source",
+      "descriptionInstructions": "Description & Consignes",
+      "title": "Titre *",
+      "priority": "Priorité",
+      "time": "Heure",
+      "timeShort": "heure",
+      "timeOptional": "Heure (optionnel)",
+      "optionalParen": "(optionnel)"
+    },
+    "description": {
+      "empty": "Aucune description fournie."
+    },
+    "proof": {
+      "justification": "Justificatif",
+      "depositedShort": "Preuve ✓",
+      "requiredDoc": "Justificatif requis",
+      "required": "Obligatoire",
+      "deposited": "Preuve déposée",
+      "viewPdf": "Voir le document PDF →",
+      "alt": "Preuve",
+      "replace": "Remplacer la preuve",
+      "attachRequired": "Joindre une preuve (obligatoire)",
+      "attachFile": "Joindre un fichier",
+      "previewAlt": "Prévisualisation",
+      "photoImage": "Photo / Image",
+      "video": "Vidéo",
+      "uploading": "Envoi…",
+      "send": "Envoyer",
+      "acceptedFormats": "Formats acceptés : image (JPG, PNG, GIF), vidéo (MP4, MOV, WebM) ou PDF · max 50 Mo",
+      "requiredShort": "Justif.",
+      "requiredToggle": "Preuve requise",
+      "requiredHint": "Le responsable doit joindre un justificatif"
+    },
+    "actions": {
+      "markDone": "Marquer terminé",
+      "moveToReview": "Passer en Revue",
+      "start": "Démarrer",
+      "advance": "→ Avancer",
+      "viewDetail": "Voir le détail",
+      "view": "Voir",
+      "assign": "Assigner",
+      "agenda": "Agenda",
+      "newTask": "Nouvelle tâche",
+      "adding": "Ajout…",
+      "addInline": "+ Ajouter",
+      "openLimuleStudio": "Ouvrir le studio Limule"
+    },
+    "filters": {
+      "title": "Filtres",
+      "priority": "Priorité :",
+      "all": "Toutes"
+    },
+    "search": {
+      "placeholder": "Rechercher une tâche…"
+    },
+    "kpi": {
+      "total": "{{count}} tâche",
+      "total_one": "{{count}} tâche",
+      "total_other": "{{count}} tâches",
+      "inProgress": "{{count}} en cours",
+      "inProgress_one": "{{count}} en cours",
+      "inProgress_other": "{{count}} en cours",
+      "inReview": "{{count}} en revue",
+      "inReview_one": "{{count}} en revue",
+      "inReview_other": "{{count}} en revue",
+      "done": "{{count}} terminé",
+      "done_one": "{{count}} terminé",
+      "done_other": "{{count}} terminés",
+      "late": "{{count}} en retard",
+      "late_one": "{{count}} en retard",
+      "late_other": "{{count}} en retard"
+    },
+    "form": {
+      "titlePlaceholder": "Titre de la tâche…",
+      "assigneePlaceholder": "Responsable…",
+      "assignedToMe": "Assigné à moi",
+      "descriptionPlaceholder": "Instructions, consignes, contexte…"
+    },
+    "empty": {
+      "column": "Aucune tâche"
+    },
+    "edit": {
+      "title": "Modifier la tâche",
+      "subtitle": "Chaque modification est tracée dans le journal d'audit.",
+      "save": "Enregistrer les modifications"
+    },
+    "errors": {
+      "upload": "Erreur lors de l'envoi du fichier."
+    },
+    "confirmDelete": {
+      "title": "Supprimer cette tâche ?"
+    }
   }
 }
