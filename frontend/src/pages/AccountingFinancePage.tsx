@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen, Building2, ChevronDown, ChevronRight, Download,
@@ -27,9 +28,9 @@ const SYSCEMAC_CLASSES = [
   { n: 9, label: "CAGE",                   desc: "Comptabilité analytique de gestion (usage interne)",                 c: "#78716c" },
 ];
 
-const TABS = [
-  "Vue d'ensemble", "Dépenses", "Budgets",
-  "Subventions reçues", "Projets / fonds dédiés", "Rapprochement bancaire",
+const TAB_KEYS = [
+  "accounting.tabOverview", "accounting.tabExpenses", "accounting.tabBudgets",
+  "accounting.tabGrants", "accounting.tabProjects", "accounting.tabReconciliation",
 ];
 
 /* ── KPI card ────────────────────────────────────────────────────── */
@@ -68,6 +69,7 @@ function Card({
 
 /* ── main ────────────────────────────────────────────────────────── */
 export function AccountingFinancePage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   // Subscribe to currency changes for reactive re-render
   useCurrency();
@@ -119,8 +121,8 @@ export function AccountingFinancePage() {
       .map((t) => ({
         id: t.id,
         date: t.date,
-        label: t.label || "Transaction",
-        actor: t.category || t.source_type || "bancaire",
+        label: t.label || tr("accounting.transaction"),
+        actor: t.category || t.source_type || tr("accounting.bankCat"),
         amount: t.credit ? t.credit : t.debit ? -t.debit : t.amount,
         tone: (t.credit ?? 0) > 0 || t.amount > 0 ? "green" as const : "red" as const,
       }));
@@ -131,8 +133,8 @@ export function AccountingFinancePage() {
       .map((i) => ({
         id: i.id,
         date: i.created_at?.slice(0, 10) ?? "",
-        label: `Facture ${i.number} — ${i.customer_name}`,
-        actor: i.status === "paid" ? "Encaissé" : i.status === "sent" ? "En attente" : "Brouillon",
+        label: tr("accounting.invoiceLabel", { number: i.number, customer: i.customer_name }),
+        actor: i.status === "paid" ? tr("accounting.collected") : i.status === "sent" ? tr("accounting.pending") : tr("accounting.draft"),
         amount: i.status === "paid" ? +i.total_amount : 0,
         tone: i.status === "paid" ? "green" as const : i.status === "sent" ? "amber" as const : "red" as const,
       }));
@@ -165,14 +167,14 @@ export function AccountingFinancePage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-emerald-600">Comptabilité &amp; finance</p>
+            <p className="text-sm font-semibold text-emerald-600">{tr("accounting.eyebrow")}</p>
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30 tracking-wide">
-              SYSCEMAC RÉVISÉ
+              {tr("accounting.badge")}
             </span>
           </div>
-          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">Finance et Comptabilité</h1>
+          <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">{tr("accounting.title")}</h1>
           <p className="mt-1 text-sm text-[#717182]">
-            {invoices.data?.length ?? 0} factures · Référentiel SYSCEMAC · Devise {currencyLabel()}
+            {tr("accounting.subtitle", { count: invoices.data?.length ?? 0, cur: currencyLabel() })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -180,23 +182,23 @@ export function AccountingFinancePage() {
             onClick={() => setPlanOpen((v) => !v)}
             className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300 transition"
           >
-            <BookOpen size={16} /> Plan comptable SYSCEMAC
+            <BookOpen size={16} /> {tr("accounting.planBtn")}
           </button>
           <button
             onClick={() => setTab(1)}
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
-            <Filter size={16} /> Filtres
+            <Filter size={16} /> {tr("accounting.filters")}
           </button>
           <button
             onClick={exportLedger}
             disabled={(invoices.data?.length ?? 0) === 0}
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] disabled:opacity-50">
-            <Download size={16} /> Export CSV
+            <Download size={16} /> {tr("accounting.exportCsv")}
           </button>
           <button
             onClick={() => navigate("/billing")}
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition">
-            <Plus size={16} /> Nouvelle facture
+            <Plus size={16} /> {tr("accounting.newInvoice")}
           </button>
         </div>
       </div>
@@ -205,11 +207,11 @@ export function AccountingFinancePage() {
       {planOpen && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Plan comptable SYSCEMAC actif — Devise {currencyLabel()}</h3>
-            <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">9 classes</span>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("accounting.planTitle", { cur: currencyLabel() })}</h3>
+            <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{tr("accounting.classes")}</span>
           </div>
           <p className="mb-4 text-sm text-[#717182]">
-            Référentiel comptable SYSCEMAC utilisé en zone CEMACE. Cliquez pour voir le détail des classes.
+            {tr("accounting.planDesc")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {SYSCEMAC_CLASSES.map((cls) => (
@@ -222,7 +224,7 @@ export function AccountingFinancePage() {
                   {cls.n}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-[#17211f] dark:text-white">Classe {cls.n} — {cls.label}</p>
+                  <p className="font-semibold text-[#17211f] dark:text-white">{tr("accounting.classLabel", { n: cls.n, label: cls.label })}</p>
                   <p className={`mt-0.5 text-xs text-[#717182] transition-all ${expanded === cls.n ? "block" : "hidden group-hover:block"}`}>
                     {cls.desc}
                   </p>
@@ -234,11 +236,11 @@ export function AccountingFinancePage() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm">
-            <span className="font-bold text-emerald-800 dark:text-emerald-300">SYSCEMAC Révisé · CEMACE</span>
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">{tr("accounting.planFooter1")}</span>
             <span className="text-emerald-400">·</span>
-            <span className="text-emerald-700 dark:text-emerald-400">En vigueur depuis le 1er janvier 2018</span>
+            <span className="text-emerald-700 dark:text-emerald-400">{tr("accounting.planFooter2")}</span>
             <span className="text-emerald-400">·</span>
-            <span className="text-emerald-700 dark:text-emerald-400">Devise opérationnelle {currencyLabel()}</span>
+            <span className="text-emerald-700 dark:text-emerald-400">{tr("accounting.planFooter3", { cur: currencyLabel() })}</span>
           </div>
         </div>
       )}
@@ -246,7 +248,7 @@ export function AccountingFinancePage() {
       {/* ── Tabs ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-2">
         <div className="flex flex-wrap gap-1">
-          {TABS.map((t, i) => (
+          {TAB_KEYS.map((t, i) => (
             <button
               key={t}
               onClick={() => setTab(i)}
@@ -257,7 +259,7 @@ export function AccountingFinancePage() {
               }`}
             >
               {i === 0 && <Building2 size={15} />}
-              {t}
+              {tr(t)}
             </button>
           ))}
         </div>
@@ -266,16 +268,16 @@ export function AccountingFinancePage() {
       {/* ── KPIs ── */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card
-          label="Trésorerie"
+          label={tr("accounting.kpiTreasury")}
           value={compactMoney(txCount > 0 ? txBalance : cashflowTotalIn - cashflowTotalOut + salesTotal)}
-          detail={txCount > 0 ? `${txCount} transactions bancaires` : `${cashflow.data?.length ?? 0} mois agrégés`}
+          detail={txCount > 0 ? tr("accounting.txBankCount", { count: txCount }) : tr("accounting.monthsAggregated", { count: cashflow.data?.length ?? 0 })}
           icon={WalletCards}
           accent="emerald"
-          delta={txCount > 0 ? "Solde réel" : "Estimé"}
+          delta={txCount > 0 ? tr("accounting.realBalance") : tr("accounting.estimated")}
         />
-        <Card label="Entrées"     value={compactMoney(txCount > 0 ? txCredits  : cashflowTotalIn)}  detail={txCount > 0 ? "Total crédits bancaires" : "Factures + ventes"} icon={Landmark}     accent="emerald" delta={cashflowTotalIn > 0 ? "OK" : "—"}  />
-        <Card label="Sorties"     value={compactMoney(txCount > 0 ? txDebits   : cashflowTotalOut)} detail={txCount > 0 ? "Total débits bancaires"  : "charges + paie"}   icon={HandCoins}    accent="amber"   delta="—" deltaPos={false} />
-        <Card label="Résultat"    value={compactMoney(netResult)}        detail={netResult >= 0 ? "marge positive" : "résultat négatif"} icon={RefreshCcw} accent="emerald" delta={netResult >= 0 ? "+" : "-"} deltaPos={netResult >= 0} />
+        <Card label={tr("accounting.kpiInflows")}     value={compactMoney(txCount > 0 ? txCredits  : cashflowTotalIn)}  detail={txCount > 0 ? tr("accounting.totalCredits") : tr("accounting.invoicesSales")} icon={Landmark}     accent="emerald" delta={cashflowTotalIn > 0 ? "OK" : "—"}  />
+        <Card label={tr("accounting.kpiOutflows")}     value={compactMoney(txCount > 0 ? txDebits   : cashflowTotalOut)} detail={txCount > 0 ? tr("accounting.totalDebits")  : tr("accounting.chargesPayroll")}   icon={HandCoins}    accent="amber"   delta="—" deltaPos={false} />
+        <Card label={tr("accounting.kpiResult")}    value={compactMoney(netResult)}        detail={netResult >= 0 ? tr("accounting.positiveMargin") : tr("accounting.negativeResult")} icon={RefreshCcw} accent="emerald" delta={netResult >= 0 ? "+" : "-"} deltaPos={netResult >= 0} />
       </div>
 
       {/* ── Charts ── */}
@@ -285,12 +287,12 @@ export function AccountingFinancePage() {
         <div className="lg:col-span-2 rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
-              <h3 className="font-bold text-[#17211f] dark:text-white">Flux entrants vs sortants</h3>
-              <p className="text-xs text-[#717182]">12 derniers mois · M {currencyLabel()}</p>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("accounting.inflowsVsOutflows")}</h3>
+              <p className="text-xs text-[#717182]">{tr("accounting.last12months", { cur: currencyLabel() })}</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600"/>Entrées</span>
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500"/>Sorties</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600"/>{tr("accounting.inflows")}</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500"/>{tr("accounting.outflows")}</span>
             </div>
           </div>
           <div className="h-64 p-4">
@@ -320,8 +322,8 @@ export function AccountingFinancePage() {
         {/* Expenses donut */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] flex flex-col">
           <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Structure des dépenses</h3>
-            <p className="text-xs text-[#717182]">Par poste</p>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("accounting.expenseStructure")}</h3>
+            <p className="text-xs text-[#717182]">{tr("accounting.byItem")}</p>
           </div>
           <div className="flex items-center justify-center" style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -365,14 +367,14 @@ export function AccountingFinancePage() {
       {/* ── Recent activity ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
         <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-          <h3 className="font-bold text-[#17211f] dark:text-white">Activité comptable récente</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("accounting.recentActivity")}</h3>
           <button onClick={() => navigate("/billing")} className="flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-            Voir tout <ArrowUpRight size={15}/>
+            {tr("accounting.viewAll")} <ArrowUpRight size={15}/>
           </button>
         </div>
         <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
           {activity.length === 0 && (
-            <p className="px-5 py-8 text-sm text-[#717182]">Aucune activité comptable récente. Les factures apparaîtront ici dès leur création.</p>
+            <p className="px-5 py-8 text-sm text-[#717182]">{tr("accounting.noActivity")}</p>
           )}
           {activity.map((item) => (
             <div key={item.id} className="flex items-center justify-between gap-4 px-5 py-4">
@@ -389,11 +391,11 @@ export function AccountingFinancePage() {
                     <p className="font-semibold text-[#17211f] dark:text-white">{item.label}</p>
                     {item.actor === "Encaissé" && (
                       <span className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                        <Lock size={9} /> Verrouillé
+                        <Lock size={9} /> {tr("accounting.locked")}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-[#717182]">par {item.actor}</p>
+                  <p className="text-sm text-[#717182]">{tr("accounting.by", { actor: item.actor })}</p>
                 </div>
               </div>
               <p className={`text-lg font-extrabold ${item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
@@ -407,8 +409,8 @@ export function AccountingFinancePage() {
       {/* ── SYSCEMAC journals status ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
         <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-          <h3 className="font-bold text-[#17211f] dark:text-white">État des journaux SYSCEMAC</h3>
-          <p className="text-xs text-[#717182]">Calculé en temps réel à partir de tes données</p>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("accounting.journalsTitle")}</h3>
+          <p className="text-xs text-[#717182]">{tr("accounting.journalsDesc")}</p>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-4">
           {/* Journal dynamique des transactions bancaires */}
@@ -417,11 +419,11 @@ export function AccountingFinancePage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">JB</span>
                 <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
-                  À jour
+                  {tr("accounting.upToDate")}
                 </span>
               </div>
-              <p className="mt-2 font-semibold text-[#17211f] dark:text-white">Journal de banque</p>
-              <p className="mt-0.5 text-xs text-[#717182]">{txCount} mouvement{txCount > 1 ? "s" : ""} · Solde {compactMoney(txBalance)}</p>
+              <p className="mt-2 font-semibold text-[#17211f] dark:text-white">{tr("accounting.bankJournal")}</p>
+              <p className="mt-0.5 text-xs text-[#717182]">{tr("accounting.bankMovements", { count: txCount, balance: compactMoney(txBalance) })}</p>
             </div>
           )}
           {(syscemac.data ?? []).map((j) => (
@@ -435,15 +437,15 @@ export function AccountingFinancePage() {
                     ? "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                     : "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
                 }`}>
-                  {j.status === "ready" ? "À jour" : j.status === "draft" ? "Brouillon" : "Vide"}
+                  {j.status === "ready" ? tr("accounting.jStatusReady") : j.status === "draft" ? tr("accounting.jStatusDraft") : tr("accounting.jStatusEmpty")}
                 </span>
               </div>
               <p className="mt-2 font-semibold text-[#17211f] dark:text-white">{j.label}</p>
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <p className="text-xs text-[#717182]">{j.count} écriture{j.count > 1 ? "s" : ""}</p>
+                <p className="text-xs text-[#717182]">{tr("accounting.entriesCount", { count: j.count })}</p>
                 {j.status === "ready" && (
                   <span className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                    <Lock size={9} /> Verrouillé
+                    <Lock size={9} /> {tr("accounting.locked")}
                   </span>
                 )}
               </div>
