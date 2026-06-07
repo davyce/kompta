@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Globe, TrendingUp, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -64,6 +65,7 @@ function KpiCard({ label, value, sub, icon: Icon, color = "violet" }: {
 }
 
 export function AdminAnalyticsPage() {
+  const { t: tr } = useTranslation();
   const [year, setYear] = useState(new Date().getFullYear());
 
   const platform = useQuery({ queryKey: ["adminAnalyticsPlatform"], queryFn: api.adminAnalyticsPlatform });
@@ -74,30 +76,30 @@ export function AdminAnalyticsPage() {
     const monthly = platform.data?.monthly_growth ?? [];
     return monthly.map((m: { month: string; companies: number; users: number }) => ({
       name: m.month,
-      Entreprises: m.companies,
-      Utilisateurs: m.users,
+      companies: m.companies,
+      users: m.users,
     }));
   }, [platform.data]);
 
   const sectorData = useMemo(() => {
     const sectors = platform.data?.companies_by_industry ?? [];
     return sectors.map((s: { industry: string; count: number }) => ({
-      name: s.industry || "Autre",
+      name: s.industry || tr("admin.analytics.other"),
       value: s.count,
     }));
-  }, [platform.data]);
+  }, [platform.data, tr]);
 
   const countryData = useMemo(() => {
     const byCountry: Record<string, number> = {};
     (companies.data ?? []).forEach((c) => {
-      const k = c.country || "Autre";
+      const k = c.country || tr("admin.analytics.other");
       byCountry[k] = (byCountry[k] ?? 0) + 1;
     });
     return Object.entries(byCountry)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
-  }, [companies.data]);
+  }, [companies.data, tr]);
 
   const terasData = useMemo(() => {
     const list = companies.data ?? [];
@@ -130,9 +132,9 @@ export function AdminAnalyticsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Insights</p>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Analytics plateforme</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Croissance, répartition sectorielle et métriques clés.</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{tr("admin.analytics.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.analytics.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.analytics.subtitle")}</p>
         </div>
         <select
           value={year}
@@ -145,15 +147,15 @@ export function AdminAnalyticsPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={TrendingUp} label="CA estimé MRR" value={compactMoney(overview.data?.sales_total ?? 0)} sub="toutes entreprises" color="emerald" />
-        <KpiCard icon={BarChart3} label="Score TERAS moyen" value={avgTeras} sub="toutes entreprises" color="violet" />
-        <KpiCard icon={Users} label="Taux onboarding" value={`${onboardingRate}%`} sub="completion ≥ 80%" color="sky" />
-        <KpiCard icon={Globe} label="Pays couverts" value={countryData.length} sub="actifs sur la plateforme" color="fuchsia" />
+        <KpiCard icon={TrendingUp} label={tr("admin.analytics.kpiMrr")} value={compactMoney(overview.data?.sales_total ?? 0)} sub={tr("admin.analytics.allCompanies")} color="emerald" />
+        <KpiCard icon={BarChart3} label={tr("admin.analytics.kpiAvgTeras")} value={avgTeras} sub={tr("admin.analytics.allCompanies")} color="violet" />
+        <KpiCard icon={Users} label={tr("admin.analytics.kpiOnboarding")} value={`${onboardingRate}%`} sub={tr("admin.analytics.completion80")} color="sky" />
+        <KpiCard icon={Globe} label={tr("admin.analytics.kpiCountries")} value={countryData.length} sub={tr("admin.analytics.activeOnPlatform")} color="fuchsia" />
       </div>
 
       {/* Growth chart */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-        <h2 className="mb-4 font-black text-slate-900 dark:text-white">Croissance mensuelle</h2>
+        <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.analytics.monthlyGrowth")}</h2>
         {growthData.length > 0 ? (
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={growthData} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
@@ -173,13 +175,13 @@ export function AdminAnalyticsPage() {
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
               />
-              <Area type="monotone" dataKey="Entreprises" stroke="#6366f1" fill="url(#gE)" strokeWidth={2} dot={false} />
-              <Area type="monotone" dataKey="Utilisateurs" stroke="#0891b2" fill="url(#gU)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="companies" name={tr("admin.analytics.companies")} stroke="#6366f1" fill="url(#gE)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="users" name={tr("admin.analytics.users")} stroke="#0891b2" fill="url(#gU)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex h-[260px] items-center justify-center text-slate-400 dark:text-white/30">
-            {platform.isLoading ? "Chargement…" : "Données non disponibles"}
+            {platform.isLoading ? tr("common.loading") : tr("admin.analytics.noData")}
           </div>
         )}
       </div>
@@ -188,7 +190,7 @@ export function AdminAnalyticsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Sector pie */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Répartition sectorielle</h2>
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.analytics.sectorBreakdown")}</h2>
           {sectorData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -214,13 +216,13 @@ export function AdminAnalyticsPage() {
               </div>
             </>
           ) : (
-            <div className="h-[200px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">Non disponible</div>
+            <div className="h-[200px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">{tr("admin.analytics.unavailable")}</div>
           )}
         </div>
 
         {/* Country bar */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Distribution par pays</h2>
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.analytics.countryDistribution")}</h2>
           {countryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={countryData} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 0 }}>
@@ -231,13 +233,13 @@ export function AdminAnalyticsPage() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[220px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">Non disponible</div>
+            <div className="h-[220px] flex items-center justify-center text-slate-400 dark:text-white/30 text-sm">{tr("admin.analytics.unavailable")}</div>
           )}
         </div>
 
         {/* TERAS distribution */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Distribution TERAS</h2>
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.analytics.terasDistribution")}</h2>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={terasData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
@@ -254,9 +256,9 @@ export function AdminAnalyticsPage() {
               <div key={d.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: d.fill }} />
-                  <span className="text-slate-500 dark:text-white/60">Score {d.name}</span>
+                  <span className="text-slate-500 dark:text-white/60">{tr("admin.analytics.scoreRange", { range: d.name })}</span>
                 </div>
-                <span className="font-bold text-slate-900 dark:text-white">{d.value} entreprises</span>
+                <span className="font-bold text-slate-900 dark:text-white">{tr("admin.analytics.companiesCount", { count: d.value })}</span>
               </div>
             ))}
           </div>

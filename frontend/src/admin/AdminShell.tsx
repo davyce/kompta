@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../app/AuthContext";
@@ -33,39 +34,39 @@ import i18n from "../i18n";
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
-type NavItem = { to: string; label: string; icon: React.ElementType; end?: boolean; badge?: boolean };
-type NavSection = { label: string; items: NavItem[] };
+type NavItem = { to: string; labelTk: string; icon: React.ElementType; end?: boolean; badge?: boolean };
+type NavSection = { labelTk: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Pilotage",
+    labelTk: "admin.shell.sections.steering",
     items: [
-      { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/admin", labelTk: "admin.shell.nav.dashboard", icon: LayoutDashboard, end: true },
+      { to: "/admin/analytics", labelTk: "admin.shell.nav.analytics", icon: BarChart3 },
     ],
   },
   {
-    label: "Gestion",
+    labelTk: "admin.shell.sections.management",
     items: [
-      { to: "/admin/companies", label: "Entreprises", icon: Building2 },
-      { to: "/admin/subscriptions", label: "Abonnements", icon: CreditCard },
-      { to: "/admin/users", label: "Utilisateurs", icon: Users },
-      { to: "/admin/onboarding", label: "Onboarding", icon: UserCog },
+      { to: "/admin/companies", labelTk: "admin.shell.nav.companies", icon: Building2 },
+      { to: "/admin/subscriptions", labelTk: "admin.shell.nav.subscriptions", icon: CreditCard },
+      { to: "/admin/users", labelTk: "admin.shell.nav.users", icon: Users },
+      { to: "/admin/onboarding", labelTk: "admin.shell.nav.onboarding", icon: UserCog },
     ],
   },
   {
-    label: "Support",
+    labelTk: "admin.shell.sections.support",
     items: [
-      { to: "/admin/tickets", label: "Tickets", icon: LifeBuoy, badge: true },
-      { to: "/admin/broadcast", label: "Broadcast", icon: Megaphone },
+      { to: "/admin/tickets", labelTk: "admin.shell.nav.tickets", icon: LifeBuoy, badge: true },
+      { to: "/admin/broadcast", labelTk: "admin.shell.nav.broadcast", icon: Megaphone },
     ],
   },
   {
-    label: "Système",
+    labelTk: "admin.shell.sections.system",
     items: [
-      { to: "/admin/limule", label: "Grand Sage Limule", icon: BrainCircuit },
-      { to: "/admin/system", label: "Flags & Santé", icon: Flag },
-      { to: "/admin/logs", label: "Audit & Logs", icon: Activity },
+      { to: "/admin/limule", labelTk: "admin.shell.nav.limule", icon: BrainCircuit },
+      { to: "/admin/system", labelTk: "admin.shell.nav.system", icon: Flag },
+      { to: "/admin/logs", labelTk: "admin.shell.nav.logs", icon: Activity },
     ],
   },
 ];
@@ -73,14 +74,15 @@ const NAV_SECTIONS: NavSection[] = [
 // ── Breadcrumb ────────────────────────────────────────────────────────────────
 
 function useBreadcrumb() {
+  const { t: tr } = useTranslation();
   const location = useLocation();
   const path = location.pathname;
-  const segments: { label: string; to?: string }[] = [{ label: "Admin", to: "/admin" }];
-  if (path === "/admin") return [{ label: "Dashboard" }];
+  const segments: { label: string; to?: string }[] = [{ label: tr("admin.shell.breadcrumb.admin"), to: "/admin" }];
+  if (path === "/admin") return [{ label: tr("admin.shell.nav.dashboard") }];
   const map: Record<string, string> = {
-    companies: "Entreprises", users: "Utilisateurs", tickets: "Tickets",
-    limule: "Grand Sage Limule", logs: "Audit & Logs", analytics: "Analytics",
-    broadcast: "Broadcast", system: "Flags & Santé", onboarding: "Onboarding",
+    companies: tr("admin.shell.nav.companies"), users: tr("admin.shell.nav.users"), tickets: tr("admin.shell.nav.tickets"),
+    limule: tr("admin.shell.nav.limule"), logs: tr("admin.shell.nav.logs"), analytics: tr("admin.shell.nav.analytics"),
+    broadcast: tr("admin.shell.nav.broadcast"), system: tr("admin.shell.nav.system"), onboarding: tr("admin.shell.nav.onboarding"),
   };
   const parts = path.replace("/admin/", "").split("/");
   const first = parts[0];
@@ -126,6 +128,7 @@ function SideNavLink({
 // ── Quick Actions ─────────────────────────────────────────────────────────────
 
 function QuickActionsMenu() {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
@@ -139,9 +142,9 @@ function QuickActionsMenu() {
   }, []);
 
   const actions = [
-    { label: "Voir les entreprises", icon: Building2, onClick: () => navigate("/admin/companies") },
-    { label: "Envoyer un broadcast", icon: Megaphone, onClick: () => navigate("/admin/broadcast") },
-    { label: "Gérer les utilisateurs", icon: Users, onClick: () => navigate("/admin/users") },
+    { label: tr("admin.shell.quick.companies"), icon: Building2, onClick: () => navigate("/admin/companies") },
+    { label: tr("admin.shell.quick.broadcast"), icon: Megaphone, onClick: () => navigate("/admin/broadcast") },
+    { label: tr("admin.shell.quick.users"), icon: Users, onClick: () => navigate("/admin/users") },
   ];
 
   return (
@@ -151,7 +154,7 @@ function QuickActionsMenu() {
         className="flex items-center gap-1.5 rounded-xl bg-blue-700 px-3 py-2 text-xs font-bold text-white hover:bg-blue-800 transition shadow-sm shadow-blue-700/20 dark:bg-blue-500 dark:hover:bg-blue-400"
       >
         <Zap size={13} />
-        Actions
+        {tr("admin.shell.actions")}
         <ChevronDown size={11} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -178,6 +181,7 @@ function QuickActionsMenu() {
 // ── User Menu ─────────────────────────────────────────────────────────────────
 
 function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogout: () => void }) {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -215,7 +219,7 @@ function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogo
             className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition dark:text-red-400 dark:hover:bg-red-500/10"
           >
             <LogOut size={14} />
-            Déconnexion
+            {tr("admin.shell.logout")}
           </button>
         </div>
       )}
@@ -226,6 +230,7 @@ function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogo
 // ── Main Shell ────────────────────────────────────────────────────────────────
 
 export function AdminShell() {
+  const { t: tr } = useTranslation();
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => {
@@ -282,7 +287,7 @@ export function AdminShell() {
       {/* Mobile drawer overlay */}
       {!collapsed && (
         <button
-          aria-label="Fermer le menu"
+          aria-label={tr("admin.shell.closeMenu")}
           onClick={() => setCollapsed(true)}
           className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm md:hidden dark:bg-black/70"
         />
@@ -331,16 +336,16 @@ export function AdminShell() {
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
           {NAV_SECTIONS.map((section) => (
-            <div key={section.label}>
+            <div key={section.labelTk}>
               {!collapsed && (
                 <p className="mb-1.5 px-3 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  {section.label}
+                  {tr(section.labelTk)}
                 </p>
               )}
               <div className="space-y-0.5">
                 {section.items.map((item) => (
                   <SideNavLink
-                    key={item.to} to={item.to} label={item.label}
+                    key={item.to} to={item.to} label={tr(item.labelTk)}
                     icon={item.icon} end={item.end} collapsed={collapsed}
                     hasBadge={item.badge} criticalCount={item.badge ? criticalCount : 0}
                   />
@@ -355,16 +360,16 @@ export function AdminShell() {
           {!collapsed && (
             <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 mb-2 border border-slate-200 dark:bg-slate-800 dark:border-transparent">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse dark:bg-emerald-400" />
-              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Système opérationnel</span>
+              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">{tr("admin.shell.systemOperational")}</span>
             </div>
           )}
           <button
             onClick={() => { logout(); navigate("/login"); }}
-            title={collapsed ? "Déconnexion" : undefined}
+            title={collapsed ? tr("admin.shell.logout") : undefined}
             className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 transition border border-transparent hover:border-red-200 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-500/20 ${collapsed ? "justify-center" : "gap-3"}`}
           >
             <LogOut size={16} />
-            {!collapsed && <span>Déconnexion</span>}
+            {!collapsed && <span>{tr("admin.shell.logout")}</span>}
           </button>
         </div>
       </aside>
@@ -377,7 +382,7 @@ export function AdminShell() {
           {/* Hamburger mobile */}
           <button
             onClick={() => setCollapsed(false)}
-            aria-label="Ouvrir le menu"
+            aria-label={tr("admin.shell.openMenu")}
             className="md:hidden grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
           >
             <ChevronRight size={16} />
@@ -405,7 +410,7 @@ export function AdminShell() {
             <input
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Rechercher entreprise, utilisateur…"
+              placeholder={tr("admin.shell.searchPlaceholder")}
               className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
@@ -421,7 +426,7 @@ export function AdminShell() {
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+              title={isDark ? tr("admin.shell.lightMode") : tr("admin.shell.darkMode")}
               className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-blue-400"
             >
               {isDark ? <Sun size={16} /> : <Moon size={16} />}

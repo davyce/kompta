@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   Area,
@@ -96,14 +97,14 @@ const PIE_COLORS = ["#6366f1", "#8b5cf6", "#0ea5e9", "#10b981", "#f59e0b", "#ef4
 
 // ── Relative time ─────────────────────────────────────────────────────────────
 
-function relTime(dateStr: string) {
+function relTime(dateStr: string, tr: (key: string, options?: Record<string, unknown>) => string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "à l'instant";
-  if (m < 60) return `il y a ${m}m`;
+  if (m < 1) return tr("admin.dashboard.now");
+  if (m < 60) return tr("admin.dashboard.minutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h}h`;
-  return `il y a ${Math.floor(h / 24)}j`;
+  if (h < 24) return tr("admin.dashboard.hoursAgo", { count: h });
+  return tr("admin.dashboard.daysAgo", { count: Math.floor(h / 24) });
 }
 
 // ── Activity item type ────────────────────────────────────────────────────────
@@ -154,6 +155,7 @@ const CARD = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:bor
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function AdminDashboardPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
 
   const overview = useQuery({ queryKey: ["adminOverview"], queryFn: api.adminOverview, refetchInterval: 30_000 });
@@ -186,18 +188,18 @@ export function AdminDashboardPage() {
   const pieData = useMemo(() => {
     const sectors = platform.data?.companies_by_industry ?? [];
     return sectors.map((s: { industry: string; count: number }) => ({
-      name: s.industry || "Autre",
+      name: s.industry || tr("admin.analytics.other"),
       value: s.count,
     }));
-  }, [platform.data]);
+  }, [platform.data, tr]);
 
   // Build growth chart data
   const growthData = useMemo(() => {
     const monthly = platform.data?.monthly_growth ?? [];
     return monthly.map((m: { month: string; companies: number; users: number }) => ({
       name: m.month,
-      Entreprises: m.companies,
-      Utilisateurs: m.users,
+      companies: m.companies,
+      users: m.users,
     }));
   }, [platform.data]);
 
@@ -215,31 +217,31 @@ export function AdminDashboardPage() {
         <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-500/40 dark:bg-rose-500/10">
           <AlertTriangle size={18} className="shrink-0 text-rose-600 mt-0.5 dark:text-rose-400" />
           <div className="min-w-0">
-            <p className="font-bold text-rose-700 text-sm dark:text-rose-300">Alertes critiques détectées</p>
+            <p className="font-bold text-rose-700 text-sm dark:text-rose-300">{tr("admin.dashboard.criticalAlerts")}</p>
             <div className="mt-1 flex flex-wrap gap-2">
               {hasDownService && (
                 <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                  ⬇ Service hors ligne
+                  {tr("admin.dashboard.serviceDown")}
                 </span>
               )}
               {criticalTickets && (
                 <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                  🎫 {data?.tickets_critical} ticket(s) critiques
+                  {tr("admin.dashboard.criticalTickets", { count: data?.tickets_critical ?? 0 })}
                 </span>
               )}
             </div>
           </div>
           <button onClick={() => navigate("/admin/system")} className="ml-auto shrink-0 text-xs font-bold text-rose-700 hover:text-rose-900 transition dark:text-rose-300 dark:hover:text-white">
-            Vérifier →
+            {tr("admin.dashboard.check")}
           </button>
         </div>
       )}
       {hasDegradedService && !hasDownService && (
         <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-amber-50 p-3 dark:border-indigo-600/30 dark:bg-indigo-600/10">
           <AlertTriangle size={15} className="shrink-0 text-indigo-600 dark:text-indigo-500" />
-          <p className="text-sm text-indigo-700 font-medium dark:text-indigo-300">Un ou plusieurs services sont dégradés.</p>
+          <p className="text-sm text-indigo-700 font-medium dark:text-indigo-300">{tr("admin.dashboard.degradedServices")}</p>
           <button onClick={() => navigate("/admin/system")} className="ml-auto text-xs font-bold text-indigo-700 hover:text-amber-900 transition dark:text-indigo-300 dark:hover:text-white">
-            Détails →
+            {tr("admin.dashboard.details")}
           </button>
         </div>
       )}
@@ -247,13 +249,13 @@ export function AdminDashboardPage() {
       {/* Header */}
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Super-Admin · Plateforme</p>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">Vue d'ensemble globale</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-white/60">Données temps réel · toutes entreprises · {health.data?.version ?? "v1.x"}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{tr("admin.dashboard.eyebrow")}</p>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">{tr("admin.dashboard.title")}</h1>
+          <p className="mt-1 text-sm text-slate-600 dark:text-white/60">{tr("admin.dashboard.subtitle", { version: health.data?.version ?? "v1.x" })}</p>
         </div>
         <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-white/50">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse dark:bg-emerald-400" />
-          Uptime {health.data?.uptime_seconds != null ? `${Math.floor((health.data.uptime_seconds) / 3600)}h${Math.floor(((health.data.uptime_seconds) % 3600) / 60)}m` : "—"}
+          {tr("admin.dashboard.uptime", { value: health.data?.uptime_seconds != null ? `${Math.floor((health.data.uptime_seconds) / 3600)}h${Math.floor(((health.data.uptime_seconds) % 3600) / 60)}m` : "—" })}
         </div>
       </div>
 
@@ -261,47 +263,47 @@ export function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           icon={Building2}
-          label="Entreprises actives"
+          label={tr("admin.dashboard.kpiCompanies")}
           value={data?.companies ?? "…"}
-          sub="Tenants actifs"
+          sub={tr("admin.dashboard.activeTenants")}
           tone="indigo"
           onClick={() => navigate("/admin/companies")}
         />
         <KpiCard
           icon={Users}
-          label="Utilisateurs total"
+          label={tr("admin.dashboard.kpiUsers")}
           value={data?.users ?? "…"}
-          sub={`${data?.employees ?? 0} employés`}
+          sub={tr("admin.dashboard.employeeCount", { count: data?.employees ?? 0 })}
           tone="violet"
           onClick={() => navigate("/admin/users")}
         />
         <KpiCard
           icon={Wallet}
-          label="CA plateforme"
+          label={tr("admin.dashboard.kpiRevenue")}
           value={compactMoney(data?.sales_total ?? 0)}
-          sub="POS · toutes entreprises"
+          sub={tr("admin.dashboard.posAllCompanies")}
           tone="emerald"
         />
         <KpiCard
           icon={LifeBuoy}
-          label="Tickets ouverts"
+          label={tr("admin.dashboard.kpiOpenTickets")}
           value={data?.tickets_open ?? "…"}
-          sub={`${data?.tickets_critical ?? 0} critiques`}
+          sub={tr("admin.dashboard.criticalCount", { count: data?.tickets_critical ?? 0 })}
           tone={(data?.tickets_critical ?? 0) > 0 ? "rose" : "emerald"}
           onClick={() => navigate("/admin/tickets")}
         />
         <KpiCard
           icon={TrendingUp}
-          label="Score TERAS moyen"
+          label={tr("admin.analytics.kpiAvgTeras")}
           value={avgTeras || "—"}
-          sub="moyenne pondérée"
+          sub={tr("admin.dashboard.weightedAverage")}
           tone="sky"
         />
         <KpiCard
           icon={FileText}
-          label="Taux onboarding"
+          label={tr("admin.analytics.kpiOnboarding")}
           value={`${onboardingRate}%`}
-          sub="completion ≥ 80%"
+          sub={tr("admin.analytics.completion80")}
           tone="indigo"
           onClick={() => navigate("/admin/onboarding")}
         />
@@ -311,7 +313,7 @@ export function AdminDashboardPage() {
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         {/* Growth AreaChart */}
         <div className={CARD}>
-          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Croissance plateforme (12 mois)</h2>
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.dashboard.platformGrowth")}</h2>
           {growthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={growthData} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
@@ -332,20 +334,20 @@ export function AdminDashboardPage() {
                   contentStyle={{ background: "#ffffff", border: "1px solid rgba(100,116,139,0.2)", borderRadius: 8, color: "#0f172a" }}
                   labelStyle={{ color: "rgba(15,23,42,0.7)" }}
                 />
-                <Area type="monotone" dataKey="Entreprises" stroke="#6366f1" fill="url(#gEntreprises)" strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="Utilisateurs" stroke="#8b5cf6" fill="url(#gUsers)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="companies" name={tr("admin.analytics.companies")} stroke="#6366f1" fill="url(#gEntreprises)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="users" name={tr("admin.analytics.users")} stroke="#8b5cf6" fill="url(#gUsers)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-[220px] items-center justify-center text-slate-400 text-sm dark:text-white/30">
-              {platform.isLoading ? "Chargement…" : "Données de croissance non disponibles"}
+              {platform.isLoading ? tr("common.loading") : tr("admin.dashboard.noGrowthData")}
             </div>
           )}
         </div>
 
         {/* PieChart by sector */}
         <div className={CARD}>
-          <h2 className="mb-4 font-black text-slate-900 dark:text-white">Répartition par secteur</h2>
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.dashboard.sectorBreakdown")}</h2>
           {pieData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -374,7 +376,7 @@ export function AdminDashboardPage() {
             </>
           ) : (
             <div className="flex h-[220px] items-center justify-center text-slate-400 text-sm dark:text-white/30">
-              {platform.isLoading ? "Chargement…" : "Données sectorielles non disponibles"}
+              {platform.isLoading ? tr("common.loading") : tr("admin.dashboard.noSectorData")}
             </div>
           )}
         </div>
@@ -385,7 +387,7 @@ export function AdminDashboardPage() {
         {/* Activity feed */}
         <div className={CARD}>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-black text-slate-900 dark:text-white">Activité temps réel</h2>
+            <h2 className="font-black text-slate-900 dark:text-white">{tr("admin.dashboard.realtimeActivity")}</h2>
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-white/40">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse dark:bg-emerald-400" />
               Live · 30s
@@ -394,7 +396,7 @@ export function AdminDashboardPage() {
           <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
             {activityFeed.length === 0 && (
               <p className="py-8 text-center text-sm text-slate-400 dark:text-white/30">
-                {activity.isLoading ? "Chargement…" : "Aucune activité récente"}
+                {activity.isLoading ? tr("common.loading") : tr("admin.dashboard.noRecentActivity")}
               </p>
             )}
             {activityFeed.map((item, index) => (
@@ -417,7 +419,7 @@ export function AdminDashboardPage() {
                     <p className="mt-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-300">{compactMoney(item.amount)}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-[10px] text-slate-400 dark:text-white/30">{relTime(item.created_at)}</span>
+                <span className="shrink-0 text-[10px] text-slate-400 dark:text-white/30">{relTime(item.created_at, tr)}</span>
               </div>
             ))}
           </div>
@@ -426,25 +428,25 @@ export function AdminDashboardPage() {
         {/* Top 5 companies table */}
         <div className={CARD}>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-black text-slate-900 dark:text-white">Top 5 entreprises</h2>
+            <h2 className="font-black text-slate-900 dark:text-white">{tr("admin.dashboard.topCompanies")}</h2>
             <button onClick={() => navigate("/admin/companies")} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition dark:text-indigo-400 dark:hover:text-white">
-              Voir tout →
+              {tr("admin.dashboard.viewAll")}
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 dark:border-white/10 dark:text-white/30">
                 <tr>
-                  <th className="pb-2">Entreprise</th>
+                  <th className="pb-2">{tr("admin.dashboard.company")}</th>
                   <th className="pb-2">Users</th>
                   <th className="pb-2 w-24">TERAS</th>
-                  <th className="pb-2">Secteur</th>
+                  <th className="pb-2">{tr("admin.dashboard.industry")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {topCompanies.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400 dark:text-white/30">Aucune entreprise.</td>
+                    <td colSpan={4} className="py-8 text-center text-slate-400 dark:text-white/30">{tr("admin.dashboard.noCompany")}</td>
                   </tr>
                 )}
                 {topCompanies.map((c) => {
@@ -488,15 +490,15 @@ export function AdminDashboardPage() {
       {/* System health */}
       <div className={CARD}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-black text-slate-900 dark:text-white">Santé du système</h2>
+          <h2 className="font-black text-slate-900 dark:text-white">{tr("admin.dashboard.systemHealth")}</h2>
           <button onClick={() => navigate("/admin/system")} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition dark:text-indigo-400 dark:hover:text-white">
-            Détails →
+            {tr("admin.dashboard.details")}
           </button>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <HealthBadge
             ok={(health.data?.services ?? []).find(s => s.name === "database")?.status === "healthy"}
-            label="Base de données"
+            label={tr("admin.dashboard.database")}
             latency={(health.data?.services ?? []).find(s => s.name === "database")?.latency_ms ?? undefined}
           />
           <HealthBadge
@@ -506,7 +508,7 @@ export function AdminDashboardPage() {
           />
           <HealthBadge
             ok={(health.data?.services ?? []).find(s => s.name === "storage")?.status === "healthy"}
-            label="Stockage fichiers"
+            label={tr("admin.dashboard.fileStorage")}
           />
         </div>
       </div>
@@ -520,15 +522,15 @@ export function AdminDashboardPage() {
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">Grand Sage Limule</p>
-              <h2 className="font-black text-slate-900 dark:text-white">Cockpit IA pour diagnostiquer la plateforme</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-white/55">Analyse les entreprises, alertes TERAS, tickets et données en temps réel.</p>
+              <h2 className="font-black text-slate-900 dark:text-white">{tr("admin.dashboard.limuleTitle")}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-white/55">{tr("admin.dashboard.limuleSubtitle")}</p>
             </div>
           </div>
           <button
             onClick={() => navigate("/admin/limule")}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 transition dark:bg-indigo-500 dark:hover:bg-indigo-400"
           >
-            Ouvrir Grand Sage →
+            {tr("admin.dashboard.openGrandSage")}
           </button>
         </div>
       </div>
@@ -538,14 +540,14 @@ export function AdminDashboardPage() {
         <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
           <AlertTriangle size={20} />
           <div className="flex-1">
-            <p className="font-bold">{data?.tickets_critical} ticket(s) critique(s) en attente</p>
-            <p className="text-xs opacity-80">Réponse recommandée sous 4h</p>
+            <p className="font-bold">{tr("admin.dashboard.pendingCriticalTickets", { count: data?.tickets_critical ?? 0 })}</p>
+            <p className="text-xs opacity-80">{tr("admin.dashboard.recommendedResponse")}</p>
           </div>
           <button
             onClick={() => navigate("/admin/tickets?priority=critical")}
             className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition dark:bg-rose-500 dark:hover:bg-rose-400"
           >
-            Traiter →
+            {tr("admin.dashboard.handle")}
           </button>
         </div>
       )}
@@ -553,15 +555,15 @@ export function AdminDashboardPage() {
       {/* Recent tickets */}
       <div className={CARD}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-black text-slate-900 dark:text-white">Tickets récents</h2>
+          <h2 className="font-black text-slate-900 dark:text-white">{tr("admin.dashboard.recentTickets")}</h2>
           <button onClick={() => navigate("/admin/tickets")} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition dark:text-indigo-400 dark:hover:text-white">
-            Voir tout →
+            {tr("admin.dashboard.viewAll")}
           </button>
         </div>
         <div className="space-y-2">
           {recentTickets.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-400 dark:text-white/40">
-              {tickets.isLoading ? "Chargement…" : "Aucun ticket pour le moment."}
+              {tickets.isLoading ? tr("common.loading") : tr("admin.dashboard.noTickets")}
             </p>
           )}
           {recentTickets.map((t) => {
