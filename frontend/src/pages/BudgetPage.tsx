@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   PieChart,
@@ -31,16 +33,16 @@ type Period = "monthly" | "quarterly" | "yearly";
 type CategoryType = "expense" | "income" | "investment";
 
 /* ── Constants ────────────────────────────────────────────────── */
-const PERIOD_TABS: { key: Period; label: string }[] = [
-  { key: "monthly", label: "Mensuel" },
-  { key: "quarterly", label: "Trimestriel" },
-  { key: "yearly", label: "Annuel" },
+const PERIOD_TABS: { key: Period; tk: string }[] = [
+  { key: "monthly", tk: "budget.periodMonthly" },
+  { key: "quarterly", tk: "budget.periodQuarterly" },
+  { key: "yearly", tk: "budget.periodYearly" },
 ];
 
-const CATEGORY_TYPES: { key: CategoryType; label: string }[] = [
-  { key: "expense", label: "Dépense" },
-  { key: "income", label: "Revenu" },
-  { key: "investment", label: "Investissement" },
+const CATEGORY_TYPES: { key: CategoryType; tk: string }[] = [
+  { key: "expense", tk: "budget.typeExpense" },
+  { key: "income", tk: "budget.typeIncome" },
+  { key: "investment", tk: "budget.typeInvestment" },
 ];
 
 const DEFAULT_COLORS = [
@@ -61,8 +63,9 @@ function progressColor(pct: number, type: CategoryType): string {
   return "bg-emerald-500";
 }
 
-function typeLabel(t: CategoryType): string {
-  return CATEGORY_TYPES.find((c) => c.key === t)?.label ?? t;
+function typeLabel(t: CategoryType, tr: TFunction): string {
+  const tk = CATEGORY_TYPES.find((c) => c.key === t)?.tk;
+  return tk ? tr(tk) : t;
 }
 
 function typeBadgeClass(t: CategoryType): string {
@@ -109,6 +112,7 @@ function CategoryRow({
   onEdit: (item: BudgetSummaryDto) => void;
   onDelete: (item: BudgetSummaryDto) => void;
 }) {
+  const { t: tr } = useTranslation();
   const pct = Math.min(item.progress_pct, 100);
   const barColor = progressColor(item.progress_pct, item.category_type as CategoryType);
 
@@ -125,7 +129,7 @@ function CategoryRow({
           <div className="min-w-0">
             <p className="font-semibold text-[#17211f] dark:text-white truncate">{item.name}</p>
             <span className={`inline-block mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${typeBadgeClass(item.category_type as CategoryType)}`}>
-              {typeLabel(item.category_type as CategoryType)}
+              {typeLabel(item.category_type as CategoryType, tr)}
             </span>
           </div>
         </div>
@@ -149,7 +153,7 @@ function CategoryRow({
       <div className="mt-4">
         <div className="flex justify-between text-xs text-[#717182] mb-1.5">
           <span>
-            {compactMoney(item.spent)} dépensé
+            {tr("budget.spent", { amount: compactMoney(item.spent) })}
           </span>
           <span className="font-medium" style={{ color: item.progress_pct >= 90 ? "#ef4444" : item.color }}>
             {item.progress_pct.toFixed(0)}%
@@ -162,9 +166,9 @@ function CategoryRow({
           />
         </div>
         <div className="flex justify-between text-xs text-[#717182] mt-1.5">
-          <span>Prévu : <span className="font-semibold text-[#17211f] dark:text-white">{compactMoney(item.planned_amount)}</span></span>
+          <span>{tr("budget.planned")} <span className="font-semibold text-[#17211f] dark:text-white">{compactMoney(item.planned_amount)}</span></span>
           <span>
-            Restant :{" "}
+            {tr("budget.remaining")}{" "}
             <span className={`font-semibold ${item.remaining < 0 ? "text-red-500" : "text-emerald-600"}`}>
               {item.remaining >= 0 ? compactMoney(item.remaining) : `-${compactMoney(Math.abs(item.remaining))}`}
             </span>
@@ -207,6 +211,7 @@ function CategoryModal({
   onSave: (data: BudgetCategoryCreateDto) => void;
   saving: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const [form, setForm] = useState<ModalFormState>(initialData ?? INITIAL_FORM);
 
   // Keep form in sync with initialData when modal opens
@@ -243,7 +248,7 @@ function CategoryModal({
           <div className="flex items-center gap-2">
             <PiggyBank size={18} className="text-emerald-600" />
             <h2 className="font-semibold text-[#17211f] dark:text-white">
-              {initialData ? "Modifier la catégorie" : "Nouvelle catégorie"}
+              {initialData ? tr("budget.editCategory") : tr("budget.newCategory")}
             </h2>
           </div>
           <button
@@ -259,14 +264,14 @@ function CategoryModal({
           {/* Name */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] uppercase tracking-wide mb-1.5">
-              Nom de la catégorie
+              {tr("budget.categoryName")}
             </label>
             <input
               type="text"
               required
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="ex: Loyer, Salaires, Ventes..."
+              placeholder={tr("budget.namePlaceholder")}
               className="w-full rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:text-white placeholder:text-[#717182]"
             />
           </div>
@@ -274,7 +279,7 @@ function CategoryModal({
           {/* Type */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] uppercase tracking-wide mb-1.5">
-              Type
+              {tr("budget.type")}
             </label>
             <div className="flex gap-2">
               {CATEGORY_TYPES.map((ct) => (
@@ -288,7 +293,7 @@ function CategoryModal({
                       : "border-black/[0.10] dark:border-white/[0.10] text-[#717182] hover:border-emerald-400/50"
                   }`}
                 >
-                  {ct.label}
+                  {tr(ct.tk)}
                 </button>
               ))}
             </div>
@@ -297,7 +302,7 @@ function CategoryModal({
           {/* Planned amount */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] uppercase tracking-wide mb-1.5">
-              Montant prévu
+              {tr("budget.plannedAmount")}
             </label>
             <input
               type="number"
@@ -313,7 +318,7 @@ function CategoryModal({
           {/* Period */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] uppercase tracking-wide mb-1.5">
-              Période
+              {tr("budget.period")}
             </label>
             <div className="flex gap-2">
               {PERIOD_TABS.map((pt) => (
@@ -327,7 +332,7 @@ function CategoryModal({
                       : "border-black/[0.10] dark:border-white/[0.10] text-[#717182] hover:border-emerald-400/50"
                   }`}
                 >
-                  {pt.label}
+                  {tr(pt.tk)}
                 </button>
               ))}
             </div>
@@ -336,7 +341,7 @@ function CategoryModal({
           {/* Color */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] uppercase tracking-wide mb-1.5">
-              Couleur
+              {tr("budget.color")}
             </label>
             <div className="flex gap-2 flex-wrap">
               {DEFAULT_COLORS.map((c) => (
@@ -358,7 +363,7 @@ function CategoryModal({
                 value={form.color}
                 onChange={(e) => set("color", e.target.value)}
                 className="h-7 w-7 rounded-full cursor-pointer border-2 border-black/[0.10] dark:border-white/[0.10]"
-                title="Couleur personnalisée"
+                title={tr("budget.customColor")}
               />
             </div>
           </div>
@@ -370,14 +375,14 @@ function CategoryModal({
               onClick={onClose}
               className="flex-1 rounded-lg border border-black/[0.12] dark:border-white/[0.12] py-2.5 text-sm font-medium text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition"
             >
-              Annuler
+              {tr("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
             >
-              {saving ? "Enregistrement…" : initialData ? "Modifier" : "Créer"}
+              {saving ? tr("budget.saving") : initialData ? tr("budget.edit") : tr("budget.create")}
             </button>
           </div>
         </form>
@@ -388,6 +393,7 @@ function CategoryModal({
 
 /* ── Main Page ────────────────────────────────────────────────── */
 export function BudgetPage() {
+  const { t: tr } = useTranslation();
   useCurrency(); // subscribe so re-renders on currency change
   const qc = useQueryClient();
   const { confirm } = useConfirm();
@@ -452,9 +458,9 @@ export function BudgetPage() {
 
   async function handleDelete(item: BudgetSummaryDto) {
     const ok = await confirm({
-      title: "Supprimer cette catégorie ?",
+      title: tr("budget.deleteTitle"),
       message: item.name,
-      confirmLabel: "Supprimer",
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteMut.mutate(item.id);
@@ -487,9 +493,9 @@ export function BudgetPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#17211f] dark:text-white">Budget</h1>
+          <h1 className="text-2xl font-bold text-[#17211f] dark:text-white">{tr("budget.title")}</h1>
           <p className="text-sm text-[#717182] mt-0.5">
-            Planifiez et suivez vos dépenses, revenus et investissements.
+            {tr("budget.subtitle")}
           </p>
         </div>
         <button
@@ -497,37 +503,37 @@ export function BudgetPage() {
           className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition shadow-sm"
         >
           <Plus size={16} />
-          Nouvelle catégorie
+          {tr("budget.newCategoryBtn")}
         </button>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
-          label="Total prévu"
+          label={tr("budget.kpiTotalPlanned")}
           value={compactMoney(totalPlanned)}
-          sub={`${summary.length} catégorie${summary.length !== 1 ? "s" : ""}`}
+          sub={tr("budget.categoriesCount", { count: summary.length })}
           icon={PiggyBank}
           accent="bg-emerald-600"
         />
         <KpiCard
-          label="Total dépensé"
+          label={tr("budget.kpiTotalSpent")}
           value={compactMoney(totalSpent)}
-          sub={`${expenses.length} poste${expenses.length !== 1 ? "s" : ""} de dépense`}
+          sub={tr("budget.expenseItems", { count: expenses.length })}
           icon={TrendingDown}
           accent={usedPct >= 90 ? "bg-red-500" : "bg-amber-500"}
         />
         <KpiCard
-          label="% utilisé"
+          label={tr("budget.kpiUsedPct")}
           value={`${usedPct.toFixed(0)}%`}
-          sub={totalPlanned > 0 ? `sur ${compactMoney(totalPlanned)}` : "Aucun budget défini"}
+          sub={totalPlanned > 0 ? tr("budget.onAmount", { amount: compactMoney(totalPlanned) }) : tr("budget.noBudgetDefined")}
           icon={Wallet}
           accent={usedPct >= 90 ? "bg-red-500" : "bg-blue-600"}
         />
         <KpiCard
-          label="Économies"
+          label={tr("budget.kpiSavings")}
           value={compactMoney(Math.abs(savings))}
-          sub={savings >= 0 ? "excédent" : "dépassement"}
+          sub={savings >= 0 ? tr("budget.surplus") : tr("budget.overrun")}
           icon={TrendingUp}
           accent={savings >= 0 ? "bg-emerald-600" : "bg-red-500"}
         />
@@ -545,7 +551,7 @@ export function BudgetPage() {
                 : "text-[#717182] hover:text-[#17211f] dark:hover:text-white"
             }`}
           >
-            {pt.label}
+            {tr(pt.tk)}
           </button>
         ))}
       </div>
@@ -558,16 +564,16 @@ export function BudgetPage() {
       ) : summary.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.10] dark:border-white/[0.10] py-16 px-6">
           <PiggyBank size={36} className="text-[#717182] mb-3" />
-          <p className="font-semibold text-[#17211f] dark:text-white text-lg">Aucune catégorie budgétaire</p>
+          <p className="font-semibold text-[#17211f] dark:text-white text-lg">{tr("budget.noCategoriesTitle")}</p>
           <p className="text-sm text-[#717182] mt-1 text-center max-w-sm">
-            Créez vos premières catégories pour commencer à suivre vos finances.
+            {tr("budget.noCategoriesDesc")}
           </p>
           <button
             onClick={openCreate}
             className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition"
           >
             <Plus size={15} />
-            Créer une catégorie
+            {tr("budget.createCategory")}
           </button>
         </div>
       ) : (
@@ -575,7 +581,7 @@ export function BudgetPage() {
           {/* Category list — 2/3 width on large */}
           <div className="lg:col-span-2 space-y-3">
             <h2 className="text-sm font-semibold text-[#717182] uppercase tracking-wide">
-              Catégories — période {PERIOD_TABS.find((p) => p.key === activePeriod)?.label.toLowerCase()}
+              {tr("budget.categoriesPeriod", { period: tr(PERIOD_TABS.find((p) => p.key === activePeriod)?.tk ?? "budget.periodMonthly").toLowerCase() })}
             </h2>
             {summary.map((item) => (
               <CategoryRow
@@ -592,7 +598,7 @@ export function BudgetPage() {
             {pieData.length > 0 && (
               <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-4">
                 <h2 className="text-sm font-semibold text-[#17211f] dark:text-white mb-4">
-                  Répartition des dépenses prévues
+                  {tr("budget.plannedSplit")}
                 </h2>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -611,7 +617,7 @@ export function BudgetPage() {
                     </Pie>
                     <Tooltip
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(value: any) => [money(Number(value)), "Prévu"]}
+                      formatter={(value: any) => [money(Number(value)), tr("budget.plannedTooltip")]}
                       contentStyle={{
                         borderRadius: "0.75rem",
                         border: "1px solid rgba(0,0,0,0.08)",
@@ -633,7 +639,7 @@ export function BudgetPage() {
             {/* Summary table */}
             <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-4">
               <h2 className="text-sm font-semibold text-[#17211f] dark:text-white mb-3">
-                Récapitulatif
+                {tr("budget.summary")}
               </h2>
               <div className="space-y-2">
                 {summary.map((item) => (
