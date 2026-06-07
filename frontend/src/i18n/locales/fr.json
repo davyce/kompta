@@ -523,6 +523,114 @@
       "send": "Envoyer"
     }
   },
+  "chat": {
+    "actionTypes": {
+      "task": "Tâche",
+      "meeting": "Réunion",
+      "document": "Document",
+      "approval": "Approbation",
+      "payment": "Paiement",
+      "reminder": "Rappel"
+    },
+    "taskStatus": {
+      "todo": "À faire",
+      "doing": "En cours",
+      "done": "Terminé"
+    },
+    "priorities": {
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute"
+    },
+    "errors": {
+      "selectChannelForLimule": "Sélectionne un canal avant de lancer Limule."
+    },
+    "messages": {
+      "userFallback": "Utilisateur {{id}}"
+    },
+    "search": {
+      "placeholder": "Rechercher…"
+    },
+    "channels": {
+      "title": "Canaux",
+      "create": "Créer un canal",
+      "empty": "Aucun canal.",
+      "select": "Sélectionner un canal",
+      "memberStats": "{{members}} membres · {{online}} actifs"
+    },
+    "directs": {
+      "title": "Messages directs",
+      "colleague": "Collègue",
+      "empty": "Aucun collègue à contacter pour l'instant.",
+      "topic": "Conversation directe avec {{name}}"
+    },
+    "limule": {
+      "summaryTitle": "Résumé #{{channel}}",
+      "summaryPrompt": "Résume le canal #{{channel}}, liste les décisions, risques et prochaines actions.",
+      "emptyContext": "Le canal ne contient pas encore de messages. Propose un message d'accueil opérationnel.",
+      "summaryHeading": "Résumé Limule",
+      "generateSummary": "Générer un résumé IA du canal",
+      "actionDetected": "Limule · Action détectée"
+    },
+    "emptyThread": {
+      "title": "Nouveau fil connecté au backend",
+      "subtitle": "Aucun message enregistré pour ce canal. Écrivez le premier message, mentionnez un collègue ou joignez un document."
+    },
+    "actions": {
+      "toTask": "→ Tâche",
+      "atTime": " à {{time}}",
+      "urgent": "🔴 Urgent",
+      "taskCreated": "Tâche créée !",
+      "createDirectly": "Créer directement",
+      "customize": "Personnaliser",
+      "createThisTask": "Créer cette tâche"
+    },
+    "typing": {
+      "one": "{{users}} est en train d'écrire…",
+      "other": "{{users}} sont en train d'écrire…"
+    },
+    "upload": {
+      "pending": "Téléversement en cours…",
+      "failed": "Échec : {{message}}"
+    },
+    "mentions": {
+      "title": "Mentionner un collègue",
+      "employee": "Employé"
+    },
+    "input": {
+      "attachFile": "Joindre un fichier",
+      "placeholder": "Écrire à #{{channel}}… (@nom pour mentionner)"
+    },
+    "details": {
+      "title": "Détails",
+      "description": "Description",
+      "noDescription": "Aucune description pour ce canal.",
+      "members": "Membres ({{count}})",
+      "noActiveMember": "Aucun membre actif.",
+      "linkedTasks": "Tâches liées",
+      "addTask": "+ tâche",
+      "noOpenTask": "Aucune tâche ouverte."
+    },
+    "createChannel": {
+      "title": "Créer un canal",
+      "subtitle": "Le canal sera enregistré dans le backend KOMPTA.",
+      "name": "Nom du canal",
+      "description": "Description",
+      "submit": "Créer et ouvrir"
+    },
+    "taskComposer": {
+      "title": "Créer une tâche",
+      "subtitle": "Depuis le chat, avec responsable et priorité.",
+      "taskTitle": "Titre",
+      "assignee": "Responsable",
+      "unassigned": "Non assigné",
+      "assignedToMeAuto": "Assignée à moi automatiquement",
+      "priority": "Priorité",
+      "dueDate": "Date limite",
+      "timeOptional": "Heure (optionnel)",
+      "submit": "Créer la tâche"
+    }
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

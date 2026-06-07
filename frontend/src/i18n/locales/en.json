@@ -523,6 +523,114 @@
       "send": "Send"
     }
   },
+  "chat": {
+    "actionTypes": {
+      "task": "Task",
+      "meeting": "Meeting",
+      "document": "Document",
+      "approval": "Approval",
+      "payment": "Payment",
+      "reminder": "Reminder"
+    },
+    "taskStatus": {
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
+    },
+    "errors": {
+      "selectChannelForLimule": "Select a channel before launching Limule."
+    },
+    "messages": {
+      "userFallback": "User {{id}}"
+    },
+    "search": {
+      "placeholder": "Search…"
+    },
+    "channels": {
+      "title": "Channels",
+      "create": "Create a channel",
+      "empty": "No channel.",
+      "select": "Select a channel",
+      "memberStats": "{{members}} members · {{online}} active"
+    },
+    "directs": {
+      "title": "Direct messages",
+      "colleague": "Colleague",
+      "empty": "No colleague to contact yet.",
+      "topic": "Direct conversation with {{name}}"
+    },
+    "limule": {
+      "summaryTitle": "Summary #{{channel}}",
+      "summaryPrompt": "Summarize channel #{{channel}}, list decisions, risks, and next actions.",
+      "emptyContext": "The channel has no messages yet. Suggest an operational welcome message.",
+      "summaryHeading": "Limule summary",
+      "generateSummary": "Generate an AI summary for the channel",
+      "actionDetected": "Limule · Action detected"
+    },
+    "emptyThread": {
+      "title": "New thread connected to the backend",
+      "subtitle": "No message has been recorded for this channel. Write the first message, mention a colleague, or attach a document."
+    },
+    "actions": {
+      "toTask": "→ Task",
+      "atTime": " at {{time}}",
+      "urgent": "🔴 Urgent",
+      "taskCreated": "Task created!",
+      "createDirectly": "Create directly",
+      "customize": "Customize",
+      "createThisTask": "Create this task"
+    },
+    "typing": {
+      "one": "{{users}} is typing…",
+      "other": "{{users}} are typing…"
+    },
+    "upload": {
+      "pending": "Upload in progress…",
+      "failed": "Failed: {{message}}"
+    },
+    "mentions": {
+      "title": "Mention a colleague",
+      "employee": "Employee"
+    },
+    "input": {
+      "attachFile": "Attach a file",
+      "placeholder": "Write to #{{channel}}… (@name to mention)"
+    },
+    "details": {
+      "title": "Details",
+      "description": "Description",
+      "noDescription": "No description for this channel.",
+      "members": "Members ({{count}})",
+      "noActiveMember": "No active member.",
+      "linkedTasks": "Linked tasks",
+      "addTask": "+ task",
+      "noOpenTask": "No open task."
+    },
+    "createChannel": {
+      "title": "Create a channel",
+      "subtitle": "The channel will be saved in the KOMPTA backend.",
+      "name": "Channel name",
+      "description": "Description",
+      "submit": "Create and open"
+    },
+    "taskComposer": {
+      "title": "Create a task",
+      "subtitle": "From chat, with assignee and priority.",
+      "taskTitle": "Title",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "assignedToMeAuto": "Assigned to me automatically",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "timeOptional": "Time (optional)",
+      "submit": "Create task"
+    }
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",

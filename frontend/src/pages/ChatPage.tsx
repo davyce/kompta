@@ -1,6 +1,8 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft, Hash, Paperclip, Plus, Search,
   Send, Sparkles, X, Info,
@@ -9,6 +11,7 @@ import {
 
 import { api } from "../services/api";
 import { useAuth } from "../app/AuthContext";
+import i18n from "../i18n";
 import type { LimuleAction } from "../types/domain";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
@@ -46,7 +49,7 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
 
 function shortTime(iso: string) {
   if (!iso) return "";
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 }
 
 /* ── Limule action type helpers ──────────────────────────────────── */
@@ -61,12 +64,16 @@ function actionTypeIcon(type: LimuleAction["type"]) {
   };
   return icons[type] ?? <Zap size={10} />;
 }
-function actionTypeLabel(type: LimuleAction["type"]) {
+function actionTypeLabel(type: LimuleAction["type"], tr: TFunction) {
   const map: Record<string, string> = {
-    task: "Tâche", meeting: "Réunion", document: "Document",
-    approval: "Approbation", payment: "Paiement", reminder: "Rappel",
+    task: "chat.actionTypes.task",
+    meeting: "chat.actionTypes.meeting",
+    document: "chat.actionTypes.document",
+    approval: "chat.actionTypes.approval",
+    payment: "chat.actionTypes.payment",
+    reminder: "chat.actionTypes.reminder",
   };
-  return map[type] ?? type;
+  return map[type] ? tr(map[type]) : type;
 }
 function actionTypeStyle(type: LimuleAction["type"]) {
   const map: Record<string, string> = {
@@ -78,6 +85,15 @@ function actionTypeStyle(type: LimuleAction["type"]) {
     reminder: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
   };
   return map[type] ?? "bg-gray-100 text-gray-700 dark:bg-white/[0.08] dark:text-gray-300";
+}
+
+function taskStatusLabel(status: string, tr: TFunction) {
+  const map: Record<string, string> = {
+    todo: "chat.taskStatus.todo",
+    doing: "chat.taskStatus.doing",
+    done: "chat.taskStatus.done",
+  };
+  return map[status] ? tr(map[status]) : status;
 }
 
 /* ── Inline message renderer (mentions + links) ───────────────────── */
@@ -113,6 +129,7 @@ function MessageBody({ text, isMe }: { text: string; isMe: boolean }) {
 
 /* ── Main ─────────────────────────────────────────────────────────── */
 export function ChatPage() {
+  const { t: tr } = useTranslation();
   const { user, token } = useAuth();
   const queryClient = useQueryClient();
   const canManageTasks = Boolean(user && (user.role.startsWith("admin") || ["rh_entreprise", "manager_entreprise", "super_admin"].includes(user.role)));
@@ -159,10 +176,10 @@ export function ChatPage() {
     return list.slice(0, 6).map((e) => ({
       id: `dm-${e.id}`,
       name: `${e.first_name} ${e.last_name}`.trim(),
-      preview: e.job_title || e.department || "Collègue",
+      preview: e.job_title || e.department || tr("chat.directs.colleague"),
       unread: 0,
     }));
-  }, [employees.data]);
+  }, [employees.data, tr]);
   const messages = useQuery({
     queryKey: ["messages", activeChannelId],
     queryFn: () => api.messages(activeChannelId!),
@@ -225,20 +242,20 @@ export function ChatPage() {
 
   const summarizeChannel = useMutation({
     mutationFn: async () => {
-      if (!activeChannelId || !activeChannel) throw new Error("Selectionne un canal avant de lancer Limule.");
+      if (!activeChannelId || !activeChannel) throw new Error(tr("chat.errors.selectChannelForLimule"));
       const recentMessages = (messages.data ?? [])
         .slice(-12)
-        .map((m) => `${m.author_name || `Utilisateur ${m.author_id}`}: ${m.body}`)
+        .map((m) => `${m.author_name || tr("chat.messages.userFallback", { id: m.author_id })}: ${m.body}`)
         .join("\n");
       const generation = await api.aiGenerate({
         kind: "chat_summary",
-        title: `Resume #${activeChannel.name}`,
-        prompt: `Resume le canal #${activeChannel.name}, liste les decisions, risques et prochaines actions.`,
-        context: recentMessages || "Le canal ne contient pas encore de messages. Propose un message d'accueil operationnel.",
+        title: tr("chat.limule.summaryTitle", { channel: activeChannel.name }),
+        prompt: tr("chat.limule.summaryPrompt", { channel: activeChannel.name }),
+        context: recentMessages || tr("chat.limule.emptyContext"),
       });
       await api.sendMessage(
         activeChannelId,
-        `Resume Limule\n\n${generation.content}`,
+        `${tr("chat.limule.summaryHeading")}\n\n${generation.content}`,
       );
       return generation;
     },
@@ -362,7 +379,7 @@ export function ChatPage() {
   function openDirectConversation(name: string) {
     createChannel.mutate({
       name: `direct-${name}`,
-      topic: `Conversation directe avec ${name}`,
+      topic: tr("chat.directs.topic", { name }),
     });
   }
 
@@ -405,7 +422,7 @@ export function ChatPage() {
         <div className="border-b border-black/[0.05] dark:border-white/[0.05] p-3">
           <div className="flex items-center gap-2 rounded-lg border border-black/[0.06] bg-white dark:bg-[#252931] dark:border-white/[0.06] px-3 py-2">
             <Search size={14} className="text-[#717182]" />
-            <input placeholder="Rechercher…" className="w-full bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182]" />
+            <input placeholder={tr("chat.search.placeholder")} className="w-full bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182]" />
           </div>
         </div>
 
@@ -413,11 +430,11 @@ export function ChatPage() {
           {/* Channels section */}
           <div>
             <div className="flex items-center justify-between px-2 py-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">Canaux</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("chat.channels.title")}</span>
               <button
                 onClick={() => setShowChannelCreate(true)}
                 className="grid h-5 w-5 place-items-center rounded text-[#717182] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
-                aria-label="Créer un canal"
+                aria-label={tr("chat.channels.create")}
               >
                 <Plus size={12} />
               </button>
@@ -445,17 +462,17 @@ export function ChatPage() {
               );
             })}
             {!channels.data?.length && (
-              <p className="px-2 py-4 text-xs text-[#717182]">Aucun canal.</p>
+              <p className="px-2 py-4 text-xs text-[#717182]">{tr("chat.channels.empty")}</p>
             )}
           </div>
 
           {/* DMs section */}
           <div>
             <div className="flex items-center justify-between px-2 py-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">Messages directs</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("chat.directs.title")}</span>
             </div>
             {dms.length === 0 && (
-              <p className="px-2 py-3 text-xs text-[#717182]">Aucun collègue à contacter pour l'instant.</p>
+              <p className="px-2 py-3 text-xs text-[#717182]">{tr("chat.directs.empty")}</p>
             )}
             {dms.map((dm) => (
               <button
@@ -488,17 +505,17 @@ export function ChatPage() {
         {/* Channel header */}
         <div className="flex items-center justify-between border-b border-black/[0.05] bg-white px-5 py-3 dark:border-white/[0.05] dark:bg-[#1e2229]">
           <div className="flex items-center gap-2 min-w-0">
-            <button onClick={() => setShowSidebar(true)} className="md:hidden grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.04]" aria-label="Retour">
+            <button onClick={() => setShowSidebar(true)} className="md:hidden grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.04]" aria-label={tr("common.back")}>
               <ArrowLeft size={16} />
             </button>
             <Hash size={17} className="text-[#717182]" />
             <div className="min-w-0">
               <p className="truncate font-bold text-[#17211f] dark:text-white">
-                {activeChannel?.name ?? "Sélectionner un canal"}
+                {activeChannel?.name ?? tr("chat.channels.select")}
               </p>
               {activeChannel && (
                 <p className="text-xs text-[#717182]">
-                  {channelDetail.data?.member_count ?? 0} membres · {channelDetail.data?.online_count ?? 0} actifs
+                  {tr("chat.channels.memberStats", { members: channelDetail.data?.member_count ?? 0, online: channelDetail.data?.online_count ?? 0 })}
                 </p>
               )}
             </div>
@@ -508,7 +525,7 @@ export function ChatPage() {
               onClick={() => summarizeChannel.mutate()}
               disabled={!activeChannelId || summarizeChannel.isPending}
               className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              title="Generer un resume IA du canal"
+              title={tr("chat.limule.generateSummary")}
             >
               {summarizeChannel.isPending ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Limule
             </button>
@@ -537,10 +554,10 @@ export function ChatPage() {
                   <Sparkles size={20} />
                 </div>
                 <h3 className="mt-4 text-lg font-black text-[#17211f] dark:text-white">
-                  Nouveau fil connecté au backend
+                  {tr("chat.emptyThread.title")}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-[#717182]">
-                  Aucun message enregistré pour ce canal. Écrivez le premier message, mentionnez un collègue ou joignez un document.
+                  {tr("chat.emptyThread.subtitle")}
                 </p>
               </div>
             </div>
@@ -549,7 +566,7 @@ export function ChatPage() {
           {/* Real messages */}
           {displayMessages.map((m) => {
             const isMe = m.author_id === user?.id;
-            const name = m.author_name || `Utilisateur ${m.author_id}`;
+            const name = m.author_name || tr("chat.messages.userFallback", { id: m.author_id });
             // Only show Limule suggestion when it contains a real action (not "no action" noise)
             const hasRealSuggestion = m.ai_suggestion &&
               !/aucune action|no action|message archive|message archivé/i.test(m.ai_suggestion);
@@ -571,7 +588,7 @@ export function ChatPage() {
                       className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2.5 py-1 text-[11px] font-bold text-[#717182] transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-violet-500/10"
                     >
                       <CheckSquare size={11} />
-                      → Tâche
+                      {tr("chat.actions.toTask")}
                     </button>
                   </div>
                   {/* Limule action card — rich if structured ai_action, fallback to plain suggestion */}
@@ -580,7 +597,7 @@ export function ChatPage() {
                       {/* Header */}
                       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">
                         <Zap size={10} className="text-amber-500" />
-                        Limule · Action détectée
+                        {tr("chat.limule.actionDetected")}
                         {m.ai_action?.detected && (
                           <span className="ml-auto rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
                             {Math.round(m.ai_action.confidence * 100)}%
@@ -594,7 +611,7 @@ export function ChatPage() {
                           <div className="mb-1.5 flex items-start gap-2">
                             <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${actionTypeStyle(m.ai_action.type)}`}>
                               {actionTypeIcon(m.ai_action.type)}
-                              {actionTypeLabel(m.ai_action.type)}
+                              {actionTypeLabel(m.ai_action.type, tr)}
                             </span>
                           </div>
                           <p className="text-sm font-semibold leading-5 text-[#17211f] dark:text-white">
@@ -607,7 +624,7 @@ export function ChatPage() {
                               {m.ai_action.due_date && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2 py-0.5 text-[11px] text-[#717182] dark:border-white/[0.08] dark:bg-white/[0.06]">
                                   <Calendar size={10} />
-                                  {m.ai_action.due_date}{m.ai_action.due_time ? ` à ${m.ai_action.due_time}` : ""}
+                                  {m.ai_action.due_date}{m.ai_action.due_time ? tr("chat.actions.atTime", { time: m.ai_action.due_time }) : ""}
                                 </span>
                               )}
                               {m.ai_action.assignee && (
@@ -618,7 +635,7 @@ export function ChatPage() {
                               )}
                               {m.ai_action.priority === "high" && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10">
-                                  🔴 Urgent
+                                  {tr("chat.actions.urgent")}
                                 </span>
                               )}
                             </div>
@@ -650,7 +667,7 @@ export function ChatPage() {
                               ) : (
                                 <Zap size={11} />
                               )}
-                              {quickTaskDone === m.id ? "Tâche créée !" : "Créer directement"}
+                              {quickTaskDone === m.id ? tr("chat.actions.taskCreated") : tr("chat.actions.createDirectly")}
                             </button>
                             <button
                               onClick={() => openTaskComposer(
@@ -660,7 +677,7 @@ export function ChatPage() {
                               )}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-700 transition hover:bg-violet-50 active:scale-95 dark:border-violet-500/30 dark:bg-transparent dark:text-violet-300 dark:hover:bg-violet-500/10"
                             >
-                              Personnaliser
+                              {tr("chat.actions.customize")}
                             </button>
                           </div>
                         </>
@@ -673,7 +690,7 @@ export function ChatPage() {
                             className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
                           >
                             <CheckSquare size={12} />
-                            Créer cette tâche
+                            {tr("chat.actions.createThisTask")}
                           </button>
                         </>
                       )}
@@ -686,7 +703,7 @@ export function ChatPage() {
 
           {typingUsers.length > 0 && (
             <p className="text-xs italic text-[#717182] px-2">
-              {typingUsers.join(", ")} {typingUsers.length === 1 ? "est en train d'écrire" : "sont en train d'écrire"}…
+              {tr(typingUsers.length === 1 ? "chat.typing.one" : "chat.typing.other", { users: typingUsers.join(", ") })}
             </p>
           )}
           <div ref={bottomRef} />
@@ -695,12 +712,12 @@ export function ChatPage() {
         {/* Upload status */}
         {upload.isPending && (
           <div className="flex items-center gap-2 border-t border-black/[0.05] dark:border-white/[0.05] bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-            <Paperclip size={12} /> Téléversement en cours…
+            <Paperclip size={12} /> {tr("chat.upload.pending")}
           </div>
         )}
         {upload.error && (
           <div className="flex items-center justify-between gap-2 border-t border-black/[0.05] dark:border-white/[0.05] bg-rose-50 dark:bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300">
-            <span>Échec : {upload.error.message}</span>
+            <span>{tr("chat.upload.failed", { message: upload.error.message })}</span>
             <button onClick={() => upload.reset()} className="rounded p-0.5 hover:bg-rose-100 dark:hover:bg-rose-500/20"><X size={12} /></button>
           </div>
         )}
@@ -712,7 +729,7 @@ export function ChatPage() {
             {mentionSuggestions.length > 0 && (
               <div className="absolute bottom-full mb-2 left-0 z-40 w-72 rounded-xl border border-black/[0.08] bg-white shadow-xl dark:border-white/[0.1] dark:bg-[#252931] overflow-hidden">
                 <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#717182] border-b border-black/[0.05] dark:border-white/[0.05]">
-                  Mentionner un collègue
+                  {tr("chat.mentions.title")}
                 </p>
                 {mentionSuggestions.map((emp, idx) => {
                   const name = `${emp.first_name} ${emp.last_name}`.trim();
@@ -732,7 +749,7 @@ export function ChatPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-[#17211f] dark:text-white">{name}</p>
-                        <p className="text-xs text-[#717182]">{emp.job_title || emp.department || "Employé"}</p>
+                        <p className="text-xs text-[#717182]">{emp.job_title || emp.department || tr("chat.mentions.employee")}</p>
                       </div>
                       {idx === mentionIndex && (
                         <span className="ml-auto text-[10px] text-[#717182]">↵</span>
@@ -749,7 +766,7 @@ export function ChatPage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={upload.isPending || activeChannelId === null}
                 className="text-[#717182] transition hover:text-violet-600 disabled:opacity-40"
-                title="Joindre un fichier"
+                title={tr("chat.input.attachFile")}
               >
                 <Paperclip size={16} />
               </button>
@@ -758,7 +775,7 @@ export function ChatPage() {
                 value={draft}
                 onChange={handleDraftChange}
                 onKeyDown={handleDraftKeyDown}
-                placeholder={activeChannel ? `Écrire à #${activeChannel.name}… (@nom pour mentionner)` : "Sélectionner un canal…"}
+                placeholder={activeChannel ? tr("chat.input.placeholder", { channel: activeChannel.name }) : tr("chat.channels.select")}
                 disabled={activeChannelId === null}
                 className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none disabled:cursor-not-allowed placeholder:text-[#717182]"
               />
@@ -780,21 +797,21 @@ export function ChatPage() {
       {showDetails && (
         <aside className="hidden lg:flex w-64 shrink-0 flex-col border-l border-black/[0.05] dark:border-white/[0.05] bg-[#f5f6f8] dark:bg-[#161920]">
           <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Détails</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("chat.details.title")}</h3>
           </div>
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
             {/* Description */}
             <div>
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-[#717182]">Description</p>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("chat.details.description")}</p>
               <p className="text-sm text-[#17211f] dark:text-white">
-                {activeChannel?.topic || "Aucune description pour ce canal."}
+                {activeChannel?.topic || tr("chat.details.noDescription")}
               </p>
             </div>
 
             {/* Members */}
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#717182]">
-                Membres ({channelDetail.data?.member_count ?? 0})
+                {tr("chat.details.members", { count: channelDetail.data?.member_count ?? 0 })}
               </p>
               <div className="flex flex-wrap gap-1">
                 {(channelDetail.data?.members ?? []).slice(0, 8).map((member) => (
@@ -808,7 +825,7 @@ export function ChatPage() {
                   </span>
                 )}
                 {!channelDetail.isLoading && (channelDetail.data?.members.length ?? 0) === 0 && (
-                  <span className="text-sm text-[#717182]">Aucun membre actif.</span>
+                  <span className="text-sm text-[#717182]">{tr("chat.details.noActiveMember")}</span>
                 )}
               </div>
             </div>
@@ -816,12 +833,12 @@ export function ChatPage() {
             {/* Linked tasks */}
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">Tâches liées</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("chat.details.linkedTasks")}</p>
                 <button
                   onClick={() => openTaskComposer(`Action #${activeChannel?.name ?? "chat"}`, `chat:${activeChannelId}:channel`)}
                   className="rounded-lg bg-violet-600 px-2 py-1 text-[11px] font-bold text-white"
                 >
-                  + tâche
+                  {tr("chat.details.addTask")}
                 </button>
               </div>
               <div className="space-y-2">
@@ -830,13 +847,13 @@ export function ChatPage() {
                     <CheckSquare size={15} className="text-violet-500" />
                     <div>
                       <p className="font-medium text-[#17211f] dark:text-white">{t.title}</p>
-                      <p className="text-xs text-[#717182]">{t.status}</p>
+                      <p className="text-xs text-[#717182]">{taskStatusLabel(t.status, tr)}</p>
                     </div>
                   </div>
                 ))}
                 {!channelDetail.isLoading && (channelDetail.data?.tasks.length ?? 0) === 0 && (
                   <p className="rounded-lg border border-dashed border-black/[0.08] px-3 py-3 text-sm text-[#717182] dark:border-white/[0.08]">
-                    Aucune tâche ouverte.
+                    {tr("chat.details.noOpenTask")}
                   </p>
                 )}
               </div>
@@ -850,20 +867,20 @@ export function ChatPage() {
           <form onSubmit={submitChannel} className="w-full max-w-md rounded-2xl border border-black/[0.06] bg-white p-5 shadow-xl dark:border-white/[0.08] dark:bg-[#1e2229]">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-[#17211f] dark:text-white">Créer un canal</h3>
-                <p className="text-sm text-[#717182]">Le canal sera enregistré dans le backend KOMPTA.</p>
+                <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("chat.createChannel.title")}</h3>
+                <p className="text-sm text-[#717182]">{tr("chat.createChannel.subtitle")}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowChannelCreate(false)}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
-                aria-label="Fermer"
+                aria-label={tr("common.close")}
               >
                 <X size={16} />
               </button>
             </div>
             <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-[#717182]">
-              Nom du canal
+              {tr("chat.createChannel.name")}
               <input
                 value={channelForm.name}
                 onChange={(e) => setChannelForm((current) => ({ ...current, name: e.target.value }))}
@@ -872,7 +889,7 @@ export function ChatPage() {
               />
             </label>
             <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-[#717182]">
-              Description
+              {tr("chat.createChannel.description")}
               <input
                 value={channelForm.topic}
                 onChange={(e) => setChannelForm((current) => ({ ...current, topic: e.target.value }))}
@@ -887,7 +904,7 @@ export function ChatPage() {
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:bg-stone-300"
             >
               {createChannel.isPending ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
-              Créer et ouvrir
+              {tr("chat.createChannel.submit")}
             </button>
           </form>
         </div>
@@ -903,8 +920,8 @@ export function ChatPage() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-[#17211f] dark:text-white">Créer une tâche</h3>
-                <p className="text-sm text-[#717182]">Depuis le chat, avec responsable et priorité.</p>
+                <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("chat.taskComposer.title")}</h3>
+                <p className="text-sm text-[#717182]">{tr("chat.taskComposer.subtitle")}</p>
               </div>
               <button type="button" onClick={() => setTaskComposer((current) => ({ ...current, open: false }))} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
                 <X size={16} />
@@ -912,7 +929,7 @@ export function ChatPage() {
             </div>
             <div className="mt-4 space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Titre
+                {tr("chat.taskComposer.taskTitle")}
                 <textarea
                   required
                   rows={2}
@@ -923,7 +940,7 @@ export function ChatPage() {
               </label>
               {taskComposer.description && (
                 <label className="block text-xs font-bold uppercase text-[#717182]">
-                  Description
+                  {tr("chat.createChannel.description")}
                   <textarea
                     rows={2}
                     value={taskComposer.description}
@@ -933,14 +950,14 @@ export function ChatPage() {
                 </label>
               )}
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Responsable
+                {tr("chat.taskComposer.assignee")}
                 <select
                   value={taskComposer.assignee_name}
                   onChange={(event) => setTaskComposer({ ...taskComposer, assignee_name: event.target.value })}
                   disabled={!canManageTasks}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
                 >
-                  <option value="">{canManageTasks ? "Non assigné" : "Assignée à moi automatiquement"}</option>
+                  <option value="">{canManageTasks ? tr("chat.taskComposer.unassigned") : tr("chat.taskComposer.assignedToMeAuto")}</option>
                   {(employees.data ?? []).map((employee) => {
                     const name = `${employee.first_name} ${employee.last_name}`.trim();
                     return <option key={employee.id} value={name}>{name}</option>;
@@ -949,21 +966,21 @@ export function ChatPage() {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-xs font-bold uppercase text-[#717182]">
-                  Priorité
+                  {tr("chat.taskComposer.priority")}
                   <select value={taskComposer.priority} onChange={(event) => setTaskComposer({ ...taskComposer, priority: event.target.value })} className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white">
-                    <option value="low">Basse</option>
-                    <option value="normal">Normale</option>
-                    <option value="high">Haute</option>
+                    <option value="low">{tr("chat.priorities.low")}</option>
+                    <option value="normal">{tr("chat.priorities.normal")}</option>
+                    <option value="high">{tr("chat.priorities.high")}</option>
                   </select>
                 </label>
                 <label className="block text-xs font-bold uppercase text-[#717182]">
-                  Date limite
+                  {tr("chat.taskComposer.dueDate")}
                   <input type="date" value={taskComposer.due_date} onChange={(event) => setTaskComposer({ ...taskComposer, due_date: event.target.value })} className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm normal-case text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                 </label>
               </div>
               {taskComposer.due_date && (
                 <label className="block text-xs font-bold uppercase text-[#717182]">
-                  Heure (optionnel)
+                  {tr("chat.taskComposer.timeOptional")}
                   <input
                     type="time"
                     value={taskComposer.due_time}
@@ -975,7 +992,7 @@ export function ChatPage() {
               {createTask.error && <p className="text-sm font-semibold text-rose-600">{createTask.error.message}</p>}
               <button disabled={!taskComposer.title.trim() || createTask.isPending} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-700 disabled:bg-stone-300">
                 {createTask.isPending ? <Loader2 className="animate-spin" size={16} /> : <CheckSquare size={16} />}
-                Créer la tâche
+                {tr("chat.taskComposer.submit")}
               </button>
             </div>
           </form>
