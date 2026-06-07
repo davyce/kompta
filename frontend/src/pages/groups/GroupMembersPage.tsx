@@ -2,11 +2,27 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Users, X, Loader2, UserCheck, UserX, UserPlus, Key, Copy, Check, Trash2, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
 import { useToast } from "../../components/ToastProvider";
 import { useConfirm } from "../../components/ConfirmProvider";
 
+const STATUS_TK: Record<string, string> = {
+  active: "groupPages.members.status.active",
+  inactive: "groupPages.members.status.inactive",
+  suspended: "groupPages.members.status.suspended",
+};
+
+const ROLE_TK: Record<string, string> = {
+  Président: "groupPages.leadership.roles.president",
+  "Vice-président": "groupPages.leadership.roles.vicePresident",
+  Secrétaire: "groupPages.leadership.roles.secretary",
+  Trésorier: "groupPages.leadership.roles.treasurer",
+  Membre: "groupPages.members.defaultRole",
+};
+
 export function GroupMembersPage() {
+  const { t: tr } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const id = Number(groupId);
   const qc = useQueryClient();
@@ -35,20 +51,20 @@ export function GroupMembersPage() {
   const resetAccess = useMutation({
     mutationFn: (memberId: number) => api.resetMemberAccess(id, memberId),
     onSuccess: (data) => setProvisionResult({ created: false, login_identifier: data.login_identifier, temporary_password: data.temporary_password, message: data.message }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Réinitialisation impossible"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : tr("groupPages.members.resetFailed")),
   });
 
   const removeMember = useMutation({
     mutationFn: (memberId: number) => api.deleteGroupMember(id, memberId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["group-members", id] }); toast.success("Membre retiré du groupe"); },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Suppression impossible"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["group-members", id] }); toast.success(tr("groupPages.members.removed")); },
+    onError: (err) => toast.error(err instanceof Error ? err.message : tr("groupPages.members.removeFailed")),
   });
 
   async function handleRemove(memberId: number, name: string) {
     const ok = await confirm({
-      title: `Retirer ${name} du groupe ?`,
-      message: "Son compte KOMPTA sera désactivé. Tu pourras le réactiver plus tard via « Générer un accès ».",
-      confirmLabel: "Retirer le membre",
+      title: tr("groupPages.members.confirmRemoveTitle", { name }),
+      message: tr("groupPages.members.confirmRemoveMessage"),
+      confirmLabel: tr("groupPages.members.removeMember"),
       danger: true,
     });
     if (ok) removeMember.mutate(memberId);
@@ -56,9 +72,9 @@ export function GroupMembersPage() {
 
   async function handleReset(memberId: number, name: string) {
     const ok = await confirm({
-      title: `Réinitialiser l'accès de ${name} ?`,
-      message: "Un nouveau mot de passe temporaire sera généré. Ses sessions actives seront révoquées.",
-      confirmLabel: "Réinitialiser",
+      title: tr("groupPages.members.confirmResetTitle", { name }),
+      message: tr("groupPages.members.confirmResetMessage"),
+      confirmLabel: tr("groupPages.members.reset"),
     });
     if (ok) resetAccess.mutate(memberId);
   }
@@ -74,12 +90,12 @@ export function GroupMembersPage() {
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-black text-[#17211f] dark:text-white">Membres</h2>
-          <p className="text-sm text-[#717182]">{members.length} membre{members.length > 1 ? "s" : ""} au total</p>
+          <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("groupPages.members.title")}</h2>
+          <p className="text-sm text-[#717182]">{tr("groupPages.members.total", { count: members.length })}</p>
         </div>
         {group?.can_manage && (
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition">
-            <Plus size={15} /> Ajouter
+            <Plus size={15} /> {tr("common.add")}
           </button>
         )}
       </div>
@@ -88,7 +104,7 @@ export function GroupMembersPage() {
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#252931] px-3 py-2 flex-1 max-w-xs">
           <Search size={14} className="text-[#717182]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="bg-transparent text-sm outline-none text-[#17211f] dark:text-white placeholder:text-[#717182]" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("common.search")} className="bg-transparent text-sm outline-none text-[#17211f] dark:text-white placeholder:text-[#717182]" />
         </div>
       </div>
 
@@ -121,12 +137,12 @@ export function GroupMembersPage() {
                   </div>
                   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${m.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-rose-100 text-rose-700"}`}>
                     {m.is_active ? <UserCheck size={10} /> : <UserX size={10} />}
-                    {m.status === "active" ? "Actif" : m.status}
+                    {tr(STATUS_TK[m.status] ?? "groupPages.members.status.unknown", { defaultValue: m.status })}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {m.roles.map(r => <span key={r} className="rounded-full bg-sky-100 dark:bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">{r}</span>)}
-                  {m.roles.length === 0 && <span className="text-[#717182] text-xs">Membre</span>}
+                  {m.roles.map(r => <span key={r} className="rounded-full bg-sky-100 dark:bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">{tr(ROLE_TK[r] ?? "groupPages.members.roleUnknown", { defaultValue: r })}</span>)}
+                  {m.roles.length === 0 && <span className="text-[#717182] text-xs">{tr("groupPages.members.defaultRole")}</span>}
                 </div>
                 {group?.can_manage && (
                   <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -136,16 +152,16 @@ export function GroupMembersPage() {
                       className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700/30 px-2 py-1.5 text-[11px] font-semibold text-blue-900 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-800/10 transition"
                     >
                       {provision.isPending ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
-                      Accès
+                      {tr("groupPages.members.access")}
                     </button>
                     <button
                       onClick={() => handleReset(m.id, m.full_name)}
                       disabled={resetAccess.isPending}
                       className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-500/30 px-2 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
-                      title="Réinitialiser le mot de passe"
+                      title={tr("groupPages.members.resetPassword")}
                     >
                       {resetAccess.isPending ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
-                      Reset
+                      {tr("groupPages.members.resetShort")}
                     </button>
                     <button
                       onClick={() => handleRemove(m.id, m.full_name)}
@@ -153,7 +169,7 @@ export function GroupMembersPage() {
                       className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 px-2 py-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
                     >
                       {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                      Retirer du groupe
+                      {tr("groupPages.members.removeFromGroup")}
                     </button>
                   </div>
                 )}
@@ -166,11 +182,11 @@ export function GroupMembersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-black/[0.06] dark:border-white/[0.06] bg-[#f6f7fb] dark:bg-[#161920]">
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Membre</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Zone</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Rôles</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Statut</th>
-                  {group?.can_manage && <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Compte</th>}
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.members.member")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.members.zone")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.members.roles")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("common.status")}</th>
+                  {group?.can_manage && <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.members.account")}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -190,14 +206,14 @@ export function GroupMembersPage() {
                     <td className="px-4 py-3 text-[#717182]">{m.zone || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {m.roles.map(r => <span key={r} className="rounded-full bg-sky-100 dark:bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">{r}</span>)}
-                        {m.roles.length === 0 && <span className="text-[#717182] text-xs">Membre</span>}
+                        {m.roles.map(r => <span key={r} className="rounded-full bg-sky-100 dark:bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">{tr(ROLE_TK[r] ?? "groupPages.members.roleUnknown", { defaultValue: r })}</span>)}
+                        {m.roles.length === 0 && <span className="text-[#717182] text-xs">{tr("groupPages.members.defaultRole")}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${m.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-rose-100 text-rose-700"}`}>
                         {m.is_active ? <UserCheck size={10} /> : <UserX size={10} />}
-                        {m.status === "active" ? "Actif" : m.status}
+                        {tr(STATUS_TK[m.status] ?? "groupPages.members.status.unknown", { defaultValue: m.status })}
                       </span>
                     </td>
                     {group?.can_manage && (
@@ -209,22 +225,22 @@ export function GroupMembersPage() {
                           className="flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700/30 px-2.5 py-1 text-xs font-semibold text-blue-900 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-800/10 transition"
                         >
                           {provision.isPending ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
-                          Accès
+                          {tr("groupPages.members.access")}
                         </button>
                         <button
                           onClick={() => handleReset(m.id, m.full_name)}
                           disabled={resetAccess.isPending}
                           className="flex items-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
-                          title="Réinitialiser le mot de passe"
+                          title={tr("groupPages.members.resetPassword")}
                         >
                           {resetAccess.isPending ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
-                          Reset
+                          {tr("groupPages.members.resetShort")}
                         </button>
                         <button
                           onClick={() => handleRemove(m.id, m.full_name)}
                           disabled={removeMember.isPending}
                           className="flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
-                          title="Retirer du groupe"
+                          title={tr("groupPages.members.removeFromGroup")}
                         >
                           {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                         </button>
@@ -235,7 +251,7 @@ export function GroupMembersPage() {
                 ))}
               </tbody>
             </table>
-            {filtered.length === 0 && <p className="py-8 text-center text-sm text-[#717182]">Aucun membre trouvé.</p>}
+            {filtered.length === 0 && <p className="py-8 text-center text-sm text-[#717182]">{tr("groupPages.members.noneFound")}</p>}
           </div>
         </>
       )}
@@ -247,14 +263,14 @@ export function GroupMembersPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-[#17211f] dark:text-white flex items-center gap-2">
                 <Key size={18} className="text-blue-800" />
-                {provisionResult.created ? "Compte créé" : "Compte existant"}
+                {provisionResult.created ? tr("groupPages.members.accountCreated") : tr("groupPages.members.accountExisting")}
               </h3>
               <button onClick={() => setProvisionResult(null)}><X size={16} className="text-[#717182]" /></button>
             </div>
             <p className="text-sm text-[#717182] mb-4">{provisionResult.message}</p>
             <div className="space-y-2">
               <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#252931] px-4 py-3">
-                <p className="text-[11px] font-bold uppercase text-[#717182] mb-1.5">Identifiant de connexion</p>
+                <p className="text-[11px] font-bold uppercase text-[#717182] mb-1.5">{tr("groupPages.members.loginIdentifier")}</p>
                 {/* Input cliquable pour copier l'identifiant sans ambiguïté */}
                 <input
                   type="text"
@@ -268,9 +284,9 @@ export function GroupMembersPage() {
               {provisionResult.temporary_password && (
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-4 py-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Mot de passe temporaire</p>
+                    <p className="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">{tr("groupPages.members.temporaryPassword")}</p>
                     <button onClick={() => copyToClipboard(provisionResult.temporary_password!)} className="text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1 text-xs font-semibold">
-                      {copied ? <><Check size={13} /> Copié</> : <><Copy size={13} /> Copier</>}
+                      {copied ? <><Check size={13} /> {tr("common.copied")}</> : <><Copy size={13} /> {tr("common.copy")}</>}
                     </button>
                   </div>
                   {/* Input readonly — copier-coller fiable, pas de transformation typographique */}
@@ -285,9 +301,9 @@ export function GroupMembersPage() {
                 </div>
               )}
             </div>
-            <p className="mt-3 text-[11px] text-[#717182]">⚠️ Transmets ce mot de passe via un canal sécurisé. Il sera changé à la première connexion. Le mot de passe contient des <strong>tirets simples (-)</strong>, pas des tirets longs.</p>
+            <p className="mt-3 text-[11px] text-[#717182]">{tr("groupPages.members.passwordWarningPrefix")} <strong>{tr("groupPages.members.simpleHyphens")}</strong>{tr("groupPages.members.passwordWarningSuffix")}</p>
             <button onClick={() => setProvisionResult(null)} className="mt-4 w-full rounded-xl bg-blue-800 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition">
-              Fermer
+              {tr("common.close")}
             </button>
           </div>
         </div>
@@ -298,11 +314,17 @@ export function GroupMembersPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-[#17211f] dark:text-white">Ajouter un membre</h3>
+              <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.members.addMember")}</h3>
               <button onClick={() => setShowAdd(false)}><X size={16} className="text-[#717182]" /></button>
             </div>
             <div className="space-y-3">
-              {[["full_name","Nom complet *","Amina Moussa"], ["phone","Téléphone","+242060000000"], ["email","Email","amina@example.com"], ["zone","Zone / Quartier","Bacongo"], ["profession","Profession","Commerçante"]].map(([field, label, placeholder]) => (
+              {[
+                { field: "full_name", label: tr("groupPages.members.form.fullName"), placeholder: "Amina Moussa" },
+                { field: "phone", label: tr("groupPages.members.form.phone"), placeholder: "+242060000000" },
+                { field: "email", label: tr("groupPages.members.form.email"), placeholder: "amina@example.com" },
+                { field: "zone", label: tr("groupPages.members.form.zone"), placeholder: "Bacongo" },
+                { field: "profession", label: tr("groupPages.members.form.profession"), placeholder: tr("groupPages.members.form.professionPlaceholder") },
+              ].map(({ field, label, placeholder }) => (
                 <label key={field} className="block text-xs font-bold uppercase text-[#717182]">
                   {label}
                   <input value={(form as Record<string, string>)[field]} onChange={e => setForm(f => ({...f, [field]: e.target.value}))} placeholder={placeholder}
@@ -310,7 +332,7 @@ export function GroupMembersPage() {
                 </label>
               ))}
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Date de naissance
+                {tr("groupPages.members.form.birthDate")}
                 <input type="date" value={form.date_of_birth} onChange={e => setForm(f => ({...f, date_of_birth: e.target.value}))}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case" />
               </label>
@@ -318,7 +340,7 @@ export function GroupMembersPage() {
             {add.error && <p className="mt-2 text-sm text-rose-600">{(add.error as Error).message}</p>}
             <button disabled={!form.full_name.trim() || add.isPending} onClick={() => add.mutate()}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-800 py-3 text-sm font-black text-white hover:bg-blue-900 disabled:bg-stone-300 transition">
-              {add.isPending ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />} Ajouter
+              {add.isPending ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />} {tr("common.add")}
             </button>
           </div>
         </div>

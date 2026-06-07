@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, FileText, Send, Hash, Loader2, Trash2, Reply, Plus, X, MessageSquare, Sparkles, Wifi, WifiOff, Paperclip, ImageIcon, Download, File as FileIcon } from "lucide-react";
+import { Bot, FileText, Send, Hash, Loader2, Trash2, Reply, Plus, X, MessageSquare, Sparkles, Wifi, WifiOff, Paperclip, Download, File as FileIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useAuth } from "../../app/AuthContext";
 import { api } from "../../services/api";
 import { useToast } from "../../components/ToastProvider";
+import i18n from "../../i18n";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
 // WS absolu (ws://|wss://). API relative (/api) → dérive de l'origine (tunnel https → wss).
@@ -15,22 +18,22 @@ const EMOJI_QUICK = ["👍","❤️","😂","🎉","👏","🙏"];
 
 function formatMessageTime(value: string) {
   try {
-    return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+    return new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
   } catch {
     return "";
   }
 }
 
-function formatDateSeparator(value: string) {
+function formatDateSeparator(value: string, tr: TFunction) {
   try {
     const d = new Date(value);
     const today = new Date();
     const yest = new Date(); yest.setDate(today.getDate() - 1);
     const same = (a: Date, b: Date) =>
       a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-    if (same(d, today)) return "Aujourd'hui";
-    if (same(d, yest)) return "Hier";
-    return new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(d);
+    if (same(d, today)) return tr("groupPages.chat.today");
+    if (same(d, yest)) return tr("groupPages.chat.yesterday");
+    return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(d);
   } catch {
     return "";
   }
@@ -52,6 +55,7 @@ function isImageMedia(m: { message_type?: string; media_url?: string }) {
 }
 
 export function GroupChatPage() {
+  const { t: tr } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const id = Number(groupId);
   const { user, token } = useAuth();
@@ -152,7 +156,7 @@ export function GroupChatPage() {
       setReplyTo(null);
       qc.invalidateQueries({ queryKey: ["group-chat-messages", id, activeRoomId] });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Échec de l'upload"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : tr("groupPages.chat.uploadFailed")),
   });
 
   function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -175,9 +179,9 @@ export function GroupChatPage() {
       setAssistantAnswer("");
     },
     onSuccess: (data) => {
-      setAssistantAnswer(data.summary || "Limule n'a pas trouvé assez de contenu à résumer.");
+      setAssistantAnswer(data.summary || tr("groupPages.chat.notEnoughContent"));
     },
-    onError: (err) => setAssistantError(err instanceof Error ? err.message : "Résumé Limule indisponible"),
+    onError: (err) => setAssistantError(err instanceof Error ? err.message : tr("groupPages.chat.summaryUnavailable")),
   });
   const askLimule = useMutation({
     mutationFn: () =>
@@ -186,7 +190,7 @@ export function GroupChatPage() {
         [
           assistantQuestion.trim(),
           "",
-          `Contexte du salon "${activeRoom?.name ?? "groupe"}" :`,
+          tr("groupPages.chat.roomContext", { room: activeRoom?.name ?? tr("groupPages.chat.groupFallback") }),
           ...chatTranscript,
         ].join("\n")
       ),
@@ -196,14 +200,14 @@ export function GroupChatPage() {
       setAssistantAnswer("");
     },
     onSuccess: (data) => setAssistantAnswer(data.answer),
-    onError: (err) => setAssistantError(err instanceof Error ? err.message : "Limule est indisponible"),
+    onError: (err) => setAssistantError(err instanceof Error ? err.message : tr("groupPages.chat.limuleUnavailable")),
   });
 
   function handleSummarizeChat() {
     if (chatTranscript.length === 0) {
       setAssistantOpen(true);
       setAssistantAnswer("");
-      setAssistantError("Aucun message réel à résumer dans ce salon.");
+      setAssistantError(tr("groupPages.chat.noRealMessage"));
       return;
     }
     summarizeChat.mutate();
@@ -211,7 +215,7 @@ export function GroupChatPage() {
 
   function handleAskLimule() {
     if (!assistantQuestion.trim()) {
-      setAssistantError("Écris une question pour Limule.");
+      setAssistantError(tr("groupPages.chat.writeQuestion"));
       return;
     }
     askLimule.mutate();
@@ -226,12 +230,12 @@ export function GroupChatPage() {
       {/* Rooms sidebar */}
       <div className="w-28 shrink-0 border-r border-black/[0.05] bg-[#f6f7fb] dark:border-white/[0.05] dark:bg-[#161920] sm:w-44 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-2 py-2">
-          <p className="text-[10px] font-bold uppercase text-[#717182]">Salons</p>
+          <p className="text-[10px] font-bold uppercase text-[#717182]">{tr("groupPages.chat.rooms")}</p>
           {group?.can_manage && (
             <button
               onClick={() => setShowCreateRoom(true)}
               className="flex h-6 w-6 items-center justify-center rounded-md text-[#717182] hover:bg-blue-100 hover:text-blue-800 dark:hover:bg-blue-800/15 dark:hover:text-blue-400 transition"
-              title="Créer un salon"
+              title={tr("groupPages.chat.createRoom")}
             >
               <Plus size={14} />
             </button>
@@ -248,10 +252,10 @@ export function GroupChatPage() {
           {rooms.length === 0 && (
             <div className="px-2 py-4 text-center">
               <Hash size={20} className="mx-auto text-[#c4c4cf] mb-1.5" />
-              <p className="text-[11px] text-[#717182]">Aucun salon</p>
+              <p className="text-[11px] text-[#717182]">{tr("groupPages.chat.noRoom")}</p>
               {group?.can_manage && (
                 <button onClick={() => setShowCreateRoom(true)} className="mt-2 text-[11px] font-semibold text-blue-800 hover:underline">
-                  Créer le premier
+                  {tr("groupPages.chat.createFirst")}
                 </button>
               )}
             </div>
@@ -266,14 +270,14 @@ export function GroupChatPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-bold text-[#17211f] dark:text-white">{activeRoom?.name ?? "Salon"}</p>
+                <p className="truncate text-sm font-bold text-[#17211f] dark:text-white">{activeRoom?.name ?? tr("groupPages.chat.roomFallback")}</p>
                 <span className="hidden rounded-full border border-black/[0.08] px-2 py-0.5 text-[10px] font-bold text-[#717182] dark:border-white/[0.08] sm:inline-flex">
-                  {messages.length} messages
+                  {tr("groupPages.chat.messageCount", { count: messages.length })}
                 </span>
               </div>
               <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-[#717182]">
                 {wsConnected ? <Wifi size={11} className="text-emerald-600" /> : <WifiOff size={11} className="text-amber-500" />}
-                <span>{wsConnected ? "Temps réel connecté" : "Synchronisation par rafraîchissement"}</span>
+                <span>{wsConnected ? tr("groupPages.chat.realtimeConnected") : tr("groupPages.chat.refreshSync")}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -283,7 +287,7 @@ export function GroupChatPage() {
                 className="hidden items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 sm:flex"
               >
                 <FileText size={13} />
-                Résumer
+                {tr("groupPages.chat.summarize")}
               </button>
               <button
                 onClick={() => setAssistantOpen(true)}
@@ -307,11 +311,11 @@ export function GroupChatPage() {
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center py-10">
               <MessageSquare size={36} className="text-blue-200 dark:text-blue-700/40" />
               <p className="text-sm text-[#717182]">
-                {rooms.length === 0 ? "Créez votre premier salon pour commencer à discuter." : "Sélectionnez un salon."}
+                {rooms.length === 0 ? tr("groupPages.chat.createFirstPrompt") : tr("groupPages.chat.selectRoom")}
               </p>
               {rooms.length === 0 && group?.can_manage && (
                 <button onClick={() => setShowCreateRoom(true)} className="flex items-center gap-1.5 rounded-xl bg-blue-800 px-4 py-2 text-sm font-bold text-white hover:bg-blue-900 transition">
-                  <Plus size={14} /> Créer un salon
+                  <Plus size={14} /> {tr("groupPages.chat.createRoom")}
                 </button>
               )}
             </div>
@@ -329,7 +333,7 @@ export function GroupChatPage() {
                 {showDateSep && (
                   <div className="flex items-center justify-center my-3">
                     <span className="rounded-full bg-black/[0.05] dark:bg-white/[0.07] px-3 py-1 text-[10px] font-bold text-[#717182] uppercase tracking-wide">
-                      {formatDateSeparator(m.created_at)}
+                      {formatDateSeparator(m.created_at, tr)}
                     </span>
                   </div>
                 )}
@@ -342,7 +346,7 @@ export function GroupChatPage() {
                   {/* Bulle texte ou média */}
                   {mediaUrl && isImageMedia(m) ? (
                     <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.08]">
-                      <img src={mediaUrl} alt={m.content || "image"} className="max-h-72 w-auto max-w-full object-cover" loading="lazy" />
+                      <img src={mediaUrl} alt={m.content || tr("groupPages.chat.imageAlt")} className="max-h-72 w-auto max-w-full object-cover" loading="lazy" />
                     </a>
                   ) : mediaUrl ? (
                     <a href={mediaUrl} target="_blank" rel="noopener noreferrer"
@@ -350,19 +354,19 @@ export function GroupChatPage() {
                     >
                       <FileIcon size={18} className="shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-semibold">{m.content || "Fichier"}</p>
-                        <p className="text-[10px] opacity-70">Cliquer pour ouvrir</p>
+                        <p className="truncate text-sm font-semibold">{m.content || tr("groupPages.chat.file")}</p>
+                        <p className="text-[10px] opacity-70">{tr("groupPages.chat.clickToOpen")}</p>
                       </div>
                       <Download size={14} className="shrink-0 opacity-70" />
                     </a>
                   ) : (
                     <div className={`rounded-2xl px-3 py-2 text-sm ${isMe ? "bg-gradient-to-r from-blue-800 to-blue-900 text-white" : "bg-[#ececf2] dark:bg-white/[0.07] text-[#17211f] dark:text-white"} ${deleted ? "opacity-50 italic" : ""}`}>
-                      {deleted ? "Message supprimé" : m.content}
+                      {deleted ? tr("groupPages.chat.deletedMessage") : m.content}
                     </div>
                   )}
                   <p className={`mt-0.5 px-1 text-[10px] text-[#9a9aaa] ${isMe ? "text-right" : ""}`}>
                     {formatMessageTime(m.created_at)}
-                    {m.edited_at && <span className="ml-1 italic opacity-70">· modifié</span>}
+                    {m.edited_at && <span className="ml-1 italic opacity-70">· {tr("groupPages.chat.edited")}</span>}
                   </p>
                   {/* Reactions */}
                   {!deleted && Object.keys(m.reactions ?? {}).length > 0 && (
@@ -394,14 +398,14 @@ export function GroupChatPage() {
         </div>
         {/* Input */}
         <div className="border-t border-black/[0.05] dark:border-white/[0.05] p-3 bg-white dark:bg-[#1e2229]">
-          {replyTo && <div className="mb-1 flex items-center gap-2 text-xs text-[#717182]"><Reply size={10} />Réponse au message #{replyTo} <button onClick={() => setReplyTo(null)}><span className="text-rose-400 ml-1">✕</span></button></div>}
+          {replyTo && <div className="mb-1 flex items-center gap-2 text-xs text-[#717182]"><Reply size={10} />{tr("groupPages.chat.replyTo", { id: replyTo })} <button onClick={() => setReplyTo(null)}><span className="text-rose-400 ml-1">✕</span></button></div>}
           <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f6f8] dark:bg-[#252931] px-3 py-2">
             {/* Bouton pièce jointe */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!activeRoomId || uploadMedia.isPending}
-              title="Joindre une image ou un fichier"
+              title={tr("groupPages.chat.attach")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#717182] hover:bg-blue-100 hover:text-blue-800 transition disabled:opacity-40"
             >
               {uploadMedia.isPending ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={16} />}
@@ -415,7 +419,7 @@ export function GroupChatPage() {
             />
             <input value={draft} onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && draft.trim()) { e.preventDefault(); send.mutate(); } }}
-              placeholder={activeRoomId ? "Écrire un message…" : "Sélectionnez un salon"}
+              placeholder={activeRoomId ? tr("groupPages.chat.writeMessage") : tr("groupPages.chat.selectRoom")}
               disabled={!activeRoomId}
               className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182] disabled:cursor-not-allowed" />
             <button onClick={() => send.mutate()} disabled={!draft.trim() || send.isPending || !activeRoomId}
@@ -424,7 +428,7 @@ export function GroupChatPage() {
             </button>
           </div>
           <p className="mt-1.5 hidden text-[10px] text-[#aaaabc] sm:block">
-            ✦ Glisse une image ou un fichier ici · ↵ Entrée pour envoyer · Max 50 MB
+            {tr("groupPages.chat.dropHint")}
           </p>
         </div>
       </div>
@@ -437,14 +441,14 @@ export function GroupChatPage() {
                 <Bot size={16} />
               </div>
               <div>
-                <p className="text-sm font-black text-[#17211f] dark:text-white">Limule du chat</p>
-                <p className="text-[10px] font-semibold text-[#717182]">Résumé, décisions, actions</p>
+                <p className="text-sm font-black text-[#17211f] dark:text-white">{tr("groupPages.chat.limuleTitle")}</p>
+                <p className="text-[10px] font-semibold text-[#717182]">{tr("groupPages.chat.limuleSubtitle")}</p>
               </div>
             </div>
             <button
               onClick={() => setAssistantOpen(false)}
               className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
-              title="Fermer Limule"
+              title={tr("groupPages.chat.closeLimule")}
             >
               <X size={16} />
             </button>
@@ -454,7 +458,7 @@ export function GroupChatPage() {
             {assistantPending ? (
               <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
                 <Loader2 size={24} className="animate-spin text-blue-800 dark:text-blue-300" />
-                <p className="text-sm font-semibold text-[#717182]">Limule analyse les messages réels du salon…</p>
+                <p className="text-sm font-semibold text-[#717182]">{tr("groupPages.chat.limuleAnalyzing")}</p>
               </div>
             ) : assistantError ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
@@ -463,7 +467,7 @@ export function GroupChatPage() {
             ) : assistantAnswer ? (
               <div className="space-y-3">
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  Réponse générée depuis les messages visibles du groupe. Valider humainement avant toute décision financière ou juridique.
+                  {tr("groupPages.chat.aiWarning")}
                 </div>
                 <div className="whitespace-pre-wrap rounded-xl border border-black/[0.06] bg-[#f8fafc] p-4 text-sm leading-relaxed text-[#17211f] dark:border-white/[0.06] dark:bg-[#161920] dark:text-white">
                   {assistantAnswer}
@@ -473,8 +477,8 @@ export function GroupChatPage() {
               <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
                 <Sparkles size={30} className="text-blue-300 dark:text-blue-500/60" />
                 <div>
-                  <p className="font-black text-[#17211f] dark:text-white">Assistant connecté</p>
-                  <p className="mt-1 text-sm text-[#717182]">Demande un résumé, les décisions prises ou les prochaines actions du salon.</p>
+                  <p className="font-black text-[#17211f] dark:text-white">{tr("groupPages.chat.assistantConnected")}</p>
+                  <p className="mt-1 text-sm text-[#717182]">{tr("groupPages.chat.assistantPrompt")}</p>
                 </div>
               </div>
             )}
@@ -485,7 +489,7 @@ export function GroupChatPage() {
               value={assistantQuestion}
               onChange={(e) => setAssistantQuestion(e.target.value)}
               rows={3}
-              placeholder="Ex: Quelles actions ont été décidées ? Qui doit payer ?"
+              placeholder={tr("groupPages.chat.assistantPlaceholder")}
               className="w-full resize-none rounded-xl border border-black/[0.08] bg-[#f6f7fb] px-3 py-2 text-sm text-[#17211f] outline-none placeholder:text-[#717182] focus:border-blue-700 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
             />
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -495,7 +499,7 @@ export function GroupChatPage() {
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-black/[0.08] px-3 py-2 text-xs font-black text-[#17211f] transition hover:bg-black/[0.04] disabled:opacity-50 dark:border-white/[0.08] dark:text-white dark:hover:bg-white/[0.05]"
               >
                 <FileText size={13} />
-                Résumé
+                {tr("groupPages.chat.summary")}
               </button>
               <button
                 onClick={handleAskLimule}
@@ -503,7 +507,7 @@ export function GroupChatPage() {
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-800 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-900 disabled:opacity-50"
               >
                 <Sparkles size={13} />
-                Demander
+                {tr("groupPages.chat.ask")}
               </button>
             </div>
           </div>
@@ -516,34 +520,34 @@ export function GroupChatPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-              <h3 className="font-bold text-[#17211f] dark:text-white">Nouveau salon</h3>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("groupPages.chat.newRoom")}</h3>
               <button onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
                 <X size={18} />
               </button>
             </div>
             <div className="px-5 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Nom du salon</label>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("groupPages.chat.roomName")}</label>
                 <input
                   autoFocus
                   value={newRoomName}
                   onChange={e => setNewRoomName(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && newRoomName.trim() && createRoom.mutate()}
-                  placeholder="ex: Annonces, Projets, Finance…"
+                  placeholder={tr("groupPages.chat.roomNamePlaceholder")}
                   className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-blue-700"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">Type</label>
+                <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("groupPages.meetings.form.type")}</label>
                 <select
                   value={newRoomType}
                   onChange={e => setNewRoomType(e.target.value)}
                   className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-blue-700"
                 >
-                  <option value="general">🏠 Général — visible par tous</option>
-                  <option value="bureau">👔 Bureau — membres du bureau</option>
-                  <option value="finance">💰 Finance — trésorier et bureau</option>
-                  <option value="event">🎉 Événement</option>
+                  <option value="general">{tr("groupPages.chat.roomTypes.general")}</option>
+                  <option value="bureau">{tr("groupPages.chat.roomTypes.office")}</option>
+                  <option value="finance">{tr("groupPages.chat.roomTypes.finance")}</option>
+                  <option value="event">{tr("groupPages.chat.roomTypes.event")}</option>
                 </select>
               </div>
             </div>
@@ -552,7 +556,7 @@ export function GroupChatPage() {
                 onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }}
                 className="flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] py-2.5 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition"
               >
-                Annuler
+                {tr("common.cancel")}
               </button>
               <button
                 onClick={() => createRoom.mutate()}
@@ -560,7 +564,7 @@ export function GroupChatPage() {
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-800 hover:bg-blue-900 py-2.5 text-sm font-bold text-white transition disabled:opacity-50"
               >
                 {createRoom.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                Créer
+                {tr("common.create")}
               </button>
             </div>
           </div>

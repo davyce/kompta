@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, CheckCircle, AlertTriangle, X, Loader2, CreditCard, Send, Bell } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
+import i18n from "../../i18n";
 
 const STATUS_STYLE: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
@@ -12,18 +14,43 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const FILTER_CHIPS = [
-  { value: "", label: "Tous", active: "bg-blue-800 text-white border-blue-800", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
-  { value: "paid", label: "Payés", active: "bg-emerald-600 text-white border-emerald-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
-  { value: "partial", label: "Partiels", active: "bg-amber-500 text-white border-amber-500", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
-  { value: "pending", label: "En attente", active: "bg-gray-600 text-white border-gray-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
-  { value: "late", label: "En retard", active: "bg-rose-600 text-white border-rose-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
+  { value: "", tk: "common.all", active: "bg-blue-800 text-white border-blue-800", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
+  { value: "paid", tk: "groupPages.contributions.filters.paid", active: "bg-emerald-600 text-white border-emerald-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
+  { value: "partial", tk: "groupPages.contributions.filters.partial", active: "bg-amber-500 text-white border-amber-500", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
+  { value: "pending", tk: "groupPages.contributions.filters.pending", active: "bg-gray-600 text-white border-gray-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
+  { value: "late", tk: "groupPages.contributions.filters.late", active: "bg-rose-600 text-white border-rose-600", inactive: "border-black/[0.08] dark:border-white/[0.08] text-[#717182]" },
 ];
 
+const STATUS_TK: Record<string, string> = {
+  paid: "groupPages.contributions.status.paid",
+  partial: "groupPages.contributions.status.partial",
+  pending: "groupPages.contributions.status.pending",
+  late: "groupPages.contributions.status.late",
+  active: "groupPages.contributions.status.active",
+  inactive: "groupPages.contributions.status.inactive",
+};
+
+const FREQUENCY_TK: Record<string, string> = {
+  unique: "groupPages.contributions.frequency.once",
+  hebdomadaire: "groupPages.contributions.frequency.weekly",
+  mensuelle: "groupPages.contributions.frequency.monthly",
+  trimestrielle: "groupPages.contributions.frequency.quarterly",
+  annuelle: "groupPages.contributions.frequency.yearly",
+};
+
+const PAYMENT_METHOD_TK: Record<string, string> = {
+  cash: "groupPages.expenses.paymentMethods.cash",
+  mobile_money: "groupPages.expenses.paymentMethods.mobileMoney",
+  bank: "groupPages.expenses.paymentMethods.bank",
+  card: "groupPages.contributions.paymentMethods.card",
+};
+
 function fmtAmount(v: number, cur = "XAF") {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: cur, minimumFractionDigits: 0 }).format(v);
+  return new Intl.NumberFormat(i18n.language, { style: "currency", currency: cur, minimumFractionDigits: 0 }).format(v);
 }
 
 export function GroupContributionsPage() {
+  const { t: tr } = useTranslation();
   const { groupId } = useParams<{ groupId: string }>();
   const id = Number(groupId);
   const qc = useQueryClient();
@@ -59,7 +86,7 @@ export function GroupContributionsPage() {
       const data = await api.remindMember(id, { member_id: memberId, tone: "poli" });
       setReminderResult(data);
     } catch (e) {
-      setReminderError(e instanceof Error ? e.message : "Impossible de générer le message de relance");
+      setReminderError(e instanceof Error ? e.message : tr("groupPages.contributions.reminderGenerateFailed"));
     } finally {
       setReminderLoading(null);
     }
@@ -127,21 +154,21 @@ export function GroupContributionsPage() {
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-[#17211f] dark:text-white">Cotisations</h2>
+        <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("groupPages.contributions.title")}</h2>
         <div className="flex gap-2">
           {group?.can_manage && (
             <button
               onClick={() => setShowPlan(true)}
               className="flex items-center gap-1.5 rounded-xl bg-blue-800 px-3 py-2 text-sm font-bold text-white hover:bg-blue-900 transition"
             >
-              <Plus size={14} /> Plan
+              <Plus size={14} /> {tr("groupPages.contributions.plan")}
             </button>
           )}
           <button
             onClick={() => setShowPayment(true)}
             className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700 transition"
           >
-            <CreditCard size={14} /> Paiement
+            <CreditCard size={14} /> {tr("groupPages.contributions.payment")}
           </button>
         </div>
       </div>
@@ -158,10 +185,10 @@ export function GroupContributionsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total attendu", value: fmtAmount(stats.total_due ?? 0, currency), color: "text-[#17211f] dark:text-white" },
-          { label: "Total reçu", value: fmtAmount(stats.total_paid ?? 0, currency), color: "text-emerald-600" },
-          { label: "Arriérés", value: fmtAmount(stats.arrears ?? 0, currency), color: "text-rose-600" },
-          { label: "À jour", value: stats.members_up_to_date ?? 0, color: "text-sky-600" },
+          { label: tr("groupPages.reports.totalDue"), value: fmtAmount(stats.total_due ?? 0, currency), color: "text-[#17211f] dark:text-white" },
+          { label: tr("groupPages.reports.totalReceived"), value: fmtAmount(stats.total_paid ?? 0, currency), color: "text-emerald-600" },
+          { label: tr("groupPages.contributions.arrears"), value: fmtAmount(stats.arrears ?? 0, currency), color: "text-rose-600" },
+          { label: tr("groupPages.contributions.upToDate"), value: stats.members_up_to_date ?? 0, color: "text-sky-600" },
         ].map(s => (
           <div key={s.label} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-3">
             <p className="text-xs text-[#717182]">{s.label}</p>
@@ -182,7 +209,7 @@ export function GroupContributionsPage() {
                 : "text-[#717182] hover:text-[#17211f] dark:hover:text-white"
             }`}
           >
-            {k === "plans" ? "Plans" : "Paiements"}
+            {k === "plans" ? tr("groupPages.contributions.plans") : tr("groupPages.contributions.payments")}
           </button>
         ))}
       </div>
@@ -191,7 +218,7 @@ export function GroupContributionsPage() {
       {tab === "plans" ? (
         <div className="space-y-3">
           {plans.length === 0 ? (
-            <p className="text-sm text-[#717182]">Aucun plan créé.</p>
+            <p className="text-sm text-[#717182]">{tr("groupPages.contributions.noPlan")}</p>
           ) : (
             plans.map(plan => {
               const membersPaid = new Set(
@@ -218,14 +245,14 @@ export function GroupContributionsPage() {
                     <div>
                       <p className="font-bold text-[#17211f] dark:text-white">{plan.title}</p>
                       <p className="text-sm text-[#717182]">
-                        {fmtAmount(plan.amount, currency)} · {plan.frequency} ·{" "}
-                        {plan.is_mandatory ? "Obligatoire" : "Optionnelle"}
+                        {fmtAmount(plan.amount, currency)} · {tr(FREQUENCY_TK[plan.frequency] ?? "groupPages.contributions.frequency.unknown", { defaultValue: plan.frequency })} ·{" "}
+                        {plan.is_mandatory ? tr("groupPages.contributions.mandatory") : tr("groupPages.contributions.optional")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       {total > 0 && (
                         <span className="rounded-full px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-900 dark:bg-blue-800/12 dark:text-blue-400">
-                          {fmtAmount(expectedTotal, currency)} attendu
+                          {tr("groupPages.contributions.expectedAmount", { amount: fmtAmount(expectedTotal, currency) })}
                         </span>
                       )}
                       <span
@@ -235,7 +262,7 @@ export function GroupContributionsPage() {
                             : "bg-gray-100 text-gray-600"
                         }`}
                       >
-                        {plan.status}
+                        {tr(STATUS_TK[plan.status] ?? "groupPages.contributions.status.unknown", { defaultValue: plan.status })}
                       </span>
                     </div>
                   </div>
@@ -253,7 +280,7 @@ export function GroupContributionsPage() {
                         <span className="font-semibold text-[#17211f] dark:text-white">
                           {membersPaid}/{total}
                         </span>{" "}
-                        membres ont cotisé ce mois
+                        {tr("groupPages.contributions.membersPaidThisMonth")}
                         <span
                           className={`ml-2 font-bold ${
                             pct >= 80
@@ -282,7 +309,7 @@ export function GroupContributionsPage() {
               <div className="flex items-center gap-2">
                 <AlertTriangle size={15} className="text-rose-600" />
                 <p className="text-sm font-bold text-rose-700 dark:text-rose-400">
-                  {nonPayers.length} membre{nonPayers.length > 1 ? "s" : ""} sans paiement
+                  {tr("groupPages.contributions.nonPayers", { count: nonPayers.length })}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -296,10 +323,10 @@ export function GroupContributionsPage() {
                       onClick={() => sendReminder(m.id)}
                       disabled={reminderLoading === m.id}
                       className="flex items-center gap-1 rounded-md bg-rose-100 dark:bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-200 transition disabled:opacity-50"
-                      title="Générer un message de relance"
+                      title={tr("groupPages.contributions.generateReminder")}
                     >
                       {reminderLoading === m.id ? <Loader2 size={9} className="animate-spin" /> : <Bell size={9} />}
-                      Relancer
+                      {tr("groupPages.contributions.remind")}
                     </button>
                   </div>
                 ))}
@@ -317,7 +344,7 @@ export function GroupContributionsPage() {
                   filterStatus === chip.value ? chip.active : chip.inactive + " hover:border-blue-500"
                 }`}
               >
-                {chip.label}
+                {tr(chip.tk)}
               </button>
             ))}
           </div>
@@ -327,11 +354,11 @@ export function GroupContributionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#f6f7fb] dark:bg-[#161920] border-b border-black/[0.06] dark:border-white/[0.06]">
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Membre</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Plan</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold uppercase text-[#717182]">Dû</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold uppercase text-[#717182]">Payé</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">Statut</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.members.member")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.contributions.plan")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.contributions.due")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("groupPages.contributions.paid")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold uppercase text-[#717182]">{tr("common.status")}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -347,7 +374,7 @@ export function GroupContributionsPage() {
                     <td className="px-4 py-3 text-right font-semibold text-emerald-600">{fmtAmount(p.amount_paid, currency)}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_STYLE[p.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {p.status}
+                        {tr(STATUS_TK[p.status] ?? "groupPages.contributions.status.unknown", { defaultValue: p.status })}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -356,7 +383,7 @@ export function GroupContributionsPage() {
                           onClick={() => validatePay.mutate(p.id)}
                           className="flex items-center gap-1 rounded-lg bg-emerald-100 dark:bg-emerald-500/15 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 transition"
                         >
-                          <CheckCircle size={11} /> Valider
+                          <CheckCircle size={11} /> {tr("groupPages.contributions.validate")}
                         </button>
                       )}
                     </td>
@@ -364,7 +391,7 @@ export function GroupContributionsPage() {
                 ))}
               </tbody>
             </table>
-            {payments.length === 0 && <p className="py-6 text-center text-sm text-[#717182]">Aucun paiement.</p>}
+            {payments.length === 0 && <p className="py-6 text-center text-sm text-[#717182]">{tr("groupPages.contributions.noPayment")}</p>}
           </div>
         </div>
       )}
@@ -374,12 +401,12 @@ export function GroupContributionsPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-[#17211f] dark:text-white">Nouveau plan</h3>
+              <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.contributions.newPlan")}</h3>
               <button onClick={() => setShowPlan(false)}><X size={16} /></button>
             </div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Titre *
+                {tr("groupPages.contributions.form.title")}
                 <input
                   value={planForm.title}
                   onChange={e => setPlanForm(f => ({ ...f, title: e.target.value }))}
@@ -387,7 +414,7 @@ export function GroupContributionsPage() {
                 />
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Montant ({currency}) *
+                {tr("groupPages.contributions.form.amount", { currency })}
                 <input
                   type="number"
                   value={planForm.amount}
@@ -396,19 +423,19 @@ export function GroupContributionsPage() {
                 />
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Fréquence
+                {tr("groupPages.contributions.form.frequency")}
                 <select
                   value={planForm.frequency}
                   onChange={e => setPlanForm(f => ({ ...f, frequency: e.target.value }))}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case"
                 >
                   {["unique", "hebdomadaire", "mensuelle", "trimestrielle", "annuelle"].map(fr => (
-                    <option key={fr} value={fr}>{fr}</option>
+                    <option key={fr} value={fr}>{tr(FREQUENCY_TK[fr] ?? "groupPages.contributions.frequency.unknown", { defaultValue: fr })}</option>
                   ))}
                 </select>
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Description (optionnel)
+                {tr("groupPages.contributions.form.description")}
                 <textarea
                   value={planForm.description}
                   onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))}
@@ -418,7 +445,7 @@ export function GroupContributionsPage() {
               </label>
               {/* Toggle obligatoire */}
               <div className="flex items-center justify-between rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5">
-                <span className="text-xs font-bold uppercase text-[#717182]">Cotisation obligatoire</span>
+                <span className="text-xs font-bold uppercase text-[#717182]">{tr("groupPages.contributions.form.mandatory")}</span>
                 <button
                   type="button"
                   onClick={() => setPlanForm(f => ({ ...f, is_mandatory: !f.is_mandatory }))}
@@ -435,7 +462,7 @@ export function GroupContributionsPage() {
               onClick={() => createPlan.mutate()}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-800 py-3 text-sm font-black text-white hover:bg-blue-900 disabled:bg-stone-300 transition"
             >
-              {createPlan.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Créer
+              {createPlan.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} {tr("common.create")}
             </button>
           </div>
         </div>
@@ -446,12 +473,12 @@ export function GroupContributionsPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-[#17211f] dark:text-white">Enregistrer un paiement</h3>
+              <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.contributions.recordPayment")}</h3>
               <button onClick={() => setShowPayment(false)}><X size={16} /></button>
             </div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Membre *
+                {tr("groupPages.contributions.form.member")}
                 <select
                   value={payForm.member_id}
                   onChange={e => setPayForm(f => ({ ...f, member_id: e.target.value }))}
@@ -462,7 +489,7 @@ export function GroupContributionsPage() {
                 </select>
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Plan de cotisation *
+                {tr("groupPages.contributions.form.contributionPlan")}
                 <select
                   value={payForm.plan_id}
                   onChange={e => setPayForm(f => ({ ...f, plan_id: e.target.value }))}
@@ -473,7 +500,7 @@ export function GroupContributionsPage() {
                 </select>
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Montant payé ({currency}) *
+                {tr("groupPages.contributions.form.amountPaid", { currency })}
                 <input
                   type="number"
                   value={payForm.amount_paid}
@@ -482,13 +509,13 @@ export function GroupContributionsPage() {
                 />
               </label>
               <label className="block text-xs font-bold uppercase text-[#717182]">
-                Méthode
+                {tr("groupPages.expenses.form.method")}
                 <select
                   value={payForm.payment_method}
                   onChange={e => setPayForm(f => ({ ...f, payment_method: e.target.value }))}
                   className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case"
                 >
-                  {["cash", "mobile_money", "bank", "card"].map(m => <option key={m}>{m}</option>)}
+                  {["cash", "mobile_money", "bank", "card"].map(m => <option key={m} value={m}>{tr(PAYMENT_METHOD_TK[m] ?? "groupPages.expenses.paymentMethods.unknown", { defaultValue: m })}</option>)}
                 </select>
               </label>
             </div>
@@ -497,7 +524,7 @@ export function GroupContributionsPage() {
               onClick={() => recordPayment.mutate()}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:bg-stone-300 transition"
             >
-              {recordPayment.isPending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Enregistrer
+              {recordPayment.isPending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {tr("common.save")}
             </button>
           </div>
         </div>
@@ -510,7 +537,7 @@ export function GroupContributionsPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <Bell size={16} className="text-rose-600" />
-                <h3 className="font-bold text-[#17211f] dark:text-white">Relancer {reminderResult.member_name}</h3>
+                <h3 className="font-bold text-[#17211f] dark:text-white">{tr("groupPages.contributions.remindMember", { name: reminderResult.member_name })}</h3>
               </div>
               <button onClick={() => { setReminderResult(null); setReminderCopied(false); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
                 <X size={18} />
@@ -518,18 +545,18 @@ export function GroupContributionsPage() {
             </div>
             <div className="px-5 py-5 space-y-4">
               <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-4 py-2.5">
-                <p className="text-xs text-rose-700 dark:text-rose-300">Montant attendu</p>
+                <p className="text-xs text-rose-700 dark:text-rose-300">{tr("groupPages.contributions.expectedDue")}</p>
                 <p className="text-xl font-extrabold text-rose-800 dark:text-rose-200">{fmtAmount(reminderResult.amount_due, reminderResult.currency)}</p>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-[#17211f] dark:text-white">Message généré par Limule</label>
+                  <label className="text-xs font-semibold text-[#17211f] dark:text-white">{tr("groupPages.contributions.limuleMessage")}</label>
                   <button
                     onClick={() => { navigator.clipboard.writeText(reminderResult.message); setReminderCopied(true); setTimeout(() => setReminderCopied(false), 2000); }}
                     className="text-[11px] font-semibold text-blue-700 hover:underline"
                   >
-                    {reminderCopied ? "✓ Copié !" : "📋 Copier"}
+                    {reminderCopied ? tr("groupPages.contributions.copiedBang") : tr("groupPages.contributions.copy")}
                   </button>
                 </div>
                 <textarea
@@ -538,11 +565,11 @@ export function GroupContributionsPage() {
                   rows={6}
                   className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-4 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-blue-500 resize-none"
                 />
-                <p className="mt-1 text-[10px] text-[#aaaabc]">Tu peux modifier le message avant de l'envoyer.</p>
+                <p className="mt-1 text-[10px] text-[#aaaabc]">{tr("groupPages.contributions.editBeforeSending")}</p>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-[#17211f] dark:text-white">Envoyer via</p>
+                <p className="text-xs font-semibold text-[#17211f] dark:text-white">{tr("groupPages.contributions.sendVia")}</p>
                 {reminderResult.channels.whatsapp && (
                   <a href={reminderResult.channels.whatsapp} target="_blank" rel="noreferrer"
                     className="flex items-center gap-2 rounded-xl bg-green-600 hover:bg-green-700 px-4 py-2.5 text-sm font-bold text-white transition">
@@ -562,7 +589,7 @@ export function GroupContributionsPage() {
                   </a>
                 )}
                 {!reminderResult.channels.sms && !reminderResult.channels.whatsapp && !reminderResult.channels.email && (
-                  <p className="text-xs text-amber-700">Aucun canal de contact pour ce membre. Ajoute son téléphone ou email dans la fiche membre.</p>
+                  <p className="text-xs text-amber-700">{tr("groupPages.contributions.noContactChannel")}</p>
                 )}
               </div>
             </div>
