@@ -17,15 +17,15 @@ import { compactMoney, money, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
 const SYSCEMAC_CLASSES = [
-  { n: 1, label: "Ressources durables",    desc: "Capitaux propres, dettes financières à long terme",                  c: "#4f46e5" },
-  { n: 2, label: "Actifs immobilisés",     desc: "Immobilisations corporelles, incorporelles, financières",             c: "#0f766e" },
-  { n: 3, label: "Stocks",                 desc: "Marchandises, matières premières, produits finis",                   c: "#f59e0b" },
-  { n: 4, label: "Tiers",                  desc: "Clients, fournisseurs, État, organismes sociaux",                    c: "#0ea5e9" },
-  { n: 5, label: "Trésorerie",             desc: "Banques, caisses, valeurs mobilières de placement",                  c: "#16a34a" },
-  { n: 6, label: "Charges AO",             desc: "Achats, charges de personnel, dotations aux amortissements",         c: "#e05252" },
-  { n: 7, label: "Revenus AO",             desc: "Ventes, prestations de services, produits financiers",               c: "#0d9488" },
-  { n: 8, label: "Hors AO (HAO)",          desc: "Charges et produits hors activités ordinaires",                     c: "#8b5cf6" },
-  { n: 9, label: "CAGE",                   desc: "Comptabilité analytique de gestion (usage interne)",                 c: "#78716c" },
+  { n: 1, labelTk: "accounting.syscemac.class1.label", descTk: "accounting.syscemac.class1.desc", c: "#4f46e5" },
+  { n: 2, labelTk: "accounting.syscemac.class2.label", descTk: "accounting.syscemac.class2.desc", c: "#0f766e" },
+  { n: 3, labelTk: "accounting.syscemac.class3.label", descTk: "accounting.syscemac.class3.desc", c: "#f59e0b" },
+  { n: 4, labelTk: "accounting.syscemac.class4.label", descTk: "accounting.syscemac.class4.desc", c: "#0ea5e9" },
+  { n: 5, labelTk: "accounting.syscemac.class5.label", descTk: "accounting.syscemac.class5.desc", c: "#16a34a" },
+  { n: 6, labelTk: "accounting.syscemac.class6.label", descTk: "accounting.syscemac.class6.desc", c: "#e05252" },
+  { n: 7, labelTk: "accounting.syscemac.class7.label", descTk: "accounting.syscemac.class7.desc", c: "#0d9488" },
+  { n: 8, labelTk: "accounting.syscemac.class8.label", descTk: "accounting.syscemac.class8.desc", c: "#8b5cf6" },
+  { n: 9, labelTk: "accounting.syscemac.class9.label", descTk: "accounting.syscemac.class9.desc", c: "#78716c" },
 ];
 
 const TAB_KEYS = [
@@ -125,6 +125,7 @@ export function AccountingFinancePage() {
         actor: t.category || t.source_type || tr("accounting.bankCat"),
         amount: t.credit ? t.credit : t.debit ? -t.debit : t.amount,
         tone: (t.credit ?? 0) > 0 || t.amount > 0 ? "green" as const : "red" as const,
+        locked: false,
       }));
 
     const invItems = (invoices.data ?? [])
@@ -137,6 +138,7 @@ export function AccountingFinancePage() {
         actor: i.status === "paid" ? tr("accounting.collected") : i.status === "sent" ? tr("accounting.pending") : tr("accounting.draft"),
         amount: i.status === "paid" ? +i.total_amount : 0,
         tone: i.status === "paid" ? "green" as const : i.status === "sent" ? "amber" as const : "red" as const,
+        locked: i.status === "paid",
       }));
 
     // Merge: priorité aux transactions bancaires, compléter avec les factures
@@ -149,7 +151,7 @@ export function AccountingFinancePage() {
   const netResult = txCount > 0 ? txBalance : cashflowTotalIn - cashflowTotalOut;
 
   function exportLedger() {
-    const lines = ["Numéro,Client,Statut,Montant,Date"];
+    const lines = [tr("accounting.csvHeader")];
     for (const inv of invoices.data ?? []) {
       lines.push(`${inv.number},"${inv.customer_name}",${inv.status},${inv.total_amount},${inv.created_at}`);
     }
@@ -224,9 +226,9 @@ export function AccountingFinancePage() {
                   {cls.n}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-[#17211f] dark:text-white">{tr("accounting.classLabel", { n: cls.n, label: cls.label })}</p>
+                  <p className="font-semibold text-[#17211f] dark:text-white">{tr("accounting.classLabel", { n: cls.n, label: tr(cls.labelTk) })}</p>
                   <p className={`mt-0.5 text-xs text-[#717182] transition-all ${expanded === cls.n ? "block" : "hidden group-hover:block"}`}>
-                    {cls.desc}
+                    {tr(cls.descTk)}
                   </p>
                 </div>
                 {expanded === cls.n
@@ -389,7 +391,7 @@ export function AccountingFinancePage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-[#17211f] dark:text-white">{item.label}</p>
-                    {item.actor === "Encaissé" && (
+                    {item.locked && (
                       <span className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                         <Lock size={9} /> {tr("accounting.locked")}
                       </span>

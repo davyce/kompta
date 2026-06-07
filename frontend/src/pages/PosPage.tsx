@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -34,16 +35,21 @@ function ProductIcon({ name, category, size = 28 }: { name: string; category: st
 type CartItem = { product_id: number; name: string; price: number; quantity: number; category: string };
 
 const ALL_PAYMENT_METHODS = [
-  { key: "qr",           label: "QR Zola",      icon: QrCode },
-  { key: "mobile_money", label: "Mobile Money",  icon: Smartphone },
-  { key: "wave",         label: "Wave",          icon: Zap },
-  { key: "orange_money", label: "Orange Money",  icon: Smartphone },
-  { key: "mtn",          label: "MTN MoMo",      icon: Smartphone },
-  { key: "airtel",       label: "Airtel Money",  icon: Smartphone },
-  { key: "bank",         label: "Banque",        icon: CreditCard },
-  { key: "card",         label: "Carte",         icon: CreditCard },
-  { key: "cash",         label: "Espèces",       icon: Wallet },
+  { key: "qr",           labelTk: "pos.methods.qr",           icon: QrCode },
+  { key: "mobile_money", labelTk: "pos.methods.mobileMoney",  icon: Smartphone },
+  { key: "wave",         labelTk: "pos.methods.wave",         icon: Zap },
+  { key: "orange_money", labelTk: "pos.methods.orangeMoney",  icon: Smartphone },
+  { key: "mtn",          labelTk: "pos.methods.mtn",          icon: Smartphone },
+  { key: "airtel",       labelTk: "pos.methods.airtel",       icon: Smartphone },
+  { key: "bank",         labelTk: "pos.methods.bank",         icon: CreditCard },
+  { key: "card",         labelTk: "pos.methods.card",         icon: CreditCard },
+  { key: "cash",         labelTk: "pos.methods.cash",         icon: Wallet },
 ];
+
+function paymentMethodLabel(method: string, tr: TFunction) {
+  const item = ALL_PAYMENT_METHODS.find((m) => m.key === method);
+  return item ? tr(item.labelTk) : method;
+}
 
 function accountMethodKey(a: PaymentAccount) {
   return a.provider === "zola" ? "qr" : a.provider;
@@ -126,7 +132,7 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
                 </div>
                 <div className="flex justify-between text-[#717182]">
                   <span>{tr("pos.payment")}</span>
-                  <span className="font-semibold capitalize">{ticket.payment_account_label || ticket.payment_method}</span>
+                  <span className="font-semibold capitalize">{ticket.payment_account_label || paymentMethodLabel(ticket.payment_method, tr)}</span>
                 </div>
               </div>
 
@@ -276,18 +282,18 @@ export function PosPage() {
 
     // Espèces : toujours disponible (sauf si déjà présent via un compte cash)
     if (!posAccounts.some((a) => a.provider === "cash")) {
-      options.push({ key: "cash", method: "cash", accountId: null, label: tr("pos.methodCash"), icon: Wallet });
+      options.push({ key: "cash", method: "cash", accountId: null, label: paymentMethodLabel("cash", tr), icon: Wallet });
     }
     // Carte bancaire : toujours affichée (Stripe activé OU non, le modal explique)
     if (!options.some((o) => o.method === "card")) {
-      options.push({ key: "card", method: "card", accountId: null, label: tr("pos.methodCard"), icon: CreditCard });
+      options.push({ key: "card", method: "card", accountId: null, label: paymentMethodLabel("card", tr), icon: CreditCard });
     }
     // Mobile Money : disponible dès que MoMo est configuré
     if (payConfig.data?.momo_enabled && !options.some((o) => MOMO_METHODS.has(o.method))) {
-      options.push({ key: "mobile_money", method: "mobile_money", accountId: null, label: tr("pos.methodMobileMoney"), icon: Smartphone });
+      options.push({ key: "mobile_money", method: "mobile_money", accountId: null, label: paymentMethodLabel("mobile_money", tr), icon: Smartphone });
     }
     return options;
-  }, [posAccounts, payConfig.data?.momo_enabled]);
+  }, [posAccounts, payConfig.data?.momo_enabled, tr]);
 
   /* ── Sync hors-ligne ── */
   const syncPending = useCallback(async () => {
@@ -917,7 +923,7 @@ export function PosPage() {
                 <span className="font-bold text-right">{money(sale.data.total_amount)}</span>
                 <span className="text-[#717182]">{tr("pos.mode")}</span>
                 <span className="font-semibold text-right capitalize">
-                  {sale.data.payment_account_label || sale.data.payment_method}
+                  {sale.data.payment_account_label || paymentMethodLabel(sale.data.payment_method, tr)}
                 </span>
                 <span className="text-[#717182]">{tr("pos.articles")}</span>
                 <span className="font-semibold text-right">{tr("pos.linesCount", { count: sale.data.items?.length ?? 0 })}</span>

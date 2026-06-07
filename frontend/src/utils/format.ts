@@ -131,7 +131,7 @@ export function currencyLabel(): string {
 
 /* ── Date helpers ──────────────────────────────────────────────── */
 export function shortDate(value: string | null): string {
-  if (!value) return i18n.t("common.notDefined", { defaultValue: "Non défini" });
+  if (!value) return i18n.t("common.notDefined", { defaultValue: "Not defined" });
   return new Intl.DateTimeFormat(i18n.language, {
     day: "2-digit",
     month: "short",
@@ -141,7 +141,7 @@ export function shortDate(value: string | null): string {
 
 /** Affiche la date avec l'heure si fournie : "06 mai 2026 · 14h30" */
 export function shortDateTime(date: string | null, time?: string | null): string {
-  if (!date) return i18n.t("common.notDefined", { defaultValue: "Non défini" });
+  if (!date) return i18n.t("common.notDefined", { defaultValue: "Not defined" });
   const datePart = new Intl.DateTimeFormat(i18n.language, {
     day: "numeric",
     month: "short",

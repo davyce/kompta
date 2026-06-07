@@ -38,14 +38,14 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-const MONTHS = [
-  "Janvier","Février","Mars","Avril","Mai","Juin",
-  "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
-];
 const MONTH_KEYS = [
   "jan", "feb", "mar", "apr", "may", "jun",
   "jul", "aug", "sep", "oct", "nov", "dec",
 ] as const;
+const MONTHS = MONTH_KEYS.map((_, index) => {
+  const name = new Intl.DateTimeFormat("fr", { month: "long" }).format(new Date(2024, index, 1));
+  return name.charAt(0).toUpperCase() + name.slice(1);
+});
 const MONTH_KEY_BY_FR = MONTHS.reduce<Record<string, (typeof MONTH_KEYS)[number]>>((acc, month, index) => {
   acc[month] = MONTH_KEYS[index]!;
   return acc;

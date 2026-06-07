@@ -230,8 +230,16 @@ export function DashboardPage() {
     await api.aiGenerateStream(
       {
         kind:   "cashflow_prediction",
-        title:  "Prévision trésorerie",
-        prompt: `En tant que directeur financier expert PME Afrique centrale, fournis une prévision de trésorerie sur 30, 60 et 90 jours en français, structurée et chiffrée. Données actuelles : Total facturé ${compactMoney(invoiceTotal)} dont ${compactMoney(invoicePaidAmt)} encaissé et ${compactMoney(invoicePending)} en attente d'encaissement, ventes POS ${compactMoney(salesTotal)}, solde trésorerie réel ${compactMoney(txBal)}, effectif ${employeeCount} (masse salariale estimée ${compactMoney(estimatedPayroll)}). Inclus : (1) État de trésorerie actuel commenté, (2) Prévision entrées/sorties détaillées à 30j, (3) Scénario pessimiste/optimiste à 60j, (4) Recommandation stratégique à 90j avec action concrète.`,
+        title:  tr("dashboard.cashflowPromptTitle"),
+        prompt: tr("dashboard.cashflowPrompt", {
+          invoiceTotal: compactMoney(invoiceTotal),
+          invoicePaid: compactMoney(invoicePaidAmt),
+          invoicePending: compactMoney(invoicePending),
+          salesTotal: compactMoney(salesTotal),
+          treasuryBalance: compactMoney(txBal),
+          employeeCount,
+          estimatedPayroll: compactMoney(estimatedPayroll),
+        }),
         context: "dashboard_cashflow",
       },
       (partial) => setCashFlow(partial),

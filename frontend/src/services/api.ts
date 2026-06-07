@@ -40,6 +40,7 @@ import type {
   TerasScoreSnapshot,
   User
 } from "../types/domain";
+import i18n from "../i18n";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
 const TOKEN_KEY = "kompta_access_token";
@@ -1187,7 +1188,7 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Erreur lors de la génération du pack");
+      if (!res.ok) throw new Error(i18n.t("safeMode.errExport", { defaultValue: "Export failed" }));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
