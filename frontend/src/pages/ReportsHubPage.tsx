@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 /* ── Léger renderer Markdown → JSX (sans dépendance externe) ─────── */
@@ -75,6 +76,8 @@ import { useCurrency } from "../contexts/CurrencyContext";
 
 interface ReportCard {
   title: string;
+  titleKey: string;
+  descKey: string;
   description: string;
   icon: LucideIcon;
   tone: string;
@@ -111,6 +114,8 @@ function buildContext(
 const REPORT_CARDS: ReportCard[] = [
   {
     title: "Rapport financier mensuel",
+    titleKey: "reportsHub.cardFinancialTitle",
+    descKey: "reportsHub.cardFinancialDesc",
     description: "P&L, trésorerie, ratios clés",
     icon: BarChart3,
     tone: "bg-blue-50 text-blue-700",
@@ -121,6 +126,8 @@ const REPORT_CARDS: ReportCard[] = [
   },
   {
     title: "Rapport RH",
+    titleKey: "reportsHub.cardHrTitle",
+    descKey: "reportsHub.cardHrDesc",
     description: "Effectifs, turn-over, accès, paie",
     icon: Users,
     tone: "bg-amber-50 text-amber-700",
@@ -131,6 +138,8 @@ const REPORT_CARDS: ReportCard[] = [
   },
   {
     title: "Rapport projet",
+    titleKey: "reportsHub.cardProjectTitle",
+    descKey: "reportsHub.cardProjectDesc",
     description: "Avancement, budget, risques",
     icon: Target,
     tone: "bg-violet-50 text-violet-700",
@@ -141,6 +150,8 @@ const REPORT_CARDS: ReportCard[] = [
   },
   {
     title: "Rapport conformité TERAS",
+    titleKey: "reportsHub.cardTerasTitle",
+    descKey: "reportsHub.cardTerasDesc",
     description: "Score, alertes, recommandations",
     icon: ShieldCheck,
     tone: "bg-red-50 text-red-700",
@@ -151,6 +162,8 @@ const REPORT_CARDS: ReportCard[] = [
   },
   {
     title: "Rapport RSE",
+    titleKey: "reportsHub.cardRseTitle",
+    descKey: "reportsHub.cardRseDesc",
     description: "Impact social et environnemental",
     icon: Leaf,
     tone: "bg-emerald-50 text-emerald-600",
@@ -161,6 +174,8 @@ const REPORT_CARDS: ReportCard[] = [
   },
   {
     title: "Évolution entreprise",
+    titleKey: "reportsHub.cardEvolutionTitle",
+    descKey: "reportsHub.cardEvolutionDesc",
     description: "Vue 12 mois consolidée",
     icon: FileSpreadsheet,
     tone: "bg-black/[0.04] text-[#17211f]",
@@ -206,6 +221,7 @@ type AiState = {
 } | null;
 
 export function ReportsHubPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   useCurrency();
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
@@ -217,7 +233,7 @@ export function ReportsHubPage() {
 
   async function generateReport(card: ReportCard) {
     abortRef.current = false;
-    setAiState({ title: card.title, content: "", loading: true, error: "" });
+    setAiState({ title: tr(card.titleKey), content: "", loading: true, error: "" });
     await api.aiGenerateStream(
       {
         kind: card.kind,
@@ -240,22 +256,22 @@ export function ReportsHubPage() {
   /* Build recent report list from real data */
   const recentReports = [
     {
-      title: "Synthèse TERAS",
-      subtitle: `Score: ${ctx.terasScore ?? "—"}/100`,
+      title: tr("reportsHub.recentTerasTitle"),
+      subtitle: tr("reportsHub.recentTerasSub", { score: ctx.terasScore ?? "—" }),
       to: "/reports-teras",
       date: new Date().toISOString(),
     },
     {
-      title: "Paie & RH",
+      title: tr("reportsHub.recentPayrollTitle"),
       subtitle: ctx.lastPayrollPeriod
-        ? `Cycle ${ctx.lastPayrollPeriod} · ${ctx.payslipCount} bulletins`
-        : "Aucun cycle lancé",
+        ? tr("reportsHub.recentPayrollCycle", { period: ctx.lastPayrollPeriod, count: ctx.payslipCount })
+        : tr("reportsHub.recentNoCycle"),
       to: "/payroll",
       date: payrollRuns.data?.[0]?.created_at ?? new Date().toISOString(),
     },
     {
-      title: "Trésorerie",
-      subtitle: ctx.treasury !== undefined ? `Solde: ${compactMoney(ctx.treasury)}` : "Données financières",
+      title: tr("reportsHub.recentTreasuryTitle"),
+      subtitle: ctx.treasury !== undefined ? tr("reportsHub.recentTreasuryBal", { amount: compactMoney(ctx.treasury) }) : tr("reportsHub.recentFinancialData"),
       to: "/accounting",
       date: new Date().toISOString(),
     },
@@ -265,16 +281,16 @@ export function ReportsHubPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">Rapports &amp; analyses</p>
-          <h1 className="text-3xl font-black text-ink dark:text-white">Hub d'analyses</h1>
-          <p className="mt-1 text-sm font-medium text-[#717182]">Rapports financiers, RH, projets, conformité et RSE.</p>
+          <p className="text-sm font-semibold text-emerald-600">{tr("reportsHub.eyebrow")}</p>
+          <h1 className="text-3xl font-black text-ink dark:text-white">{tr("reportsHub.title")}</h1>
+          <p className="mt-1 text-sm font-medium text-[#717182]">{tr("reportsHub.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0)}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
-            <Download size={13} /> Exporter P&amp;L CSV
+            <Download size={13} /> {tr("reportsHub.exportPL")}
           </button>
         </div>
       </div>
@@ -288,23 +304,23 @@ export function ReportsHubPage() {
             <span className={`grid h-12 w-12 place-items-center rounded-xl ${report.tone}`}>
               <report.icon size={22} />
             </span>
-            <h2 className="mt-5 text-xl font-bold text-ink dark:text-white">{report.title}</h2>
-            <p className="mt-2 text-sm font-medium text-[#717182]">{report.description}</p>
+            <h2 className="mt-5 text-xl font-bold text-ink dark:text-white">{tr(report.titleKey)}</h2>
+            <p className="mt-2 text-sm font-medium text-[#717182]">{tr(report.descKey)}</p>
             <div className="mt-6 flex items-center justify-between gap-3">
               <button
                 onClick={() => generateReport(report)}
-                disabled={aiState?.loading && aiState.title === report.title}
+                disabled={aiState?.loading && aiState.title === tr(report.titleKey)}
                 className="flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
               >
-                {aiState?.loading && aiState.title === report.title ? (
+                {aiState?.loading && aiState.title === tr(report.titleKey) ? (
                   <>
                     <LimuleAvatar state="thinking" size={20} />
-                    Génération…
+                    {tr("reportsHub.generating")}
                   </>
                 ) : (
                   <>
                     <LimuleAvatar state="idle" size={20} />
-                    Générer
+                    {tr("reportsHub.generate")}
                   </>
                 )}
               </button>
@@ -312,7 +328,7 @@ export function ReportsHubPage() {
                 onClick={() => navigate(report.to)}
                 className="flex items-center gap-1 text-sm font-semibold text-[#717182] transition hover:text-emerald-600"
               >
-                Voir module
+                {tr("reportsHub.viewModule")}
                 <ArrowRight size={14} />
               </button>
             </div>
@@ -330,7 +346,7 @@ export function ReportsHubPage() {
                 size={44}
               />
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-violet-500">Limule · Rapport IA</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-violet-500">{tr("reportsHub.aiReportLabel")}</p>
                 <h3 className="font-black text-ink dark:text-white">{aiState.title}</h3>
               </div>
             </div>
@@ -349,11 +365,11 @@ export function ReportsHubPage() {
                 {aiState.loading && (
                   <div className="mb-3 flex items-center gap-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-600 dark:text-violet-300">
                     <LimuleAvatar state="thinking" size={22} />
-                    Limule génère votre rapport en temps réel…
+                    {tr("reportsHub.generatingRealtime")}
                   </div>
                 )}
                 {!aiState.content && !aiState.loading && (
-                  <p className="animate-pulse text-sm text-[#717182]">Démarrage…</p>
+                  <p className="animate-pulse text-sm text-[#717182]">{tr("reportsHub.starting")}</p>
                 )}
                 {aiState.content && (
                   <>
@@ -362,7 +378,7 @@ export function ReportsHubPage() {
                         onClick={() => navigator.clipboard.writeText(aiState.content)}
                         className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold text-[#717182] hover:text-violet-600 dark:bg-white/5 dark:border-white/10"
                       >
-                        <Copy size={12} /> Copier
+                        <Copy size={12} /> {tr("reportsHub.copy")}
                       </button>
                     </div>
                     <MarkdownBlock content={aiState.content} />
@@ -374,7 +390,7 @@ export function ReportsHubPage() {
         </div>
       )}
 
-      <Panel title="Rapports récents">
+      <Panel title={tr("reportsHub.recentReports")}>
         <div className="grid gap-3 md:grid-cols-3">
           {recentReports.map((item) => (
             <button
