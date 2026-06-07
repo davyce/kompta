@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle, ArrowDown, ArrowDownRight, ArrowUp, ArrowUpDown, ArrowUpRight,
@@ -15,33 +17,37 @@ import { exportTableToExcel } from "../utils/export";
 import { useConfirm } from "../components/ConfirmProvider";
 
 // ── Catégories ────────────────────────────────────────────────────────────────
-const CATEGORIES: { key: string; label: string; color: string }[] = [
-  { key: "ventes",                  label: "Ventes",             color: "#059669" },
-  { key: "clients_reglements",      label: "Règlements clients", color: "#10b981" },
-  { key: "achats_fournisseurs",     label: "Achats fournisseurs", color: "#ef4444" },
-  { key: "salaires_charges",        label: "Salaires & charges", color: "#f59e0b" },
-  { key: "loyer_charges_fixes",     label: "Loyer & charges fixes", color: "#8b5cf6" },
-  { key: "banque_frais",            label: "Frais bancaires",    color: "#6366f1" },
-  { key: "impots_taxes",            label: "Impôts & taxes",     color: "#dc2626" },
-  { key: "investissements",         label: "Investissements",    color: "#0891b2" },
-  { key: "remboursements",          label: "Remboursements",     color: "#7c3aed" },
-  { key: "transferts_internes",     label: "Transferts internes", color: "#64748b" },
-  { key: "emprunts_remboursements", label: "Emprunts",           color: "#92400e" },
-  { key: "tresorerie",              label: "Trésorerie",         color: "#0369a1" },
-  { key: "divers_entrees",          label: "Divers entrées",     color: "#16a34a" },
-  { key: "divers_sorties",          label: "Divers sorties",     color: "#b91c1c" },
+const CATEGORIES: { key: string; tk: string; color: string }[] = [
+  { key: "ventes",                  tk: "transactions.catVentes",             color: "#059669" },
+  { key: "clients_reglements",      tk: "transactions.catClientsReglements", color: "#10b981" },
+  { key: "achats_fournisseurs",     tk: "transactions.catAchatsFournisseurs", color: "#ef4444" },
+  { key: "salaires_charges",        tk: "transactions.catSalairesCharges", color: "#f59e0b" },
+  { key: "loyer_charges_fixes",     tk: "transactions.catLoyerChargesFixes", color: "#8b5cf6" },
+  { key: "banque_frais",            tk: "transactions.catBanqueFrais",    color: "#6366f1" },
+  { key: "impots_taxes",            tk: "transactions.catImpotsTaxes",     color: "#dc2626" },
+  { key: "investissements",         tk: "transactions.catInvestissements",    color: "#0891b2" },
+  { key: "remboursements",          tk: "transactions.catRemboursements",     color: "#7c3aed" },
+  { key: "transferts_internes",     tk: "transactions.catTransfertsInternes", color: "#64748b" },
+  { key: "emprunts_remboursements", tk: "transactions.catEmprunts",           color: "#92400e" },
+  { key: "tresorerie",              tk: "transactions.catTresorerie",         color: "#0369a1" },
+  { key: "divers_entrees",          tk: "transactions.catDiversEntrees",     color: "#16a34a" },
+  { key: "divers_sorties",          tk: "transactions.catDiversSorties",     color: "#b91c1c" },
 ];
-const catMeta = (key: string) => CATEGORIES.find((c) => c.key === key) ?? { label: key || "—", color: "#94a3b8" };
-
-const SOURCE_LABELS: Record<string, string> = {
-  releve_bancaire: "Relevé bancaire",
-  facture_externe: "Facture externe",
-  facture: "Facturation",
-  pos: "Caisse POS",
-  csv: "CSV",
-  manual: "Manuel",
-  import: "Import",
+const catMeta = (key: string, tr: TFunction) => {
+  const c = CATEGORIES.find((x) => x.key === key);
+  return c ? { label: tr(c.tk), color: c.color } : { label: key || "—", color: "#94a3b8" };
 };
+
+const SOURCE_TR: Record<string, string> = {
+  releve_bancaire: "transactions.srcReleveBancaire",
+  facture_externe: "transactions.srcFactureExterne",
+  facture: "transactions.srcFacture",
+  pos: "transactions.srcPos",
+  csv: "transactions.srcCsv",
+  manual: "transactions.srcManual",
+  import: "transactions.srcImport",
+};
+const srcLabel = (key: string, tr: TFunction) => (SOURCE_TR[key] ? tr(SOURCE_TR[key]) : key);
 
 // ── File type icon ─────────────────────────────────────────────────────────────
 function FileTypeIcon({ filename }: { filename: string }) {
@@ -80,6 +86,7 @@ function KpiCard({ label, value, sub, icon: Icon, tone }: {
 
 // ── Import Drop Zone ───────────────────────────────────────────────────────────
 function ImportDropZone({ onImport }: { onImport: (file: File) => void }) {
+  const { t: tr } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -113,10 +120,10 @@ function ImportDropZone({ onImport }: { onImport: (file: File) => void }) {
       </div>
       <div className="text-center">
         <p className="text-sm font-semibold text-[#17211f] dark:text-white">
-          Glissez un fichier ou <span className="text-emerald-600">parcourez</span>
+          {tr("transactions.dropTitle")} <span className="text-emerald-600">{tr("transactions.browse")}</span>
         </p>
         <p className="mt-1 text-xs text-[#717182]">
-          Relevé bancaire · Facture · CSV · Excel · PDF · Image (OCR) · Word
+          {tr("transactions.dropDesc")}
         </p>
         <div className="mt-2 flex flex-wrap justify-center gap-1.5">
           {["PDF", "CSV", "XLSX", "PNG/JPG", "DOCX", "TXT"].map((fmt) => (
@@ -135,6 +142,7 @@ function EditModal({ txn, onClose, onSave, saving }: {
   onSave: (payload: BankTransactionUpdateDto) => void;
   saving: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const [form, setForm] = useState({
     date:        txn.date,
     label:       txn.label,
@@ -177,74 +185,74 @@ function EditModal({ txn, onClose, onSave, saving }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-          <h3 className="font-bold text-[#17211f] dark:text-white">Modifier la transaction</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.editTitle")}</h3>
           <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Date</label>
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.date")}</label>
               <input type="date" className={inputCls} value={form.date} onChange={(e) => field("date", e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Devise</label>
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.currency")}</label>
               <select className={inputCls} value={form.currency} onChange={(e) => field("currency", e.target.value)}>
                 <option>XAF</option><option>EUR</option><option>USD</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#717182] mb-1">Libellé</label>
+            <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.label")}</label>
             <input className={inputCls} value={form.label} onChange={(e) => field("label", e.target.value)} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Débit</label>
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.debit")}</label>
               <input type="number" step="0.01" className={inputCls} value={form.debit} onChange={(e) => field("debit", e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Crédit</label>
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.credit")}</label>
               <input type="number" step="0.01" className={inputCls} value={form.credit} onChange={(e) => field("credit", e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Solde</label>
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.balance")}</label>
               <input type="number" step="0.01" className={inputCls} value={form.balance} onChange={(e) => field("balance", e.target.value)} placeholder="—" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#717182] mb-1">Catégorie</label>
+            <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.category")}</label>
             <select className={inputCls} value={form.category} onChange={(e) => field("category", e.target.value)}>
-              <option value="">— choisir —</option>
-              {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              <option value="">{tr("transactions.chooseDash")}</option>
+              {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{tr(c.tk)}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Tiers / Contrepartie</label>
-              <input className={inputCls} value={form.counterpart} onChange={(e) => field("counterpart", e.target.value)} placeholder="Nom du tiers" />
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.counterpart")}</label>
+              <input className={inputCls} value={form.counterpart} onChange={(e) => field("counterpart", e.target.value)} placeholder={tr("transactions.thirdPartyName")} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#717182] mb-1">Référence</label>
-              <input className={inputCls} value={form.reference} onChange={(e) => field("reference", e.target.value)} placeholder="Nº doc" />
+              <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.reference")}</label>
+              <input className={inputCls} value={form.reference} onChange={(e) => field("reference", e.target.value)} placeholder={tr("transactions.docNo")} />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#717182] mb-1">Statut</label>
+            <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.status")}</label>
             <select className={inputCls} value={form.status} onChange={(e) => field("status", e.target.value)}>
-              <option value="confirmed">Confirmé</option>
-              <option value="pending">En attente</option>
-              <option value="reconciled">Rapproché</option>
+              <option value="confirmed">{tr("transactions.statusConfirmed")}</option>
+              <option value="pending">{tr("transactions.statusPending")}</option>
+              <option value="reconciled">{tr("transactions.statusReconciled")}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#717182] mb-1">Notes</label>
+            <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.notes")}</label>
             <textarea rows={2} className={`${inputCls} resize-none`} value={form.notes} onChange={(e) => field("notes", e.target.value)} />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-black/[0.06] dark:border-white/[0.06] px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04]">Annuler</button>
+          <button onClick={onClose} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04]">{tr("common.cancel")}</button>
           <button onClick={submit} disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-            {saving ? "Enregistrement…" : "Enregistrer"}
+            {saving ? tr("transactions.saving") : tr("transactions.save")}
           </button>
         </div>
       </div>
@@ -258,6 +266,7 @@ function NewTransactionModal({ onClose, onSave, saving }: {
   onSave: (payload: BankTransactionCreateDto) => void;
   saving: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ date: today, label: "", debit: "", credit: "", balance: "", currency: getActiveCurrency(), category: "", counterpart: "", reference: "", notes: "" });
   function field<K extends keyof typeof form>(k: K, v: string) { setForm((f) => ({ ...f, [k]: v })); }
@@ -282,39 +291,39 @@ function NewTransactionModal({ onClose, onSave, saving }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-          <h3 className="font-bold text-[#17211f] dark:text-white">Nouvelle transaction</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.newTitle")}</h3>
           <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Date *</label><input type="date" className={inputCls} value={form.date} onChange={(e) => field("date", e.target.value)} /></div>
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Devise</label>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.dateReq")}</label><input type="date" className={inputCls} value={form.date} onChange={(e) => field("date", e.target.value)} /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.currency")}</label>
               <select className={inputCls} value={form.currency} onChange={(e) => field("currency", e.target.value)}>
                 <option>XAF</option><option>EUR</option><option>USD</option>
               </select>
             </div>
           </div>
-          <div><label className="block text-xs font-semibold text-[#717182] mb-1">Libellé *</label><input className={inputCls} value={form.label} onChange={(e) => field("label", e.target.value)} placeholder="Description de la transaction" /></div>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.labelReq")}</label><input className={inputCls} value={form.label} onChange={(e) => field("label", e.target.value)} placeholder={tr("transactions.txDescPlaceholder")} /></div>
           <div className="grid grid-cols-3 gap-3">
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Débit (sortie)</label><input type="number" step="0.01" className={inputCls} value={form.debit} onChange={(e) => field("debit", e.target.value)} placeholder="0" /></div>
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Crédit (entrée)</label><input type="number" step="0.01" className={inputCls} value={form.credit} onChange={(e) => field("credit", e.target.value)} placeholder="0" /></div>
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Solde</label><input type="number" step="0.01" className={inputCls} value={form.balance} onChange={(e) => field("balance", e.target.value)} placeholder="—" /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.debitOut")}</label><input type="number" step="0.01" className={inputCls} value={form.debit} onChange={(e) => field("debit", e.target.value)} placeholder="0" /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.creditIn")}</label><input type="number" step="0.01" className={inputCls} value={form.credit} onChange={(e) => field("credit", e.target.value)} placeholder="0" /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.balance")}</label><input type="number" step="0.01" className={inputCls} value={form.balance} onChange={(e) => field("balance", e.target.value)} placeholder="—" /></div>
           </div>
-          <div><label className="block text-xs font-semibold text-[#717182] mb-1">Catégorie</label>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.category")}</label>
             <select className={inputCls} value={form.category} onChange={(e) => field("category", e.target.value)}>
-              <option value="">— choisir —</option>
-              {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              <option value="">{tr("transactions.chooseDash")}</option>
+              {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{tr(c.tk)}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Tiers</label><input className={inputCls} value={form.counterpart} onChange={(e) => field("counterpart", e.target.value)} /></div>
-            <div><label className="block text-xs font-semibold text-[#717182] mb-1">Référence</label><input className={inputCls} value={form.reference} onChange={(e) => field("reference", e.target.value)} /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.thirdParty")}</label><input className={inputCls} value={form.counterpart} onChange={(e) => field("counterpart", e.target.value)} /></div>
+            <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.reference")}</label><input className={inputCls} value={form.reference} onChange={(e) => field("reference", e.target.value)} /></div>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-black/[0.06] dark:border-white/[0.06] px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04]">Annuler</button>
+          <button onClick={onClose} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04]">{tr("common.cancel")}</button>
           <button onClick={submit} disabled={saving || !form.label || !form.date} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-            {saving ? "Création…" : "Créer"}
+            {saving ? tr("transactions.creating") : tr("transactions.create")}
           </button>
         </div>
       </div>
@@ -340,6 +349,7 @@ function formatTxAmount(amount: number, txCurrency: string): string {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function TransactionsPage() {
+  const { t: tr } = useTranslation();
   useCurrency();
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
@@ -384,9 +394,9 @@ export function TransactionsPage() {
 
   async function handleDeleteTransaction(t: BankTransactionDto) {
     const ok = await confirm({
-      title: "Supprimer cette transaction ?",
-      message: `${t.label}\nMontant : ${money(t.amount)}`,
-      confirmLabel: "Supprimer",
+      title: tr("transactions.deleteTitle"),
+      message: `${t.label}\n${tr("transactions.deleteAmount", { amount: money(t.amount) })}`,
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteMut.mutate(t.id);
@@ -395,18 +405,18 @@ export function TransactionsPage() {
   // ── Import handler
   async function handleImport(file: File) {
     setImportState("loading");
-    setImportMsg(`Analyse de "${file.name}" en cours via Limule…`);
+    setImportMsg(tr("transactions.analyzing", { name: file.name }));
     setImportCount(0);
     try {
       const res = await api.importTransactions(file);
       setImportCount(res.imported);
-      setImportMsg(`✓ ${res.imported} transaction${res.imported !== 1 ? "s" : ""} importée${res.imported !== 1 ? "s" : ""} depuis "${file.name}" (méthode : ${res.parse_method}, ${res.text_length} caractères extraits)`);
+      setImportMsg(tr("transactions.imported", { count: res.imported, name: file.name, method: res.parse_method, chars: res.text_length }));
       setImportState("success");
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["transactionStats"] });
     } catch (err) {
       setImportState("error");
-      setImportMsg((err as Error).message ?? "Erreur lors de l'import");
+      setImportMsg((err as Error).message ?? tr("transactions.importError"));
     }
   }
 
@@ -448,7 +458,7 @@ export function TransactionsPage() {
 
   // ── Export Excel
   function handleExportExcel() {
-    const headers = ["Date", "Libellé", "Montant", "Débit", "Crédit", "Devise", "Catégorie", "Source", "Statut", "Notes"];
+    const headers = [tr("transactions.colDate"), tr("transactions.label"), tr("common.amount"), tr("transactions.debit"), tr("transactions.credit"), tr("transactions.currency"), tr("transactions.category"), tr("transactions.colSource"), tr("transactions.status"), tr("transactions.excelNotes")];
     const rows = filtered.map((t): (string | number)[] => [
       t.date,
       t.label,
@@ -457,7 +467,7 @@ export function TransactionsPage() {
       t.credit ?? "",
       t.currency,
       t.category,
-      SOURCE_LABELS[t.source_type] ?? t.source_type,
+      srcLabel(t.source_type, tr),
       t.status,
       t.notes ?? "",
     ]);
@@ -477,7 +487,7 @@ export function TransactionsPage() {
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch (err) {
       setImportState("error");
-      setImportMsg(`Erreur export CSV : ${(err as Error).message}`);
+      setImportMsg(tr("transactions.exportErr", { msg: (err as Error).message }));
     }
   }
 
@@ -490,31 +500,31 @@ export function TransactionsPage() {
         <div>
           <h1 className="text-xl font-extrabold text-[#17211f] dark:text-white flex items-center gap-2">
             <Landmark size={22} className="text-emerald-600" />
-            Transactions financières
+            {tr("transactions.title")}
           </h1>
           <p className="mt-0.5 text-sm text-[#717182]">
-            Importez relevés bancaires, factures et CSV — Limule extrait et catégorise tout automatiquement
+            {tr("transactions.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleExport} className="flex items-center gap-2 rounded-lg border border-black/[0.08] px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04] transition">
-            <Download size={15} /> Export CSV
+            <Download size={15} /> {tr("transactions.exportCsv")}
           </button>
           <button onClick={handleExportExcel} disabled={(txQuery.data?.length ?? 0) === 0} className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition">
-            <FileSpreadsheet size={15} /> Export Excel
+            <FileSpreadsheet size={15} /> {tr("transactions.exportExcel")}
           </button>
           <button onClick={() => setShowNew(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
-            <Plus size={15} /> Nouvelle
+            <Plus size={15} /> {tr("transactions.newBtn")}
           </button>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Entrées (filtre)" value={compactMoney(filteredCredits)} sub={`${filtered.filter(t => (t.credit ?? t.amount) > 0).length} opérations`} icon={ArrowUpRight} tone="emerald" />
-        <KpiCard label="Sorties (filtre)" value={compactMoney(filteredDebits)} sub={`${filtered.filter(t => (t.debit ?? -t.amount) > 0).length} opérations`} icon={ArrowDownRight} tone="red" />
-        <KpiCard label="Solde net (filtre)" value={compactMoney(filteredCredits - filteredDebits)} sub="entrées − sorties" icon={Landmark} tone={filteredCredits >= filteredDebits ? "emerald" : "red"} />
-        <KpiCard label="Total transactions" value={String(stats?.count ?? 0)} sub={`${filtered.length} affichée${filtered.length !== 1 ? "s" : ""}`} icon={Filter} tone="blue" />
+        <KpiCard label={tr("transactions.kpiInflows")} value={compactMoney(filteredCredits)} sub={tr("transactions.operations", { count: filtered.filter(t => (t.credit ?? t.amount) > 0).length })} icon={ArrowUpRight} tone="emerald" />
+        <KpiCard label={tr("transactions.kpiOutflows")} value={compactMoney(filteredDebits)} sub={tr("transactions.operations", { count: filtered.filter(t => (t.debit ?? -t.amount) > 0).length })} icon={ArrowDownRight} tone="red" />
+        <KpiCard label={tr("transactions.kpiNet")} value={compactMoney(filteredCredits - filteredDebits)} sub={tr("transactions.inMinusOut")} icon={Landmark} tone={filteredCredits >= filteredDebits ? "emerald" : "red"} />
+        <KpiCard label={tr("transactions.kpiTotal")} value={String(stats?.count ?? 0)} sub={tr("transactions.displayed", { count: filtered.length })} icon={Filter} tone="blue" />
       </div>
 
       {/* Import zone */}
@@ -549,7 +559,7 @@ export function TransactionsPage() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aaa]" />
           <input
             className="w-full rounded-lg border border-black/[0.08] bg-white py-2 pl-9 pr-3 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
-            placeholder="Rechercher libellé, tiers, référence…"
+            placeholder={tr("transactions.searchPlaceholder")}
             value={search} onChange={(e) => setSearch(e.target.value)}
           />
         </div>
@@ -557,20 +567,20 @@ export function TransactionsPage() {
           className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
         >
-          <option value="">Toutes catégories</option>
-          {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          <option value="">{tr("transactions.allCategories")}</option>
+          {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{tr(c.tk)}</option>)}
         </select>
         <select
           className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}
         >
-          <option value="">Toutes sources</option>
-          {uniqueSources.map((s) => <option key={s} value={s}>{SOURCE_LABELS[s] ?? s}</option>)}
+          <option value="">{tr("transactions.allSources")}</option>
+          {uniqueSources.map((s) => <option key={s} value={s}>{srcLabel(s, tr)}</option>)}
         </select>
         <div className="flex items-center gap-1.5 text-sm text-[#717182]">
-          <span>Du</span>
+          <span>{tr("transactions.from")}</span>
           <input type="date" className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <span>au</span>
+          <span>{tr("transactions.to")}</span>
           <input type="date" className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
         {(search || categoryFilter || sourceFilter || dateFrom || dateTo) && (
@@ -578,7 +588,7 @@ export function TransactionsPage() {
             onClick={() => { setSearch(""); setCategoryFilter(""); setSourceFilter(""); setDateFrom(""); setDateTo(""); }}
             className="flex items-center gap-1 rounded-lg border border-black/[0.08] px-3 py-2 text-xs font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"
           >
-            <X size={12} /> Effacer filtres
+            <X size={12} /> {tr("transactions.clearFilters")}
           </button>
         )}
       </div>
@@ -587,19 +597,19 @@ export function TransactionsPage() {
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
           <span className="text-sm font-semibold text-[#17211f] dark:text-white">
-            {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
+            {tr("transactions.txCount", { count: filtered.length })}
           </span>
           {txQuery.isFetching && <RefreshCcw size={14} className="animate-spin text-[#aaa]" />}
         </div>
         {txQuery.isLoading ? (
           <div className="flex items-center gap-2 p-8 text-sm text-[#717182]">
-            <Loader2 size={16} className="animate-spin" /> Chargement…
+            <Loader2 size={16} className="animate-spin" /> {tr("transactions.loading")}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-[#717182]">
             <Landmark size={36} className="mb-3 text-[#ccc]" />
-            <p className="text-sm font-semibold text-[#17211f] dark:text-white">Aucune transaction</p>
-            <p className="text-xs mt-1">Importez un relevé bancaire ou une facture pour commencer</p>
+            <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("transactions.noTx")}</p>
+            <p className="text-xs mt-1">{tr("transactions.noTxDesc")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -607,29 +617,29 @@ export function TransactionsPage() {
               <thead>
                 <tr className="border-b border-black/[0.04] dark:border-white/[0.04] text-left text-[11px] font-semibold uppercase tracking-wider text-[#717182]">
                   <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("date")}>
-                    <span className="flex items-center">Date<SortIcon field="date" /></span>
+                    <span className="flex items-center">{tr("transactions.colDate")}<SortIcon field="date" /></span>
                   </th>
                   <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("label")}>
-                    <span className="flex items-center">Libellé<SortIcon field="label" /></span>
+                    <span className="flex items-center">{tr("transactions.colLabel")}<SortIcon field="label" /></span>
                   </th>
                   <th className="cursor-pointer px-4 py-3 text-right" onClick={() => toggleSort("amount")}>
-                    <span className="flex items-center justify-end">Débit<SortIcon field="amount" /></span>
+                    <span className="flex items-center justify-end">{tr("transactions.colDebit")}<SortIcon field="amount" /></span>
                   </th>
-                  <th className="px-4 py-3 text-right">Crédit</th>
-                  <th className="px-4 py-3 text-right hidden lg:table-cell">Solde</th>
+                  <th className="px-4 py-3 text-right">{tr("transactions.colCredit")}</th>
+                  <th className="px-4 py-3 text-right hidden lg:table-cell">{tr("transactions.colBalance")}</th>
                   <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("category")}>
-                    <span className="flex items-center">Catégorie<SortIcon field="category" /></span>
+                    <span className="flex items-center">{tr("transactions.colCategory")}<SortIcon field="category" /></span>
                   </th>
-                  <th className="px-4 py-3 hidden md:table-cell">Tiers</th>
-                  <th className="px-4 py-3 hidden sm:table-cell">Source</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3 hidden md:table-cell">{tr("transactions.colThirdParty")}</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">{tr("transactions.colSource")}</th>
+                  <th className="px-4 py-3 text-right">{tr("transactions.colActions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
                 {filtered.map((t) => {
                   const d = t.debit  ?? (t.amount < 0 ? -t.amount : 0);
                   const c = t.credit ?? (t.amount > 0 ? t.amount  : 0);
-                  const cat = catMeta(t.category);
+                  const cat = catMeta(t.category, tr);
                   return (
                     <tr key={t.id} className="group hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
                       <td className="px-4 py-3 text-xs text-[#717182] whitespace-nowrap">{shortDate(t.date)}</td>
@@ -668,10 +678,10 @@ export function TransactionsPage() {
                         {t.source_file ? (
                           <span className="flex items-center gap-1 text-xs text-[#717182]">
                             <FileTypeIcon filename={t.source_file} />
-                            <span className="truncate max-w-[80px]">{SOURCE_LABELS[t.source_type] ?? t.source_type}</span>
+                            <span className="truncate max-w-[80px]">{srcLabel(t.source_type, tr)}</span>
                           </span>
                         ) : (
-                          <span className="text-xs text-[#aaa]">{SOURCE_LABELS[t.source_type] ?? t.source_type}</span>
+                          <span className="text-xs text-[#aaa]">{srcLabel(t.source_type, tr)}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -699,13 +709,13 @@ export function TransactionsPage() {
       {/* Category breakdown */}
       {stats && Object.keys(stats.by_category).length > 0 && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] p-5">
-          <h3 className="text-sm font-bold text-[#17211f] dark:text-white mb-4">Répartition par catégorie</h3>
+          <h3 className="text-sm font-bold text-[#17211f] dark:text-white mb-4">{tr("transactions.breakdownTitle")}</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(stats.by_category)
               .sort(([, a], [, b]) => b - a)
               .slice(0, 12)
               .map(([key, val]) => {
-                const cm = catMeta(key);
+                const cm = catMeta(key, tr);
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: cm.color }} />
