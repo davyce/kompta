@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, ArrowUpRight, ArrowDownRight, BellOff, CheckCircle2,
@@ -18,10 +19,10 @@ import { compactMoney, money, shortDate, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
 type Period = "mois" | "trimestre" | "annee";
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "mois",      label: "Mois"      },
-  { key: "trimestre", label: "Trimestre" },
-  { key: "annee",     label: "Année"     },
+const PERIODS: { key: Period; tk: string }[] = [
+  { key: "mois",      tk: "dashboard.month"   },
+  { key: "trimestre", tk: "dashboard.quarter" },
+  { key: "annee",     tk: "dashboard.year"    },
 ];
 const PERIOD_DIVISOR: Record<Period, number> = { annee: 1, trimestre: 4, mois: 12 };
 /* Map frontend period key → backend param */
@@ -50,10 +51,10 @@ function avatarColor(name: string) {
 
 /* ── Getting Started steps ───────────────────────────────────────── */
 const GETTING_STARTED_STEPS = [
-  { label: "Ajouter des employés",  hint: "RH et paie",          path: "/employees",   Icon: Users,       color: "bg-violet-100 text-violet-600 dark:bg-violet-500/20" },
-  { label: "Créer une facture",      hint: "Facturation client",  path: "/billing",     Icon: ReceiptText, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20" },
-  { label: "Gérer l'inventaire",    hint: "Produits & stock",    path: "/inventory",   Icon: Boxes,       color: "bg-amber-100 text-amber-600 dark:bg-amber-500/20" },
-  { label: "Importer transactions", hint: "Trésorerie & compta", path: "/transactions", Icon: Landmark,    color: "bg-sky-100 text-sky-600 dark:bg-sky-500/20" },
+  { labelKey: "dashboard.addEmployees",       hintKey: "dashboard.addEmployeesHint",       path: "/employees",   Icon: Users,       color: "bg-violet-100 text-violet-600 dark:bg-violet-500/20" },
+  { labelKey: "dashboard.createInvoice",      hintKey: "dashboard.createInvoiceHint",      path: "/billing",     Icon: ReceiptText, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20" },
+  { labelKey: "dashboard.manageInventory",    hintKey: "dashboard.manageInventoryHint",    path: "/inventory",   Icon: Boxes,       color: "bg-amber-100 text-amber-600 dark:bg-amber-500/20" },
+  { labelKey: "dashboard.importTransactions", hintKey: "dashboard.importTransactionsHint", path: "/transactions", Icon: Landmark,    color: "bg-sky-100 text-sky-600 dark:bg-sky-500/20" },
 ];
 
 /* ── KPI card ────────────────────────────────────────────────────── */
@@ -63,6 +64,7 @@ function KpiCard({
   label: string; value: string; delta: string; hint: string;
   icon: React.ElementType; accent?: string;
 }) {
+  const { t: tr } = useTranslation();
   const positive = !delta.startsWith("-");
   const accentMap: Record<string, string> = {
     indigo:  "bg-emerald-50  text-emerald-600  dark:bg-emerald-500/15 dark:text-emerald-400",
@@ -85,7 +87,7 @@ function KpiCard({
         <span className={`text-sm font-bold ${positive ? "text-emerald-600" : "text-rose-500"}`}>{delta}</span>
         <span className="text-xs text-[#717182]">{hint}</span>
       </div>
-      <p className="text-[10px] text-[#aaaabc] mt-0.5">Mis à jour à l'instant</p>
+      <p className="text-[10px] text-[#aaaabc] mt-0.5">{tr("dashboard.updatedNow")}</p>
     </div>
   );
 }
@@ -97,6 +99,7 @@ function TreasuryPrediction({
   txMonthlyIn: number; txMonthlyOut: number;
   salesTotal: number; invoicesTotal: number;
 }) {
+  const { t: tr } = useTranslation();
   const today = new Date();
   // Priorité aux données bancaires réelles; sinon estimation comptable
   const monthlyIn  = txMonthlyIn  > 0 ? txMonthlyIn  : salesTotal;
@@ -114,8 +117,8 @@ function TreasuryPrediction({
     <div className="rounded-xl border border-black/[0.06] bg-white p-5 dark:bg-[#1e2229] dark:border-white/[0.06]">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#717182]">Projection trésorerie</p>
-          <p className="mt-0.5 text-lg font-black text-[#17211f] dark:text-white">7 prochains jours</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("dashboard.treasuryProjection")}</p>
+          <p className="mt-0.5 text-lg font-black text-[#17211f] dark:text-white">{tr("dashboard.next7days")}</p>
         </div>
         <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${isPositive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}>
           {isPositive ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
@@ -130,12 +133,12 @@ function TreasuryPrediction({
             </linearGradient>
           </defs>
           <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v) => [compactMoney(typeof v === "number" ? v : 0), "Solde net"]} contentStyle={{ borderRadius: 8, fontSize: 11 }} />
+          <Tooltip formatter={(v) => [compactMoney(typeof v === "number" ? v : 0), tr("dashboard.netBalance")]} contentStyle={{ borderRadius: 8, fontSize: 11 }} />
           <Area type="monotone" dataKey="balance" stroke={isPositive ? "#059669" : "#ef4444"} strokeWidth={2} fill="url(#treasury-grad)" />
         </AreaChart>
       </ResponsiveContainer>
       <p className="mt-2 text-xs text-[#717182]">
-        Projection basée sur votre activité récente · {isPositive ? "+" : ""}{compactMoney(dailyNet)}/jour estimé
+        {tr("dashboard.projectionBasis")} · {isPositive ? "+" : ""}{compactMoney(dailyNet)}/{tr("dashboard.perDayEstimated")}
       </p>
     </div>
   );
@@ -143,6 +146,7 @@ function TreasuryPrediction({
 
 /* ── Équivalent EUR indicatif sous la trésorerie ───────────────── */
 function TreasuryEurEquivalent({ amountXaf }: { amountXaf: number }) {
+  const { t: tr } = useTranslation();
   const conversion = useQuery({
     queryKey: ["currencyConvert", "XAF", "EUR", amountXaf],
     queryFn: () => api.currencyConvert(amountXaf, "XAF", "EUR"),
@@ -151,17 +155,18 @@ function TreasuryEurEquivalent({ amountXaf }: { amountXaf: number }) {
   if (!conversion.data || conversion.data.converted === null) return null;
   return (
     <p className="text-xs text-[#717182] -mt-3 pl-1">
-      Trésorerie ≈{" "}
+      {tr("dashboard.treasuryApprox")}{" "}
       <span className="font-mono font-semibold">
         {conversion.data.converted.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} EUR
       </span>{" "}
-      <span className="opacity-60">(taux {conversion.data.source})</span>
+      <span className="opacity-60">({tr("dashboard.rate", { source: conversion.data.source })})</span>
     </p>
   );
 }
 
 /* ── main component ──────────────────────────────────────────────── */
 export function DashboardPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   // Subscribe to currency changes for reactive re-render
@@ -230,7 +235,7 @@ export function DashboardPage() {
       },
       (partial) => setCashFlow(partial),
       (final)   => { setCashFlow(final); setCashFlowLoading(false); },
-      ()        => { setCashFlow("Limule indisponible. Vérifie que le backend est lancé."); setCashFlowLoading(false); },
+      ()        => { setCashFlow(tr("dashboard.limuleUnavailable")); setCashFlowLoading(false); },
     );
   }
 
@@ -251,7 +256,7 @@ export function DashboardPage() {
       },
       (partial) => setAiSummary(partial),
       (final) => { setAiSummary(final); setAiLoading(false); },
-      () => { setAiSummary("Limule indisponible pour le moment. Vérifie que le backend est lancé."); setAiLoading(false); },
+      () => { setAiSummary(tr("dashboard.limuleUnavailable2")); setAiLoading(false); },
     );
   }
 
@@ -280,8 +285,8 @@ export function DashboardPage() {
     const b2bTotal = (invoices.data ?? []).reduce((s, x) => s + (x.total_amount || 0), 0);
     const total = posTotal + b2bTotal;
     const channels = [
-      { name: "POS Boutique",    raw: posTotal },
-      { name: "Facturation B2B", raw: b2bTotal },
+      { name: tr("dashboard.posShop"),    raw: posTotal },
+      { name: tr("dashboard.b2bBilling"), raw: b2bTotal },
     ].filter((c) => c.raw > 0);
     if (channels.length === 0) {
       return [];
@@ -298,7 +303,7 @@ export function DashboardPage() {
     const list = employees.data ?? [];
     const groups = new Map<string, { count: number; salary: number; manager: string }>();
     for (const e of list) {
-      const dept = e.department || "Autres";
+      const dept = e.department || tr("dashboard.others");
       const cur = groups.get(dept) ?? { count: 0, salary: 0, manager: "" };
       cur.count += 1;
       cur.salary += e.salary || 0;
@@ -322,11 +327,11 @@ export function DashboardPage() {
     const teras = terasScores.data ?? [];
     const tScore = (domain: string) => teras.find((t) => t.domain === domain)?.score;
     return [
-      { k: "Profil entreprise", v: steps.find((s) => s.key === "profile")?.done ? 100 : 0, c: "bg-emerald-500" },
-      { k: "Plan comptable",    v: steps.find((s) => s.key === "accounting")?.done ? 100 : 0, c: "bg-emerald-500" },
-      { k: "Politique RH",      v: tScore("rh") ?? (steps.find((s) => s.key === "hr")?.done ? 100 : 0), c: "bg-amber-500" },
-      { k: "Conformité TERAS",  v: tScore("company") ?? (overview.data?.kpis.teras_score ?? 0), c: "bg-emerald-500" },
-      { k: "Documents",         v: tScore("documents") ?? 0, c: "bg-amber-500" },
+      { k: tr("dashboard.stepProfile"), v: steps.find((s) => s.key === "profile")?.done ? 100 : 0, c: "bg-emerald-500" },
+      { k: tr("dashboard.stepAccounting"),    v: steps.find((s) => s.key === "accounting")?.done ? 100 : 0, c: "bg-emerald-500" },
+      { k: tr("dashboard.stepHr"),      v: tScore("rh") ?? (steps.find((s) => s.key === "hr")?.done ? 100 : 0), c: "bg-amber-500" },
+      { k: tr("dashboard.stepTeras"),  v: tScore("company") ?? (overview.data?.kpis.teras_score ?? 0), c: "bg-emerald-500" },
+      { k: tr("dashboard.stepDocuments"),         v: tScore("documents") ?? 0, c: "bg-amber-500" },
     ].map((r) => ({ ...r, c: r.v >= 85 ? "bg-emerald-500" : r.v >= 65 ? "bg-amber-500" : "bg-rose-500" }));
   }, [onboarding.data, terasScores.data, overview.data]);
 
@@ -341,7 +346,7 @@ export function DashboardPage() {
   }
 
   const data       = overview.data;
-  const firstName  = user?.full_name?.split(" ")[0] ?? "vous";
+  const firstName  = user?.full_name?.split(" ")[0] ?? tr("dashboard.team");
   const divisor    = PERIOD_DIVISOR[period];
 
   // Trésorerie : solde bancaire réel si transactions existent, sinon ventes POS
@@ -378,14 +383,15 @@ export function DashboardPage() {
     .sort((a, b) => (a.priority === "high" ? -1 : 1) - (b.priority === "high" ? -1 : 1))
     .slice(0, 4)
     .map((t) => ({
-      id: t.id, title: t.title, assignee_name: t.assignee_name || "Équipe",
+      id: t.id, title: t.title, assignee_name: t.assignee_name || tr("dashboard.team"),
       role: "", due_date: t.due_date, priority: t.priority,
     }));
 
+  const empCount = data?.kpis.employees ?? 0;
   const periodLabel: Record<Period, string> = {
-    annee:     `${data?.kpis.employees ?? 0} employés · échéance 30/04`,
-    trimestre: `${data?.kpis.employees ?? 0} employés · Q2`,
-    mois:      `${data?.kpis.employees ?? 0} employés · avril`,
+    annee:     tr("dashboard.periodYear", { count: empCount }),
+    trimestre: tr("dashboard.periodQuarter", { count: empCount }),
+    mois:      tr("dashboard.periodMonth", { count: empCount }),
   };
 
   return (
@@ -394,15 +400,15 @@ export function DashboardPage() {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-emerald-600">Pilotage global</p>
+          <p className="text-sm font-semibold text-emerald-600">{tr("dashboard.heroEyebrow")}</p>
           <h1 className="text-3xl font-extrabold text-[#17211f] dark:text-white">
-            Bienvenue {firstName} 👋
+            {tr("dashboard.welcome", { name: firstName })}
           </h1>
           <p className="mt-1 text-sm text-[#717182]">
             {data?.company ?? "KOMPTA"} · {new Intl.DateTimeFormat("fr-FR", { dateStyle: "full" }).format(new Date())}
           </p>
           <p className="mt-0.5 text-xs text-[#717182] dark:text-white/40">
-            ↻ Mis à jour {lastRefreshed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · Rafraîchissement auto 30s
+            {tr("dashboard.updatedAt", { time: lastRefreshed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -418,14 +424,14 @@ export function DashboardPage() {
                     : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                 }`}
               >
-                {p.label}
+                {tr(p.tk)}
               </button>
             ))}
           </div>
           <button
             onClick={() => navigate("/reports")}
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03]">
-            <Filter size={16} /> Rapports détaillés
+            <Filter size={16} /> {tr("dashboard.detailedReports")}
           </button>
           <button
             onClick={() => {
@@ -436,7 +442,7 @@ export function DashboardPage() {
               a.download = `kompta-dashboard-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
             }}
             className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03]">
-            <Download size={16} /> Exporter KPI
+            <Download size={16} /> {tr("dashboard.exportKpi")}
           </button>
           <button
             onClick={launchAiSummary}
@@ -444,7 +450,7 @@ export function DashboardPage() {
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-70"
           >
             <LimuleIcon size={16} className={aiLoading ? "animate-pulse opacity-80" : ""} />
-            {aiLoading ? "Analyse…" : "Résumé IA"}
+            {aiLoading ? tr("dashboard.analyzing") : tr("dashboard.aiSummaryBtn")}
           </button>
         </div>
       </div>
@@ -455,10 +461,10 @@ export function DashboardPage() {
           <div className="mb-3 flex items-center gap-2">
             <LimuleIcon size={18} />
             <h2 className="text-sm font-extrabold text-[#17211f] dark:text-white">
-              Limule détecte
+              {tr("dashboard.limuleDetects")}
             </h2>
             <span className="text-xs text-[#717182]">
-              · {limuleProactive.data?.length} signal{(limuleProactive.data?.length ?? 0) > 1 ? "s" : ""}
+              · {tr("dashboard.signals", { count: limuleProactive.data?.length ?? 0 })}
             </span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -476,7 +482,7 @@ export function DashboardPage() {
                   type="button"
                   onClick={() => navigate(a.action_url)}
                   className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition hover:opacity-90 ${palette}`}
-                  title={`Aller vers ${a.action_url}`}
+                  title={a.action_url}
                 >
                   <Icon size={16} className="mt-0.5 shrink-0" />
                   <span className="flex-1">{a.message}</span>
@@ -495,8 +501,8 @@ export function DashboardPage() {
               <LimuleAvatar state="idle" size={48} />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-black text-[#17211f] dark:text-white">Bienvenue sur KOMPTA 🎉</h2>
-              <p className="mt-1 text-sm text-[#717182]">Votre espace est prêt. Suivez ces étapes pour démarrer :</p>
+              <h2 className="text-lg font-black text-[#17211f] dark:text-white">{tr("dashboard.welcomeTitle")}</h2>
+              <p className="mt-1 text-sm text-[#717182]">{tr("dashboard.welcomeText")}</p>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {GETTING_STARTED_STEPS.map((step) => (
                   <button
@@ -508,8 +514,8 @@ export function DashboardPage() {
                       <step.Icon size={16} />
                     </span>
                     <div>
-                      <p className="text-sm font-bold text-[#17211f] dark:text-white">{step.label}</p>
-                      <p className="text-xs text-[#717182]">{step.hint}</p>
+                      <p className="text-sm font-bold text-[#17211f] dark:text-white">{tr(step.labelKey)}</p>
+                      <p className="text-xs text-[#717182]">{tr(step.hintKey)}</p>
                     </div>
                   </button>
                 ))}
@@ -522,34 +528,34 @@ export function DashboardPage() {
       {/* ── KPI row ── */}
       <div data-tour="kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
-          label="Trésorerie"
+          label={tr("dashboard.kpiTreasury")}
           value={treasury !== 0 ? compactMoney(treasury) : "—"}
-          delta={txCount > 0 ? `${txCount} mvts bancaires` : "Ventes POS"}
-          hint={txCount > 0 ? "Solde réel (transactions bancaires)" : "Estimation basée sur les ventes POS"}
+          delta={txCount > 0 ? tr("dashboard.bankMovements", { count: txCount }) : tr("dashboard.posSales")}
+          hint={txCount > 0 ? tr("dashboard.realBalanceHint") : tr("dashboard.posEstimateHint")}
           icon={WalletCards}
           accent="emerald"
         />
         <KpiCard
-          label="Encaissé"
+          label={tr("dashboard.kpiCollected")}
           value={revenue > 0 ? compactMoney(revenue) : invoicesTotal > 0 ? "0" : "—"}
-          delta={invoicesPaidCount > 0 ? `${invoicesPaidCount} facture${invoicesPaidCount > 1 ? "s" : ""} payée${invoicesPaidCount > 1 ? "s" : ""}` : invoicesPending > 0 ? `${compactMoney(invoicesPending)} en attente` : "aucune facture"}
-          hint={invoicesTotal > 0 ? `sur ${compactMoney(invoicesTotal)} facturé` : "factures encaissées"}
+          delta={invoicesPaidCount > 0 ? tr("dashboard.invoicesPaid", { count: invoicesPaidCount }) : invoicesPending > 0 ? tr("dashboard.pendingDelta", { amount: compactMoney(invoicesPending) }) : tr("dashboard.noInvoice")}
+          hint={invoicesTotal > 0 ? tr("dashboard.ofBilled", { amount: compactMoney(invoicesTotal) }) : tr("dashboard.collectedInvoices")}
           icon={ReceiptText}
           accent="teal"
         />
         <KpiCard
-          label="Masse salariale"
+          label={tr("dashboard.kpiPayroll")}
           value={payroll > 0 ? compactMoney(payroll) : "—"}
-          delta={payroll > 0 ? `${data?.kpis.employees ?? 0} employés` : "aucun employé"}
+          delta={payroll > 0 ? tr("dashboard.employeesCount", { count: data?.kpis.employees ?? 0 }) : tr("dashboard.noEmployee")}
           hint={periodLabel[period]}
           icon={Users}
           accent="amber"
         />
         <KpiCard
-          label="Score TERAS"
+          label={tr("dashboard.kpiTeras")}
           value={terasScore > 0 ? `${terasScore} / 100` : "— / 100"}
-          delta={terasDelta !== 0 ? `${terasDelta >= 0 ? "+" : ""}${terasDelta} pts` : "non évalué"}
-          hint="conformité fiscale & RH"
+          delta={terasDelta !== 0 ? tr("dashboard.ptsDelta", { sign: terasDelta >= 0 ? "+" : "", pts: terasDelta }) : tr("dashboard.notEvaluated")}
+          hint={tr("dashboard.terasHint")}
           icon={ShieldCheck}
           accent="sky"
         />
@@ -563,11 +569,11 @@ export function DashboardPage() {
         <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-5 dark:border-violet-500/30 dark:from-violet-500/10 dark:to-fuchsia-500/10">
           <div className="flex items-center gap-2 mb-3">
             <LimuleIcon size={18} />
-            <span className="text-sm font-black text-violet-700 dark:text-violet-300">Analyse IA — Grand Sage 1.0</span>
+            <span className="text-sm font-black text-violet-700 dark:text-violet-300">{tr("dashboard.aiAnalysisTitle")}</span>
             {aiLoading && <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />}
           </div>
           <p className="text-sm leading-7 text-[#17211f] dark:text-white whitespace-pre-wrap">
-            {aiSummary || <span className="text-[#717182] animate-pulse">Limule analyse vos données…</span>}
+            {aiSummary || <span className="text-[#717182] animate-pulse">{tr("dashboard.limuleAnalyzing")}</span>}
           </p>
         </div>
       )}
@@ -579,15 +585,15 @@ export function DashboardPage() {
         <div className="lg:col-span-2 rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div>
-              <h3 className="font-bold text-[#17211f] dark:text-white">Performance commerciale</h3>
-              <p className="text-xs text-[#717182]">Revenus &amp; marge — données réelles (M {currencyLabel()})</p>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.commercialPerf")}</h3>
+              <p className="text-xs text-[#717182]">{tr("dashboard.revenueMarginSub", { cur: currencyLabel() })}</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#717182]">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: "#6366f1" }} />Revenus
+                <span className="h-2 w-2 rounded-full" style={{ background: "#6366f1" }} />{tr("dashboard.revenue")}
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: "#059669" }} />Marge
+                <span className="h-2 w-2 rounded-full" style={{ background: "#059669" }} />{tr("dashboard.margin")}
               </span>
             </div>
           </div>
@@ -595,8 +601,8 @@ export function DashboardPage() {
             {revenueChartData.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                 <TrendingUp size={32} className="text-[#d1d5db]" />
-                <p className="text-sm font-semibold text-[#717182]">Aucune transaction ce mois</p>
-                <p className="text-xs text-[#9ca3af]">Créez votre première vente pour voir les revenus ici</p>
+                <p className="text-sm font-semibold text-[#717182]">{tr("dashboard.noTxThisMonth")}</p>
+                <p className="text-xs text-[#9ca3af]">{tr("dashboard.createFirstSale")}</p>
               </div>
             ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -618,8 +624,8 @@ export function DashboardPage() {
                   contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid rgba(0,0,0,0.08)" }}
                   formatter={(value) => [`${value} M ${currencyLabel()}`]}
                 />
-                <Area type="monotone" dataKey="v" stroke="#6366f1" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name="Revenus" />
-                <Area type="monotone" dataKey="e" stroke="#059669" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name="Marge" />
+                <Area type="monotone" dataKey="v" stroke="#6366f1" fill="url(#gPrimary)" strokeWidth={2.5} dot={false} name={tr("dashboard.revenue")} />
+                <Area type="monotone" dataKey="e" stroke="#059669" fill="url(#gEmerald)" strokeWidth={2}   dot={false} name={tr("dashboard.margin")} />
               </AreaChart>
             </ResponsiveContainer>
             )}
@@ -629,14 +635,14 @@ export function DashboardPage() {
         {/* Sales channels donut */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06] flex flex-col">
           <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Canaux de vente</h3>
-            <p className="text-xs text-[#717182]">Répartition du CA</p>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.salesChannels")}</h3>
+            <p className="text-xs text-[#717182]">{tr("dashboard.revenueSplit")}</p>
           </div>
           {channelData.length === 0 ? (
             <div className="flex h-52 flex-col items-center justify-center gap-2 text-center px-5">
               <ReceiptText size={32} className="text-[#d1d5db]" />
-              <p className="text-sm font-semibold text-[#717182]">Aucune vente enregistrée</p>
-              <p className="text-xs text-[#9ca3af]">Les canaux apparaîtront ici dès la première vente</p>
+              <p className="text-sm font-semibold text-[#717182]">{tr("dashboard.noSale")}</p>
+              <p className="text-xs text-[#9ca3af]">{tr("dashboard.channelsAppear")}</p>
             </div>
           ) : (
             <>
@@ -691,7 +697,7 @@ export function DashboardPage() {
                 className="flex items-center gap-2 text-left hover:opacity-75 transition"
               >
                 <h3 className="flex items-center gap-2 font-bold text-[#17211f] dark:text-white">
-                  Alertes TERAS
+                  {tr("dashboard.terasAlerts")}
                   {activeAlerts.length > 0 && (
                     <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:ring-rose-500/30">
                       {activeAlerts.length}
@@ -708,15 +714,15 @@ export function DashboardPage() {
                   onClick={() => navigate("/reports-teras")}
                   className="hidden sm:flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
                 >
-                  Voir tout <ArrowUpRight size={13} />
+                  {tr("dashboard.viewAll")} <ArrowUpRight size={13} />
                 </button>
                 <button
                   onClick={toggleTerasDisabled}
-                  title="Masquer les alertes TERAS"
+                  title={tr("dashboard.hideTerasAlerts")}
                   className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-rose-500 transition"
                 >
                   <BellOff size={13} />
-                  <span className="hidden sm:inline">Désactiver</span>
+                  <span className="hidden sm:inline">{tr("dashboard.disable")}</span>
                 </button>
               </div>
             </div>
@@ -726,14 +732,14 @@ export function DashboardPage() {
                 {activeAlerts.length === 0 ? (
                   <div className="flex items-center gap-2 px-5 py-6 text-sm text-[#717182]">
                     <CheckCircle2 size={16} className="text-emerald-500" />
-                    Aucune alerte active — conformité OK.
+                    {tr("dashboard.noActiveAlert")}
                   </div>
                 ) : activeAlerts.map((a) => {
                   const tone = a.severity === "high"
-                    ? { bg: "bg-rose-50  text-rose-600  dark:bg-rose-500/15  dark:text-rose-400",  badge: "bg-rose-50  text-rose-700  ring-rose-200  dark:bg-rose-500/15  dark:text-rose-400  dark:ring-rose-500/30",  label: "Critique"  }
+                    ? { bg: "bg-rose-50  text-rose-600  dark:bg-rose-500/15  dark:text-rose-400",  badge: "bg-rose-50  text-rose-700  ring-rose-200  dark:bg-rose-500/15  dark:text-rose-400  dark:ring-rose-500/30",  label: tr("dashboard.sevCritical")  }
                     : a.severity === "medium"
-                    ? { bg: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400", badge: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30", label: "Attention" }
-                    : { bg: "bg-sky-50   text-sky-600   dark:bg-sky-500/15   dark:text-sky-400",   badge: "bg-sky-50   text-sky-700   ring-sky-200   dark:bg-sky-500/15   dark:text-sky-400   dark:ring-sky-500/30",   label: "Info"      };
+                    ? { bg: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400", badge: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30", label: tr("dashboard.sevWarning") }
+                    : { bg: "bg-sky-50   text-sky-600   dark:bg-sky-500/15   dark:text-sky-400",   badge: "bg-sky-50   text-sky-700   ring-sky-200   dark:bg-sky-500/15   dark:text-sky-400   dark:ring-sky-500/30",   label: tr("dashboard.sevInfo")      };
                   return (
                     <div key={a.id} className="flex items-start gap-3 px-4 sm:px-5 py-3.5">
                       <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${tone.bg}`}>
@@ -749,7 +755,7 @@ export function DashboardPage() {
                       <button
                         onClick={() => navigate("/reports-teras")}
                         className="flex-shrink-0 rounded-lg border border-black/[0.08] px-2.5 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white dark:border-white/[0.08] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition hidden sm:block">
-                        Traiter
+                        {tr("dashboard.handle")}
                       </button>
                     </div>
                   );
@@ -762,7 +768,7 @@ export function DashboardPage() {
           <div className="lg:col-span-2 flex items-center justify-between rounded-xl border border-dashed border-black/[0.08] dark:border-white/[0.08] px-4 py-3">
             <span className="flex items-center gap-2 text-xs text-[#717182]">
               <BellOff size={14} />
-              Alertes TERAS masquées
+              {tr("dashboard.terasHidden")}
               {activeAlerts.length > 0 && (
                 <span className="rounded-full bg-rose-50 dark:bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">{activeAlerts.length}</span>
               )}
@@ -771,7 +777,7 @@ export function DashboardPage() {
               onClick={toggleTerasDisabled}
               className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition"
             >
-              Réactiver
+              {tr("dashboard.reactivate")}
             </button>
           </div>
         )}
@@ -779,15 +785,15 @@ export function DashboardPage() {
         {/* Urgent tasks */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Tâches urgentes</h3>
-            <span className="text-xs text-[#717182]">{urgentTasks.length} à faire</span>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.urgentTasks")}</h3>
+            <span className="text-xs text-[#717182]">{tr("dashboard.todo", { count: urgentTasks.length })}</span>
           </div>
           <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
             {urgentTasks.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 py-8 text-center px-5">
                 <CheckCircle2 size={28} className="text-emerald-300" />
-                <p className="text-sm font-semibold text-[#717182]">Aucune tâche urgente</p>
-                <p className="text-xs text-[#9ca3af]">Toutes vos tâches sont à jour</p>
+                <p className="text-sm font-semibold text-[#717182]">{tr("dashboard.noUrgentTask")}</p>
+                <p className="text-xs text-[#9ca3af]">{tr("dashboard.tasksUpToDate")}</p>
               </div>
             )}
             {urgentTasks.map((t) => (
@@ -804,7 +810,7 @@ export function DashboardPage() {
                     ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
                     : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                 }`}>
-                  {t.priority === "high" ? "Haute" : "Moy."}
+                  {t.priority === "high" ? tr("dashboard.priorityHigh") : tr("dashboard.priorityMed")}
                 </span>
               </div>
             ))}
@@ -818,13 +824,13 @@ export function DashboardPage() {
         {/* Onboarding steps */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Onboarding entreprise</h3>
-            <p className="text-xs text-[#717182]">Complétude du profil</p>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.onboardingTitle")}</h3>
+            <p className="text-xs text-[#717182]">{tr("dashboard.profileCompleteness")}</p>
           </div>
           <div className="px-5 py-4 space-y-4">
             <div>
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="font-semibold text-[#17211f] dark:text-white">Progression globale</span>
+                <span className="font-semibold text-[#17211f] dark:text-white">{tr("dashboard.globalProgress")}</span>
                 <span className="font-bold text-emerald-600">{onboarding.data?.completion_score ?? 72}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
@@ -836,10 +842,10 @@ export function DashboardPage() {
             </div>
             <div className="space-y-2">
               {(onboarding.data?.steps ?? [
-                { key: "profile",    label: "Profil entreprise", done: true  },
-                { key: "accounting", label: "Plan comptable",    done: true  },
-                { key: "hr",         label: "Politique RH",      done: false },
-                { key: "teras",      label: "Conformité TERAS",  done: true  },
+                { key: "profile",    label: tr("dashboard.stepProfile"), done: true  },
+                { key: "accounting", label: tr("dashboard.stepAccounting"),    done: true  },
+                { key: "hr",         label: tr("dashboard.stepHr"),      done: false },
+                { key: "teras",      label: tr("dashboard.stepTeras"),  done: true  },
               ]).map((step) => (
                 <div key={step.key} className="flex items-center gap-2.5 rounded-lg border border-black/[0.06] dark:border-white/[0.06] px-3 py-2">
                   {step.done
@@ -855,7 +861,7 @@ export function DashboardPage() {
         {/* Complétude */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Complétude entreprise</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.companyCompleteness")}</h3>
           </div>
           <div className="space-y-4 px-5 py-4">
             {completionData.map((r) => (
@@ -875,15 +881,15 @@ export function DashboardPage() {
         {/* Compliance checks */}
         <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
           <div className="border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Conformité réglementaire</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.regulatoryCompliance")}</h3>
           </div>
           <div className="space-y-2 px-5 py-4">
             {(data?.compliance.checks ?? [
-              { label: "TVA mensuelle",      status: "ok"      },
-              { label: "CNSS déclarée",      status: "ok"      },
-              { label: "Paie conforme",      status: "warning" },
-              { label: "Bilan annuel",       status: "ok"      },
-              { label: "IS déclaré",         status: "warning" },
+              { label: tr("dashboard.checkVat"),      status: "ok"      },
+              { label: tr("dashboard.checkCnss"),      status: "ok"      },
+              { label: tr("dashboard.checkPayroll"),      status: "warning" },
+              { label: tr("dashboard.checkBalance"),       status: "ok"      },
+              { label: tr("dashboard.checkIs"),         status: "warning" },
             ]).map((check) => (
               <div key={check.label} className="flex items-center justify-between rounded-lg bg-black/[0.02] dark:bg-white/[0.03] px-3 py-2">
                 <span className="text-sm text-[#17211f] dark:text-white">{check.label}</span>
@@ -892,13 +898,13 @@ export function DashboardPage() {
                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
                     : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                 }`}>
-                  {check.status === "ok" ? "OK" : "Vérifier"}
+                  {check.status === "ok" ? tr("dashboard.ok") : tr("dashboard.toCheck")}
                 </span>
               </div>
             ))}
             {data?.low_stock?.length
-              ? <p className="pt-1 text-sm font-semibold text-amber-600">⚠ Stock à surveiller : {data.low_stock.map((i) => i.name).join(", ")}</p>
-              : <p className="pt-1 text-sm font-semibold text-emerald-600">✓ Stock sous contrôle</p>}
+              ? <p className="pt-1 text-sm font-semibold text-amber-600">{tr("dashboard.stockWatch", { items: data.low_stock.map((i) => i.name).join(", ") })}</p>
+              : <p className="pt-1 text-sm font-semibold text-emerald-600">{tr("dashboard.stockOk")}</p>}
           </div>
         </div>
       </div>
@@ -907,9 +913,9 @@ export function DashboardPage() {
       {todayMeetings.length > 0 && (
         <div className="rounded-xl border border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-[#1e2229]">
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-            <h3 className="font-bold text-[#17211f] dark:text-white">Agenda du jour</h3>
+            <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.todayAgenda")}</h3>
             <button onClick={() => navigate("/calendar")} className="flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-              Tout voir <ArrowUpRight size={15} />
+              {tr("dashboard.seeAll")} <ArrowUpRight size={15} />
             </button>
           </div>
           <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
@@ -922,12 +928,12 @@ export function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-[#17211f] dark:text-white">{m.title}</p>
-                  <p className="text-xs text-[#717182]">{m.location || "Sans lieu"}{m.join_url ? " · Visio" : ""}</p>
+                  <p className="text-xs text-[#717182]">{m.location || tr("dashboard.noLocation")}{m.join_url ? ` · ${tr("dashboard.video")}` : ""}</p>
                 </div>
                 {m.join_url && (
                   <a href={m.join_url} target="_blank" rel="noopener noreferrer"
                     className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">
-                    Rejoindre
+                    {tr("dashboard.join")}
                   </a>
                 )}
               </div>
@@ -939,21 +945,21 @@ export function DashboardPage() {
       {/* ── Department table ── */}
       <div className="rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.06]">
         <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
-          <h3 className="font-bold text-[#17211f] dark:text-white">Performance par département</h3>
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.deptPerf")}</h3>
           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-            <TrendingUp size={14} /> +6,2% globaux
+            <TrendingUp size={14} /> {tr("dashboard.globalTrend")}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/[0.04] dark:border-white/[0.04] text-left text-[11px] font-semibold uppercase tracking-wider text-[#717182]">
-                <th className="px-5 py-3">Département</th>
-                <th className="px-5 py-3">DG référent</th>
-                <th className="px-5 py-3">Effectif</th>
-                <th className="px-5 py-3">Productivité</th>
-                <th className="px-5 py-3">Charge paie</th>
-                <th className="px-5 py-3">Tendance</th>
+                <th className="px-5 py-3">{tr("dashboard.colDept")}</th>
+                <th className="px-5 py-3">{tr("dashboard.colManager")}</th>
+                <th className="px-5 py-3">{tr("dashboard.colHeadcount")}</th>
+                <th className="px-5 py-3">{tr("dashboard.colProductivity")}</th>
+                <th className="px-5 py-3">{tr("dashboard.colPayroll")}</th>
+                <th className="px-5 py-3">{tr("dashboard.colTrend")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
@@ -989,7 +995,7 @@ export function DashboardPage() {
           </table>
         </div>
         <div className="border-t border-black/[0.04] dark:border-white/[0.04] px-5 py-3 text-xs text-[#717182]">
-          Encaissé : {money(invoicesPaid)} · Total facturé : {money(invoicesTotal)} · En attente : {money(invoicesPending)} · Données en temps réel
+          {tr("dashboard.footerCollected", { paid: money(invoicesPaid), total: money(invoicesTotal), pending: money(invoicesPending) })}
         </div>
       </div>
 
@@ -999,8 +1005,8 @@ export function DashboardPage() {
           <div className="flex items-center gap-2">
             <Landmark size={16} className="text-emerald-600" />
             <div>
-              <h3 className="font-bold text-[#17211f] dark:text-white">Prévision Trésorerie Limule</h3>
-              <p className="text-xs text-[#717182]">Analyse 30 / 60 / 90 jours générée par IA</p>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.cashflowTitle")}</h3>
+              <p className="text-xs text-[#717182]">{tr("dashboard.cashflowSub")}</p>
             </div>
           </div>
           <button
@@ -1009,13 +1015,13 @@ export function DashboardPage() {
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-70"
           >
             <LimuleIcon size={14} className={cashFlowLoading ? "animate-pulse" : ""} />
-            {cashFlowLoading ? "Analyse…" : cashFlow !== null ? "Rafraîchir" : "Prédire"}
+            {cashFlowLoading ? tr("dashboard.analyzing") : cashFlow !== null ? tr("dashboard.refresh") : tr("dashboard.predict")}
           </button>
         </div>
         {cashFlow !== null ? (
           <div className="px-5 py-4">
             <p className="text-sm leading-7 text-[#17211f] dark:text-white whitespace-pre-wrap">
-              {cashFlow || <span className="text-[#717182] animate-pulse">Limule analyse votre trésorerie…</span>}
+              {cashFlow || <span className="text-[#717182] animate-pulse">{tr("dashboard.limuleAnalyzingCash")}</span>}
             </p>
           </div>
         ) : (
@@ -1024,8 +1030,8 @@ export function DashboardPage() {
               <Landmark size={20} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#17211f] dark:text-white">Anticipez vos flux de trésorerie</p>
-              <p className="text-xs">Cliquez sur "Prédire" pour que Limule analyse vos données et génère une prévision 30/60/90 jours.</p>
+              <p className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("dashboard.anticipateCash")}</p>
+              <p className="text-xs">{tr("dashboard.predictHint")}</p>
             </div>
           </div>
         )}
@@ -1037,13 +1043,13 @@ export function DashboardPage() {
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-emerald-600" />
-              <h3 className="font-bold text-[#17211f] dark:text-white">Portefeuille boursier</h3>
+              <h3 className="font-bold text-[#17211f] dark:text-white">{tr("dashboard.portfolio")}</h3>
             </div>
             <button
               onClick={() => navigate("/investments")}
               className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition"
             >
-              Voir tout <ArrowUpRight size={12} />
+              {tr("dashboard.viewAll")} <ArrowUpRight size={12} />
             </button>
           </div>
           <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
@@ -1062,14 +1068,14 @@ export function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-[#17211f] dark:text-white">{compactMoney(inv.invested_amount)}</p>
-                    <p className="text-xs text-[#717182]">{inv.shares.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} actions</p>
+                    <p className="text-xs text-[#717182]">{tr("dashboard.shares", { count: inv.shares })}</p>
                   </div>
                 </div>
               );
             })}
           </div>
           <div className="border-t border-black/[0.04] dark:border-white/[0.04] px-5 py-3 text-xs text-[#717182]">
-            {investments.data?.length} position{(investments.data?.length ?? 0) > 1 ? "s" : ""} · Total investi : {compactMoney((investments.data ?? []).reduce((s, i) => s + i.invested_amount, 0))}
+            {tr("dashboard.positions", { count: investments.data?.length ?? 0, amount: compactMoney((investments.data ?? []).reduce((s, i) => s + i.invested_amount, 0)) })}
           </div>
         </div>
       )}
