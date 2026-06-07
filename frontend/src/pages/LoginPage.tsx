@@ -1,5 +1,6 @@
 import { BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, Sparkles, UserPlus, Users2, Wallet } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { TextInput } from "../components/FormField";
@@ -10,6 +11,7 @@ import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { login, registerCompany } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -54,7 +56,7 @@ export function LoginPage() {
       // Workspace selector — l'utilisateur choisit ensuite l'espace
       navigate("/workspace");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Connexion impossible");
+      setError(err instanceof Error ? err.message : t("auth.loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,7 @@ export function LoginPage() {
       }
       setMode("reset_confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
+      setError(err instanceof Error ? err.message : t("auth.error"));
     } finally {
       setResetLoading(false);
     }
@@ -86,7 +88,7 @@ export function LoginPage() {
       toast.success(result.message);
       setMode("login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
+      setError(err instanceof Error ? err.message : t("auth.error"));
     } finally {
       setResetLoading(false);
     }
@@ -100,7 +102,7 @@ export function LoginPage() {
       await registerCompany(registration);
       navigate("/workspace");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Creation impossible");
+      setError(err instanceof Error ? err.message : t("auth.createFailed"));
     } finally {
       setLoading(false);
     }
@@ -118,24 +120,24 @@ export function LoginPage() {
             </div>
             <div>
               <p className="text-xl font-black">KOMPTA</p>
-              <p className="text-sm text-white/60">Propulsé par Limule · ERP intelligent</p>
+              <p className="text-sm text-white/60">{t("auth.tagline")}</p>
             </div>
           </div>
 
           {/* Hero */}
           <div className="my-10 max-w-xl space-y-8">
             <div>
-              <p className="text-sm font-semibold uppercase text-emerald-200">Gestion entreprise, terrain et conformité</p>
+              <p className="text-sm font-semibold uppercase text-emerald-200">{t("auth.heroEyebrow")}</p>
               <h1 className="mt-4 text-4xl font-black leading-tight xl:text-5xl">
-                Un cockpit unique pour piloter l'activité.
+                {t("auth.heroTitle")}
               </h1>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                ["RH + Paie", "Dossiers, bulletins, validations"],
-                ["POS + Stock", "Scan, panier, étiquettes QR"],
-                ["TERAS", "Alertes, score, actions"],
+                [t("auth.featHrTitle"), t("auth.featHrText")],
+                [t("auth.featPosTitle"), t("auth.featPosText")],
+                [t("auth.featTerasTitle"), t("auth.featTerasText")],
               ].map(([title, text]) => (
                 <div key={title} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <p className="font-bold">{title}</p>
@@ -147,16 +149,16 @@ export function LoginPage() {
             <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 px-5 py-4">
               <LimuleAvatar state="idle" size={64} />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Votre Grand Sage</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">{t("auth.limuleEyebrow")}</p>
                 <p className="text-lg font-black text-white">Limule</p>
-                <p className="text-xs text-white/55">IA · Analyse · Rédaction · Conformité</p>
+                <p className="text-xs text-white/55">{t("auth.limuleDesc")}</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-white/40">
             <LimuleIcon size={16} className="opacity-50" />
-            Version locale de développement
+            {t("auth.devVersion")}
           </div>
         </section>
 
@@ -169,7 +171,7 @@ export function LoginPage() {
             </div>
             <div className="min-w-0">
               <p className="text-2xl font-black text-ink leading-tight">KOMPTA</p>
-              <p className="text-xs text-stone-500 leading-tight">ERP IA pour PME · CEMAC · SYSCOHADA</p>
+              <p className="text-xs text-stone-500 leading-tight">{t("auth.mobileTagline")}</p>
             </div>
             <div className="ml-auto flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
               <Sparkles size={10} /> Limule
@@ -185,16 +187,16 @@ export function LoginPage() {
                 {mode === "login" ? <KeyRound size={20} /> : mode === "reset" || mode === "reset_confirm" ? <ShieldCheck size={20} /> : <UserPlus size={20} />}
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-ink">
-                {mode === "login" ? "Connexion" : mode === "reset" ? "Réinitialiser le mot de passe" : mode === "reset_confirm" ? "Nouveau mot de passe" : "Créer une entreprise"}
+                {mode === "login" ? t("auth.loginTitle") : mode === "reset" ? t("auth.resetTitle") : mode === "reset_confirm" ? t("auth.resetConfirmTitle") : t("auth.registerTitle")}
               </h2>
               <p className="mt-1 text-sm text-stone-500 leading-snug">
                 {mode === "login"
-                  ? "Accédez à votre espace ou créez une nouvelle entreprise."
+                  ? t("auth.loginSubtitle")
                   : mode === "reset"
-                  ? "Saisissez votre email ou téléphone pour recevoir un token."
+                  ? t("auth.resetSubtitle")
                   : mode === "reset_confirm"
-                  ? "Copiez le token et définissez votre nouveau mot de passe."
-                  : "Crée l'entreprise et le compte admin en une seule étape."}
+                  ? t("auth.resetConfirmSubtitle")
+                  : t("auth.registerSubtitle")}
               </p>
               {(mode === "login" || mode === "register") && (
                 <div className="mt-4 grid grid-cols-2 rounded-xl bg-stone-100 p-1">
@@ -203,14 +205,14 @@ export function LoginPage() {
                     onClick={() => { setMode("login"); setError(""); }}
                     className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${mode === "login" ? "bg-white text-ink shadow-sm" : "text-stone-500 active:bg-stone-200"}`}
                   >
-                    Connexion
+                    {t("auth.tabLogin")}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setMode("register"); setError(""); }}
                     className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${mode === "register" ? "bg-white text-ink shadow-sm" : "text-stone-500 active:bg-stone-200"}`}
                   >
-                    Nouvelle entreprise
+                    {t("auth.tabRegister")}
                   </button>
                 </div>
               )}
@@ -219,7 +221,7 @@ export function LoginPage() {
               {mode === "login" ? (
                 <>
                   <TextInput
-                    label="Email ou téléphone"
+                    label={t("auth.emailOrPhone")}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     autoComplete="username"
@@ -229,7 +231,7 @@ export function LoginPage() {
                     inputMode="email"
                   />
                   <TextInput
-                    label="Mot de passe"
+                    label={t("auth.password")}
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
@@ -243,89 +245,89 @@ export function LoginPage() {
                     onClick={() => { setMode("reset"); setError(""); }}
                     className="text-xs text-emerald-600 hover:underline"
                   >
-                    Mot de passe oublié ?
+                    {t("auth.forgotPassword")}
                   </button>
                 </>
               ) : mode === "reset" ? (
                 <>
                   <TextInput
-                    label="Email ou téléphone"
+                    label={t("auth.emailOrPhone")}
                     value={resetIdentifier}
                     onChange={(e) => setResetIdentifier(e.target.value)}
                   />
                   <button type="button" onClick={() => setMode("login")} className="text-xs text-stone-400 hover:underline">
-                    ← Retour à la connexion
+                    {t("auth.backToLogin")}
                   </button>
                 </>
               ) : mode === "reset_confirm" ? (
                 <>
                   {resetResult?.reset_token && (
                     <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-                      <p className="font-bold mb-1">🔑 Token de réinitialisation :</p>
+                      <p className="font-bold mb-1">{t("auth.resetTokenHeading")}</p>
                       <code className="break-all font-mono text-[11px]">{resetResult.reset_token}</code>
                       <p className="mt-1 opacity-70">{resetResult.note}</p>
                     </div>
                   )}
                   <TextInput
-                    label="Token de réinitialisation"
+                    label={t("auth.resetTokenLabel")}
                     value={resetToken}
                     onChange={(e) => setResetToken(e.target.value)}
                   />
                   <TextInput
-                    label="Nouveau mot de passe"
+                    label={t("auth.newPassword")}
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                   />
                   <button type="button" onClick={() => setMode("login")} className="text-xs text-stone-400 hover:underline">
-                    ← Retour à la connexion
+                    {t("auth.backToLogin")}
                   </button>
                 </>
               ) : (
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <TextInput
-                      label="Nom entreprise"
+                      label={t("auth.companyName")}
                       value={registration.company_name}
                       onChange={(event) => setRegistration({ ...registration, company_name: event.target.value })}
                     />
                     <TextInput
-                      label="Raison sociale"
+                      label={t("auth.legalName")}
                       value={registration.legal_name}
                       onChange={(event) => setRegistration({ ...registration, legal_name: event.target.value })}
                     />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <TextInput
-                      label="Activité"
+                      label={t("auth.industry")}
                       value={registration.industry}
                       onChange={(event) => setRegistration({ ...registration, industry: event.target.value })}
                     />
                     <TextInput
-                      label="Pays"
+                      label={t("auth.country")}
                       value={registration.country}
                       onChange={(event) => setRegistration({ ...registration, country: event.target.value })}
                     />
                   </div>
                   <TextInput
-                    label="Nom du PDG / DG"
+                    label={t("auth.ceoName")}
                     value={registration.admin_full_name}
                     onChange={(event) => setRegistration({ ...registration, admin_full_name: event.target.value })}
                   />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <TextInput
-                      label="Email admin"
+                      label={t("auth.adminEmail")}
                       value={registration.admin_email}
                       onChange={(event) => setRegistration({ ...registration, admin_email: event.target.value })}
                     />
                     <TextInput
-                      label="Téléphone admin"
+                      label={t("auth.adminPhone")}
                       value={registration.admin_phone}
                       onChange={(event) => setRegistration({ ...registration, admin_phone: event.target.value })}
                     />
                   </div>
                   <TextInput
-                    label="Mot de passe admin"
+                    label={t("auth.adminPassword")}
                     type="password"
                     value={registration.password}
                     onChange={(event) => setRegistration({ ...registration, password: event.target.value })}
@@ -344,7 +346,7 @@ export function LoginPage() {
                 ) : (
                   <UserPlus size={18} />
                 )}
-                {(loading || resetLoading) ? "Limule vérifie…" : mode === "login" ? "Entrer dans KOMPTA" : mode === "reset" ? "Demander le token" : mode === "reset_confirm" ? "Changer le mot de passe" : "Créer et entrer"}
+                {(loading || resetLoading) ? t("auth.verifying") : mode === "login" ? t("auth.enter") : mode === "reset" ? t("auth.requestToken") : mode === "reset_confirm" ? t("auth.changePassword") : t("auth.createEnter")}
               </button>
             </div>
 
@@ -361,7 +363,7 @@ export function LoginPage() {
 
             <div className="mt-5 flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-xs sm:text-sm text-stone-600">
               <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
-              <span>Les nouvelles entreprises démarrent vides : créez vous-même employés, produits, documents et ventes.</span>
+              <span>{t("auth.emptyHint")}</span>
             </div>
           </form>
 
@@ -370,12 +372,12 @@ export function LoginPage() {
             {/* Mini-features grid */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { icon: Receipt,    label: "Factures",   hint: "TVA + avoirs",      limule: false },
-                { icon: Wallet,     label: "Caisse",     hint: "POS + stock",       limule: false },
-                { icon: Users2,     label: "Groupes",    hint: "Tontines & ONG",    limule: false },
-                { icon: BarChart3,  label: "Compta",     hint: "Partie double",     limule: false },
-                { icon: Sparkles,   label: "IA Limule",  hint: "Analyse + conseil", limule: true  },
-                { icon: Smartphone, label: "Mobile",     hint: "Optimisé iPhone",   limule: false },
+                { icon: Receipt,    label: t("auth.miniInvoices"),   hint: t("auth.miniInvoicesHint"),   limule: false },
+                { icon: Wallet,     label: t("auth.miniRegister"),   hint: t("auth.miniRegisterHint"),   limule: false },
+                { icon: Users2,     label: t("auth.miniGroups"),     hint: t("auth.miniGroupsHint"),     limule: false },
+                { icon: BarChart3,  label: t("auth.miniAccounting"), hint: t("auth.miniAccountingHint"), limule: false },
+                { icon: Sparkles,   label: t("auth.miniAi"),         hint: t("auth.miniAiHint"),         limule: true  },
+                { icon: Smartphone, label: t("auth.miniMobile"),     hint: t("auth.miniMobileHint"),     limule: false },
               ].map(({ icon: Icon, label, hint, limule }) => (
                 <div key={label} className="flex flex-col items-center rounded-xl border border-stone-200 bg-white p-3 text-center">
                   {limule
@@ -390,16 +392,16 @@ export function LoginPage() {
 
             {/* Trust row */}
             <div className="flex items-center justify-around rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-[10px] text-stone-600">
-              <span className="flex items-center gap-1"><Lock size={11} className="text-emerald-600" /> Chiffré</span>
+              <span className="flex items-center gap-1"><Lock size={11} className="text-emerald-600" /> {t("auth.trustEncrypted")}</span>
               <span className="h-3 w-px bg-stone-300" />
-              <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-emerald-600" /> Multi-tenant</span>
+              <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-emerald-600" /> {t("auth.trustMultitenant")}</span>
               <span className="h-3 w-px bg-stone-300" />
               <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-emerald-600" /> SYSCOHADA</span>
             </div>
 
             {/* Footer */}
             <p className="text-center text-[10px] text-stone-400">
-              KOMPTA · v2.0 · Propulsé par Limule
+              {t("auth.footer")}
             </p>
           </div>
         </section>

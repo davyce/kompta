@@ -592,9 +592,9 @@ export function Shell() {
               <div className="hidden min-w-0 items-center gap-1.5 text-sm text-[#717182] sm:flex">
                 <span>KOMPTA</span>
                 <ChevronRight size={14} className="opacity-50" />
-                <span>{t(`nav.sections.${currentRoute.section}`, { defaultValue: currentRoute.section })}</span>
+                <span>{t(`nav.items.${location.pathname}`, { defaultValue: t(`nav.sections.${currentRoute.section}`, { defaultValue: currentRoute.section }) })}</span>
                 <ChevronRight size={14} className="opacity-50" />
-                <span className="max-w-[220px] truncate text-[#17211f] font-medium dark:text-white">{currentRoute.title}</span>
+                <span className="max-w-[220px] truncate text-[#17211f] font-medium dark:text-white">{t(`nav.titles.${location.pathname}`, { defaultValue: currentRoute.title })}</span>
               </div>
             </div>
 
