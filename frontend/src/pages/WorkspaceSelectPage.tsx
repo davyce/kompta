@@ -1,6 +1,7 @@
 import { Building2, ChevronRight, Loader2, Plus, Users2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
@@ -8,6 +9,7 @@ import { initials } from "../utils/format";
 import { LimuleIcon } from "../components/LimuleAvatar";
 
 export function WorkspaceSelectPage() {
+  const { t: tr } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [entering, setEntering] = useState<"company" | "group" | null>(null);
@@ -43,17 +45,17 @@ export function WorkspaceSelectPage() {
   }
 
   const typeLabel: Record<string, string> = {
-    association: "Association",
-    tontine: "Tontine",
-    mutuelle: "Mutuelle",
-    "ONG": "ONG",
-    "église": "Église",
-    "club sportif": "Club sportif",
-    syndicat: "Syndicat",
-    "coopérative": "Coopérative",
-    "groupe familial": "Groupe familial",
-    "groupe d'amis": "Groupe d'amis",
-    "groupe d'épargne": "Épargne",
+    association: tr("workspace.typeAssociation"),
+    tontine: tr("workspace.typeTontine"),
+    mutuelle: tr("workspace.typeMutuelle"),
+    "ONG": tr("workspace.typeOng"),
+    "église": tr("workspace.typeChurch"),
+    "club sportif": tr("workspace.typeSport"),
+    syndicat: tr("workspace.typeUnion"),
+    "coopérative": tr("workspace.typeCoop"),
+    "groupe familial": tr("workspace.typeFamily"),
+    "groupe d'amis": tr("workspace.typeFriends"),
+    "groupe d'épargne": tr("workspace.typeSavings"),
   };
 
   return (
@@ -71,7 +73,7 @@ export function WorkspaceSelectPage() {
           onClick={() => { logout(); navigate("/login"); }}
           className="text-xs text-[#717182] hover:text-red-500 transition font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
         >
-          Déconnexion
+          {tr("workspace.logout")}
         </button>
       </header>
 
@@ -83,9 +85,9 @@ export function WorkspaceSelectPage() {
             {initials(user?.full_name ?? "?")}
           </div>
           <h1 className="text-2xl font-black text-[#17211f] dark:text-white">
-            Bonjour, {user?.full_name?.split(" ")[0]} 👋
+            {tr("workspace.greeting", { name: user?.full_name?.split(" ")[0] })}
           </h1>
-          <p className="mt-1 text-sm text-[#717182]">Choisissez l'espace dans lequel vous souhaitez travailler.</p>
+          <p className="mt-1 text-sm text-[#717182]">{tr("workspace.chooseSpace")}</p>
         </div>
 
         {/* Cards espaces */}
@@ -103,10 +105,10 @@ export function WorkspaceSelectPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-base font-black text-[#17211f] dark:text-white">Espace Entreprise</p>
-                <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">Pro</span>
+                <p className="text-base font-black text-[#17211f] dark:text-white">{tr("workspace.companySpace")}</p>
+                <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{tr("workspace.pro")}</span>
               </div>
-              <p className="text-sm text-[#717182] mt-0.5">Clients · Ventes · POS · Inventaire · Paie · Comptabilité · Fiscalité</p>
+              <p className="text-sm text-[#717182] mt-0.5">{tr("workspace.companyDesc")}</p>
               {user?.branch && (
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">{user.branch}</p>
               )}
@@ -127,7 +129,7 @@ export function WorkspaceSelectPage() {
           ) : groups.length > 0 ? (
             <>
               <div className="px-1 pt-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-[#aaaabc]">Mes groupes & organisations</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#aaaabc]">{tr("workspace.myGroups")}</p>
               </div>
               {groups.map((group: { id: number; name: string; type?: string }) => (
                 <button
@@ -141,7 +143,7 @@ export function WorkspaceSelectPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-[#17211f] dark:text-white truncate">{group.name}</p>
-                    <p className="text-xs text-[#717182] capitalize mt-0.5">{typeLabel[group.type ?? ""] ?? group.type ?? "Organisation"}</p>
+                    <p className="text-xs text-[#717182] capitalize mt-0.5">{typeLabel[group.type ?? ""] ?? group.type ?? tr("workspace.organization")}</p>
                   </div>
                   {entering === "group" ? (
                     <Loader2 size={16} className="shrink-0 text-blue-700 animate-spin" />
@@ -160,14 +162,14 @@ export function WorkspaceSelectPage() {
               className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 px-4 py-4 text-sm font-semibold text-blue-800 hover:border-blue-500 hover:bg-blue-50 transition dark:border-[#374151] dark:bg-transparent dark:text-blue-500 dark:hover:border-blue-700/50"
             >
               <Users2 size={16} />
-              Voir tous mes groupes
+              {tr("workspace.viewAllGroups")}
             </button>
             <button
               onClick={() => navigate("/register-group")}
               className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 px-4 py-4 text-sm font-semibold text-blue-800 hover:border-blue-500 hover:bg-blue-50 transition dark:border-[#374151] dark:bg-transparent dark:text-blue-500 dark:hover:border-blue-700/50"
             >
               <Plus size={16} />
-              Créer un groupe
+              {tr("workspace.createGroup")}
             </button>
           </div>
         </div>
