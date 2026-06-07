@@ -1,4 +1,119 @@
 {
+  "clientsPage": {
+    "date": {
+      "notDefined": "Non défini"
+    },
+    "status": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "prospect": "Prospect"
+    },
+    "modal": {
+      "editTitle": "Modifier le client",
+      "newTitle": "Nouveau client",
+      "name": "Nom *",
+      "namePlaceholder": "Nom du client ou de l'entreprise",
+      "email": "Email",
+      "emailPlaceholder": "client@exemple.com",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "addressPlaceholder": "Rue, quartier…",
+      "city": "Ville",
+      "country": "Pays",
+      "status": "Statut",
+      "internalNotes": "Notes internes",
+      "notesPlaceholder": "Informations complémentaires, préférences, historique…",
+      "saving": "Enregistrement…"
+    },
+    "loyalty": {
+      "title": "Fidélité",
+      "points": "Points fidélité",
+      "globalDiscount": "Remise globale",
+      "pointsPlaceholder": "Ex : +100 ou -50",
+      "apply": "Appliquer",
+      "specificDiscounts": "Remises spécifiques ({{count}})",
+      "specificDiscounts_one": "Remise spécifique ({{count}})",
+      "specificDiscounts_other": "Remises spécifiques ({{count}})",
+      "discountLabelPlaceholder": "Libellé (ex : \"Client fidèle 2 ans\")",
+      "value": "Valeur",
+      "minAmountPlaceholder": "Montant min (0 = aucun)",
+      "createDiscount": "Créer la remise",
+      "noDiscount": "Aucune remise configurée",
+      "minShort": "min {{amount}}",
+      "discountTypes": {
+        "percent": "% sur montant",
+        "fixed": "Montant fixe",
+        "pointsThreshold": "Seuil de points"
+      },
+      "appliesTo": {
+        "all": "Toutes transactions",
+        "invoice": "Factures uniquement",
+        "pos": "Caisse POS uniquement"
+      },
+      "tiers": {
+        "standard": "Standard",
+        "silver": "Argent",
+        "gold": "Or",
+        "vip": "VIP"
+      }
+    },
+    "invoices": {
+      "status": {
+        "paid": "Payée",
+        "overdue": "En retard",
+        "sent": "Envoyée",
+        "draft": "Brouillon"
+      }
+    },
+    "detail": {
+      "invoices": "Factures",
+      "totalRevenue": "CA total",
+      "unpaidInvoices": "{{count}} facture impayée",
+      "unpaidInvoices_one": "{{count}} facture impayée",
+      "unpaidInvoices_other": "{{count}} factures impayées",
+      "lastInvoice": "Dernière facture : {{date}}",
+      "notes": "Notes",
+      "invoiceHistory": "Historique des factures ({{count}})",
+      "invoiceHistory_one": "Historique des factures ({{count}})",
+      "invoiceHistory_other": "Historique des factures ({{count}})",
+      "noLinkedInvoice": "Aucune facture liée"
+    },
+    "confirmDelete": {
+      "title": "Supprimer ce client ?",
+      "message": "{{name}}\nCette action est irréversible."
+    },
+    "header": {
+      "title": "Clients & CRM",
+      "subtitle": "Gérez vos clients et suivez votre relation commerciale",
+      "newClient": "Nouveau client"
+    },
+    "kpi": {
+      "totalClients": "Total clients",
+      "activeClients": "Clients actifs",
+      "ofTotal": "{{percent}}% du total",
+      "totalRevenue": "CA total clients",
+      "retentionRate": "Taux fidélisation",
+      "retentionHint": "Clients avec 2+ factures"
+    },
+    "search": {
+      "placeholder": "Rechercher un client…"
+    },
+    "filters": {
+      "all": "Tous",
+      "active": "Actifs",
+      "inactive": "Inactifs",
+      "prospect": "Prospects"
+    },
+    "empty": {
+      "noMatch": "Aucun client ne correspond à vos filtres",
+      "noClient": "Aucun client enregistré",
+      "addFirst": "Ajouter un premier client"
+    },
+    "card": {
+      "revenue": "CA",
+      "invoices": "Factures"
+    }
+  },
   "employeesPage": {
     "common": {
       "notProvided": "Non renseigné",

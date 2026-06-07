@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Building2,
   Mail,
@@ -24,7 +26,8 @@ import {
 
 import { api, type ClientDto, type ClientDiscountDto, type ClientStatsDto } from "../services/api";
 import { useConfirm } from "../components/ConfirmProvider";
-import { compactMoney, money, initials, shortDate } from "../utils/format";
+import i18n from "../i18n";
+import { compactMoney, money, initials } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import type { Invoice } from "../types/domain";
 
@@ -56,12 +59,6 @@ const EMPTY_FORM: ClientFormData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<string, string> = {
-  active: "Actif",
-  inactive: "Inactif",
-  prospect: "Prospect",
-};
-
 const STATUS_COLORS: Record<string, string> = {
   active:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400",
@@ -84,6 +81,51 @@ const INITIALS_BG = [
 
 function avatarBg(id: number): string {
   return INITIALS_BG[id % INITIALS_BG.length];
+}
+
+function clientStatusLabel(status: string, tr: TFunction) {
+  if (status === "active") return tr("clientsPage.status.active");
+  if (status === "inactive") return tr("clientsPage.status.inactive");
+  if (status === "prospect") return tr("clientsPage.status.prospect");
+  return status;
+}
+
+function discountTypeLabel(type: string, tr: TFunction) {
+  if (type === "percent") return tr("clientsPage.loyalty.discountTypes.percent");
+  if (type === "fixed") return tr("clientsPage.loyalty.discountTypes.fixed");
+  if (type === "points_threshold") return tr("clientsPage.loyalty.discountTypes.pointsThreshold");
+  return type;
+}
+
+function appliesToLabel(scope: string, tr: TFunction) {
+  if (scope === "all") return tr("clientsPage.loyalty.appliesTo.all");
+  if (scope === "invoice") return tr("clientsPage.loyalty.appliesTo.invoice");
+  if (scope === "pos") return tr("clientsPage.loyalty.appliesTo.pos");
+  return scope;
+}
+
+function loyaltyTierLabel(tier: string, tr: TFunction) {
+  if (tier === "standard") return tr("clientsPage.loyalty.tiers.standard");
+  if (tier === "silver") return tr("clientsPage.loyalty.tiers.silver");
+  if (tier === "gold") return tr("clientsPage.loyalty.tiers.gold");
+  if (tier === "vip") return tr("clientsPage.loyalty.tiers.vip");
+  return tier;
+}
+
+function invoiceStatusLabel(status: string, tr: TFunction) {
+  if (status === "paid") return tr("clientsPage.invoices.status.paid");
+  if (status === "overdue") return tr("clientsPage.invoices.status.overdue");
+  if (status === "sent") return tr("clientsPage.invoices.status.sent");
+  return tr("clientsPage.invoices.status.draft");
+}
+
+function clientDate(value: string | null, tr: TFunction) {
+  if (!value) return tr("clientsPage.date.notDefined");
+  return new Intl.DateTimeFormat(i18n.language, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -133,11 +175,12 @@ function KpiCard({
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t: tr } = useTranslation();
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[status] ?? STATUS_COLORS.inactive}`}
     >
-      {STATUS_LABELS[status] ?? status}
+      {clientStatusLabel(status, tr)}
     </span>
   );
 }
@@ -155,6 +198,7 @@ function ClientModal({
   onSave: (data: ClientFormData) => void;
   loading: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const [form, setForm] = useState<ClientFormData>(initial ?? EMPTY_FORM);
 
   function set(key: keyof ClientFormData, value: string) {
@@ -167,7 +211,7 @@ function ClientModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
           <h2 className="text-base font-semibold text-[#17211f] dark:text-white">
-            {initial ? "Modifier le client" : "Nouveau client"}
+            {initial ? tr("clientsPage.modal.editTitle") : tr("clientsPage.modal.newTitle")}
           </h2>
           <button
             onClick={onClose}
@@ -182,11 +226,11 @@ function ClientModal({
           {/* Nom */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] mb-1">
-              Nom *
+              {tr("clientsPage.modal.name")}
             </label>
             <input
               className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
-              placeholder="Nom du client ou de l'entreprise"
+              placeholder={tr("clientsPage.modal.namePlaceholder")}
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
             />
@@ -196,19 +240,19 @@ function ClientModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#717182] mb-1">
-                Email
+                {tr("clientsPage.modal.email")}
               </label>
               <input
                 type="email"
                 className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
-                placeholder="client@exemple.com"
+                placeholder={tr("clientsPage.modal.emailPlaceholder")}
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#717182] mb-1">
-                Téléphone
+                {tr("clientsPage.modal.phone")}
               </label>
               <input
                 className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
@@ -222,11 +266,11 @@ function ClientModal({
           {/* Adresse */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] mb-1">
-              Adresse
+              {tr("clientsPage.modal.address")}
             </label>
             <input
               className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
-              placeholder="Rue, quartier…"
+              placeholder={tr("clientsPage.modal.addressPlaceholder")}
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
             />
@@ -236,7 +280,7 @@ function ClientModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#717182] mb-1">
-                Ville
+                {tr("clientsPage.modal.city")}
               </label>
               <input
                 className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
@@ -247,7 +291,7 @@ function ClientModal({
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#717182] mb-1">
-                Pays
+                {tr("clientsPage.modal.country")}
               </label>
               <input
                 className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
@@ -261,7 +305,7 @@ function ClientModal({
           {/* Statut */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] mb-1">
-              Statut
+              {tr("clientsPage.modal.status")}
             </label>
             <select
               className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white"
@@ -270,21 +314,21 @@ function ClientModal({
                 set("status", e.target.value as ClientFormData["status"])
               }
             >
-              <option value="active">Actif</option>
-              <option value="inactive">Inactif</option>
-              <option value="prospect">Prospect</option>
+              <option value="active">{tr("clientsPage.status.active")}</option>
+              <option value="inactive">{tr("clientsPage.status.inactive")}</option>
+              <option value="prospect">{tr("clientsPage.status.prospect")}</option>
             </select>
           </div>
 
           {/* Notes */}
           <div>
             <label className="block text-xs font-semibold text-[#717182] mb-1">
-              Notes internes
+              {tr("clientsPage.modal.internalNotes")}
             </label>
             <textarea
               rows={3}
               className="w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white resize-none"
-              placeholder="Informations complémentaires, préférences, historique…"
+              placeholder={tr("clientsPage.modal.notesPlaceholder")}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
             />
@@ -297,14 +341,14 @@ function ClientModal({
             onClick={onClose}
             className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"
           >
-            Annuler
+            {tr("common.cancel")}
           </button>
           <button
             disabled={!form.name.trim() || loading}
             onClick={() => onSave(form)}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            {loading ? "Enregistrement…" : "Enregistrer"}
+            {loading ? tr("clientsPage.modal.saving") : tr("common.save")}
           </button>
         </div>
       </div>
@@ -321,19 +365,11 @@ const TIERS: Record<string, { label: string; color: string; bg: string; pts: str
   vip:      { label: "VIP",       color: "text-violet-600",  bg: "bg-violet-100 dark:bg-violet-500/20", pts: "5000+ pts" },
 };
 
-const DISCOUNT_TYPE_LABELS: Record<string, string> = {
-  percent:          "% sur montant",
-  fixed:            "Montant fixe",
-  points_threshold: "Seuil de points",
-};
-
-const APPLIES_TO_LABELS: Record<string, string> = {
-  all:     "Toutes transactions",
-  invoice: "Factures uniquement",
-  pos:     "Caisse POS uniquement",
-};
+const DISCOUNT_TYPES = ["percent", "fixed", "points_threshold"] as const;
+const APPLIES_TO = ["all", "invoice", "pos"] as const;
 
 function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const [showAddDiscount, setShowAddDiscount] = useState(false);
   const [discountForm, setDiscountForm] = useState({
@@ -393,21 +429,21 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
       <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f7f8fa] dark:bg-[#14181f] p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] flex items-center gap-1.5">
-            <Star size={12} /> Fidélité
+            <Star size={12} /> {tr("clientsPage.loyalty.title")}
           </p>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${tier.bg} ${tier.color}`}>
-            {tier.label}
+            {loyaltyTierLabel(client.loyalty_tier ?? "standard", tr)}
           </span>
         </div>
 
         {/* Points + remise globale */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-white dark:bg-[#1e2229] border border-black/[0.06] dark:border-white/[0.06] p-2.5 text-center">
-            <p className="text-xs text-[#717182]">Points fidélité</p>
+            <p className="text-xs text-[#717182]">{tr("clientsPage.loyalty.points")}</p>
             <p className="text-xl font-black text-amber-600">{client.loyalty_points ?? 0}</p>
           </div>
           <div className="rounded-lg bg-white dark:bg-[#1e2229] border border-black/[0.06] dark:border-white/[0.06] p-2.5 text-center">
-            <p className="text-xs text-[#717182]">Remise globale</p>
+            <p className="text-xs text-[#717182]">{tr("clientsPage.loyalty.globalDiscount")}</p>
             <p className="text-xl font-black text-emerald-600">{client.global_discount_percent ?? 0}%</p>
           </div>
         </div>
@@ -424,7 +460,7 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
                   : "border-black/[0.06] dark:border-white/[0.06] text-[#717182] hover:bg-black/[0.03]"
               }`}
             >
-              {t.label}
+              {loyaltyTierLabel(k, tr)}
             </button>
           ))}
         </div>
@@ -435,7 +471,7 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
             type="number"
             value={pointsDelta}
             onChange={(e) => setPointsDelta(e.target.value)}
-            placeholder="Ex: +100 ou -50"
+            placeholder={tr("clientsPage.loyalty.pointsPlaceholder")}
             className="flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
           <button
@@ -444,7 +480,7 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
             className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 disabled:opacity-50 transition"
           >
             {updateLoyalty.isPending ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} />}
-            Appliquer
+            {tr("clientsPage.loyalty.apply")}
           </button>
         </div>
 
@@ -470,13 +506,13 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
       <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f7f8fa] dark:bg-[#14181f] p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] flex items-center gap-1.5">
-            <Tag size={12} /> Remises spécifiques ({discounts.data?.length ?? 0})
+            <Tag size={12} /> {tr("clientsPage.loyalty.specificDiscounts", { count: discounts.data?.length ?? 0 })}
           </p>
           <button
             onClick={() => setShowAddDiscount(!showAddDiscount)}
             className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 transition"
           >
-            <Plus size={11} /> Ajouter
+            <Plus size={11} /> {tr("common.add")}
           </button>
         </div>
 
@@ -486,7 +522,7 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
             <input
               value={discountForm.label}
               onChange={(e) => setDiscountForm((p) => ({ ...p, label: e.target.value }))}
-              placeholder='Libellé (ex: "Client fidèle 2 ans")'
+              placeholder={tr("clientsPage.loyalty.discountLabelPlaceholder")}
               className="w-full rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
             <div className="grid grid-cols-2 gap-2">
@@ -495,13 +531,13 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
                 onChange={(e) => setDiscountForm((p) => ({ ...p, discount_type: e.target.value }))}
                 className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-2 py-1.5 text-xs"
               >
-                {Object.entries(DISCOUNT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {DISCOUNT_TYPES.map((k) => <option key={k} value={k}>{discountTypeLabel(k, tr)}</option>)}
               </select>
               <input
                 type="number"
                 value={discountForm.discount_value}
                 onChange={(e) => setDiscountForm((p) => ({ ...p, discount_value: +e.target.value }))}
-                placeholder="Valeur"
+                placeholder={tr("clientsPage.loyalty.value")}
                 className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs"
               />
             </div>
@@ -511,13 +547,13 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
                 onChange={(e) => setDiscountForm((p) => ({ ...p, applies_to: e.target.value }))}
                 className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-2 py-1.5 text-xs"
               >
-                {Object.entries(APPLIES_TO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {APPLIES_TO.map((k) => <option key={k} value={k}>{appliesToLabel(k, tr)}</option>)}
               </select>
               <input
                 type="number"
                 value={discountForm.min_order_amount}
                 onChange={(e) => setDiscountForm((p) => ({ ...p, min_order_amount: +e.target.value }))}
-                placeholder="Montant min (0 = aucun)"
+                placeholder={tr("clientsPage.loyalty.minAmountPlaceholder")}
                 className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] px-3 py-1.5 text-xs"
               />
             </div>
@@ -528,29 +564,29 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
                 className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
               >
                 {addDiscount.isPending ? <Loader2 size={11} className="animate-spin" /> : <Gift size={11} />}
-                Créer la remise
+                {tr("clientsPage.loyalty.createDiscount")}
               </button>
-              <button onClick={() => setShowAddDiscount(false)} className="px-3 py-1.5 text-xs text-[#717182]">Annuler</button>
+              <button onClick={() => setShowAddDiscount(false)} className="px-3 py-1.5 text-xs text-[#717182]">{tr("common.cancel")}</button>
             </div>
           </div>
         )}
 
         {/* Liste des remises */}
-        {discounts.isLoading && <p className="text-xs text-[#717182] text-center py-2">Chargement…</p>}
+        {discounts.isLoading && <p className="text-xs text-[#717182] text-center py-2">{tr("common.loading")}</p>}
         {discounts.data?.length === 0 && !showAddDiscount && (
-          <p className="text-xs text-[#aaa] text-center py-3">Aucune remise configurée</p>
+          <p className="text-xs text-[#aaa] text-center py-3">{tr("clientsPage.loyalty.noDiscount")}</p>
         )}
         <div className="space-y-1.5">
           {discounts.data?.map((d) => (
             <div key={d.id} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${d.active ? "border-emerald-200 dark:border-emerald-500/30 bg-white dark:bg-[#1e2229]" : "border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] opacity-60"}`}>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-[#17211f] dark:text-white truncate">
-                  {d.label || DISCOUNT_TYPE_LABELS[d.discount_type]}
+                  {d.label || discountTypeLabel(d.discount_type, tr)}
                 </p>
                 <p className="text-[10px] text-[#717182]">
                   {d.discount_type === "percent" ? `−${d.discount_value}%` : `−${d.discount_value}`}
-                  {d.min_order_amount > 0 ? ` · min ${d.min_order_amount}` : ""}
-                  {" · "}{APPLIES_TO_LABELS[d.applies_to] ?? d.applies_to}
+                  {d.min_order_amount > 0 ? ` · ${tr("clientsPage.loyalty.minShort", { amount: d.min_order_amount })}` : ""}
+                  {" · "}{appliesToLabel(d.applies_to, tr)}
                 </p>
               </div>
               <button
@@ -578,6 +614,7 @@ function ClientDetailPanel({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const { t: tr } = useTranslation();
   useCurrency();
 
   const stats = useQuery<ClientStatsDto>({
@@ -605,7 +642,7 @@ function ClientDetailPanel({
       <button
         className="absolute inset-0 bg-black/20"
         onClick={onClose}
-        aria-label="Fermer"
+        aria-label={tr("common.close")}
       />
 
       {/* Panel */}
@@ -676,13 +713,13 @@ function ClientDetailPanel({
           {stats.data && (
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-black/[0.06] bg-[#f7f8fa] p-3 dark:border-white/[0.06] dark:bg-[#14181f]">
-                <p className="text-xs text-[#717182]">Factures</p>
+                <p className="text-xs text-[#717182]">{tr("clientsPage.detail.invoices")}</p>
                 <p className="mt-1 text-xl font-bold text-[#17211f] dark:text-white">
                   {stats.data.invoice_count}
                 </p>
               </div>
               <div className="rounded-xl border border-black/[0.06] bg-[#f7f8fa] p-3 dark:border-white/[0.06] dark:bg-[#14181f]">
-                <p className="text-xs text-[#717182]">CA total</p>
+                <p className="text-xs text-[#717182]">{tr("clientsPage.detail.totalRevenue")}</p>
                 <p className="mt-1 text-xl font-bold text-emerald-600">
                   {compactMoney(stats.data.total_revenue)}
                 </p>
@@ -691,16 +728,13 @@ function ClientDetailPanel({
                 <div className="col-span-2 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-500/10">
                   <AlertCircle size={14} className="text-amber-500 shrink-0" />
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                    {stats.data.unpaid_count} facture
-                    {stats.data.unpaid_count > 1 ? "s" : ""} impayée
-                    {stats.data.unpaid_count > 1 ? "s" : ""}
+                    {tr("clientsPage.detail.unpaidInvoices", { count: stats.data.unpaid_count })}
                   </p>
                 </div>
               )}
               {stats.data.last_invoice_date && (
                 <div className="col-span-2 text-xs text-[#717182]">
-                  Dernière facture :{" "}
-                  {shortDate(stats.data.last_invoice_date)}
+                  {tr("clientsPage.detail.lastInvoice", { date: clientDate(stats.data.last_invoice_date, tr) })}
                 </div>
               )}
             </div>
@@ -713,7 +747,7 @@ function ClientDetailPanel({
           {client.notes && (
             <div className="rounded-xl border border-black/[0.06] bg-[#f7f8fa] p-4 dark:border-white/[0.06] dark:bg-[#14181f]">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] mb-2">
-                Notes
+                {tr("clientsPage.detail.notes")}
               </p>
               <p className="text-sm text-[#17211f] dark:text-white/80 whitespace-pre-line">
                 {client.notes}
@@ -725,11 +759,11 @@ function ClientDetailPanel({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[#717182] mb-3 flex items-center gap-2">
               <FileText size={12} />
-              Historique des factures ({clientInvoices.length})
+              {tr("clientsPage.detail.invoiceHistory", { count: clientInvoices.length })}
             </p>
             {clientInvoices.length === 0 ? (
               <p className="text-sm text-[#aaa] text-center py-4">
-                Aucune facture liée
+                {tr("clientsPage.detail.noLinkedInvoice")}
               </p>
             ) : (
               <div className="space-y-2">
@@ -743,7 +777,7 @@ function ClientDetailPanel({
                         {inv.number}
                       </p>
                       <p className="text-xs text-[#aaa]">
-                        {shortDate(inv.due_date ?? null)}
+                        {clientDate(inv.due_date ?? null, tr)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -759,13 +793,7 @@ function ClientDetailPanel({
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {inv.status === "paid"
-                          ? "Payée"
-                          : inv.status === "overdue"
-                          ? "En retard"
-                          : inv.status === "sent"
-                          ? "Envoyée"
-                          : "Brouillon"}
+                        {invoiceStatusLabel(inv.status, tr)}
                       </span>
                     </div>
                   </div>
@@ -782,6 +810,7 @@ function ClientDetailPanel({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ClientsPage() {
+  const { t: tr } = useTranslation();
   useCurrency();
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
@@ -945,9 +974,9 @@ export function ClientsPage() {
 
   async function confirmDelete(client: ClientDto) {
     const ok = await confirm({
-      title: "Supprimer ce client ?",
-      message: `${client.name}\nCette action est irréversible.`,
-      confirmLabel: "Supprimer",
+      title: tr("clientsPage.confirmDelete.title"),
+      message: tr("clientsPage.confirmDelete.message", { name: client.name }),
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteMutation.mutate(client.id);
@@ -963,10 +992,10 @@ export function ClientsPage() {
         <div>
           <h1 className="text-xl font-extrabold text-[#17211f] dark:text-white flex items-center gap-2">
             <UserCheck size={22} className="text-emerald-600" />
-            Clients & CRM
+            {tr("clientsPage.header.title")}
           </h1>
           <p className="mt-0.5 text-sm text-[#717182]">
-            Gérez vos clients et suivez votre relation commerciale
+            {tr("clientsPage.header.subtitle")}
           </p>
         </div>
         <button
@@ -974,35 +1003,35 @@ export function ClientsPage() {
           className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
         >
           <Plus size={16} />
-          Nouveau client
+          {tr("clientsPage.header.newClient")}
         </button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
-          label="Total clients"
+          label={tr("clientsPage.kpi.totalClients")}
           value={String(kpis.total)}
           icon={Users}
           tone="emerald"
         />
         <KpiCard
-          label="Clients actifs"
+          label={tr("clientsPage.kpi.activeClients")}
           value={String(kpis.active)}
-          hint={kpis.total > 0 ? `${Math.round((kpis.active / kpis.total) * 100)}% du total` : undefined}
+          hint={kpis.total > 0 ? tr("clientsPage.kpi.ofTotal", { percent: Math.round((kpis.active / kpis.total) * 100) }) : undefined}
           icon={UserCheck}
           tone="blue"
         />
         <KpiCard
-          label="CA total clients"
+          label={tr("clientsPage.kpi.totalRevenue")}
           value={compactMoney(kpis.totalRevenue)}
           icon={TrendingUp}
           tone="amber"
         />
         <KpiCard
-          label="Taux fidélisation"
+          label={tr("clientsPage.kpi.retentionRate")}
           value={`${kpis.retention}%`}
-          hint="Clients avec 2+ factures"
+          hint={tr("clientsPage.kpi.retentionHint")}
           icon={ChevronRight}
           tone="stone"
         />
@@ -1017,7 +1046,7 @@ export function ClientsPage() {
           />
           <input
             className="w-full rounded-lg border border-black/[0.08] bg-white py-2 pl-9 pr-3 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
-            placeholder="Rechercher un client…"
+            placeholder={tr("clientsPage.search.placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -1025,12 +1054,12 @@ export function ClientsPage() {
         <div className="flex items-center gap-1 rounded-lg border border-black/[0.08] bg-white p-1 dark:border-white/[0.08] dark:bg-[#1e2229]">
           {(
             [
-              ["all", "Tous"],
-              ["active", "Actifs"],
-              ["inactive", "Inactifs"],
-              ["prospect", "Prospects"],
+              ["all", "clientsPage.filters.all"],
+              ["active", "clientsPage.filters.active"],
+              ["inactive", "clientsPage.filters.inactive"],
+              ["prospect", "clientsPage.filters.prospect"],
             ] as [StatusFilter, string][]
-          ).map(([key, label]) => (
+          ).map(([key, tk]) => (
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
@@ -1040,7 +1069,7 @@ export function ClientsPage() {
                   : "text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
               }`}
             >
-              {label}
+              {tr(tk)}
             </button>
           ))}
         </div>
@@ -1061,15 +1090,15 @@ export function ClientsPage() {
           <UserCheck size={32} className="mx-auto mb-3 text-[#aaa]" />
           <p className="text-sm font-medium text-[#717182]">
             {search || statusFilter !== "all"
-              ? "Aucun client ne correspond à vos filtres"
-              : "Aucun client enregistré"}
+              ? tr("clientsPage.empty.noMatch")
+              : tr("clientsPage.empty.noClient")}
           </p>
           {!search && statusFilter === "all" && (
             <button
               onClick={openCreate}
               className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
             >
-              Ajouter un premier client
+              {tr("clientsPage.empty.addFirst")}
             </button>
           )}
         </div>
@@ -1152,7 +1181,7 @@ export function ClientsPage() {
                 <div className="mt-4 flex items-center justify-between border-t border-black/[0.04] pt-3 dark:border-white/[0.04]">
                   <div>
                     <p className="text-[10px] uppercase font-semibold text-[#aaa]">
-                      CA
+                      {tr("clientsPage.card.revenue")}
                     </p>
                     <p className="text-sm font-bold text-emerald-600">
                       {rev > 0 ? compactMoney(rev) : "—"}
@@ -1160,7 +1189,7 @@ export function ClientsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] uppercase font-semibold text-[#aaa]">
-                      Factures
+                      {tr("clientsPage.card.invoices")}
                     </p>
                     <p className="text-sm font-bold text-[#17211f] dark:text-white">
                       {invCount}

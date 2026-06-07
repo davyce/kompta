@@ -1,4 +1,119 @@
 {
+  "clientsPage": {
+    "date": {
+      "notDefined": "Not defined"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "prospect": "Prospect"
+    },
+    "modal": {
+      "editTitle": "Edit client",
+      "newTitle": "New client",
+      "name": "Name *",
+      "namePlaceholder": "Client or company name",
+      "email": "Email",
+      "emailPlaceholder": "client@example.com",
+      "phone": "Phone",
+      "address": "Address",
+      "addressPlaceholder": "Street, district…",
+      "city": "City",
+      "country": "Country",
+      "status": "Status",
+      "internalNotes": "Internal notes",
+      "notesPlaceholder": "Additional information, preferences, history…",
+      "saving": "Saving…"
+    },
+    "loyalty": {
+      "title": "Loyalty",
+      "points": "Loyalty points",
+      "globalDiscount": "Global discount",
+      "pointsPlaceholder": "E.g. +100 or -50",
+      "apply": "Apply",
+      "specificDiscounts": "Specific discounts ({{count}})",
+      "specificDiscounts_one": "Specific discount ({{count}})",
+      "specificDiscounts_other": "Specific discounts ({{count}})",
+      "discountLabelPlaceholder": "Label (e.g. \"Loyal client for 2 years\")",
+      "value": "Value",
+      "minAmountPlaceholder": "Min amount (0 = none)",
+      "createDiscount": "Create discount",
+      "noDiscount": "No discount configured",
+      "minShort": "min {{amount}}",
+      "discountTypes": {
+        "percent": "% off amount",
+        "fixed": "Fixed amount",
+        "pointsThreshold": "Points threshold"
+      },
+      "appliesTo": {
+        "all": "All transactions",
+        "invoice": "Invoices only",
+        "pos": "POS checkout only"
+      },
+      "tiers": {
+        "standard": "Standard",
+        "silver": "Silver",
+        "gold": "Gold",
+        "vip": "VIP"
+      }
+    },
+    "invoices": {
+      "status": {
+        "paid": "Paid",
+        "overdue": "Overdue",
+        "sent": "Sent",
+        "draft": "Draft"
+      }
+    },
+    "detail": {
+      "invoices": "Invoices",
+      "totalRevenue": "Total revenue",
+      "unpaidInvoices": "{{count}} unpaid invoice",
+      "unpaidInvoices_one": "{{count}} unpaid invoice",
+      "unpaidInvoices_other": "{{count}} unpaid invoices",
+      "lastInvoice": "Last invoice: {{date}}",
+      "notes": "Notes",
+      "invoiceHistory": "Invoice history ({{count}})",
+      "invoiceHistory_one": "Invoice history ({{count}})",
+      "invoiceHistory_other": "Invoice history ({{count}})",
+      "noLinkedInvoice": "No linked invoice"
+    },
+    "confirmDelete": {
+      "title": "Delete this client?",
+      "message": "{{name}}\nThis action cannot be undone."
+    },
+    "header": {
+      "title": "Clients & CRM",
+      "subtitle": "Manage clients and track your commercial relationships",
+      "newClient": "New client"
+    },
+    "kpi": {
+      "totalClients": "Total clients",
+      "activeClients": "Active clients",
+      "ofTotal": "{{percent}}% of total",
+      "totalRevenue": "Total client revenue",
+      "retentionRate": "Retention rate",
+      "retentionHint": "Clients with 2+ invoices"
+    },
+    "search": {
+      "placeholder": "Search a client…"
+    },
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive",
+      "prospect": "Prospects"
+    },
+    "empty": {
+      "noMatch": "No client matches your filters",
+      "noClient": "No client saved",
+      "addFirst": "Add a first client"
+    },
+    "card": {
+      "revenue": "Revenue",
+      "invoices": "Invoices"
+    }
+  },
   "employeesPage": {
     "common": {
       "notProvided": "Not provided",
