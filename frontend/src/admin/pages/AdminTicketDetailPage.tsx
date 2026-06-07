@@ -1,12 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { ArrowLeft, CheckCircle2, Send, UserRound } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
 
+function statusLabel(status: string, tr: TFunction) {
+  const labels: Record<string, string> = {
+    open: tr("admin.tickets.status.open"),
+    in_progress: tr("admin.tickets.status.inProgress"),
+    resolved: tr("admin.tickets.status.resolved"),
+    closed: tr("admin.tickets.status.closed"),
+  };
+  return labels[status] ?? status;
+}
+
+function priorityLabel(priority: string, tr: TFunction) {
+  const labels: Record<string, string> = {
+    low: tr("admin.tickets.priority.low"),
+    medium: tr("admin.tickets.priority.medium"),
+    high: tr("admin.tickets.priority.high"),
+    critical: tr("admin.tickets.priority.critical"),
+  };
+  return labels[priority] ?? priority;
+}
+
+function categoryLabel(category: string, tr: TFunction) {
+  const labels: Record<string, string> = {
+    general: tr("admin.tickets.categories.general"),
+    technical: tr("admin.tickets.categories.technical"),
+    billing: tr("admin.tickets.categories.billing"),
+    feature: tr("admin.tickets.categories.feature"),
+  };
+  return labels[category] ?? category;
+}
+
 export function AdminTicketDetailPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { ticketId } = useParams();
@@ -47,7 +80,7 @@ export function AdminTicketDetailPage() {
     <div className="space-y-6">
       <button onClick={() => navigate("/admin/tickets")} className="flex items-center gap-2 text-sm font-bold text-indigo-300 hover:text-white">
         <ArrowLeft size={17} />
-        Retour tickets
+        {tr("admin.tickets.back")}
       </button>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -55,17 +88,17 @@ export function AdminTicketDetailPage() {
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Ticket #{data?.id ?? "..."}</p>
-              <h1 className="mt-1 text-2xl font-black">{data?.subject ?? "Chargement..."}</h1>
+              <h1 className="mt-1 text-2xl font-black">{data?.subject ?? tr("common.loading")}</h1>
               <p className="mt-2 text-sm text-white/60">{data?.company_name} · {data?.requester_name} · {shortDate(data?.created_at ?? null)}</p>
             </div>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase text-white/70">{data?.status}</span>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase text-white/70">{data?.status ? statusLabel(data.status, tr) : "..."}</span>
           </div>
 
           <div className="space-y-4 py-5">
             <article className="rounded-xl border border-white/10 bg-black/20 p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white/70">
                 <UserRound size={17} />
-                Demande initiale
+                {tr("admin.tickets.initialRequest")}
               </div>
               <p className="whitespace-pre-wrap text-sm leading-6 text-white/85">{data?.body}</p>
             </article>
@@ -83,12 +116,12 @@ export function AdminTicketDetailPage() {
 
           <form onSubmit={submit} className="border-t border-white/10 pt-5">
             <label className="block">
-              <span className="text-xs font-bold uppercase text-white/45">Reponse support</span>
+              <span className="text-xs font-bold uppercase text-white/45">{tr("admin.tickets.supportResponse")}</span>
               <textarea
                 value={reply}
                 onChange={(event) => setReply(event.target.value)}
                 className="mt-2 min-h-32 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-indigo-500"
-                placeholder="Rediger une reponse claire, actionnable, et rassurante..."
+                placeholder={tr("admin.tickets.supportResponsePlaceholder")}
               />
             </label>
             <button
@@ -97,52 +130,52 @@ export function AdminTicketDetailPage() {
               className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-600 disabled:opacity-50"
             >
               <Send size={17} />
-              {replyTicket.isPending ? "Envoi…" : "Envoyer la reponse"}
+              {replyTicket.isPending ? tr("admin.companies.sending") : tr("admin.tickets.sendResponse")}
             </button>
           </form>
         </section>
 
         <aside className="space-y-4">
           <section className="rounded-xl border border-white/10 bg-white/5 p-5">
-            <h2 className="font-black">Triage</h2>
+            <h2 className="font-black">{tr("admin.tickets.triage")}</h2>
             <div className="mt-4 space-y-3">
               <label className="block">
-                <span className="text-xs font-bold uppercase text-white/45">Statut</span>
+                <span className="text-xs font-bold uppercase text-white/45">{tr("common.status")}</span>
                 <select
                   value={data?.status ?? "open"}
                   onChange={(event) => updateTicket.mutate({ status: event.target.value })}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
                 >
-                  <option value="open">open</option>
-                  <option value="in_progress">in_progress</option>
-                  <option value="resolved">resolved</option>
-                  <option value="closed">closed</option>
+                  <option value="open">{tr("admin.tickets.status.open")}</option>
+                  <option value="in_progress">{tr("admin.tickets.status.inProgress")}</option>
+                  <option value="resolved">{tr("admin.tickets.status.resolved")}</option>
+                  <option value="closed">{tr("admin.tickets.status.closed")}</option>
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase text-white/45">Priorite</span>
+                <span className="text-xs font-bold uppercase text-white/45">{tr("admin.tickets.priorityLabel")}</span>
                 <select
                   value={data?.priority ?? "medium"}
                   onChange={(event) => updateTicket.mutate({ priority: event.target.value })}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
                 >
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                  <option value="critical">critical</option>
+                  <option value="low">{priorityLabel("low", tr)}</option>
+                  <option value="medium">{priorityLabel("medium", tr)}</option>
+                  <option value="high">{priorityLabel("high", tr)}</option>
+                  <option value="critical">{priorityLabel("critical", tr)}</option>
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase text-white/45">Categorie</span>
+                <span className="text-xs font-bold uppercase text-white/45">{tr("admin.tickets.categoryLabel")}</span>
                 <select
                   value={data?.category ?? "general"}
                   onChange={(event) => updateTicket.mutate({ category: event.target.value })}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
                 >
-                  <option value="general">general</option>
-                  <option value="technical">technical</option>
-                  <option value="billing">billing</option>
-                  <option value="feature">feature</option>
+                  <option value="general">{categoryLabel("general", tr)}</option>
+                  <option value="technical">{categoryLabel("technical", tr)}</option>
+                  <option value="billing">{categoryLabel("billing", tr)}</option>
+                  <option value="feature">{categoryLabel("feature", tr)}</option>
                 </select>
               </label>
             </div>
@@ -151,10 +184,10 @@ export function AdminTicketDetailPage() {
           <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-emerald-100">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={18} />
-              <h2 className="font-black">Assistant support</h2>
+              <h2 className="font-black">{tr("admin.tickets.supportAssistant")}</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-emerald-100/80">
-              Reponse recommandee: confirmer la prise en charge, demander le contexte exact, proposer une action immediate, puis passer le ticket en in_progress.
+              {tr("admin.tickets.recommendedResponse")}
             </p>
           </section>
         </aside>

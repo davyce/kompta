@@ -2594,6 +2594,16 @@
       "searchPlaceholder": "Rechercher sujet, entreprise, demandeur...",
       "empty": "Aucun ticket trouvé.",
       "emptyColumn": "Vide",
+      "back": "Retour tickets",
+      "initialRequest": "Demande initiale",
+      "supportResponse": "Réponse support",
+      "supportResponsePlaceholder": "Rédiger une réponse claire, actionnable et rassurante...",
+      "sendResponse": "Envoyer la réponse",
+      "triage": "Triage",
+      "priorityLabel": "Priorité",
+      "categoryLabel": "Catégorie",
+      "supportAssistant": "Assistant support",
+      "recommendedResponse": "Réponse recommandée : confirmer la prise en charge, demander le contexte exact, proposer une action immédiate, puis passer le ticket en in_progress.",
       "views": {
         "list": "Liste",
         "kanban": "Kanban"
@@ -2623,6 +2633,12 @@
         "date": "Tri : Date",
         "priority": "Tri : Priorité",
         "company": "Tri : Entreprise"
+      },
+      "categories": {
+        "general": "Général",
+        "technical": "Technique",
+        "billing": "Facturation",
+        "feature": "Fonctionnalité"
       }
     },
     "subscriptions": {
@@ -2675,6 +2691,230 @@
         "discountPercent": "Réduction %",
         "limit": "Limite (0=∞)",
         "targetPlan": "Plan ciblé (vide = tous)"
+      }
+    },
+    "companies": {
+      "title": "Entreprises clientes",
+      "subtitle": "Vue cross-tenant des organisations, scores TERAS et activation.",
+      "createCompany": "Créer une entreprise",
+      "createCompanyShort": "Créer l'entreprise",
+      "creating": "Création…",
+      "targetedBroadcast": "Broadcast ciblé",
+      "messageSent": "Message envoyé !",
+      "sending": "Envoi…",
+      "adminAccount": "Compte administrateur",
+      "companyCount_one": "{{count}} entreprise",
+      "companyCount_other": "{{count}} entreprises",
+      "searchPlaceholder": "Nom, secteur, pays…",
+      "allSectors": "Tous secteurs",
+      "allCountries": "Tous pays",
+      "allTeras": "Tous TERAS",
+      "users": "Users",
+      "employees": "Employés",
+      "usersCount_one": "{{count}} user",
+      "usersCount_other": "{{count}} users",
+      "servicesFallback": "Services",
+      "terasScore": "Score TERAS",
+      "detail": "Détail",
+      "viewDetail": "Voir le détail",
+      "createdAt": "Créé le",
+      "empty": "Aucune entreprise trouvée.",
+      "back": "Retour entreprises",
+      "tenantDetail": "Détail tenant",
+      "invoices": "Factures",
+      "posRevenue": "CA POS",
+      "setup": "Setup",
+      "terasAlerts": "Alertes TERAS",
+      "noActiveAlerts": "Aucune alerte active.",
+      "fields": {
+        "tradeName": "Nom commercial",
+        "legalName": "Raison sociale",
+        "industry": "Secteur",
+        "country": "Pays",
+        "fullName": "Nom complet",
+        "phone": "Téléphone",
+        "temporaryPassword": "Mot de passe provisoire"
+      },
+      "placeholders": {
+        "industry": "Commerce",
+        "fullName": "Jean Dupont"
+      },
+      "plans": {
+        "basic": "Basic",
+        "pro": "Pro",
+        "enterprise": "Enterprise"
+      },
+      "sort": {
+        "az": "Tri : A–Z",
+        "teras": "Tri : TERAS",
+        "users": "Tri : Users",
+        "date": "Tri : Date"
+      },
+      "errors": {
+        "generic": "Erreur"
+      }
+    },
+    "system": {
+      "eyebrow": "Administration",
+      "title": "Système",
+      "subtitle": "Feature flags, santé des services et informations système.",
+      "editFlag": "Modifier le flag",
+      "newFlag": "Nouveau flag",
+      "key": "Clé",
+      "value": "Valeur",
+      "enabled": "Activé",
+      "flagDescriptionPlaceholder": "Description du flag...",
+      "confirmDeleteFlagTitle": "Supprimer ce feature flag ?",
+      "flagsConfigured_one": "{{count}} flag configuré",
+      "flagsConfigured_other": "{{count}} flags configurés",
+      "noFlags": "Aucun feature flag configuré.",
+      "lastAutoCheck": "Dernière vérification : auto toutes les 60s",
+      "latency": "Latence",
+      "lastCheck": "Dernier check",
+      "comingSoon": "Bientôt",
+      "tabs": {
+        "flags": "Feature Flags",
+        "health": "Health Check",
+        "email": "Email SMTP",
+        "system": "Informations système"
+      },
+      "serviceStatus": {
+        "healthy": "Opérationnel",
+        "degraded": "Dégradé",
+        "down": "Hors ligne"
+      },
+      "defaultServices": {
+        "database": "Base de données",
+        "limule": "Limule IA",
+        "storage": "Stockage"
+      },
+      "info": {
+        "version": "Version application",
+        "environment": "Environnement",
+        "database": "Base de données",
+        "updatedAt": "Dernière mise à jour"
+      },
+      "email": {
+        "sendError": "Erreur lors de l'envoi",
+        "smtpConfig": "Configuration SMTP",
+        "enabledValue": "✅ Activé",
+        "notConfiguredValue": "⚠️ Non configuré",
+        "server": "Serveur",
+        "sender": "Expéditeur",
+        "requiredConfig": "Configuration requise",
+        "addToEnv": "Ajoutez dans votre fichier",
+        "testConfig": "Tester la configuration",
+        "sendTest": "Envoyer le test",
+        "automaticEmails": "Emails automatiques",
+        "automatic": {
+          "unpaidInvoice": "Relance facture impayée",
+          "passwordReset": "Reset de mot de passe",
+          "broadcast": "Broadcast plateforme",
+          "newUserWelcome": "Bienvenue nouvel utilisateur",
+          "twoFactor": "2FA activé"
+        }
+      }
+    },
+    "limule": {
+      "online": "En ligne",
+      "initialMessage": "Cockpit Limule Admin prêt. Utilisez la zone de test libre ou les diagnostics prédéfinis.",
+      "unavailableError": "Erreur : Limule n'est pas disponible. Vérifiez la configuration backend.",
+      "eyebrow": "Intelligence Artificielle",
+      "title": "Cockpit Limule Admin",
+      "subtitle": "Supervision en temps réel, zone de test libre, diagnostics prédéfinis et historique des requêtes.",
+      "exportJsonl": "Exporter JSONL",
+      "statusTitle": "Statut Limule IA",
+      "checking": "Vérification...",
+      "predefinedDiagnostics": "Diagnostics prédéfinis",
+      "platform": "Plateforme",
+      "trainingBase": "Base d'apprentissage",
+      "freeTestZone": "Zone de test libre",
+      "freeTestHint": "Envoyer n'importe quel prompt à Limule et voir la réponse en streaming",
+      "generating": "Limule génère une réponse...",
+      "promptPlaceholder": "Taper un message pour tester Limule...",
+      "historyTitle": "Historique des 10 dernières requêtes",
+      "clear": "Effacer",
+      "replay": "Rejouer",
+      "metrics": {
+        "requestsToday": "Requêtes aujourd'hui",
+        "estimated7d": "estimé sur 7j",
+        "avgLatency": "Latence moyenne",
+        "fromHealth": "depuis health check",
+        "tokensEstimate": "Tokens (estimation)",
+        "tokensHint": "≈420 tokens/req — non mesuré",
+        "totalInteractions": "Total interactions",
+        "last7Days": "{{count}} sur 7 jours"
+      },
+      "dataset": {
+        "ratedInteractions": "Interactions notées",
+        "avgRating": "Note moyenne",
+        "trainingReady": "Prêts entraînement",
+        "coveredModules": "Modules couverts"
+      },
+      "diagnostics": {
+        "tickets": {
+          "label": "Analyser les tickets critiques",
+          "description": "Analyse les tickets critiques ouverts et propose des priorités.",
+          "prompt": "Analyse tous les tickets critiques actuellement ouverts sur la plateforme. Résume les problèmes, identifie les entreprises les plus à risque et propose un plan d'action support pour les 24 prochaines heures."
+        },
+        "health": {
+          "label": "Résumé santé plateforme",
+          "description": "Résumé des KPIs globaux de la plateforme.",
+          "prompt": "Donne-moi un résumé de la santé globale de la plateforme KOMPTA : nombre d'entreprises actives, score TERAS moyen, tickets en attente, alertes ouvertes et tendances des 7 derniers jours. Identifie les points d'attention prioritaires."
+        },
+        "anomalies": {
+          "label": "Détecter anomalies",
+          "description": "Détecte les anomalies TERAS sur toutes les entreprises.",
+          "prompt": "Analyse les alertes TERAS de toutes les entreprises de la plateforme. Détecte les anomalies inhabituelles, les patterns récurrents et les entreprises qui présentent des risques élevés. Propose des actions correctives."
+        }
+      }
+    },
+    "users": {
+      "title": "Utilisateurs plateforme",
+      "subtitle": "Recherche cross-tenant, statut de comptes et rôles.",
+      "accounts": "comptes",
+      "searchPlaceholder": "Nom ou email…",
+      "allCompanies": "Toutes entreprises",
+      "allRoles": "Tous rôles",
+      "allStatuses": "Tous statuts",
+      "user": "Utilisateur",
+      "role": "Rôle",
+      "team": "Équipe",
+      "department": "Département",
+      "branch": "Branche",
+      "indicators": "Indicateurs",
+      "lastLogin": "Dernière connexion",
+      "lastLoginWithValue": "Dernière connexion : {{value}}",
+      "loginWithValue": "Connexion : {{value}}",
+      "never": "Jamais",
+      "passwordToCreate": "mdp à créer",
+      "activate": "Activer",
+      "impersonate": "Impersonner",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "resetPasswordShort": "Reset mdp",
+      "empty": "Aucun utilisateur trouvé.",
+      "generating": "Génération…",
+      "generateToken": "Générer le token",
+      "impersonateWarning": "Cette action génère un token JWT temporaire permettant d'accéder au compte de cet utilisateur. Utilisation à des fins de diagnostic uniquement. L'action est journalisée.",
+      "tokenGeneratedFor": "Token généré pour {{email}}",
+      "copiedBang": "Copié !",
+      "copyToClipboard": "Copier dans le presse-papiers",
+      "tokenUsageHint": "Utilise ce token dans l'en-tête Authorization: Bearer [token] pour accéder à l'API en tant que cet utilisateur.",
+      "resetPasswordDescription": "Un mot de passe temporaire sera généré, ses sessions existantes seront révoquées, puis il devra créer un nouveau mot de passe à la prochaine connexion.",
+      "resetting": "Réinitialisation…",
+      "reset": "Réinitialiser",
+      "tempPasswordGenerated": "Mot de passe temporaire généré",
+      "sessionsRevoked": "Les sessions actives de l'utilisateur ont été révoquées. Communiquez ce mot de passe par un canal sûr.",
+      "temporaryPassword": "Mot de passe temporaire",
+      "passwordDashWarning": "Tirets simples ASCII (-), pas des tirets longs. L'utilisateur devra changer ce mot de passe à la première connexion.",
+      "confirmSuspendTitle": "Suspendre {{name}} ?",
+      "confirmSuspendMessage": "L'utilisateur ne pourra plus se connecter jusqu'à réactivation.",
+      "suspensionReason": "Motif de la suspension",
+      "confirmImpersonateTitle": "Impersonner {{name}} ?",
+      "confirmImpersonateMessage": "Tu agiras au nom de cet utilisateur. Cette action est journalisée dans l'audit.",
+      "impersonateAcknowledge": "Je comprends que cette session sera tracée à mon nom.",
+      "errors": {
+        "generic": "Erreur"
       }
     }
   },

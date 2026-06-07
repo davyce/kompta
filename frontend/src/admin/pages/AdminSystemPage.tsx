@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   AlertTriangle,
   CheckCircle,
@@ -19,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useConfirm } from "../../components/ConfirmProvider";
 import { api } from "../../services/api";
@@ -75,6 +77,20 @@ function formatUptime(seconds: number): string {
   return `${h}h ${m}m`;
 }
 
+function serviceStatusLabel(status: ServiceHealth["status"], tr: TFunction): string {
+  if (status === "healthy") return tr("admin.system.serviceStatus.healthy");
+  if (status === "degraded") return tr("admin.system.serviceStatus.degraded");
+  return tr("admin.system.serviceStatus.down");
+}
+
+function serviceNameLabel(name: string, tr: TFunction): string {
+  const n = name.toLowerCase();
+  if (n === "database") return tr("admin.system.defaultServices.database");
+  if (n.includes("limule")) return tr("admin.system.defaultServices.limule");
+  if (n === "storage") return tr("admin.system.defaultServices.storage");
+  return name;
+}
+
 // ── Flag modal
 function FlagModal({
   flag,
@@ -85,6 +101,7 @@ function FlagModal({
   onClose: () => void;
   onSave: (data: { key: string; description: string; value: string; enabled: boolean }) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [key, setKey] = useState(flag?.key ?? "");
   const [description, setDescription] = useState(flag?.description ?? "");
   const [value, setValue] = useState(flag?.value ?? "");
@@ -94,14 +111,14 @@ function FlagModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-6 text-white shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-black">{flag?.id ? "Modifier le flag" : "Nouveau flag"}</h3>
+          <h3 className="text-lg font-black">{flag?.id ? tr("admin.system.editFlag") : tr("admin.system.newFlag")}</h3>
           <button onClick={onClose} className="text-white/40 hover:text-white">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">Clé</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.key")}</label>
             <input
               value={key}
               onChange={(e) => setKey(e.target.value)}
@@ -110,16 +127,16 @@ function FlagModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">Description</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.subscriptions.fields.description")}</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description du flag..."
+              placeholder={tr("admin.system.flagDescriptionPlaceholder")}
               className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none focus:border-indigo-400"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">Valeur</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.value")}</label>
             <input
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -128,7 +145,7 @@ function FlagModal({
             />
           </div>
           <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-            <span className="text-sm font-bold">Activé</span>
+            <span className="text-sm font-bold">{tr("admin.system.enabled")}</span>
             <button onClick={() => setEnabled((v) => !v)} className="text-indigo-300">
               {enabled ? <ToggleRight size={26} /> : <ToggleLeft size={26} className="text-white/40" />}
             </button>
@@ -139,14 +156,14 @@ function FlagModal({
             onClick={onClose}
             className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-bold text-white/70 hover:bg-white/10"
           >
-            Annuler
+            {tr("common.cancel")}
           </button>
           <button
             onClick={() => onSave({ key, description, value, enabled })}
             disabled={!key.trim()}
             className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50"
           >
-            Enregistrer
+            {tr("common.save")}
           </button>
         </div>
       </div>
@@ -158,6 +175,7 @@ function FlagModal({
 function FlagsTab() {
   const qc = useQueryClient();
   const { confirm } = useConfirm();
+  const { t: tr } = useTranslation();
   const [modal, setModal] = useState<Partial<FeatureFlag> | null | false>(false);
 
   const flags = useQuery({
@@ -193,9 +211,9 @@ function FlagsTab() {
 
   async function handleDeleteFlag(flag: FeatureFlag) {
     const ok = await confirm({
-      title: "Supprimer ce feature flag ?",
+      title: tr("admin.system.confirmDeleteFlagTitle"),
       message: flag.key,
-      confirmLabel: "Supprimer",
+      confirmLabel: tr("common.delete"),
       danger: true,
     });
     if (ok) deleteFlag.mutate(flag.id);
@@ -205,13 +223,13 @@ function FlagsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-500 dark:text-white/60">
-          {(flags.data ?? []).length} flag(s) configuré(s)
+          {tr("admin.system.flagsConfigured", { count: (flags.data ?? []).length })}
         </p>
         <button
           onClick={() => setModal({})}
           className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold text-white hover:bg-indigo-500"
         >
-          <Plus size={14} /> Nouveau flag
+          <Plus size={14} /> {tr("admin.system.newFlag")}
         </button>
       </div>
 
@@ -227,11 +245,11 @@ function FlagsTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 dark:bg-white/5 dark:border-white/10 dark:text-white/40">
-                <th className="px-4 py-3 text-left">Clé</th>
-                <th className="px-4 py-3 text-left hidden md:table-cell">Description</th>
-                <th className="px-4 py-3 text-left hidden lg:table-cell">Valeur</th>
-                <th className="px-4 py-3 text-center">Activé</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-left">{tr("admin.system.key")}</th>
+                <th className="px-4 py-3 text-left hidden md:table-cell">{tr("admin.subscriptions.fields.description")}</th>
+                <th className="px-4 py-3 text-left hidden lg:table-cell">{tr("admin.system.value")}</th>
+                <th className="px-4 py-3 text-center">{tr("admin.system.enabled")}</th>
+                <th className="px-4 py-3 text-right">{tr("common.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-white/5">
@@ -269,7 +287,7 @@ function FlagsTab() {
               {(flags.data ?? []).length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-white/35">
-                    Aucun feature flag configuré.
+                    {tr("admin.system.noFlags")}
                   </td>
                 </tr>
               )}
@@ -292,6 +310,7 @@ function FlagsTab() {
 
 // ── Health Check tab
 function HealthTab() {
+  const { t: tr } = useTranslation();
   const health = useQuery<SystemHealthResponse>({
     queryKey: ["adminSystemHealth"],
     queryFn: api.adminSystemHealth,
@@ -308,12 +327,12 @@ function HealthTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-500 dark:text-white/60">Dernière vérification: auto toutes les 60s</p>
+        <p className="text-sm font-bold text-slate-500 dark:text-white/60">{tr("admin.system.lastAutoCheck")}</p>
         <button
           onClick={refresh}
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
         >
-          <RefreshCw size={14} className={spinning ? "animate-spin" : ""} /> Rafraîchir
+          <RefreshCw size={14} className={spinning ? "animate-spin" : ""} /> {tr("admin.subscriptions.refresh")}
         </button>
       </div>
 
@@ -335,22 +354,22 @@ function HealthTab() {
                     <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 dark:bg-white/5">
                       <Icon size={16} className="text-indigo-500 dark:text-indigo-300" />
                     </span>
-                    <span className="font-bold text-slate-900 dark:text-white">{svc.name}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{serviceNameLabel(svc.name, tr)}</span>
                   </div>
                   <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${colors.badge}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} />
-                    {svc.status === "healthy" ? "Opérationnel" : svc.status === "degraded" ? "Dégradé" : "Hors ligne"}
+                    {serviceStatusLabel(svc.status, tr)}
                   </span>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-500 dark:text-white/50">
                   <div className="flex justify-between">
-                    <span>Latence</span>
+                    <span>{tr("admin.system.latency")}</span>
                     <span className={`font-bold ${svc.latency_ms != null ? colors.text : "text-slate-400 dark:text-white/30"}`}>
                       {svc.latency_ms != null ? `${svc.latency_ms}ms` : "–"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Dernier check</span>
+                    <span>{tr("admin.system.lastCheck")}</span>
                     <span className="font-bold text-slate-500 dark:text-white/50">
                       {svc.last_check ? new Date(svc.last_check).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" }) : "–"}
                     </span>
@@ -373,16 +392,17 @@ const defaultServices: ServiceHealth[] = [
 
 // ── System Info tab
 function SystemInfoTab() {
+  const { t: tr } = useTranslation();
   const health = useQuery<SystemHealthResponse>({
     queryKey: ["adminSystemHealth"],
     queryFn: api.adminSystemHealth,
   });
 
   const rows = [
-    { label: "Version application", value: health.data?.version ?? "v1.6.0", icon: Info },
-    { label: "Environnement", value: health.data?.environment ?? "production", icon: Server },
-    { label: "Base de données", value: health.data?.database ?? "SQLite", icon: Database },
-    { label: "Dernière mise à jour", value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString(i18n.language) : new Date("2026-05-08T12:00:00").toLocaleDateString(i18n.language), icon: Clock },
+    { label: tr("admin.system.info.version"), value: health.data?.version ?? "v1.6.0", icon: Info },
+    { label: tr("admin.system.info.environment"), value: health.data?.environment ?? "production", icon: Server },
+    { label: tr("admin.system.info.database"), value: health.data?.database ?? "SQLite", icon: Database },
+    { label: tr("admin.system.info.updatedAt"), value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString(i18n.language) : new Date("2026-05-08T12:00:00").toLocaleDateString(i18n.language), icon: Clock },
     {
       label: "Uptime",
       value: health.data?.uptime_seconds != null ? formatUptime(health.data.uptime_seconds) : "–",
@@ -411,22 +431,23 @@ function SystemInfoTab() {
 
 // ── Main page
 export function AdminSystemPage() {
+  const { t: tr } = useTranslation();
   const [tab, setTab] = useState<Tab>("flags");
 
   const TABS: { key: Tab; label: string; icon: typeof Server }[] = [
-    { key: "flags", label: "Feature Flags", icon: ToggleRight },
-    { key: "health", label: "Health Check", icon: CheckCircle },
-    { key: "email", label: "Email SMTP", icon: Mail },
-    { key: "system", label: "Informations système", icon: Info },
+    { key: "flags", label: tr("admin.system.tabs.flags"), icon: ToggleRight },
+    { key: "health", label: tr("admin.system.tabs.health"), icon: CheckCircle },
+    { key: "email", label: tr("admin.system.tabs.email"), icon: Mail },
+    { key: "system", label: tr("admin.system.tabs.system"), icon: Info },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Administration</p>
-        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Système</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Feature flags, santé des services et informations système.</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{tr("admin.system.eyebrow")}</p>
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.system.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.system.subtitle")}</p>
       </div>
 
       {/* Tabs */}
@@ -460,6 +481,7 @@ export function AdminSystemPage() {
 
 // ── Email SMTP tab ────────────────────────────────────────────────────────────
 function EmailTab() {
+  const { t: tr } = useTranslation();
   const [testTo, setTestTo] = useState("");
   const [testResult, setTestResult] = useState<{ok: boolean; msg: string} | null>(null);
   const [sending, setSending] = useState(false);
@@ -478,7 +500,7 @@ function EmailTab() {
       const r = await api.adminTestEmail(testTo.trim());
       setTestResult({ ok: r.sent, msg: r.message });
     } catch {
-      setTestResult({ ok: false, msg: "Erreur lors de l'envoi" });
+      setTestResult({ ok: false, msg: tr("admin.system.email.sendError") });
     } finally {
       setSending(false);
     }
@@ -491,16 +513,16 @@ function EmailTab() {
       {/* Status card */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <h3 className="mb-4 font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Mail size={16} className="text-indigo-500 dark:text-indigo-300" /> Configuration SMTP
+          <Mail size={16} className="text-indigo-500 dark:text-indigo-300" /> {tr("admin.system.email.smtpConfig")}
         </h3>
         {status.isLoading ? (
-          <p className="text-sm text-slate-400 dark:text-white/40 animate-pulse">Chargement…</p>
+          <p className="text-sm text-slate-400 dark:text-white/40 animate-pulse">{tr("common.loading")}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              { label: "Statut", value: s?.enabled ? "✅ Activé" : "⚠️ Non configuré" },
-              { label: "Serveur", value: s?.host || "—" },
-              { label: "Expéditeur", value: s?.from || "—" },
+              { label: tr("common.status"), value: s?.enabled ? tr("admin.system.email.enabledValue") : tr("admin.system.email.notConfiguredValue") },
+              { label: tr("admin.system.email.server"), value: s?.host || "—" },
+              { label: tr("admin.system.email.sender"), value: s?.from || "—" },
               { label: "Provider", value: s?.provider || "SMTP" },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-lg bg-slate-50 px-4 py-3 dark:bg-white/5">
@@ -512,8 +534,8 @@ function EmailTab() {
         )}
         {!s?.enabled && (
           <div className="mt-4 rounded-lg border border-indigo-200 bg-amber-50 p-4 text-sm text-indigo-700 dark:border-indigo-600/30 dark:bg-indigo-600/10 dark:text-indigo-200">
-            <p className="font-bold">Configuration requise</p>
-            <p className="mt-1 opacity-80">Ajoutez dans votre fichier <code className="font-mono bg-slate-200 dark:bg-white/10 px-1 rounded">.env</code> :</p>
+            <p className="font-bold">{tr("admin.system.email.requiredConfig")}</p>
+            <p className="mt-1 opacity-80">{tr("admin.system.email.addToEnv")} <code className="font-mono bg-slate-200 dark:bg-white/10 px-1 rounded">.env</code> :</p>
             <pre className="mt-2 rounded bg-slate-100 dark:bg-black/30 p-3 text-xs font-mono overflow-x-auto">{`SMTP_HOST=smtp.mailjet.com
 SMTP_PORT=587
 SMTP_USER=votre-api-key
@@ -526,7 +548,7 @@ SMTP_FROM_EMAIL=noreply@votre-domaine.com`}</pre>
       {/* Test email */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <h3 className="mb-4 font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Send size={16} className="text-indigo-500 dark:text-indigo-300" /> Tester la configuration
+          <Send size={16} className="text-indigo-500 dark:text-indigo-300" /> {tr("admin.system.email.testConfig")}
         </h3>
         <div className="flex flex-wrap gap-3">
           <input
@@ -542,7 +564,7 @@ SMTP_FROM_EMAIL=noreply@votre-domaine.com`}</pre>
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition"
           >
             {sending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-            {sending ? "Envoi…" : "Envoyer le test"}
+            {sending ? tr("admin.companies.sending") : tr("admin.system.email.sendTest")}
           </button>
         </div>
         {testResult && (
@@ -553,16 +575,16 @@ SMTP_FROM_EMAIL=noreply@votre-domaine.com`}</pre>
         )}
       </div>
 
-      {/* Emails déclenchés automatiquement */}
+      {/* Automatic emails */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-        <h3 className="mb-4 font-black text-white">Emails automatiques</h3>
+        <h3 className="mb-4 font-black text-white">{tr("admin.system.email.automaticEmails")}</h3>
         <div className="space-y-2">
           {[
-            { label: "Relance facture impayée", trigger: "POST /invoices/{id}/relance", active: true },
-            { label: "Reset de mot de passe", trigger: "POST /admin/users/{id}/reset-password", active: true },
-            { label: "Broadcast plateforme", trigger: "POST /admin/broadcast", active: true },
-            { label: "Bienvenue nouvel utilisateur", trigger: "POST /users (invitation)", active: false },
-            { label: "2FA activé", trigger: "POST /auth/2fa/enable", active: true },
+            { label: tr("admin.system.email.automatic.unpaidInvoice"), trigger: "POST /invoices/{id}/relance", active: true },
+            { label: tr("admin.system.email.automatic.passwordReset"), trigger: "POST /admin/users/{id}/reset-password", active: true },
+            { label: tr("admin.system.email.automatic.broadcast"), trigger: "POST /admin/broadcast", active: true },
+            { label: tr("admin.system.email.automatic.newUserWelcome"), trigger: "POST /users (invitation)", active: false },
+            { label: tr("admin.system.email.automatic.twoFactor"), trigger: "POST /auth/2fa/enable", active: true },
           ].map(({ label, trigger, active }) => (
             <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-4 py-3">
               <div>
@@ -570,7 +592,7 @@ SMTP_FROM_EMAIL=noreply@votre-domaine.com`}</pre>
                 <p className="text-xs font-mono text-white/40">{trigger}</p>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
-                {active ? "Actif" : "Bientôt"}
+                {active ? tr("admin.subscriptions.status.active") : tr("admin.system.comingSoon")}
               </span>
             </div>
           ))}

@@ -14,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
@@ -39,10 +40,11 @@ function saveHistory(items: HistoryItem[]) {
 
 // ── Status badge
 function StatusBadge({ status }: { status: string }) {
+  const { t: tr } = useTranslation();
   const ok = status === "ok" || status === "healthy";
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${ok ? "bg-emerald-500/20 text-emerald-200" : "bg-rose-500/20 text-rose-200"}`}>
-      {ok ? "En ligne" : status}
+      {ok ? tr("admin.limule.online") : status}
     </span>
   );
 }
@@ -73,28 +75,29 @@ function Metric({
 const DIAGNOSTICS = [
   {
     key: "tickets",
-    label: "Analyser les tickets critiques",
+    labelTk: "admin.limule.diagnostics.tickets.label",
     icon: AlertTriangle,
-    description: "Analyse les tickets critiques ouverts et propose des priorités.",
-    prompt: "Analyse tous les tickets critiques actuellement ouverts sur la plateforme. Résume les problèmes, identifie les entreprises les plus à risque et propose un plan d'action support pour les 24 prochaines heures.",
+    descriptionTk: "admin.limule.diagnostics.tickets.description",
+    promptTk: "admin.limule.diagnostics.tickets.prompt",
   },
   {
     key: "health",
-    label: "Résumé santé plateforme",
+    labelTk: "admin.limule.diagnostics.health.label",
     icon: Activity,
-    description: "Résumé des KPIs globaux de la plateforme.",
-    prompt: "Donne-moi un résumé de la santé globale de la plateforme KOMPTA : nombre d'entreprises actives, score TERAS moyen, tickets en attente, alertes ouvertes et tendances des 7 derniers jours. Identifie les points d'attention prioritaires.",
+    descriptionTk: "admin.limule.diagnostics.health.description",
+    promptTk: "admin.limule.diagnostics.health.prompt",
   },
   {
     key: "anomalies",
-    label: "Détecter anomalies",
+    labelTk: "admin.limule.diagnostics.anomalies.label",
     icon: Zap,
-    description: "Détecte les anomalies TERAS sur toutes les entreprises.",
-    prompt: "Analyse les alertes TERAS de toutes les entreprises de la plateforme. Détecte les anomalies inhabituelles, les patterns récurrents et les entreprises qui présentent des risques élevés. Propose des actions correctives.",
+    descriptionTk: "admin.limule.diagnostics.anomalies.description",
+    promptTk: "admin.limule.diagnostics.anomalies.prompt",
   },
 ];
 
 export function AdminLimulePage() {
+  const { t: tr } = useTranslation();
   // ── Health
   const health = useQuery({
     queryKey: ["adminAiHealth"],
@@ -115,7 +118,7 @@ export function AdminLimulePage() {
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([
     {
       role: "assistant",
-      text: "Cockpit Limule Admin prêt. Utilisez la zone de test libre ou les diagnostics prédéfinis.",
+      text: tr("admin.limule.initialMessage"),
     },
   ]);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -128,9 +131,8 @@ export function AdminLimulePage() {
     ? Math.round(insights.data.last_7_days / 7)
     : "–";
   const avgLatency = health.data?.latency_ms != null ? `${health.data.latency_ms}ms` : "–";
-  // Estimation explicite : aucun comptage réel de tokens n'est instrumenté côté
-  // fournisseur LLM. On affiche une borne indicative (≈420 tokens/req), jamais
-  // présentée comme une mesure exacte.
+  // Explicit estimate: token metering is not instrumented by the LLM provider.
+  // The UI shows an indicative bound (about 420 tokens/request), not an exact metric.
   const tokensConsumed = insights.data?.total_interactions
     ? `≈ ${(insights.data.total_interactions * 420).toLocaleString(i18n.language)}`
     : "–";
@@ -168,7 +170,7 @@ export function AdminLimulePage() {
       () => {
         setStreaming(false);
         setStreamText("");
-        setMessages((m) => [...m, { role: "assistant", text: "Erreur : Limule n'est pas disponible. Vérifiez la configuration backend." }]);
+        setMessages((m) => [...m, { role: "assistant", text: tr("admin.limule.unavailableError") }]);
       },
     );
   }
@@ -190,17 +192,17 @@ export function AdminLimulePage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Intelligence Artificielle</p>
-          <h1 className="text-3xl font-black">Cockpit Limule Admin</h1>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">{tr("admin.limule.eyebrow")}</p>
+          <h1 className="text-3xl font-black">{tr("admin.limule.title")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-white/60">
-            Supervision en temps réel, zone de test libre, diagnostics prédéfinis et historique des requêtes.
+            {tr("admin.limule.subtitle")}
           </p>
         </div>
         <button
           onClick={exportDataset}
           className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-600"
         >
-          <Download size={16} /> Exporter JSONL
+          <Download size={16} /> {tr("admin.limule.exportJsonl")}
         </button>
       </div>
 
@@ -212,9 +214,9 @@ export function AdminLimulePage() {
               <BrainCircuit size={20} />
             </span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-white/45">Statut Limule IA</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/45">{tr("admin.limule.statusTitle")}</p>
               <p className="font-black">
-                {health.isLoading ? "Vérification..." : (health.data?.model ?? health.data?.provider ?? "Limule")}
+                {health.isLoading ? tr("admin.limule.checking") : (health.data?.model ?? health.data?.provider ?? "Limule")}
               </p>
             </div>
           </div>
@@ -236,10 +238,10 @@ export function AdminLimulePage() {
 
       {/* Metrics */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={BrainCircuit} label="Requêtes aujourd'hui" value={todayRequests} hint="estimé sur 7j" />
-        <Metric icon={Clock} label="Latence moyenne" value={avgLatency} hint="depuis health check" />
-        <Metric icon={Tags} label="Tokens (estimation)" value={tokensConsumed} hint="≈420 tokens/req — non mesuré" />
-        <Metric icon={Activity} label="Total interactions" value={data?.total_interactions ?? "…"} hint={`${data?.last_7_days ?? 0} sur 7 jours`} />
+        <Metric icon={BrainCircuit} label={tr("admin.limule.metrics.requestsToday")} value={todayRequests} hint={tr("admin.limule.metrics.estimated7d")} />
+        <Metric icon={Clock} label={tr("admin.limule.metrics.avgLatency")} value={avgLatency} hint={tr("admin.limule.metrics.fromHealth")} />
+        <Metric icon={Tags} label={tr("admin.limule.metrics.tokensEstimate")} value={tokensConsumed} hint={tr("admin.limule.metrics.tokensHint")} />
+        <Metric icon={Activity} label={tr("admin.limule.metrics.totalInteractions")} value={data?.total_interactions ?? "…"} hint={tr("admin.limule.metrics.last7Days", { count: data?.last_7_days ?? 0 })} />
       </div>
 
       {/* Diagnostics + Chat */}
@@ -252,8 +254,8 @@ export function AdminLimulePage() {
                 <FlaskConical size={18} />
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-indigo-200">Diagnostics prédéfinis</p>
-                <h2 className="text-lg font-black">Plateforme</h2>
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-200">{tr("admin.limule.predefinedDiagnostics")}</p>
+                <h2 className="text-lg font-black">{tr("admin.limule.platform")}</h2>
               </div>
             </div>
             <div className="space-y-2">
@@ -262,14 +264,14 @@ export function AdminLimulePage() {
                 return (
                   <button
                     key={d.key}
-                    onClick={() => sendPrompt(d.prompt)}
+                    onClick={() => sendPrompt(tr(d.promptTk))}
                     disabled={streaming}
                     className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left hover:bg-white/10 disabled:opacity-50 transition-colors"
                   >
                     <Icon size={16} className="mt-0.5 shrink-0 text-indigo-300" />
                     <div>
-                      <p className="text-sm font-bold text-white">{d.label}</p>
-                      <p className="text-xs text-white/50">{d.description}</p>
+                      <p className="text-sm font-bold text-white">{tr(d.labelTk)}</p>
+                      <p className="text-xs text-white/50">{tr(d.descriptionTk)}</p>
                     </div>
                     <ChevronRight size={14} className="ml-auto mt-1 shrink-0 text-white/30" />
                   </button>
@@ -280,22 +282,22 @@ export function AdminLimulePage() {
 
           {/* Dataset info */}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <h3 className="mb-3 font-black">Base d'apprentissage</h3>
+            <h3 className="mb-3 font-black">{tr("admin.limule.trainingBase")}</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-white/70">
-                <span>Interactions notées</span>
+                <span>{tr("admin.limule.dataset.ratedInteractions")}</span>
                 <span className="font-bold text-white">{data?.rated ?? "–"}</span>
               </div>
               <div className="flex justify-between text-white/70">
-                <span>Note moyenne</span>
+                <span>{tr("admin.limule.dataset.avgRating")}</span>
                 <span className="font-bold text-white">{data?.avg_rating ?? "–"}/5</span>
               </div>
               <div className="flex justify-between text-white/70">
-                <span>Prêts entraînement</span>
+                <span>{tr("admin.limule.dataset.trainingReady")}</span>
                 <span className="font-bold text-emerald-300">{data?.training_ready ?? "–"}</span>
               </div>
               <div className="flex justify-between text-white/70">
-                <span>Modules couverts</span>
+                <span>{tr("admin.limule.dataset.coveredModules")}</span>
                 <span className="font-bold text-white">{data?.by_module?.length ?? "–"}</span>
               </div>
             </div>
@@ -307,9 +309,9 @@ export function AdminLimulePage() {
           <div className="border-b border-white/10 px-5 py-3">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-indigo-300" />
-              <h2 className="font-black">Zone de test libre</h2>
+              <h2 className="font-black">{tr("admin.limule.freeTestZone")}</h2>
             </div>
-            <p className="text-xs text-white/45">Envoyer n'importe quel prompt à Limule et voir la réponse en streaming</p>
+            <p className="text-xs text-white/45">{tr("admin.limule.freeTestHint")}</p>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-5">
             {messages.map((msg, i) => (
@@ -332,7 +334,7 @@ export function AdminLimulePage() {
               </div>
             )}
             {streaming && !streamText && (
-              <p className="text-xs font-bold text-indigo-300">Limule génère une réponse...</p>
+              <p className="text-xs font-bold text-indigo-300">{tr("admin.limule.generating")}</p>
             )}
             <div ref={endRef} />
           </div>
@@ -343,14 +345,14 @@ export function AdminLimulePage() {
             <input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Taper un message pour tester Limule..."
+              placeholder={tr("admin.limule.promptPlaceholder")}
               className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-indigo-500"
             />
             <button
               type="submit"
               disabled={streaming || !prompt.trim()}
               className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-600 disabled:opacity-50"
-              aria-label="Envoyer"
+              aria-label={tr("admin.tickets.send")}
             >
               <Send size={16} />
             </button>
@@ -362,12 +364,12 @@ export function AdminLimulePage() {
       {history.length > 0 && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-black">Historique des 10 dernières requêtes</h2>
+            <h2 className="font-black">{tr("admin.limule.historyTitle")}</h2>
             <button
               onClick={() => { setHistory([]); saveHistory([]); }}
               className="text-xs font-bold text-rose-400 hover:text-rose-300"
             >
-              Effacer
+              {tr("admin.limule.clear")}
             </button>
           </div>
           <div className="space-y-3">
@@ -382,7 +384,7 @@ export function AdminLimulePage() {
                   onClick={() => sendPrompt(item.prompt)}
                   className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-300 hover:text-white"
                 >
-                  <Database size={11} /> Rejouer
+                  <Database size={11} /> {tr("admin.limule.replay")}
                 </button>
               </div>
             ))}

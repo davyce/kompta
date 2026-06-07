@@ -2594,6 +2594,16 @@
       "searchPlaceholder": "Search subject, company, requester...",
       "empty": "No ticket found.",
       "emptyColumn": "Empty",
+      "back": "Back to tickets",
+      "initialRequest": "Initial request",
+      "supportResponse": "Support response",
+      "supportResponsePlaceholder": "Write a clear, actionable and reassuring response...",
+      "sendResponse": "Send response",
+      "triage": "Triage",
+      "priorityLabel": "Priority",
+      "categoryLabel": "Category",
+      "supportAssistant": "Support assistant",
+      "recommendedResponse": "Recommended response: confirm ownership, ask for the exact context, propose an immediate action, then move the ticket to in_progress.",
       "views": {
         "list": "List",
         "kanban": "Kanban"
@@ -2623,6 +2633,12 @@
         "date": "Sort: Date",
         "priority": "Sort: Priority",
         "company": "Sort: Company"
+      },
+      "categories": {
+        "general": "General",
+        "technical": "Technical",
+        "billing": "Billing",
+        "feature": "Feature"
       }
     },
     "subscriptions": {
@@ -2675,6 +2691,230 @@
         "discountPercent": "Discount %",
         "limit": "Limit (0=∞)",
         "targetPlan": "Target plan (empty = all)"
+      }
+    },
+    "companies": {
+      "title": "Client companies",
+      "subtitle": "Cross-tenant view of organizations, TERAS scores and activation.",
+      "createCompany": "Create a company",
+      "createCompanyShort": "Create company",
+      "creating": "Creating…",
+      "targetedBroadcast": "Targeted broadcast",
+      "messageSent": "Message sent!",
+      "sending": "Sending…",
+      "adminAccount": "Administrator account",
+      "companyCount_one": "{{count}} company",
+      "companyCount_other": "{{count}} companies",
+      "searchPlaceholder": "Name, sector, country…",
+      "allSectors": "All sectors",
+      "allCountries": "All countries",
+      "allTeras": "All TERAS",
+      "users": "Users",
+      "employees": "Employees",
+      "usersCount_one": "{{count}} user",
+      "usersCount_other": "{{count}} users",
+      "servicesFallback": "Services",
+      "terasScore": "TERAS score",
+      "detail": "Detail",
+      "viewDetail": "View detail",
+      "createdAt": "Created on",
+      "empty": "No company found.",
+      "back": "Back to companies",
+      "tenantDetail": "Tenant detail",
+      "invoices": "Invoices",
+      "posRevenue": "POS revenue",
+      "setup": "Setup",
+      "terasAlerts": "TERAS alerts",
+      "noActiveAlerts": "No active alert.",
+      "fields": {
+        "tradeName": "Trade name",
+        "legalName": "Legal name",
+        "industry": "Sector",
+        "country": "Country",
+        "fullName": "Full name",
+        "phone": "Phone",
+        "temporaryPassword": "Temporary password"
+      },
+      "placeholders": {
+        "industry": "Retail",
+        "fullName": "John Smith"
+      },
+      "plans": {
+        "basic": "Basic",
+        "pro": "Pro",
+        "enterprise": "Enterprise"
+      },
+      "sort": {
+        "az": "Sort: A–Z",
+        "teras": "Sort: TERAS",
+        "users": "Sort: Users",
+        "date": "Sort: Date"
+      },
+      "errors": {
+        "generic": "Error"
+      }
+    },
+    "system": {
+      "eyebrow": "Administration",
+      "title": "System",
+      "subtitle": "Feature flags, service health and system information.",
+      "editFlag": "Edit flag",
+      "newFlag": "New flag",
+      "key": "Key",
+      "value": "Value",
+      "enabled": "Enabled",
+      "flagDescriptionPlaceholder": "Flag description...",
+      "confirmDeleteFlagTitle": "Delete this feature flag?",
+      "flagsConfigured_one": "{{count}} flag configured",
+      "flagsConfigured_other": "{{count}} flags configured",
+      "noFlags": "No feature flag configured.",
+      "lastAutoCheck": "Last check: auto every 60s",
+      "latency": "Latency",
+      "lastCheck": "Last check",
+      "comingSoon": "Coming soon",
+      "tabs": {
+        "flags": "Feature Flags",
+        "health": "Health Check",
+        "email": "SMTP Email",
+        "system": "System information"
+      },
+      "serviceStatus": {
+        "healthy": "Operational",
+        "degraded": "Degraded",
+        "down": "Offline"
+      },
+      "defaultServices": {
+        "database": "Database",
+        "limule": "Limule AI",
+        "storage": "Storage"
+      },
+      "info": {
+        "version": "Application version",
+        "environment": "Environment",
+        "database": "Database",
+        "updatedAt": "Last update"
+      },
+      "email": {
+        "sendError": "Error while sending",
+        "smtpConfig": "SMTP configuration",
+        "enabledValue": "✅ Enabled",
+        "notConfiguredValue": "⚠️ Not configured",
+        "server": "Server",
+        "sender": "Sender",
+        "requiredConfig": "Required configuration",
+        "addToEnv": "Add to your",
+        "testConfig": "Test configuration",
+        "sendTest": "Send test",
+        "automaticEmails": "Automatic emails",
+        "automatic": {
+          "unpaidInvoice": "Unpaid invoice follow-up",
+          "passwordReset": "Password reset",
+          "broadcast": "Platform broadcast",
+          "newUserWelcome": "New user welcome",
+          "twoFactor": "2FA enabled"
+        }
+      }
+    },
+    "limule": {
+      "online": "Online",
+      "initialMessage": "Admin Limule cockpit ready. Use the free test area or predefined diagnostics.",
+      "unavailableError": "Error: Limule is unavailable. Check the backend configuration.",
+      "eyebrow": "Artificial Intelligence",
+      "title": "Admin Limule Cockpit",
+      "subtitle": "Real-time supervision, free test area, predefined diagnostics and request history.",
+      "exportJsonl": "Export JSONL",
+      "statusTitle": "Limule AI status",
+      "checking": "Checking...",
+      "predefinedDiagnostics": "Predefined diagnostics",
+      "platform": "Platform",
+      "trainingBase": "Training base",
+      "freeTestZone": "Free test area",
+      "freeTestHint": "Send any prompt to Limule and watch the streamed response",
+      "generating": "Limule is generating a response...",
+      "promptPlaceholder": "Type a message to test Limule...",
+      "historyTitle": "History of the last 10 requests",
+      "clear": "Clear",
+      "replay": "Replay",
+      "metrics": {
+        "requestsToday": "Requests today",
+        "estimated7d": "estimated over 7d",
+        "avgLatency": "Average latency",
+        "fromHealth": "from health check",
+        "tokensEstimate": "Tokens (estimate)",
+        "tokensHint": "≈420 tokens/req — not measured",
+        "totalInteractions": "Total interactions",
+        "last7Days": "{{count}} over 7 days"
+      },
+      "dataset": {
+        "ratedInteractions": "Rated interactions",
+        "avgRating": "Average rating",
+        "trainingReady": "Training ready",
+        "coveredModules": "Covered modules"
+      },
+      "diagnostics": {
+        "tickets": {
+          "label": "Analyze critical tickets",
+          "description": "Analyzes open critical tickets and suggests priorities.",
+          "prompt": "Analyze all critical tickets currently open on the platform. Summarize the issues, identify the companies most at risk, and propose a support action plan for the next 24 hours."
+        },
+        "health": {
+          "label": "Platform health summary",
+          "description": "Summary of global platform KPIs.",
+          "prompt": "Give me a summary of the overall health of the KOMPTA platform: number of active companies, average TERAS score, pending tickets, open alerts, and trends over the last 7 days. Identify priority attention points."
+        },
+        "anomalies": {
+          "label": "Detect anomalies",
+          "description": "Detects TERAS anomalies across all companies.",
+          "prompt": "Analyze TERAS alerts across all companies on the platform. Detect unusual anomalies, recurring patterns, and companies with high risk. Propose corrective actions."
+        }
+      }
+    },
+    "users": {
+      "title": "Platform users",
+      "subtitle": "Cross-tenant search, account status and roles.",
+      "accounts": "accounts",
+      "searchPlaceholder": "Name or email…",
+      "allCompanies": "All companies",
+      "allRoles": "All roles",
+      "allStatuses": "All statuses",
+      "user": "User",
+      "role": "Role",
+      "team": "Team",
+      "department": "Department",
+      "branch": "Branch",
+      "indicators": "Indicators",
+      "lastLogin": "Last login",
+      "lastLoginWithValue": "Last login: {{value}}",
+      "loginWithValue": "Login: {{value}}",
+      "never": "Never",
+      "passwordToCreate": "password to create",
+      "activate": "Activate",
+      "impersonate": "Impersonate",
+      "resetPassword": "Reset password",
+      "resetPasswordShort": "Reset password",
+      "empty": "No user found.",
+      "generating": "Generating…",
+      "generateToken": "Generate token",
+      "impersonateWarning": "This action generates a temporary JWT token to access this user's account. Use for diagnostics only. The action is logged.",
+      "tokenGeneratedFor": "Token generated for {{email}}",
+      "copiedBang": "Copied!",
+      "copyToClipboard": "Copy to clipboard",
+      "tokenUsageHint": "Use this token in the Authorization: Bearer [token] header to access the API as this user.",
+      "resetPasswordDescription": "A temporary password will be generated, existing sessions will be revoked, then the user must create a new password on next sign-in.",
+      "resetting": "Resetting…",
+      "reset": "Reset",
+      "tempPasswordGenerated": "Temporary password generated",
+      "sessionsRevoked": "The user's active sessions were revoked. Share this password through a secure channel.",
+      "temporaryPassword": "Temporary password",
+      "passwordDashWarning": "Simple ASCII hyphens (-), not long dashes. The user must change this password on first sign-in.",
+      "confirmSuspendTitle": "Suspend {{name}}?",
+      "confirmSuspendMessage": "The user will not be able to sign in until reactivated.",
+      "suspensionReason": "Suspension reason",
+      "confirmImpersonateTitle": "Impersonate {{name}}?",
+      "confirmImpersonateMessage": "You will act on behalf of this user. This action is recorded in the audit log.",
+      "impersonateAcknowledge": "I understand this session will be traced to my name.",
+      "errors": {
+        "generic": "Error"
       }
     }
   },

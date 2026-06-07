@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   Building2,
   Download,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../services/api";
@@ -64,6 +66,7 @@ type CreateForm = {
 };
 
 function CreateCompanyModal({ onClose }: { onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CreateForm>({
     company_name: "",
@@ -96,7 +99,7 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["adminCompanies"] });
       onClose();
     },
-    onError: (e) => setError(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => setError(e instanceof Error ? e.message : tr("admin.companies.errors.generic")),
   });
 
   function field(key: keyof CreateForm, label: string, type = "text", placeholder = "") {
@@ -118,19 +121,19 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur p-4">
       <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-black">Créer une entreprise</h2>
+          <h2 className="text-lg font-black">{tr("admin.companies.createCompany")}</h2>
           <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
             <X size={16} />
           </button>
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {field("company_name", "Nom commercial", "text", "Acme Corp")}
-            {field("legal_name", "Raison sociale", "text", "Acme SARL")}
+            {field("company_name", tr("admin.companies.fields.tradeName"), "text", "Acme Corp")}
+            {field("legal_name", tr("admin.companies.fields.legalName"), "text", "Acme SARL")}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {field("industry", "Secteur", "text", "Commerce")}
-            {field("country", "Pays", "text", "CM")}
+            {field("industry", tr("admin.companies.fields.industry"), "text", tr("admin.companies.placeholders.industry"))}
+            {field("country", tr("admin.companies.fields.country"), "text", "CM")}
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-white/60">Plan</label>
@@ -139,30 +142,30 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
               className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
             >
-              <option value="basic">Basic</option>
-              <option value="pro">Pro</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="basic">{tr("admin.companies.plans.basic")}</option>
+              <option value="pro">{tr("admin.companies.plans.pro")}</option>
+              <option value="enterprise">{tr("admin.companies.plans.enterprise")}</option>
             </select>
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Compte administrateur</p>
-          {field("admin_full_name", "Nom complet", "text", "Jean Dupont")}
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">{tr("admin.companies.adminAccount")}</p>
+          {field("admin_full_name", tr("admin.companies.fields.fullName"), "text", tr("admin.companies.placeholders.fullName"))}
           {field("admin_email", "Email", "email", "admin@acme.com")}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {field("admin_phone", "Téléphone", "tel", "+237600000000")}
-            {field("password", "Mot de passe provisoire", "password")}
+            {field("admin_phone", tr("admin.companies.fields.phone"), "tel", "+237600000000")}
+            {field("password", tr("admin.companies.fields.temporaryPassword"), "password")}
           </div>
         </div>
         {error && <p className="mt-3 text-xs text-rose-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-bold text-white/70 hover:bg-white/10 transition">
-            Annuler
+            {tr("common.cancel")}
           </button>
           <button
             onClick={() => create.mutate()}
             disabled={create.isPending || !form.company_name || !form.admin_email}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition"
           >
-            {create.isPending ? "Création…" : "Créer l'entreprise"}
+            {create.isPending ? tr("admin.companies.creating") : tr("admin.companies.createCompanyShort")}
           </button>
         </div>
       </div>
@@ -173,6 +176,7 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
 // ── Broadcast modal ───────────────────────────────────────────────────────────
 
 function BroadcastModal({ companyId, companyName, onClose }: { companyId: number; companyName: string; onClose: () => void }) {
+  const { t: tr } = useTranslation();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
@@ -183,7 +187,7 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
     mutationFn: () =>
       api.adminBroadcast({ title, message, type, target_company_id: companyId }),
     onSuccess: () => setSent(true),
-    onError: (e) => setError(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => setError(e instanceof Error ? e.message : tr("admin.companies.errors.generic")),
   });
 
   return (
@@ -191,7 +195,7 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-black">Broadcast ciblé</h2>
+            <h2 className="text-lg font-black">{tr("admin.companies.targetedBroadcast")}</h2>
             <p className="text-xs text-white/50">{companyName}</p>
           </div>
           <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
@@ -201,13 +205,13 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
         {sent ? (
           <div className="py-8 text-center">
             <p className="text-2xl">✓</p>
-            <p className="mt-2 font-black text-emerald-300">Message envoyé !</p>
-            <button onClick={onClose} className="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20 transition">Fermer</button>
+            <p className="mt-2 font-black text-emerald-300">{tr("admin.companies.messageSent")}</p>
+            <button onClick={onClose} className="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20 transition">{tr("common.close")}</button>
           </div>
         ) : (
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-bold text-white/60">Titre</label>
+              <label className="mb-1 block text-xs font-bold text-white/60">{tr("admin.broadcast.fieldTitle")}</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -215,7 +219,7 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-white/60">Message</label>
+              <label className="mb-1 block text-xs font-bold text-white/60">{tr("admin.broadcast.fieldMessage")}</label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -224,28 +228,28 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-white/60">Type</label>
+              <label className="mb-1 block text-xs font-bold text-white/60">{tr("admin.broadcast.messageType")}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
               >
-                <option value="info">Info</option>
-                <option value="warning">Avertissement</option>
-                <option value="critical">Critique</option>
+                <option value="info">{tr("admin.broadcast.typeInfo")}</option>
+                <option value="warning">{tr("admin.broadcast.typeWarning")}</option>
+                <option value="critical">{tr("admin.broadcast.typeCritical")}</option>
               </select>
             </div>
             {error && <p className="text-xs text-rose-400">{error}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-bold text-white/70 hover:bg-white/10 transition">
-                Annuler
+                {tr("common.cancel")}
               </button>
               <button
                 onClick={() => send.mutate()}
                 disabled={send.isPending || !title || !message}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition"
               >
-                {send.isPending ? "Envoi…" : "Envoyer"}
+                {send.isPending ? tr("admin.companies.sending") : tr("admin.tickets.send")}
               </button>
             </div>
           </div>
@@ -270,6 +274,7 @@ function CompanyCard({
   onToggleStatus: () => void;
   suspending: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const isSuspended = false; // status not in API type yet, reserved for future
 
   return (
@@ -293,12 +298,12 @@ function CompanyCard({
         <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">
           <Users size={14} className="text-indigo-500 dark:text-indigo-300" />
           <p className="mt-1 text-lg font-black">{company.users_count}</p>
-          <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">Users</p>
+          <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">{tr("admin.companies.users")}</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">
           <Building2 size={14} className="text-indigo-500 dark:text-indigo-300" />
           <p className="mt-1 text-lg font-black">{company.employees_count}</p>
-          <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">Employes</p>
+          <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-white/40">{tr("admin.companies.employees")}</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">
           <ShieldCheck size={14} className="text-emerald-500 dark:text-emerald-300" />
@@ -308,7 +313,7 @@ function CompanyCard({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <Pill>{company.industry || "Services"}</Pill>
+        <Pill>{company.industry || tr("admin.companies.servicesFallback")}</Pill>
         <Pill tone="sky">{company.country || "—"}</Pill>
         {company.created_at && (
           <Pill tone="violet">{new Date(company.created_at).toLocaleDateString(i18n.language)}</Pill>
@@ -318,7 +323,7 @@ function CompanyCard({
       {/* TERAS bar */}
       <div>
         <div className="mb-1 flex justify-between text-[10px] font-bold text-slate-400 dark:text-white/40">
-          <span>Score TERAS</span>
+          <span>{tr("admin.companies.terasScore")}</span>
           <span>{company.teras_score}/100</span>
         </div>
         <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden dark:bg-white/10">
@@ -334,7 +339,7 @@ function CompanyCard({
           onClick={onView}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold hover:bg-slate-100 transition dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
         >
-          <Eye size={13} /> Détail
+          <Eye size={13} /> {tr("admin.companies.detail")}
         </button>
         <button
           onClick={onBroadcast}
@@ -360,8 +365,19 @@ function CompanyCard({
 
 // ── CSV export ────────────────────────────────────────────────────────────────
 
-function exportCsv(companies: Company[]) {
-  const headers = ["ID", "Nom", "Raison sociale", "Secteur", "Pays", "Users", "Employes", "TERAS", "Completion", "Crée le"];
+function exportCsv(companies: Company[], tr: TFunction) {
+  const headers = [
+    "ID",
+    tr("common.name"),
+    tr("admin.companies.fields.legalName"),
+    tr("admin.companies.fields.industry"),
+    tr("admin.companies.fields.country"),
+    tr("admin.companies.users"),
+    tr("admin.companies.employees"),
+    "TERAS",
+    "Completion",
+    tr("admin.companies.createdAt"),
+  ];
   const rows = companies.map((c) => [
     c.id,
     c.name,
@@ -387,6 +403,7 @@ function exportCsv(companies: Company[]) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function AdminCompaniesPage() {
+  const { t: tr } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -454,13 +471,13 @@ export function AdminCompaniesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tenants</p>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Entreprises clientes</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">Vue cross-tenant des organisations, scores TERAS et activation.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.companies.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.companies.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Pill tone="emerald">{filtered.length} entreprise(s)</Pill>
+          <Pill tone="emerald">{tr("admin.companies.companyCount", { count: filtered.length })}</Pill>
           <button
-            onClick={() => exportCsv(filtered)}
+            onClick={() => exportCsv(filtered, tr)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
           >
             <Download size={13} /> CSV
@@ -469,7 +486,7 @@ export function AdminCompaniesPage() {
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition"
           >
-            <Plus size={13} /> Créer
+            <Plus size={13} /> {tr("common.create")}
           </button>
         </div>
       </div>
@@ -481,7 +498,7 @@ export function AdminCompaniesPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Nom, secteur, pays…"
+            placeholder={tr("admin.companies.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
@@ -490,7 +507,7 @@ export function AdminCompaniesPage() {
           onChange={(e) => setSector(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
-          <option value="">Tous secteurs</option>
+          <option value="">{tr("admin.companies.allSectors")}</option>
           {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select
@@ -498,7 +515,7 @@ export function AdminCompaniesPage() {
           onChange={(e) => setCountry(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
-          <option value="">Tous pays</option>
+          <option value="">{tr("admin.companies.allCountries")}</option>
           {countries.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
@@ -506,7 +523,7 @@ export function AdminCompaniesPage() {
           onChange={(e) => setTerasFilter(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
-          <option value="">Tous TERAS</option>
+          <option value="">{tr("admin.companies.allTeras")}</option>
           <option value="high">TERAS ≥ 80</option>
           <option value="low">TERAS &lt; 50</option>
         </select>
@@ -515,10 +532,10 @@ export function AdminCompaniesPage() {
           onChange={(e) => setSortBy(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
-          <option value="name">Tri: A–Z</option>
-          <option value="teras">Tri: TERAS</option>
-          <option value="users">Tri: Users</option>
-          <option value="date">Tri: Date</option>
+          <option value="name">{tr("admin.companies.sort.az")}</option>
+          <option value="teras">{tr("admin.companies.sort.teras")}</option>
+          <option value="users">{tr("admin.companies.sort.users")}</option>
+          <option value="date">{tr("admin.companies.sort.date")}</option>
         </select>
         <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden dark:border-white/10 dark:bg-white/5">
           <button
@@ -552,7 +569,7 @@ export function AdminCompaniesPage() {
           {filtered.length === 0 && (
             <div className="col-span-3 py-16 text-center text-slate-400 dark:text-white/30">
               <Building2 size={36} className="mx-auto mb-3" />
-              <p className="font-semibold">{companies.isLoading ? "Chargement…" : "Aucune entreprise trouvée."}</p>
+              <p className="font-semibold">{companies.isLoading ? tr("common.loading") : tr("admin.companies.empty")}</p>
             </div>
           )}
         </div>
@@ -578,7 +595,7 @@ export function AdminCompaniesPage() {
                       <span>·</span>
                       <span>{c.country || "—"}</span>
                       <span>·</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{c.users_count} users</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{tr("admin.companies.usersCount", { count: c.users_count })}</span>
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40">TERAS</span>
@@ -590,7 +607,7 @@ export function AdminCompaniesPage() {
                       </div>
                       <span className="text-xs font-black text-slate-900 dark:text-white">{c.teras_score}</span>
                       <span className="ml-auto rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-black uppercase dark:bg-emerald-500/20 dark:text-emerald-200">
-                        Actif
+                        {tr("admin.subscriptions.status.active")}
                       </span>
                     </div>
                   </div>
@@ -601,7 +618,7 @@ export function AdminCompaniesPage() {
                     onClick={() => navigate(`/admin/companies/${c.id}`)}
                     className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
                   >
-                    <Eye size={12} /> Détail
+                    <Eye size={12} /> {tr("admin.companies.detail")}
                   </button>
                   <button
                     onClick={() => setBroadcastTarget(c)}
@@ -613,7 +630,7 @@ export function AdminCompaniesPage() {
                     onClick={() => suspendMut.mutate({ id: c.id, status: "suspended" })}
                     className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
                   >
-                    <ShieldOff size={12} /> Suspendre
+                    <ShieldOff size={12} /> {tr("admin.subscriptions.suspend")}
                   </button>
                 </div>
               </div>
@@ -624,13 +641,13 @@ export function AdminCompaniesPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:bg-white/5 dark:border-white/10 dark:text-white/40">
                 <tr>
-                  <th className="px-4 py-3">Entreprise</th>
-                  <th className="px-4 py-3">Secteur</th>
-                  <th className="px-4 py-3">Pays</th>
-                  <th className="px-4 py-3">Users</th>
+                  <th className="px-4 py-3">{tr("admin.subscriptions.company")}</th>
+                  <th className="px-4 py-3">{tr("admin.companies.fields.industry")}</th>
+                  <th className="px-4 py-3">{tr("admin.companies.fields.country")}</th>
+                  <th className="px-4 py-3">{tr("admin.companies.users")}</th>
                   <th className="px-4 py-3 w-32">TERAS</th>
-                  <th className="px-4 py-3">Statut</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th className="px-4 py-3">{tr("common.status")}</th>
+                  <th className="px-4 py-3">{tr("common.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-white/5">
@@ -663,7 +680,7 @@ export function AdminCompaniesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-black uppercase dark:bg-emerald-500/20 dark:text-emerald-200">
-                        Actif
+                        {tr("admin.subscriptions.status.active")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -671,7 +688,7 @@ export function AdminCompaniesPage() {
                         <button
                           onClick={() => navigate(`/admin/companies/${c.id}`)}
                           className="grid h-7 w-7 place-items-center rounded-md border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-                          title="Voir le détail"
+                          title={tr("admin.companies.viewDetail")}
                         >
                           <Eye size={13} />
                         </button>
@@ -685,7 +702,7 @@ export function AdminCompaniesPage() {
                         <button
                           onClick={() => suspendMut.mutate({ id: c.id, status: "suspended" })}
                           className="grid h-7 w-7 place-items-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                          title="Suspendre"
+                          title={tr("admin.subscriptions.suspend")}
                         >
                           <ShieldOff size={13} />
                         </button>
@@ -699,7 +716,7 @@ export function AdminCompaniesPage() {
           {filtered.length === 0 && (
             <div className="py-16 text-center text-slate-400 dark:text-white/30">
               <Building2 size={36} className="mx-auto mb-3" />
-              <p className="font-semibold">{companies.isLoading ? "Chargement…" : "Aucune entreprise trouvée."}</p>
+              <p className="font-semibold">{companies.isLoading ? tr("common.loading") : tr("admin.companies.empty")}</p>
             </div>
           )}
         </div>
