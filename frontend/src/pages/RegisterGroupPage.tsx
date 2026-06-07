@@ -3,6 +3,7 @@ import {
   Loader2, MapPin, MessageCircle, Sparkles, User, Users2, Vote, Wallet,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
 import { api, setToken } from "../services/api";
@@ -10,21 +11,21 @@ import { LimuleIcon } from "../components/LimuleAvatar";
 import { TextInput, SelectInput } from "../components/FormField";
 
 const GROUP_TYPES = [
-  { value: "association",       label: "Association" },
-  { value: "tontine",           label: "Tontine / Groupe d'épargne" },
-  { value: "mutuelle",          label: "Mutuelle / Solidarité" },
-  { value: "ONG",               label: "ONG / Organisation à but non lucratif" },
-  { value: "église",            label: "Communauté religieuse" },
-  { value: "club sportif",      label: "Club sportif" },
-  { value: "syndicat",          label: "Syndicat professionnel" },
-  { value: "coopérative",       label: "Coopérative" },
-  { value: "groupe familial",   label: "Groupe familial / Clan" },
-  { value: "comité",            label: "Comité / Bureau" },
-  { value: "groupe d'amis",     label: "Groupe d'amis" },
-  { value: "collectif",         label: "Collectif / Mouvement" },
-  { value: "groupe scolaire",   label: "Association scolaire / Étudiante" },
-  { value: "groupement agricole", label: "Groupement agricole / Paysan" },
-  { value: "autre",             label: "Autre organisation" },
+  { value: "association",       tk: "registerGroup.gtAssociation" },
+  { value: "tontine",           tk: "registerGroup.gtTontine" },
+  { value: "mutuelle",          tk: "registerGroup.gtMutuelle" },
+  { value: "ONG",               tk: "registerGroup.gtOng" },
+  { value: "église",            tk: "registerGroup.gtChurch" },
+  { value: "club sportif",      tk: "registerGroup.gtSport" },
+  { value: "syndicat",          tk: "registerGroup.gtUnion" },
+  { value: "coopérative",       tk: "registerGroup.gtCoop" },
+  { value: "groupe familial",   tk: "registerGroup.gtFamily" },
+  { value: "comité",            tk: "registerGroup.gtCommittee" },
+  { value: "groupe d'amis",     tk: "registerGroup.gtFriends" },
+  { value: "collectif",         tk: "registerGroup.gtCollective" },
+  { value: "groupe scolaire",   tk: "registerGroup.gtSchool" },
+  { value: "groupement agricole", tk: "registerGroup.gtAgri" },
+  { value: "autre",             tk: "registerGroup.gtOther" },
 ];
 
 const CURRENCIES = [
@@ -43,18 +44,19 @@ const COUNTRIES = [
 ];
 
 const FEATURES = [
-  { key: "cotisations",   icon: Wallet,          label: "Cotisations & Caisse" },
-  { key: "inventaire",    icon: Building2,       label: "Inventaire du groupe" },
-  { key: "chat",          icon: MessageCircle,   label: "Chat & Messagerie" },
-  { key: "votes",         icon: Vote,            label: "Votes & Décisions" },
-  { key: "anniversaires", icon: Calendar,        label: "Anniversaires & Rappels" },
-  { key: "ia",            icon: Sparkles,        label: "Assistant IA Limule" },
+  { key: "cotisations",   icon: Wallet,          tk: "registerGroup.featCotisations" },
+  { key: "inventaire",    icon: Building2,       tk: "registerGroup.featInventory" },
+  { key: "chat",          icon: MessageCircle,   tk: "registerGroup.featChat" },
+  { key: "votes",         icon: Vote,            tk: "registerGroup.featVotes" },
+  { key: "anniversaires", icon: Calendar,        tk: "registerGroup.featBirthdays" },
+  { key: "ia",            icon: Sparkles,        tk: "registerGroup.featAi" },
 ];
 
 // Étapes : si connecté → 1..3 ; si non connecté → 0..3 (étape 0 = compte)
 type Step = 0 | 1 | 2 | 3;
 
 export function RegisterGroupPage() {
+  const { t: tr } = useTranslation();
   const { token, login } = useAuth();
   const navigate = useNavigate();
   // Si l'utilisateur n'est pas connecté, on commence à l'étape 0 (création de compte)
@@ -99,7 +101,7 @@ export function RegisterGroupPage() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { setError("Le nom du groupe est obligatoire"); return; }
+    if (!form.name.trim()) { setError(tr("registerGroup.errGroupName")); return; }
     setLoading(true);
     setError("");
 
@@ -117,7 +119,7 @@ export function RegisterGroupPage() {
       } else {
         // Utilisateur non connecté → inscription compte + groupe en une seule étape
         if (account.password !== account.password_confirm) {
-          setError("Les mots de passe ne correspondent pas");
+          setError(tr("registerGroup.errPwdMismatch"));
           setLoading(false);
           return;
         }
@@ -144,19 +146,19 @@ export function RegisterGroupPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la création");
+      setError(err instanceof Error ? err.message : tr("registerGroup.errCreate"));
     } finally {
       setLoading(false);
     }
   }
 
-  const typeLabel = GROUP_TYPES.find(t => t.value === form.type)?.label ?? form.type;
+  const typeLabel = (() => { const m = GROUP_TYPES.find(t => t.value === form.type); return m ? tr(m.tk) : form.type; })();
   // Total étapes : 0 (compte) + 1 (identité) + 2 (localisation) + 3 (fonctionnalités)
   const totalSteps = token ? 3 : 4;
   const stepIndex = token ? step : step; // 0-based quand non connecté
   const stepLabels = token
-    ? ["Identité du groupe", "Localisation & devise", "Fonctionnalités"]
-    : ["Votre compte", "Identité du groupe", "Localisation & devise", "Fonctionnalités"];
+    ? [tr("registerGroup.stepIdentity"), tr("registerGroup.stepLocation"), tr("registerGroup.stepFeatures")]
+    : [tr("registerGroup.stepAccount"), tr("registerGroup.stepIdentity"), tr("registerGroup.stepLocation"), tr("registerGroup.stepFeatures")];
 
   return (
     <div className="min-h-dvh bg-[#f7f8fa] dark:bg-[#0d1117] flex flex-col">
@@ -166,17 +168,17 @@ export function RegisterGroupPage() {
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(token ? "/workspace" : "/login")} className="flex items-center gap-1.5 text-sm text-[#717182] hover:text-[#17211f] dark:hover:text-white transition">
             <ArrowLeft size={16} />
-            <span className="hidden sm:inline">Retour</span>
+            <span className="hidden sm:inline">{tr("registerGroup.back")}</span>
           </button>
           <div className="h-4 w-px bg-stone-200 dark:bg-[#374151]" />
           <div className="flex items-center gap-2">
             <div className="grid h-7 w-7 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-xs font-black">G</div>
-            <span className="text-sm font-black text-[#17211f] dark:text-white">Créer un groupe</span>
+            <span className="text-sm font-black text-[#17211f] dark:text-white">{tr("registerGroup.createGroupHeader")}</span>
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs text-[#717182]">
           <LimuleIcon size={14} />
-          <span className="hidden sm:inline">KOMPTA Groupes</span>
+          <span className="hidden sm:inline">{tr("registerGroup.komptaGroups")}</span>
         </div>
       </header>
 
@@ -212,50 +214,50 @@ export function RegisterGroupPage() {
           {step === 0 && (
             <div className="rounded-2xl border border-stone-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] p-6 space-y-4">
               <div>
-                <h2 className="text-xl font-black text-[#17211f] dark:text-white">Votre compte</h2>
-                <p className="text-sm text-[#717182] mt-0.5">Créez votre compte pour gérer vos groupes.</p>
+                <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("registerGroup.stepAccount")}</h2>
+                <p className="text-sm text-[#717182] mt-0.5">{tr("registerGroup.acctDesc")}</p>
               </div>
               <TextInput
-                label="Nom complet *"
+                label={tr("registerGroup.fullName")}
                 value={account.full_name}
                 onChange={e => setAcc("full_name", e.target.value)}
-                placeholder="Ex : Marie-Claire Nzinga"
+                placeholder={tr("registerGroup.fullNamePlaceholder")}
                 required
               />
               <TextInput
-                label="Email *"
+                label={tr("registerGroup.email")}
                 type="email"
                 value={account.email}
                 onChange={e => setAcc("email", e.target.value)}
-                placeholder="votre@email.com"
+                placeholder={tr("registerGroup.emailPlaceholder")}
                 required
               />
               <TextInput
-                label="Téléphone (optionnel)"
+                label={tr("registerGroup.phone")}
                 type="tel"
                 value={account.phone}
                 onChange={e => setAcc("phone", e.target.value)}
-                placeholder="+242 06 000 0000"
+                placeholder={tr("registerGroup.phonePlaceholder")}
               />
               <TextInput
-                label="Mot de passe *"
+                label={tr("registerGroup.password")}
                 type="password"
                 value={account.password}
                 onChange={e => setAcc("password", e.target.value)}
-                placeholder="Minimum 8 caractères"
+                placeholder={tr("registerGroup.pwdPlaceholder")}
                 required
               />
               <TextInput
-                label="Confirmer le mot de passe *"
+                label={tr("registerGroup.pwdConfirm")}
                 type="password"
                 value={account.password_confirm}
                 onChange={e => setAcc("password_confirm", e.target.value)}
-                placeholder="Répétez le mot de passe"
+                placeholder={tr("registerGroup.pwdConfirmPlaceholder")}
                 required
               />
               <p className="text-xs text-[#717182]">
-                Déjà un compte ?{" "}
-                <Link to="/login" className="text-violet-600 hover:underline font-semibold">Se connecter</Link>
+                {tr("registerGroup.alreadyAccount")}{" "}
+                <Link to="/login" className="text-violet-600 hover:underline font-semibold">{tr("registerGroup.signIn")}</Link>
               </p>
             </div>
           )}
@@ -264,31 +266,31 @@ export function RegisterGroupPage() {
           {step === 1 && (
             <div className="rounded-2xl border border-stone-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] p-6 space-y-4">
               <div>
-                <h2 className="text-xl font-black text-[#17211f] dark:text-white">Identité du groupe</h2>
-                <p className="text-sm text-[#717182] mt-0.5">Donnez un nom et un type à votre groupe.</p>
+                <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("registerGroup.stepIdentity")}</h2>
+                <p className="text-sm text-[#717182] mt-0.5">{tr("registerGroup.identityDesc")}</p>
               </div>
 
               <TextInput
-                label="Nom du groupe *"
+                label={tr("registerGroup.groupName")}
                 value={form.name}
                 onChange={e => set("name", e.target.value)}
-                placeholder="Ex : Association des Femmes du Marché Central"
+                placeholder={tr("registerGroup.groupNamePlaceholder")}
                 required
               />
 
-              <SelectInput label="Type de groupe *" value={form.type} onChange={e => set("type", e.target.value)}>
+              <SelectInput label={tr("registerGroup.groupType")} value={form.type} onChange={e => set("type", e.target.value)}>
                 {GROUP_TYPES.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                  <option key={t.value} value={t.value}>{tr(t.tk)}</option>
                 ))}
               </SelectInput>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">Description (optionnel)</label>
+                <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">{tr("registerGroup.descLabel")}</label>
                 <textarea
                   value={form.description}
                   onChange={e => set("description", e.target.value)}
                   rows={3}
-                  placeholder="Décrivez brièvement l'objectif et les activités de votre groupe…"
+                  placeholder={tr("registerGroup.descPlaceholder")}
                   className="mt-1 w-full rounded-lg border border-stone-200 dark:border-[#374151] bg-white dark:bg-[#1f2937] px-3 py-2.5 text-base sm:text-sm outline-none transition focus:border-violet-600 focus:ring-2 focus:ring-violet-100 dark:text-white resize-none"
                 />
               </div>
@@ -299,22 +301,22 @@ export function RegisterGroupPage() {
           {step === 2 && (
             <div className="rounded-2xl border border-stone-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] p-6 space-y-4">
               <div>
-                <h2 className="text-xl font-black text-[#17211f] dark:text-white">Localisation & Devise</h2>
-                <p className="text-sm text-[#717182] mt-0.5">Pour adapter la monnaie et le contexte fiscal.</p>
+                <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("registerGroup.locationTitle")}</h2>
+                <p className="text-sm text-[#717182] mt-0.5">{tr("registerGroup.locationDesc")}</p>
               </div>
 
-              <SelectInput label="Pays" value={form.country} onChange={e => set("country", e.target.value)}>
+              <SelectInput label={tr("registerGroup.country")} value={form.country} onChange={e => set("country", e.target.value)}>
                 {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
               </SelectInput>
 
               <TextInput
-                label="Ville / Zone"
+                label={tr("registerGroup.city")}
                 value={form.city}
                 onChange={e => set("city", e.target.value)}
-                placeholder="Ex : Brazzaville, Plateau"
+                placeholder={tr("registerGroup.cityPlaceholder")}
               />
 
-              <SelectInput label="Devise du groupe" value={form.currency} onChange={e => set("currency", e.target.value)}>
+              <SelectInput label={tr("registerGroup.currencyLabel")} value={form.currency} onChange={e => set("currency", e.target.value)}>
                 {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </SelectInput>
             </div>
@@ -324,8 +326,8 @@ export function RegisterGroupPage() {
           {step === 3 && (
             <div className="rounded-2xl border border-stone-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] p-6 space-y-4">
               <div>
-                <h2 className="text-xl font-black text-[#17211f] dark:text-white">Fonctionnalités</h2>
-                <p className="text-sm text-[#717182] mt-0.5">Activez celles dont vous avez besoin (modifiable plus tard).</p>
+                <h2 className="text-xl font-black text-[#17211f] dark:text-white">{tr("registerGroup.stepFeatures")}</h2>
+                <p className="text-sm text-[#717182] mt-0.5">{tr("registerGroup.featuresDesc")}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -344,7 +346,7 @@ export function RegisterGroupPage() {
                       }`}
                     >
                       <Icon size={16} className={active ? "text-violet-600 dark:text-violet-400" : ""} />
-                      <span className="leading-tight text-xs">{f.label}</span>
+                      <span className="leading-tight text-xs">{tr(f.tk)}</span>
                     </button>
                   );
                 })}
@@ -352,11 +354,11 @@ export function RegisterGroupPage() {
 
               {/* Récap */}
               <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#1f2937] p-4 space-y-2">
-                <p className="text-xs font-bold text-[#717182] uppercase">Récapitulatif</p>
+                <p className="text-xs font-bold text-[#717182] uppercase">{tr("registerGroup.recap")}</p>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm">
                     <Users2 size={14} className="text-violet-500" />
-                    <span className="font-bold text-[#17211f] dark:text-white">{form.name || "Nom non défini"}</span>
+                    <span className="font-bold text-[#17211f] dark:text-white">{form.name || tr("registerGroup.nameUndefined")}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-[#717182]">
                     <Globe size={12} />
@@ -383,7 +385,7 @@ export function RegisterGroupPage() {
                 className="flex items-center gap-2 rounded-xl border border-stone-200 dark:border-[#374151] bg-white dark:bg-[#111827] px-4 py-3 text-sm font-bold text-[#717182] hover:bg-stone-50 dark:hover:bg-[#1f2937] transition"
               >
                 <ArrowLeft size={14} />
-                Retour
+                {tr("registerGroup.back")}
               </button>
             )}
 
@@ -393,18 +395,18 @@ export function RegisterGroupPage() {
                 onClick={() => {
                   // Validations par étape
                   if (step === 0) {
-                    if (!account.full_name.trim()) { setError("Le nom complet est obligatoire"); return; }
-                    if (!account.email.trim()) { setError("L'email est obligatoire"); return; }
-                    if (account.password.length < 8) { setError("Le mot de passe doit faire au moins 8 caractères"); return; }
-                    if (account.password !== account.password_confirm) { setError("Les mots de passe ne correspondent pas"); return; }
+                    if (!account.full_name.trim()) { setError(tr("registerGroup.errFullName")); return; }
+                    if (!account.email.trim()) { setError(tr("registerGroup.errEmail")); return; }
+                    if (account.password.length < 8) { setError(tr("registerGroup.errPwdLen")); return; }
+                    if (account.password !== account.password_confirm) { setError(tr("registerGroup.errPwdMismatch")); return; }
                   }
-                  if (step === 1 && !form.name.trim()) { setError("Le nom du groupe est obligatoire"); return; }
+                  if (step === 1 && !form.name.trim()) { setError(tr("registerGroup.errGroupName")); return; }
                   setError("");
                   setStep(s => (s + 1) as Step);
                 }}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white hover:bg-violet-700 transition active:scale-[0.98]"
               >
-                Continuer
+                {tr("registerGroup.continue")}
                 <ChevronRight size={16} />
               </button>
             ) : (
@@ -414,7 +416,7 @@ export function RegisterGroupPage() {
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white hover:bg-violet-700 transition active:scale-[0.98] disabled:opacity-60"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={16} />}
-                {loading ? "Création en cours…" : token ? "Créer le groupe" : "Créer mon compte & le groupe"}
+                {loading ? tr("registerGroup.creating") : token ? tr("registerGroup.createGroupBtn") : tr("registerGroup.createAccountGroup")}
               </button>
             )}
           </div>
@@ -422,8 +424,8 @@ export function RegisterGroupPage() {
           {/* Si pas connecté */}
           {!token && (
             <p className="text-center text-xs text-[#717182]">
-              Déjà un compte ?{" "}
-              <Link to="/login" className="text-violet-600 hover:underline font-semibold">Se connecter</Link>
+              {tr("registerGroup.alreadyAccount")}{" "}
+              <Link to="/login" className="text-violet-600 hover:underline font-semibold">{tr("registerGroup.signIn")}</Link>
             </p>
           )}
         </form>
