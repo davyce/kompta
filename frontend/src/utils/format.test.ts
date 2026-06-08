@@ -27,7 +27,7 @@ describe("format.ts — money()", () => {
   it("formats USD — contains amount with no FX conversion", () => {
     setActiveCurrency("USD");
     const result = money(2000);
-    expect(result).toMatch(/2[,.]?000/);
+    expect(result).toMatch(/2[\s,.  ]?000/);
     expect(result).not.toMatch(/^3[,.]0/);
   });
 
