@@ -35,6 +35,8 @@ type Company = {
   users_count: number;
   employees_count: number;
   created_at: string | null;
+  /** "active" | "suspended" — renvoyé par routes_subscriptions.py /admin/subscription/companies */
+  company_status?: string;
 };
 
 // ── Pill ──────────────────────────────────────────────────────────────────────
@@ -275,7 +277,7 @@ function CompanyCard({
   suspending: boolean;
 }) {
   const { t: tr } = useTranslation();
-  const isSuspended = false; // status not in API type yet, reserved for future
+  const isSuspended = company.company_status === "suspended";
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900 dark:border-white/10 dark:bg-white/5 dark:shadow-xl dark:shadow-black/10 dark:text-white flex flex-col gap-4">
@@ -562,7 +564,10 @@ export function AdminCompaniesPage() {
               company={company}
               onView={() => navigate(`/admin/companies/${company.id}`)}
               onBroadcast={() => setBroadcastTarget(company)}
-              onToggleStatus={() => suspendMut.mutate({ id: company.id, status: "suspended" })}
+              onToggleStatus={() => suspendMut.mutate({
+                id: company.id,
+                status: company.company_status === "suspended" ? "active" : "suspended",
+              })}
               suspending={suspendMut.isPending}
             />
           ))}
@@ -627,10 +632,11 @@ export function AdminCompaniesPage() {
                     <Megaphone size={12} /> Broadcast
                   </button>
                   <button
-                    onClick={() => suspendMut.mutate({ id: c.id, status: "suspended" })}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                    onClick={() => suspendMut.mutate({ id: c.id, status: c.company_status === "suspended" ? "active" : "suspended" })}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition ${c.company_status === "suspended" ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20" : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"}`}
                   >
-                    <ShieldOff size={12} /> {tr("admin.subscriptions.suspend")}
+                    {c.company_status === "suspended" ? <ShieldCheck size={12} /> : <ShieldOff size={12} />}
+                    {c.company_status === "suspended" ? tr("admin.subscriptions.reactivate", { defaultValue: "Réactiver" }) : tr("admin.subscriptions.suspend")}
                   </button>
                 </div>
               </div>
@@ -700,11 +706,11 @@ export function AdminCompaniesPage() {
                           <Megaphone size={13} />
                         </button>
                         <button
-                          onClick={() => suspendMut.mutate({ id: c.id, status: "suspended" })}
-                          className="grid h-7 w-7 place-items-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                          title={tr("admin.subscriptions.suspend")}
+                          onClick={() => suspendMut.mutate({ id: c.id, status: c.company_status === "suspended" ? "active" : "suspended" })}
+                          className={`grid h-7 w-7 place-items-center rounded-md border transition ${c.company_status === "suspended" ? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300" : "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"}`}
+                          title={c.company_status === "suspended" ? tr("admin.subscriptions.reactivate", { defaultValue: "Réactiver" }) : tr("admin.subscriptions.suspend")}
                         >
-                          <ShieldOff size={13} />
+                          {c.company_status === "suspended" ? <ShieldCheck size={13} /> : <ShieldOff size={13} />}
                         </button>
                       </div>
                     </td>

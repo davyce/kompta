@@ -414,7 +414,9 @@ export function ChatPage() {
   })();
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem-2rem)] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#1e2229]">
+    <div className="flex h-[calc(100vh-3.5rem-2rem)] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#1e2229]" role="main" aria-label={tr("chat.pageTitle", { defaultValue: "Messagerie interne" })}>
+    {/* Titre sémantique pour les lecteurs d'écran */}
+    <h1 className="sr-only">{tr("chat.pageTitle", { defaultValue: "Messagerie interne" })}</h1>
 
       {/* ── LEFT: Channels sidebar ── */}
       <aside className={`${showSidebar ? "flex" : "hidden"} md:flex w-72 shrink-0 flex-col border-r border-black/[0.05] bg-[#f6f7fb] dark:border-white/[0.05] dark:bg-[#161920]`}>

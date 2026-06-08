@@ -498,6 +498,8 @@ export function PosPage() {
   /* ════════════════════════════════════════════════════════════════════ */
   return (
     <>
+    {/* Titre sémantique visuellement masqué — requis pour l'accessibilité (a11y) */}
+    <h1 className="sr-only">{tr("pos.title", { defaultValue: "Point de vente" })}</h1>
     <div className="flex flex-col gap-4 xl:flex-row xl:h-[calc(100vh-56px)]">
 
       {/* Mobile floating cart button — masqué dès que le panier est visible

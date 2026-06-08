@@ -295,7 +295,8 @@ export const router = createBrowserRouter([
     ]
   }
 ], {
-  // Active les future flags React Router v7 pour supprimer les warnings console
+  // Active les future flags React Router v7 disponibles dans v6.26
+  // (v7_startTransition n'existe pas encore dans cette version)
   future: {
     v7_relativeSplatPath: true,
   },

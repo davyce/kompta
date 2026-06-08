@@ -204,7 +204,7 @@ function UserMenu({ name, role, onLogout }: { name: string; role: string; onLogo
         </div>
         <div className="hidden md:block text-left">
           <p className="text-xs font-bold text-slate-900 leading-tight dark:text-white">{name}</p>
-          <p className="text-[9px] font-bold uppercase text-blue-700 leading-tight dark:text-blue-400">Super Admin</p>
+          <p className="text-[9px] font-bold uppercase text-blue-700 leading-tight dark:text-blue-400">{tr("admin.shell.superAdminBadge", { defaultValue: "Super Admin" })}</p>
         </div>
         <ChevronDown size={11} className={`text-slate-500 transition dark:text-slate-400 ${open ? "rotate-180" : ""}`} />
       </button>
@@ -310,7 +310,7 @@ export function AdminShell() {
                 <div className="min-w-0">
                   <p className="text-sm font-black text-slate-900 leading-tight dark:text-white">KOMPTA</p>
                   <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-800 ring-1 ring-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:ring-blue-500/20">
-                    Super Admin
+                    {tr("admin.shell.superAdminBadge", { defaultValue: "Super Admin" })}
                   </span>
                 </div>
               </div>
@@ -448,7 +448,7 @@ export function AdminShell() {
             <QuickActionsMenu />
 
             <UserMenu
-              name={user?.full_name ?? "Super Admin"}
+              name={user?.full_name ?? tr("admin.shell.superAdminBadge", { defaultValue: "Super Admin" })}
               role={user?.role ?? "super_admin"}
               onLogout={() => { logout(); navigate("/login"); }}
             />

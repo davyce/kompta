@@ -41,9 +41,12 @@ type FeatureFlag = {
 // ── Health check types
 type ServiceHealth = {
   name: string;
-  status: "healthy" | "degraded" | "down";
+  /** healthy = opérationnel | degraded = panne réelle | down = hors service total
+   *  not_configured = service non activé (pas une erreur) | test_mode = mode sandbox/test */
+  status: "healthy" | "degraded" | "down" | "not_configured" | "test_mode";
   latency_ms: number | null;
   last_check: string | null;
+  note?: string | null;
 };
 
 type SystemHealthResponse = {
@@ -57,9 +60,16 @@ type SystemHealthResponse = {
 };
 
 function statusColors(status: ServiceHealth["status"]) {
-  if (status === "healthy") return { dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200", text: "text-emerald-600 dark:text-emerald-300" };
-  if (status === "degraded") return { dot: "bg-indigo-500", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-200", text: "text-indigo-600 dark:text-indigo-300" };
-  return { dot: "bg-rose-500", badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200", text: "text-rose-600 dark:text-rose-300" };
+  if (status === "healthy")
+    return { dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200", text: "text-emerald-600 dark:text-emerald-300" };
+  if (status === "degraded")
+    return { dot: "bg-orange-500 animate-pulse", badge: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200", text: "text-orange-600 dark:text-orange-300" };
+  if (status === "down")
+    return { dot: "bg-rose-500 animate-pulse", badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200", text: "text-rose-600 dark:text-rose-300" };
+  if (status === "test_mode")
+    return { dot: "bg-amber-500", badge: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200", text: "text-amber-600 dark:text-amber-300" };
+  // not_configured
+  return { dot: "bg-slate-400", badge: "bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-white/40", text: "text-slate-400 dark:text-white/40" };
 }
 
 function serviceIcon(name: string) {
@@ -79,9 +89,12 @@ function formatUptime(seconds: number): string {
 }
 
 function serviceStatusLabel(status: ServiceHealth["status"], tr: TFunction): string {
-  if (status === "healthy") return tr("admin.system.serviceStatus.healthy");
-  if (status === "degraded") return tr("admin.system.serviceStatus.degraded");
-  return tr("admin.system.serviceStatus.down");
+  if (status === "healthy")       return tr("admin.system.serviceStatus.healthy");
+  if (status === "degraded")      return tr("admin.system.serviceStatus.degraded");
+  if (status === "down")          return tr("admin.system.serviceStatus.down");
+  if (status === "test_mode")     return tr("admin.system.serviceStatus.testMode", { defaultValue: "Mode test" });
+  // not_configured
+  return tr("admin.system.serviceStatus.notConfigured", { defaultValue: "Non configuré" });
 }
 
 function serviceNameLabel(name: string, tr: TFunction): string {
@@ -380,6 +393,11 @@ function HealthTab() {
                       {svc.last_check ? new Date(svc.last_check).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" }) : "–"}
                     </span>
                   </div>
+                  {svc.note && (
+                    <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 leading-snug dark:bg-white/5 dark:text-white/40">
+                      {svc.note}
+                    </p>
+                  )}
                 </div>
               </div>
             );

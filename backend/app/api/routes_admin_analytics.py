@@ -636,29 +636,41 @@ def system_health(
     if ai_key:
         services.append({"name": "limule", "status": "healthy", "latency_ms": None, "last_check": None})
     else:
-        services.append({"name": "limule", "status": "degraded", "latency_ms": None, "last_check": None, "note": "Clé API non configurée"})
+        # Clé absente → non configuré (pas une panne, juste non activé)
+        services.append({"name": "limule", "status": "not_configured", "latency_ms": None, "last_check": None,
+                         "note": "Aucune clé API IA configurée"})
 
-    # Payments
+    # Payments — distinction configuré/test/live
     if settings.stripe_enabled:
-        stripe_status = "healthy" if settings.stripe_secret_key.startswith("sk_live_") else "degraded"
-        services.append({"name": "stripe", "status": stripe_status, "latency_ms": None, "last_check": None})
+        is_live = settings.stripe_secret_key.startswith("sk_live_")
+        stripe_status = "healthy" if is_live else "test_mode"
+        services.append({"name": "stripe", "status": stripe_status, "latency_ms": None, "last_check": None,
+                         "note": None if is_live else "Clé test — aucun paiement réel"})
     else:
-        services.append({"name": "stripe", "status": "degraded", "latency_ms": None, "last_check": None, "note": "Stripe non configuré"})
+        services.append({"name": "stripe", "status": "not_configured", "latency_ms": None, "last_check": None,
+                         "note": "Stripe désactivé dans la config"})
 
     if settings.momo_enabled:
-        momo_status = "healthy" if settings.momo_target_environment.lower() not in {"sandbox", "test"} else "degraded"
+        env = settings.momo_target_environment.lower()
+        is_live = env not in {"sandbox", "test"}
+        momo_status = "healthy" if is_live else "test_mode"
         services.append({"name": "momo", "status": momo_status, "latency_ms": None, "last_check": None,
-                         "target_environment": settings.momo_target_environment})
+                         "target_environment": settings.momo_target_environment,
+                         "note": None if is_live else f"Environnement {settings.momo_target_environment} — aucun paiement réel"})
     else:
-        services.append({"name": "momo", "status": "degraded", "latency_ms": None, "last_check": None, "note": "MoMo non configuré"})
+        services.append({"name": "momo", "status": "not_configured", "latency_ms": None, "last_check": None,
+                         "note": "MTN MoMo désactivé dans la config"})
 
-    # Notifications / monitoring configuration
-    services.append({"name": "smtp", "status": "healthy" if settings.email_enabled else "degraded",
-                     "latency_ms": None, "last_check": None})
-    services.append({"name": "sentry", "status": "healthy" if os.getenv("SENTRY_DSN") else "degraded",
-                     "latency_ms": None, "last_check": None})
-    services.append({"name": "uptime", "status": "healthy" if os.getenv("UPTIME_MONITOR_URL") else "degraded",
-                     "latency_ms": None, "last_check": None})
+    # Notifications / monitoring — non configuré ≠ dégradé
+    services.append({"name": "smtp", "status": "healthy" if settings.email_enabled else "not_configured",
+                     "latency_ms": None, "last_check": None,
+                     "note": None if settings.email_enabled else "SMTP désactivé (emails non envoyés)"})
+    services.append({"name": "sentry", "status": "healthy" if os.getenv("SENTRY_DSN") else "not_configured",
+                     "latency_ms": None, "last_check": None,
+                     "note": None if os.getenv("SENTRY_DSN") else "SENTRY_DSN absent — erreurs non remontées"})
+    services.append({"name": "uptime", "status": "healthy" if os.getenv("UPTIME_MONITOR_URL") else "not_configured",
+                     "latency_ms": None, "last_check": None,
+                     "note": None if os.getenv("UPTIME_MONITOR_URL") else "UPTIME_MONITOR_URL absent — aucun ping externe"})
 
     # Storage
     try:
@@ -674,12 +686,16 @@ def system_health(
     except Exception as exc:
         services.append({"name": "storage", "status": "degraded", "latency_ms": None, "last_check": None, "error": str(exc)})
 
-    # Statut global
+    # Statut global : seuls "down" et "degraded" indiquent un vrai problème.
+    # "not_configured" = fonctionnalité non activée (pas une panne).
+    # "test_mode" = configuré en sandbox (normal hors prod).
     statuses = [s.get("status") for s in services]
     if "down" in statuses:
         overall = "down"
     elif "degraded" in statuses:
         overall = "degraded"
+    elif any(s == "test_mode" for s in statuses):
+        overall = "test_mode"
     else:
         overall = "healthy"
 

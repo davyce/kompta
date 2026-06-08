@@ -328,7 +328,7 @@ export function AccountingFinancePage() {
             <p className="text-xs text-[#717182]">{tr("accounting.byItem")}</p>
           </div>
           <div className="flex items-center justify-center" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                 <Pie
                   data={expensesChart}

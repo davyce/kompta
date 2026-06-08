@@ -650,6 +650,8 @@ export const api = {
       id: number; name: string; legal_name: string; industry: string; country: string;
       completion_score: number; teras_score: number; users_count: number;
       employees_count: number; created_at: string | null;
+      /** "active" | "suspended" */
+      company_status?: string;
     }>>("/admin/companies"),
   adminCompanyDetail: (id: number) =>
     request<{
