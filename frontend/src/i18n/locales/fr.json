@@ -4746,6 +4746,8 @@
     "enableTva": "Activer TVA",
     "total": "Total",
     "discountLabel": "Remise",
+    "clientPlaceholder": "Nom du client (optionnel)",
+    "clientLabel": "Client : {{name}}",
     "paymentMode": "Mode de paiement",
     "addMethodsIn": "Ajoutez vos modes de paiement dans",
     "settingsPayments": "Paramètres → Paiements",

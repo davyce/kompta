@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, CreditCard, Download, Minus, Percent, Plus, Printer,
   QrCode, RefreshCcw, Scan, Search, ShoppingCart,
-  Smartphone, Trash2, Wallet, WifiOff, X, Zap,
+  Smartphone, Trash2, User, Wallet, WifiOff, X, Zap,
 } from "lucide-react";
 import { QrScannerModal } from "../components/QrScannerModal";
 import { MoMoPaymentModal } from "../components/MoMoPaymentModal";
@@ -67,17 +67,50 @@ type TicketData = {
   subtotal_before_discount: number;
   tax: number;
   date: string;
+  company_name?: string;
+  client_name?: string;
 };
 
 function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClose: () => void; onNewSale: () => void }) {
   const { t: tr } = useTranslation();
   return (
     <>
-      <style>{`@media print { body > *:not(#ticket-print-root) { display: none !important; } #ticket-print-root { display: block !important; } }`}</style>
+      {/*
+        Impression / PDF : l'ancienne règle `body > *:not(#ticket-print-root)`
+        cachait #root (enfant direct de body) qui CONTIENT le ticket → page blanche.
+        On utilise `visibility` (héritable, ré-affichable sur les descendants) +
+        repositionnement, et on FORCE les couleurs claires car en dark mode le texte
+        blanc s'imprimait blanc sur blanc (invisible).
+      */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #ticket-print-root, #ticket-print-root * { visibility: visible !important; }
+          #ticket-print-root {
+            position: fixed !important;
+            left: 0 !important; top: 0 !important;
+            width: 100% !important;
+            max-width: 80mm !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 auto !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+          /* Force le rendu monochrome lisible (annule le dark mode à l'impression) */
+          #ticket-print-root, #ticket-print-root * {
+            color: #111827 !important;
+            border-color: #9ca3af !important;
+          }
+          .ticket-no-print { display: none !important; }
+          @page { margin: 8mm; }
+        }
+      `}</style>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div id="ticket-print-root" className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#1e2229]">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
+        <div id="ticket-print-root" className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-[#1e2229]">
+          {/* Header (non imprimé) */}
+          <div className="ticket-no-print flex items-center justify-between border-b border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
             <h3 className="font-bold text-[#17211f] dark:text-white">{tr("pos.ticketTitle")}</h3>
             <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.08]">
               <X size={16} />
@@ -86,11 +119,21 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
 
           {/* Ticket body */}
           <div className="p-6 font-mono text-sm">
-            {/* Logo + titre */}
+            {/* Logo + entreprise */}
             <div className="mb-4 text-center">
-              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-xl font-black text-white">K</div>
-              <p className="font-bold text-[#17211f] dark:text-white">KOMPTA</p>
-              <p className="text-xs text-[#717182]">{ticket.date}</p>
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-xl font-black text-white">
+                {(ticket.company_name?.trim()?.[0] ?? "K").toUpperCase()}
+              </div>
+              {/* Nom de l'entreprise — élément principal du ticket */}
+              <p className="text-base font-black uppercase tracking-wide text-[#17211f] dark:text-white">
+                {ticket.company_name?.trim() || "KOMPTA"}
+              </p>
+              {ticket.client_name?.trim() && (
+                <p className="mt-0.5 text-xs font-semibold text-[#17211f] dark:text-white/90">
+                  {tr("pos.clientLabel", { name: ticket.client_name.trim() })}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-[#717182]">{ticket.date}</p>
               <p className="text-xs text-[#717182]">{tr("pos.receiptLabel", { num: ticket.receipt_number })}</p>
             </div>
 
@@ -140,8 +183,8 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 border-t border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
+          {/* Actions (non imprimées) */}
+          <div className="ticket-no-print flex gap-2 border-t border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
             <button
               onClick={() => window.print()}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[#17211f] hover:bg-stone-50 dark:border-white/[0.08] dark:bg-white/5 dark:text-white"
@@ -173,6 +216,8 @@ export function PosPage() {
   const products       = useQuery({ queryKey: ["products"],        queryFn: api.products });
   const paymentAccounts = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
   const payConfig      = useQuery({ queryKey: ["paymentsConfig"],   queryFn: api.paymentsConfig });
+  // Nom de l'entreprise — affiché et imprimé sur le ticket de caisse
+  const company        = useQuery({ queryKey: ["company"],          queryFn: api.company });
 
   /* ── Recherche + catégorie ── */
   const [search,   setSearch]   = useState("");
@@ -208,6 +253,9 @@ export function PosPage() {
 
   /* ── Remise ── */
   const [discountPercent, setDiscountPercent] = useState(0);
+
+  /* ── Client (optionnel) — figure sur le ticket ── */
+  const [clientName, setClientName] = useState("");
 
   /* ── Ticket modal ── */
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
@@ -355,10 +403,13 @@ export function PosPage() {
         subtotal_before_discount: cart.reduce((s, i) => s + i.price * i.quantity, 0),
         tax: tvaEnabled ? Math.round(cart.reduce((s, i) => s + i.price * i.quantity, 0) * (1 - discountPercent / 100) * (tvaRate / 100)) : 0,
         date: new Date().toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+        company_name: company.data?.name,
+        client_name: clientName.trim() || undefined,
       });
       toast.success(tr("pos.saleCashed", { num: data.receipt_number }));
       setCart([]);
       setDiscountPercent(0);
+      setClientName("");
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["posSales"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
@@ -810,6 +861,18 @@ export function PosPage() {
             </div>
           </div>
 
+          {/* Client (optionnel) — figure sur le ticket de caisse */}
+          <div className="flex items-center gap-2">
+            <User size={13} className="shrink-0 text-[#717182]" />
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder={tr("pos.clientPlaceholder")}
+              className="min-w-0 flex-1 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1.5 text-sm text-[#17211f] outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+          </div>
+
           {/* Remise */}
           <div className="flex items-center gap-2">
             <Percent size={13} className="shrink-0 text-[#717182]" />
@@ -954,7 +1017,7 @@ export function PosPage() {
       <TicketModal
         ticket={ticketData}
         onClose={() => setTicketData(null)}
-        onNewSale={() => { setTicketData(null); setCart([]); setDiscountPercent(0); }}
+        onNewSale={() => { setTicketData(null); setCart([]); setDiscountPercent(0); setClientName(""); }}
       />
     )}
 

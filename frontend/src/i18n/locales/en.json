@@ -4746,6 +4746,8 @@
     "enableTva": "Enable VAT",
     "total": "Total",
     "discountLabel": "Discount",
+    "clientPlaceholder": "Client name (optional)",
+    "clientLabel": "Client: {{name}}",
     "paymentMode": "Payment method",
     "addMethodsIn": "Add your payment methods in",
     "settingsPayments": "Settings → Payments",
