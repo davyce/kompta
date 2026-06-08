@@ -57,21 +57,26 @@ function saveHistory(records: NotificationRecord[]) {
   } catch { /* ignore */ }
 }
 
-export function useWebSocketNotifications(companyId: number | undefined) {
-  const [toasts, setToasts] = useState<AppToast[]>([]);
+/**
+ * @param companyId      L'ID entreprise pour ouvrir la connexion WS.
+ * @param onDisplay      Callback appelé pour chaque notification à afficher (toast UI).
+ *                       Si absent, les notifications ne s'affichent pas mais sont bien
+ *                       persistées en historique.
+ */
+export function useWebSocketNotifications(
+  companyId: number | undefined,
+  onDisplay?: (msg: string, tone: AppToast["tone"], detail?: string) => void,
+) {
   const [liveAlertCount, setLiveAlertCount] = useState(0);
   const [history, setHistory] = useState<NotificationRecord[]>(() => loadHistory());
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const onDisplayRef = useRef(onDisplay);
+  onDisplayRef.current = onDisplay;
 
   const push = useCallback((msg: string, detail?: string, tone: AppToast["tone"] = "info") => {
-    const id = ++toastSeq;
-    setToasts((prev) => [...prev.slice(-4), { id, message: msg, detail, tone }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 6000);
+    // Délègue l'affichage au système de toast unique de l'application
+    onDisplayRef.current?.(msg, tone, detail);
 
     /* Persist to history */
     const record: NotificationRecord = {
@@ -150,5 +155,5 @@ export function useWebSocketNotifications(companyId: number | undefined) {
     };
   }, [companyId, push]);
 
-  return { toasts, dismiss, liveAlertCount, push, history, markAllRead, clearHistory };
+  return { liveAlertCount, push, history, markAllRead, clearHistory };
 }

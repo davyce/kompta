@@ -17,6 +17,9 @@ export function WorkspaceSelectPage() {
   const { data: groups = [], isLoading: groupsLoading } = useQuery({
     queryKey: ["groups"],
     queryFn: api.groups,
+    // Ne déclenche la requête que si l'utilisateur est authentifié
+    // (évite le 401 sur /workspace avant que le token soit disponible)
+    enabled: !!user,
   });
 
   // Si super_admin → directement admin

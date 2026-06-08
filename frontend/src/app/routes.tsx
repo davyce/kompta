@@ -145,11 +145,12 @@ function ProtectedRoute() {
 }
 
 function AdminProtectedRoute() {
-  const { token, bootstrapping } = useAuth();
+  const { token, bootstrapping, user } = useAuth();
   if (bootstrapping) return <AuthBootstrapSpinner />;
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
+  // Double vérification frontend : seul le super_admin peut accéder à /admin.
+  // Le backend protège aussi chaque endpoint, mais on évite un rendu inutile.
+  if (user && user.role !== "super_admin") return <Navigate to="/" replace />;
   return (
     <Suspense fallback={<AuthBootstrapSpinner />}>
       <AdminShell />
@@ -258,7 +259,6 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorElement />,
     children: [
       { index: true,                   element: <LazyRoute page={DashboardPage} /> },
-      { path: "activation",            element: <LazyRoute page={ActivationPage} /> },
       { path: "company",               element: <LazyRoute page={CompanyPage} /> },
       { path: "employees",             element: <LazyRoute page={EmployeesPage} /> },
       { path: "employees/:id",         element: <LazyRoute page={EmployeeProfilePage} /> },
@@ -294,4 +294,9 @@ export const router = createBrowserRouter([
       { path: "*",                     element: <LazyRoute page={NotFoundPage} /> },
     ]
   }
-]);
+], {
+  // Active les future flags React Router v7 pour supprimer les warnings console
+  future: {
+    v7_relativeSplatPath: true,
+  },
+});

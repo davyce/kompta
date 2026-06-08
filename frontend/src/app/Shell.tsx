@@ -46,7 +46,7 @@ import { NotificationCenter } from "../components/NotificationCenter";
 import { GuidedTour } from "../components/GuidedTour";
 import { SubscriptionGate } from "../components/SubscriptionGate";
 import { SyncStatusBadge } from "../components/SyncStatusBadge";
-import { ToastStack } from "../components/Toast";
+import { useToast } from "../components/ToastProvider";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useTheme } from "../hooks/useTheme";
 import { useCompact } from "../contexts/CompactContext";
@@ -67,8 +67,12 @@ function LimuleStatus() {
   const { data } = useQuery({
     queryKey: ["ai-health"],
     queryFn: api.aiHealth,
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    // Ne recharge pas au montage si les données sont fraîches (< 5 min),
+    // et ne sonde que toutes les 5 min en arrière-plan pour limiter les appels externes.
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
   const status = data?.status ?? "unknown";
   const label =
@@ -243,7 +247,12 @@ export function Shell() {
     () => localStorage.getItem("kompta_sidebar_collapsed") === "true"
   );
 
-  const { toasts, dismiss, liveAlertCount, history, markAllRead, clearHistory } = useWebSocketNotifications(user?.company_id);
+  const { toast: showToast } = useToast();
+  const { liveAlertCount, history, markAllRead, clearHistory } = useWebSocketNotifications(
+    user?.company_id,
+    // Toutes les notifications WS passent par le ToastProvider unique
+    (msg, tone, detail) => showToast(msg, tone, tone === "error" ? 8000 : 5000, detail),
+  );
   const { notifications: polledNotifications } = useNotificationsPolling(!!user);
   const unreadCount = history.filter((n) => n.unread).length;
   const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
@@ -733,7 +742,6 @@ export function Shell() {
       <GuidedTour />
       <SubscriptionGate />
       <Copilot />
-      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

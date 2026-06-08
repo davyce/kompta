@@ -68,8 +68,10 @@ export default defineConfig({
     ],
   },
   build: {
-    // Augmenter la limite d'avertissement pour les gros chunks (xlsx, html2canvas)
-    chunkSizeWarningLimit: 800,
+    // vendor-export (xlsx + jsPDF) est chargé dynamiquement (await import) uniquement
+    // au clic sur un bouton d'export — jamais au chargement initial. La limite est
+    // relevée pour ne pas polluer le build output avec un faux avertissement.
+    chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
         // Code-splitting manuel pour les grosses librairies (Vite 8 / Rolldown: fonction)

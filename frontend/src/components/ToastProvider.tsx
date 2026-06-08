@@ -7,15 +7,16 @@ interface ToastItem {
   id: number;
   type: ToastType;
   message: string;
+  detail?: string;
   duration?: number;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType, duration?: number) => void;
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-  warning: (message: string) => void;
+  toast: (message: string, type?: ToastType, duration?: number, detail?: string) => void;
+  success: (message: string, detail?: string) => void;
+  error: (message: string, detail?: string) => void;
+  info: (message: string, detail?: string) => void;
+  warning: (message: string, detail?: string) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({
@@ -35,18 +36,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, type: ToastType = "info", duration = 4000) => {
+  const toast = useCallback((message: string, type: ToastType = "info", duration = 4000, detail?: string) => {
     const id = ++_counter;
-    setToasts((prev) => [...prev.slice(-4), { id, type, message, duration }]);
+    setToasts((prev) => [...prev.slice(-4), { id, type, message, detail, duration }]);
     if (duration > 0) setTimeout(() => remove(id), duration);
   }, [remove]);
 
   const ctx: ToastContextValue = {
     toast,
-    success: (m) => toast(m, "success"),
-    error: (m) => toast(m, "error", 6000),
-    info: (m) => toast(m, "info"),
-    warning: (m) => toast(m, "warning", 5000),
+    success: (m, d) => toast(m, "success", 4000, d),
+    error: (m, d)   => toast(m, "error", 6000, d),
+    info: (m, d)    => toast(m, "info", 4000, d),
+    warning: (m, d) => toast(m, "warning", 5000, d),
   };
 
   const ICONS = {
@@ -73,7 +74,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={`pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg transition-all ${BG[t.type]}`}
           >
             {ICONS[t.type]}
-            <p className="flex-1 text-sm font-medium text-[#17211f] dark:text-white leading-snug">{t.message}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#17211f] dark:text-white leading-snug">{t.message}</p>
+              {t.detail && (
+                <p className="mt-0.5 text-xs text-[#717182] dark:text-white/60 leading-snug">{t.detail}</p>
+              )}
+            </div>
             <button
               onClick={() => remove(t.id)}
               className="shrink-0 grid h-5 w-5 place-items-center rounded text-[#717182] hover:text-[#17211f] dark:hover:text-white"

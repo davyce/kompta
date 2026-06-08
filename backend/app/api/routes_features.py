@@ -260,46 +260,117 @@ async def ai_health(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _generate_payslip_pdf_bytes(slip: Payslip, company_name: str) -> bytes:
-    """Génère un PDF simple du bulletin de paie (sans librairie externe via HTML→bytes simulé)."""
-    # On génère un HTML minimaliste converti en bytes (texte brut PDF-like)
-    # Pour une vraie app : utiliser weasyprint ou reportlab
-    content = f"""%PDF-1.4
-1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
-2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
-3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842]
-  /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>
-endobj
-4 0 obj << /Length 800 >>
-stream
-BT
-/F1 14 Tf
-50 800 Td (BULLETIN DE PAIE) Tj
-/F1 10 Tf
-0 -30 Td ({company_name}) Tj
-0 -20 Td (Reference : {slip.reference}) Tj
-0 -20 Td (Employe    : {slip.employee_name}) Tj
-0 -40 Td (Salaire brut     : {slip.gross_pay:,.0f} XAF) Tj
-0 -20 Td (Deductions       : {slip.deductions:,.0f} XAF) Tj
-0 -20 Td (NET A PAYER      : {slip.net_pay:,.0f} XAF) Tj
-0 -30 Td (Mode paiement : {slip.payout_method}) Tj
-0 -20 Td (Destination    : {slip.payout_destination}) Tj
-0 -20 Td (Statut paiement: {slip.payout_status}) Tj
-0 -40 Td (Document genere automatiquement par KOMPTA) Tj
-ET
-endstream
-endobj
-xref
-0 5
-0000000000 65535 f
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000317 00000 n
-trailer << /Root 1 0 R /Size 5 >>
-startxref
-1170
-%%EOF"""
-    return content.encode("latin-1", errors="replace")
+    """Génère un vrai PDF du bulletin de paie avec ReportLab."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor, black, white
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Table, TableStyle
+
+    buf = io.BytesIO()
+    W, H = A4  # 595 x 842 pt
+    c = rl_canvas.Canvas(buf, pagesize=A4)
+
+    # ── En-tête ──────────────────────────────────────────────────────────────
+    GREEN = HexColor("#10b981")
+    DARK  = HexColor("#17211f")
+    GREY  = HexColor("#717182")
+
+    # Bandeau vert
+    c.setFillColor(GREEN)
+    c.rect(0, H - 60, W, 60, fill=1, stroke=0)
+
+    c.setFillColor(white)
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(20 * mm, H - 38, "BULLETIN DE PAIE")
+    c.setFont("Helvetica", 10)
+    c.drawString(20 * mm, H - 52, company_name[:80])
+
+    # Référence à droite
+    c.setFont("Helvetica-Bold", 10)
+    ref_txt = f"Réf : {slip.reference}"
+    c.drawRightString(W - 20 * mm, H - 38, ref_txt)
+
+    # ── Informations employé ──────────────────────────────────────────────────
+    y = H - 90
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(20 * mm, y, "Informations de l'employé")
+    c.setStrokeColor(GREEN)
+    c.setLineWidth(1.5)
+    c.line(20 * mm, y - 3, W - 20 * mm, y - 3)
+
+    y -= 20
+    c.setFont("Helvetica", 10)
+    c.setFillColor(GREY)
+    c.drawString(20 * mm, y, "Nom et prénom :")
+    c.setFillColor(DARK)
+    c.drawString(80 * mm, y, (slip.employee_name or "—")[:60])
+
+    y -= 16
+    c.setFillColor(GREY)
+    c.drawString(20 * mm, y, "Méthode de paiement :")
+    c.setFillColor(DARK)
+    c.drawString(80 * mm, y, (slip.payout_method or "—"))
+
+    y -= 16
+    c.setFillColor(GREY)
+    c.drawString(20 * mm, y, "Destination :")
+    c.setFillColor(DARK)
+    c.drawString(80 * mm, y, (slip.payout_destination or "—")[:60])
+
+    y -= 16
+    c.setFillColor(GREY)
+    c.drawString(20 * mm, y, "Statut paiement :")
+    c.setFillColor(DARK)
+    c.drawString(80 * mm, y, (slip.payout_status or "—"))
+
+    # ── Tableau des montants ──────────────────────────────────────────────────
+    y -= 36
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(20 * mm, y, "Détail de la rémunération")
+    c.setStrokeColor(GREEN)
+    c.line(20 * mm, y - 3, W - 20 * mm, y - 3)
+
+    rows = [
+        ["Libellé", "Montant (XAF)"],
+        ["Salaire brut", f"{slip.gross_pay:,.0f}"],
+        ["Total déductions", f"- {slip.deductions:,.0f}"],
+        ["Net à payer", f"{slip.net_pay:,.0f}"],
+    ]
+    col_w = [(W - 40 * mm) * 0.65, (W - 40 * mm) * 0.35]
+    tbl = Table(rows, colWidths=col_w, rowHeights=22)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, 0), GREEN),
+        ("TEXTCOLOR",    (0, 0), (-1, 0), white),
+        ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",     (0, 0), (-1, -1), 10),
+        ("ALIGN",        (1, 0), (1, -1), "RIGHT"),
+        ("BACKGROUND",   (0, -1), (-1, -1), HexColor("#f0fdf4")),
+        ("FONTNAME",     (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR",    (0, -1), (-1, -1), DARK),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [white, HexColor("#f8fafc")]),
+        ("GRID",         (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING",   (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    tbl.wrapOn(c, W, H)
+    y -= 10
+    tbl.drawOn(c, 20 * mm, y - len(rows) * 22)
+
+    # ── Pied de page ─────────────────────────────────────────────────────────
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawCentredString(W / 2, 20 * mm, "Document généré automatiquement par KOMPTA — Confidentiel")
+    c.setStrokeColor(HexColor("#e2e8f0"))
+    c.line(20 * mm, 25 * mm, W - 20 * mm, 25 * mm)
+
+    c.save()
+    return buf.getvalue()
 
 
 @router.get("/payroll/payslips/{payslip_id}/download")
