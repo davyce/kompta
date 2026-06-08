@@ -6,7 +6,7 @@ describe("format.ts — money()", () => {
 
   it("formats XAF — contains amount and currency code", () => {
     const result = money(1000);
-    expect(result).toMatch(/1[\s ]?000/); // handles both narrow-no-break and regular space
+    expect(result).toMatch(/1[\s ,  ]?000/); // séparateur localisé : espace (fr) ou virgule (en)
     expect(result).toContain("XAF");
   });
 
