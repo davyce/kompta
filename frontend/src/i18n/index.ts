@@ -20,11 +20,15 @@ i18n
       fr: { translation: fr },
       en: { translation: en },
     },
+    // Le français est la langue par défaut de l'app. L'anglais ne s'active que
+    // sur choix explicite de l'utilisateur (stocké en localStorage + préférences).
+    lng: "fr",
     fallbackLng: "fr",
     supportedLngs: ["fr", "en"],
     interpolation: { escapeValue: false },
     detection: {
-      order: ["localStorage", "navigator"],
+      // Pas de "navigator" : on ne déduit PAS la langue du navigateur.
+      order: ["localStorage"],
       lookupLocalStorage: "kompta_language",
       caches: ["localStorage"],
     },

@@ -13,8 +13,9 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  // Français par défaut ; anglais seulement si l'utilisateur l'a explicitement choisi.
   const [language, _setLocalLanguage] = useState<LanguageCode>(
-    () => (localStorage.getItem("kompta_language") as LanguageCode) || (i18n.language?.startsWith("en") ? "en" : "fr")
+    () => (localStorage.getItem("kompta_language") === "en" ? "en" : "fr")
   );
 
   // Sync i18next on first render
