@@ -210,15 +210,17 @@ export function AssistantsPage() {
 
         {/* ── Modèles ── */}
         <Panel title={tr("assistants.templatesPanel.title")}>
-          <div className="space-y-1">
+          {/* Mobile : rangée scrollable horizontale (l'éditeur reste accessible
+              sans dérouler 8 items). Desktop (xl) : liste verticale classique. */}
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin xl:mx-0 xl:flex-col xl:gap-1 xl:overflow-visible xl:px-0 xl:pb-0">
             {TEMPLATES.map(t => (
               <button
                 key={t.key}
                 onClick={() => setForm(f => ({ ...f, content_type: t.key }))}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-semibold transition xl:w-full xl:gap-3 xl:py-2.5 ${
                   form.content_type === t.key
-                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "text-ink dark:text-white hover:bg-stone-50 dark:hover:bg-white/[0.04]"
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/30 xl:ring-0"
+                    : "bg-stone-50 text-ink dark:bg-white/[0.04] dark:text-white hover:bg-stone-100 dark:hover:bg-white/[0.06] xl:bg-transparent xl:hover:bg-stone-50 dark:xl:bg-transparent"
                 }`}
               >
                 <t.icon size={16} className="shrink-0" />
@@ -371,12 +373,13 @@ export function AssistantsPage() {
             )}
 
             {/* ── Boutons d'action ── */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-2">
+            {/* Mobile : actions empilées, CTA pleine largeur. Desktop : en ligne. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   type="submit"
                   disabled={isStreaming}
-                  className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 dark:hover:bg-white/[0.06] disabled:opacity-40 transition sm:col-span-1 sm:py-2"
                 >
                   {isStreaming ? <LimuleAvatar state="thinking" size={18} /> : <LimuleIcon size={16} className="brightness-0" />}
                   {isStreaming ? tr("assistants.actions.generating") : tr("assistants.actions.generate")}
@@ -385,7 +388,7 @@ export function AssistantsPage() {
                   type="button"
                   onClick={() => generateVariant("chaleureux")}
                   disabled={isStreaming}
-                  className="rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition"
+                  className="flex items-center justify-center rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition sm:py-2"
                 >
                   {tr("assistants.actions.warmVariant")}
                 </button>
@@ -393,7 +396,7 @@ export function AssistantsPage() {
                   type="button"
                   onClick={copyDraft}
                   disabled={!hasContent}
-                  className="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm font-bold text-ink dark:text-white hover:bg-stone-50 disabled:opacity-40 transition sm:py-2"
                 >
                   <Copy size={15} />
                   {copied ? tr("assistants.actions.copied") : tr("common.copy")}
@@ -403,7 +406,7 @@ export function AssistantsPage() {
                 type="button"
                 onClick={copyDraft}
                 disabled={!hasContent}
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-stone-300 transition"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-stone-300 dark:disabled:bg-white/10 dark:disabled:text-white/40 transition sm:w-auto sm:py-2"
                 title={tr("assistants.actions.copySendTitle")}
               >
                 <Send size={15} />
