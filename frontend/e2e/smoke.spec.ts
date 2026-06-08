@@ -38,16 +38,17 @@ test("la page de connexion se charge sans erreur", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/KOMPTA/i);
   // Un champ de connexion est visible (app montée, pas d'écran blanc).
-  await expect(page.getByText(/Connexion/i).first()).toBeVisible();
+  // Bilingue : l'app peut s'afficher en FR ou EN selon la langue du navigateur.
+  await expect(page.getByText(/Connexion|Sign in/i).first()).toBeVisible();
   expect(criticalErrors(errors), criticalErrors(errors).join("\n")).toEqual([]);
 });
 
 test("le login démo mène au tableau de bord", async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto("/");
-  await page.getByLabel(/Email ou téléphone/i).fill(DEMO_EMAIL);
-  await page.getByLabel(/Mot de passe/i).fill(DEMO_PASSWORD);
-  await page.getByRole("button", { name: /Entrer dans KOMPTA/i }).click();
+  await page.getByLabel(/Email ou téléphone|Email or phone/i).fill(DEMO_EMAIL);
+  await page.getByLabel(/Mot de passe|Password/i).fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: /Entrer dans KOMPTA|Enter KOMPTA/i }).click();
 
   // Après login, on quitte /login (URL change) et un contenu applicatif s'affiche.
   await expect(page).not.toHaveURL(/\/login\/?$/, { timeout: 15_000 });
