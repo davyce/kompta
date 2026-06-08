@@ -166,3 +166,80 @@ html:not(.dark) .admin-shell .text-rose-200,
 html:not(.dark) .admin-shell .text-rose-300 {
   color: #be123c !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   DARK MODE BRIDGE — lisibilité & cohérence
+   ────────────────────────────────────────────────────────────────────────
+   Certains composants ont été écrits avec des couleurs claires (fond blanc)
+   ou encre (texte quasi-noir) codées en dur, SANS variante `dark:`. Sur fond
+   sombre, ces éléments deviennent illisibles ou jurent visuellement.
+
+   Ces règles ne ciblent QUE les éléments qui n'ont PAS déjà géré le dark mode
+   (sélecteur `:not([class*="dark:"])`). Tout composant ayant une variante
+   `dark:` explicite est laissé intact — son auteur a déjà fait le choix.
+
+   La surface blanche est assombrie EN MÊME TEMPS que le texte encre est
+   éclairci → aucune combinaison illisible (texte clair sur fond clair) ne
+   peut apparaître.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Surfaces blanches solides → carte sombre cohérente ── */
+.dark .bg-white:not([class*="dark:"]) {
+  background-color: #1e2229;
+}
+
+/* États hover clairs → variante sombre (évite le flash blanc au survol) ── */
+.dark .hover\:bg-stone-50:hover:not([class*="dark:"]),
+.dark .hover\:bg-stone-100:hover:not([class*="dark:"]),
+.dark .hover\:bg-gray-50:hover:not([class*="dark:"]),
+.dark .hover\:bg-slate-50:hover:not([class*="dark:"]),
+.dark .hover\:bg-white:hover:not([class*="dark:"]) {
+  background-color: #252931;
+}
+
+/* ── Texte encre quasi-noir → clair lisible ── */
+.dark .text-\[\#17211f\]:not([class*="dark:"]),
+.dark .text-ink:not([class*="dark:"]) {
+  color: #e5e7eb;
+}
+
+/* ── Texte gris secondaire trop foncé → gris clair lisible ── */
+.dark .text-\[\#717182\]:not([class*="dark:"]),
+.dark .text-\[\#6b7280\]:not([class*="dark:"]),
+.dark .text-\[\#9ca3af\]:not([class*="dark:"]),
+.dark .text-\[\#aaaabc\]:not([class*="dark:"]),
+.dark .text-\[\#9a9aaa\]:not([class*="dark:"]),
+.dark .text-\[\#9a9aa3\]:not([class*="dark:"]),
+.dark .text-\[\#c4c4cf\]:not([class*="dark:"]) {
+  color: #9ca3af;
+}
+
+/* ── Texte gris foncé moyen → gris clair ── */
+.dark .text-\[\#374151\]:not([class*="dark:"]),
+.dark .text-\[\#3f4a55\]:not([class*="dark:"]) {
+  color: #cbd5e1;
+}
+
+/* ── Bordures noires translucides sans variante → bordure claire translucide ── */
+.dark .border-black\/\[0\.06\]:not([class*="dark:"]),
+.dark .border-black\/\[0\.07\]:not([class*="dark:"]),
+.dark .border-black\/\[0\.08\]:not([class*="dark:"]),
+.dark .border-black\/\[0\.10\]:not([class*="dark:"]),
+.dark .border-stone-200:not([class*="dark:"]),
+.dark .border-slate-200:not([class*="dark:"]),
+.dark .border-gray-200:not([class*="dark:"]) {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Placeholders encre/gris foncés → gris moyen lisible ── */
+.dark .placeholder\:text-\[\#717182\]:not([class*="dark:"])::placeholder,
+.dark .placeholder\:text-\[\#aaaabc\]:not([class*="dark:"])::placeholder {
+  color: #6b7280;
+}
+
+/* ── Fonds gris très clairs (sous-blocs) → surface sombre secondaire ── */
+.dark .bg-stone-50:not([class*="dark:"]),
+.dark .bg-slate-50:not([class*="dark:"]),
+.dark .bg-gray-50:not([class*="dark:"]) {
+  background-color: #252931;
+}
