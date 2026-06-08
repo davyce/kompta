@@ -2833,6 +2833,7 @@ async def chat_websocket(websocket: WebSocket, channel_id: int, token: str = "")
 
 @router.websocket("/ws/notifications/{company_id}")
 async def notifications_websocket(websocket: WebSocket, company_id: int, token: str = ""):
+    current_user_id: int | None = None
     with SessionLocal() as db:
         user = _user_from_realtime_ticket(db, token)
         if not user:
@@ -2841,7 +2842,22 @@ async def notifications_websocket(websocket: WebSocket, company_id: int, token: 
         if user.company_id != company_id:
             await websocket.close(code=4003)
             return
+        current_user_id = user.id
     await notifier.connect(company_id, websocket)
+    try:
+        from app.services.limule_alerts import compute_dashboard_alerts
+        with SessionLocal() as db:
+            user = db.get(User, current_user_id) if current_user_id else None
+            for alert in compute_dashboard_alerts(db=db, company_id=company_id, user=user)[:8]:
+                await websocket.send_json({
+                    "type": "business_alert",
+                    "title": alert.get("message", "Alerte KOMPTA"),
+                    "detail": alert.get("action_url", ""),
+                    "severity": alert.get("severity", "info"),
+                    "count": 1,
+                })
+    except Exception:
+        logger.exception("Échec push initial notifications métier")
     try:
         while True:
             await websocket.receive_text()  # keep-alive ping

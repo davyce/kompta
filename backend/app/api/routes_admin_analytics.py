@@ -33,6 +33,7 @@ from app.services.email import (
     send_reset_password_email,
     send_test_email,
 )
+from app.services.readiness import build_production_preflight
 from app.models import (
     AuditLog,
     BroadcastLog,
@@ -637,6 +638,28 @@ def system_health(
     else:
         services.append({"name": "limule", "status": "degraded", "latency_ms": None, "last_check": None, "note": "Clé API non configurée"})
 
+    # Payments
+    if settings.stripe_enabled:
+        stripe_status = "healthy" if settings.stripe_secret_key.startswith("sk_live_") else "degraded"
+        services.append({"name": "stripe", "status": stripe_status, "latency_ms": None, "last_check": None})
+    else:
+        services.append({"name": "stripe", "status": "degraded", "latency_ms": None, "last_check": None, "note": "Stripe non configuré"})
+
+    if settings.momo_enabled:
+        momo_status = "healthy" if settings.momo_target_environment.lower() not in {"sandbox", "test"} else "degraded"
+        services.append({"name": "momo", "status": momo_status, "latency_ms": None, "last_check": None,
+                         "target_environment": settings.momo_target_environment})
+    else:
+        services.append({"name": "momo", "status": "degraded", "latency_ms": None, "last_check": None, "note": "MoMo non configuré"})
+
+    # Notifications / monitoring configuration
+    services.append({"name": "smtp", "status": "healthy" if settings.email_enabled else "degraded",
+                     "latency_ms": None, "last_check": None})
+    services.append({"name": "sentry", "status": "healthy" if os.getenv("SENTRY_DSN") else "degraded",
+                     "latency_ms": None, "last_check": None})
+    services.append({"name": "uptime", "status": "healthy" if os.getenv("UPTIME_MONITOR_URL") else "degraded",
+                     "latency_ms": None, "last_check": None})
+
     # Storage
     try:
         storage_dir = os.path.abspath(settings.document_storage_dir)
@@ -664,8 +687,21 @@ def system_health(
         "status": overall,
         "services": services,
         "version": "1.6.0",
+        "environment": settings.environment,
+        "database": settings.database_url.split("://", 1)[0],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "uptime_seconds": round(time.time() - _START_TIME, 1),
     }
+
+
+@router.get("/admin/system/preflight")
+def system_preflight(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Checklist production réelle : secrets, migrations, paiements, PWA, monitoring."""
+    _require_super_admin(current_user)
+    return build_production_preflight(db, get_settings())
 
 
 # ─────────────────────────────────────────────────────────────────────────────

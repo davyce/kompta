@@ -2911,29 +2911,46 @@
       "latency": "Latency",
       "lastCheck": "Last check",
       "comingSoon": "Coming soon",
-      "tabs": {
-        "flags": "Feature Flags",
-        "health": "Health Check",
-        "email": "SMTP Email",
-        "system": "System information"
-      },
+    "tabs": {
+      "flags": "Feature Flags",
+      "health": "Health Check",
+      "preflight": "Prod Preflight",
+      "email": "SMTP Email",
+      "system": "System information"
+    },
       "serviceStatus": {
         "healthy": "Operational",
         "degraded": "Degraded",
         "down": "Offline"
       },
-      "defaultServices": {
-        "database": "Database",
-        "limule": "Limule AI",
-        "storage": "Storage"
-      },
-      "info": {
-        "version": "Application version",
-        "environment": "Environment",
-        "database": "Database",
-        "updatedAt": "Last update"
-      },
-      "email": {
+    "defaultServices": {
+      "database": "Database",
+      "limule": "Limule AI",
+      "storage": "Storage",
+      "stripe": "Stripe",
+      "momo": "MTN MoMo",
+      "smtp": "SMTP",
+      "sentry": "Sentry",
+      "uptime": "Uptime"
+    },
+    "info": {
+      "version": "Application version",
+      "environment": "Environment",
+      "database": "Database",
+      "updatedAt": "Last update"
+    },
+    "preflight": {
+      "title": "Production preflight",
+      "summary": "Score {{score}}/100 · {{environment}}",
+      "nextActions": "Priority actions",
+      "unavailable": "Preflight unavailable.",
+      "status": {
+        "pass": "OK",
+        "warn": "Watch",
+        "fail": "Blocking"
+      }
+    },
+    "email": {
         "sendError": "Error while sending",
         "smtpConfig": "SMTP configuration",
         "enabledValue": "✅ Enabled",

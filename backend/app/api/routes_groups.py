@@ -32,6 +32,7 @@ from app.services.access import (
     generated_email_from_phone,
     normalize_phone,
 )
+from app.services.readiness import build_group_portfolio
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -56,6 +57,7 @@ class GroupCreate(BaseModel):
     city: str = ""
     address: str = ""
     currency: str = "XAF"
+    linked_company_id: int | None = None
 
 
 class GroupUpdate(BaseModel):
@@ -64,6 +66,7 @@ class GroupUpdate(BaseModel):
     city: str | None = None
     address: str | None = None
     status: str | None = None
+    linked_company_id: int | None = None
 
 
 class GroupClose(BaseModel):
@@ -157,6 +160,7 @@ def _serialize_group(g: OrganizationGroup) -> dict:
     return {
         "id": g.id, "name": g.name, "type": g.type, "description": g.description,
         "country": g.country, "city": g.city, "address": g.address, "currency": g.currency,
+        "linked_company_id": g.linked_company_id,
         "status": g.status, "is_active": g.is_active, "created_at": g.created_at,
     }
 
@@ -178,6 +182,7 @@ def create_group(payload: GroupCreate, request: Request, db: Session = Depends(g
         company_id=current_user.company_id,
         name=payload.name, type=payload.type, description=payload.description,
         country=payload.country, city=payload.city, address=payload.address, currency=payload.currency,
+        linked_company_id=payload.linked_company_id,
         created_by_user_id=current_user.id,
     )
     db.add(group)
@@ -216,6 +221,12 @@ def list_groups(db: Session = Depends(get_db), current_user: User = Depends(get_
         ).order_by(OrganizationGroup.created_at.desc())
     ).all()
     return [_serialize_group(g) for g in groups]
+
+
+@router.get("/portfolio/summary")
+def group_portfolio_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    """Vue multi-organisation : groupes, membres, rattachements d'entités/filiales."""
+    return build_group_portfolio(db, current_user.company_id)
 
 
 @router.get("/{group_id}")

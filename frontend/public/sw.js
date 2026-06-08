@@ -25,8 +25,9 @@ if (IS_DEV) {
    * - API : network-first avec repli cache hors-ligne.
    * Bump du nom de cache à chaque changement de stratégie → purge l'ancien.
    */
-  const CACHE_NAME = "kompta-v5";
+  const CACHE_NAME = "kompta-v6";
   const PRECACHE_URLS = ["/index.html"];
+  const OFFLINE_API_HEADERS = { "Content-Type": "application/json", "X-KOMPTA-Offline": "1" };
 
   self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -56,7 +57,17 @@ if (IS_DEV) {
             if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(request, r.clone()));
             return r;
           })
-          .catch(() => caches.match(request))
+          .catch(() =>
+            caches.match(request).then((cached) =>
+              cached || new Response(
+                JSON.stringify({
+                  detail: "Connexion indisponible. Les donnees cachees ou les ventes POS en file restent disponibles localement.",
+                  code: "offline",
+                }),
+                { status: 503, headers: OFFLINE_API_HEADERS }
+              )
+            )
+          )
       );
       return;
     }

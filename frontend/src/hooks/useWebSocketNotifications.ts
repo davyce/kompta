@@ -18,10 +18,11 @@ export type NotificationRecord = {
 };
 
 type WSNotification = {
-  type: "teras_alert" | "sync" | "info";
+  type: "teras_alert" | "business_alert" | "sync" | "info";
   title: string;
   detail?: string;
   count?: number;
+  severity?: "critical" | "warning" | "info";
 };
 
 // WS_BASE doit être ABSOLU (ws://|wss://). Si l'API est en chemin relatif (/api),
@@ -121,6 +122,10 @@ export function useWebSocketNotifications(companyId: number | undefined) {
             if (data.type === "teras_alert") {
               setLiveAlertCount((n) => n + (data.count ?? 1));
               push(data.title, data.detail, "warning");
+            } else if (data.type === "business_alert") {
+              setLiveAlertCount((n) => n + (data.count ?? 1));
+              const tone = data.severity === "critical" ? "error" : data.severity === "warning" ? "warning" : "info";
+              push(data.title, data.detail, tone);
             } else if (data.type === "sync") {
               push(data.title, data.detail, "success");
             } else {

@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Send,
   Server,
+  ShieldCheck,
   Trash2,
   ToggleLeft,
   ToggleRight,
@@ -23,10 +24,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useConfirm } from "../../components/ConfirmProvider";
-import { api } from "../../services/api";
+import { api, type AdminSystemPreflightDto } from "../../services/api";
 import i18n from "../../i18n";
 
-type Tab = "flags" | "health" | "system" | "email";
+type Tab = "flags" | "health" | "preflight" | "system" | "email";
 
 // ── Feature flag types
 type FeatureFlag = {
@@ -88,6 +89,11 @@ function serviceNameLabel(name: string, tr: TFunction): string {
   if (n === "database") return tr("admin.system.defaultServices.database");
   if (n.includes("limule")) return tr("admin.system.defaultServices.limule");
   if (n === "storage") return tr("admin.system.defaultServices.storage");
+  if (n === "stripe") return tr("admin.system.defaultServices.stripe");
+  if (n === "momo") return tr("admin.system.defaultServices.momo");
+  if (n === "smtp") return tr("admin.system.defaultServices.smtp");
+  if (n === "sentry") return tr("admin.system.defaultServices.sentry");
+  if (n === "uptime") return tr("admin.system.defaultServices.uptime");
   return name;
 }
 
@@ -190,19 +196,19 @@ function FlagsTab() {
   });
 
   const updateFlag = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<FeatureFlag> }) =>
-      api.adminUpdateSystemFlag(id, data),
+    mutationFn: ({ key, data }: { key: string; data: Partial<FeatureFlag> }) =>
+      api.adminUpdateSystemFlag(key, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["adminFlags"] }),
   });
 
   const deleteFlag = useMutation({
-    mutationFn: (id: number) => api.adminDeleteSystemFlag(id),
+    mutationFn: (key: string) => api.adminDeleteSystemFlag(key),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["adminFlags"] }),
   });
 
   function handleSave(data: { key: string; description: string; value: string; enabled: boolean }) {
     if (modal && typeof modal === "object" && "id" in modal && modal.id) {
-      updateFlag.mutate({ id: modal.id, data });
+      updateFlag.mutate({ key: modal.key ?? data.key, data });
     } else {
       createFlag.mutate(data);
     }
@@ -216,7 +222,7 @@ function FlagsTab() {
       confirmLabel: tr("common.delete"),
       danger: true,
     });
-    if (ok) deleteFlag.mutate(flag.id);
+    if (ok) deleteFlag.mutate(flag.key);
   }
 
   return (
@@ -260,7 +266,7 @@ function FlagsTab() {
                   <td className="px-4 py-3 hidden font-mono text-xs text-indigo-500 dark:text-indigo-200 lg:table-cell">{flag.value}</td>
                   <td className="px-4 py-3 text-center">
                     <button
-                      onClick={() => updateFlag.mutate({ id: flag.id, data: { enabled: !flag.enabled } })}
+                      onClick={() => updateFlag.mutate({ key: flag.key, data: { enabled: !flag.enabled } })}
                       className="text-indigo-500 hover:text-indigo-700 dark:text-indigo-300 dark:hover:text-indigo-100"
                     >
                       {flag.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} className="text-slate-300 dark:text-white/30" />}
@@ -390,6 +396,102 @@ const defaultServices: ServiceHealth[] = [
   { name: "Storage", status: "healthy", latency_ms: null, last_check: null },
 ];
 
+function preflightClasses(status: AdminSystemPreflightDto["status"]) {
+  if (status === "pass") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-200";
+  if (status === "warn") return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200";
+  return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-200";
+}
+
+function preflightLabel(status: AdminSystemPreflightDto["status"], tr: TFunction) {
+  if (status === "pass") return tr("admin.system.preflight.status.pass");
+  if (status === "warn") return tr("admin.system.preflight.status.warn");
+  return tr("admin.system.preflight.status.fail");
+}
+
+function PreflightTab() {
+  const { t: tr } = useTranslation();
+  const report = useQuery<AdminSystemPreflightDto>({
+    queryKey: ["adminSystemPreflight"],
+    queryFn: api.adminSystemPreflight,
+    refetchInterval: 120_000,
+  });
+
+  if (report.isLoading) {
+    return (
+      <div className="flex h-32 items-center justify-center">
+        <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  const data = report.data;
+  if (!data) {
+    return <p className="text-sm text-slate-400 dark:text-white/50">{tr("admin.system.preflight.unavailable")}</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-4 ${preflightClasses(data.status)}`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider">{tr("admin.system.preflight.title")}</p>
+          <p className="mt-1 text-sm font-semibold">
+            {tr("admin.system.preflight.summary", { score: data.score, environment: data.environment })}
+          </p>
+        </div>
+        <span className="rounded-full bg-white/70 px-3 py-1 text-sm font-black dark:bg-black/20">
+          {preflightLabel(data.status, tr)}
+        </span>
+      </div>
+
+      {data.next_actions.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+          <h3 className="mb-3 flex items-center gap-2 font-black text-slate-900 dark:text-white">
+            <AlertTriangle size={16} className="text-amber-500" /> {tr("admin.system.preflight.nextActions")}
+          </h3>
+          <ul className="space-y-2 text-sm text-slate-600 dark:text-white/70">
+            {data.next_actions.map((action) => (
+              <li key={action} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/5">{action}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {data.sections.map((section) => (
+          <section key={section.id} className="rounded-xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="font-black text-slate-900 dark:text-white">{section.title}</h3>
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${preflightClasses(section.status)}`}>
+                {preflightLabel(section.status, tr)}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {section.items.map((item) => (
+                <div key={item.id} className="rounded-lg border border-slate-100 px-3 py-3 dark:border-white/10">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-white/55">{item.detail}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${preflightClasses(item.status)}`}>
+                      {preflightLabel(item.status, tr)}
+                    </span>
+                  </div>
+                  {item.action && (
+                    <p className="mt-2 rounded bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-white/5 dark:text-white/60">
+                      {item.action}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── System Info tab
 function SystemInfoTab() {
   const { t: tr } = useTranslation();
@@ -402,7 +504,7 @@ function SystemInfoTab() {
     { label: tr("admin.system.info.version"), value: health.data?.version ?? "v1.6.0", icon: Info },
     { label: tr("admin.system.info.environment"), value: health.data?.environment ?? "production", icon: Server },
     { label: tr("admin.system.info.database"), value: health.data?.database ?? "SQLite", icon: Database },
-    { label: tr("admin.system.info.updatedAt"), value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString(i18n.language) : new Date("2026-05-08T12:00:00").toLocaleDateString(i18n.language), icon: Clock },
+    { label: tr("admin.system.info.updatedAt"), value: health.data?.updated_at ? new Date(health.data.updated_at).toLocaleDateString(i18n.language) : "–", icon: Clock },
     {
       label: "Uptime",
       value: health.data?.uptime_seconds != null ? formatUptime(health.data.uptime_seconds) : "–",
@@ -437,6 +539,7 @@ export function AdminSystemPage() {
   const TABS: { key: Tab; label: string; icon: typeof Server }[] = [
     { key: "flags", label: tr("admin.system.tabs.flags"), icon: ToggleRight },
     { key: "health", label: tr("admin.system.tabs.health"), icon: CheckCircle },
+    { key: "preflight", label: tr("admin.system.tabs.preflight"), icon: ShieldCheck },
     { key: "email", label: tr("admin.system.tabs.email"), icon: Mail },
     { key: "system", label: tr("admin.system.tabs.system"), icon: Info },
   ];
@@ -473,6 +576,7 @@ export function AdminSystemPage() {
       {/* Tab content */}
       {tab === "flags" && <FlagsTab />}
       {tab === "health" && <HealthTab />}
+      {tab === "preflight" && <PreflightTab />}
       {tab === "email" && <EmailTab />}
       {tab === "system" && <SystemInfoTab />}
     </div>

@@ -15,10 +15,12 @@ from app.models import (
     BankTransaction,
     Company,
     ContributionPayment,
+    FiscalDeadline,
     GroupMember,
     Invoice,
     OrganizationGroup,
     Product,
+    Task,
     User,
 )
 
@@ -110,7 +112,52 @@ def compute_dashboard_alerts(
             "action_url": "/inventory?filter=low",
         })
 
-    # ── 3. Trésorerie faible (crédits - débits sur BankTransaction) ──────
+    # ── 3. Échéances fiscales dans la fenêtre de rappel ─────────────────
+    fiscal_due = db.scalars(
+        select(FiscalDeadline).where(
+            FiscalDeadline.company_id == company_id,
+            FiscalDeadline.status != "done",
+            FiscalDeadline.due_date <= today + date.resolution * 30,
+        ).order_by(FiscalDeadline.due_date.asc())
+    ).all()
+    fiscal_due = [
+        d for d in fiscal_due
+        if d.due_date <= today + date.resolution * max(1, d.reminder_days or 7)
+    ]
+    if fiscal_due:
+        overdue_count = sum(1 for d in fiscal_due if d.due_date < today)
+        alerts.append({
+            "severity": "critical" if overdue_count else "warning",
+            "type": "fiscal_deadline",
+            "message": (
+                f"{len(fiscal_due)} échéance{'s' if len(fiscal_due) > 1 else ''} fiscale"
+                f"{' en retard' if overdue_count else ' à venir'}"
+            ),
+            "action_url": "/fiscal",
+        })
+
+    # ── 4. Tâches Kanban/Work proches de l'échéance ─────────────────────
+    tasks_due = db.scalars(
+        select(Task).where(
+            Task.company_id == company_id,
+            Task.status != "done",
+            Task.due_date.is_not(None),
+            Task.due_date <= today + date.resolution * 7,
+        ).order_by(Task.due_date.asc())
+    ).all()
+    if tasks_due:
+        overdue_count = sum(1 for task in tasks_due if task.due_date and task.due_date < today)
+        alerts.append({
+            "severity": "critical" if overdue_count else "warning",
+            "type": "task_deadline",
+            "message": (
+                f"{len(tasks_due)} tâche{'s' if len(tasks_due) > 1 else ''}"
+                f"{' en retard' if overdue_count else ' à échéance proche'}"
+            ),
+            "action_url": "/kanban",
+        })
+
+    # ── 5. Trésorerie faible (crédits - débits sur BankTransaction) ──────
     tx_rows = db.scalars(
         select(BankTransaction).where(BankTransaction.company_id == company_id)
     ).all()
@@ -138,7 +185,7 @@ def compute_dashboard_alerts(
                 "action_url": "/transactions",
             })
 
-    # ── 4. Anniversaires de membres aujourd'hui (groupes du user) ────────
+    # ── 6. Anniversaires de membres aujourd'hui (groupes du user) ────────
     user_groups: list[int] = []
     if user is not None:
         user_groups = list(db.scalars(
@@ -176,7 +223,7 @@ def compute_dashboard_alerts(
                 "action_url": "/groups",
             })
 
-    # ── 5. Cotisations en retard dans les groupes du user ────────────────
+    # ── 7. Cotisations en retard dans les groupes du user ────────────────
     if user_groups:
         late_payments = db.scalars(
             select(ContributionPayment).where(

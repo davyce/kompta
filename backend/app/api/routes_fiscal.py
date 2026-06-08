@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import FiscalDeadline, User
+from app.models import FiscalDeadline, Invoice, User
 
 router = APIRouter(tags=["fiscal"])
 
@@ -64,6 +64,18 @@ class FiscalDeadlineRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VatSummaryRead(BaseModel):
+    period: str
+    from_date: date
+    to_date: date
+    invoices_count: int
+    taxable_turnover: float
+    vat_collected: float
+    total_including_tax: float
+    currency: str
+    status_breakdown: dict[str, int]
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @router.get("/fiscal/deadlines", response_model=list[FiscalDeadlineRead])
@@ -86,6 +98,55 @@ def list_fiscal_deadlines(
         )
     stmt = stmt.order_by(FiscalDeadline.due_date)
     return db.scalars(stmt).all()
+
+
+@router.get("/fiscal/vat-summary", response_model=VatSummaryRead)
+def vat_summary(
+    period: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Résumé TVA réel pour une période YYYY-MM.
+
+    Source: factures de l'entreprise (subtotal/tax_amount/total_amount). Les
+    factures en avoir restent incluses avec leurs montants négatifs.
+    """
+    today = date.today()
+    if period:
+        try:
+            year, month = [int(part) for part in period.split("-", 1)]
+            from_date = date(year, month, 1)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Période invalide, format attendu YYYY-MM") from exc
+    else:
+        from_date = date(today.year, today.month, 1)
+    next_month = date(from_date.year + (from_date.month // 12), 1 if from_date.month == 12 else from_date.month + 1, 1)
+    to_date = next_month - date.resolution
+
+    invoices = db.scalars(
+        select(Invoice).where(
+            Invoice.company_id == current_user.company_id,
+            Invoice.created_at >= datetime.combine(from_date, datetime.min.time()),
+            Invoice.created_at < datetime.combine(next_month, datetime.min.time()),
+        )
+    ).all()
+    currencies = [inv.currency or "XAF" for inv in invoices]
+    currency = max(set(currencies), key=currencies.count) if currencies else "XAF"
+    status_breakdown: dict[str, int] = {}
+    for inv in invoices:
+        status_breakdown[inv.status] = status_breakdown.get(inv.status, 0) + 1
+
+    return {
+        "period": f"{from_date.year:04d}-{from_date.month:02d}",
+        "from_date": from_date,
+        "to_date": to_date,
+        "invoices_count": len(invoices),
+        "taxable_turnover": round(sum(inv.subtotal or 0 for inv in invoices), 2),
+        "vat_collected": round(sum(inv.tax_amount or 0 for inv in invoices), 2),
+        "total_including_tax": round(sum(inv.total_amount or 0 for inv in invoices), 2),
+        "currency": currency,
+        "status_breakdown": status_breakdown,
+    }
 
 
 @router.post("/fiscal/deadlines", response_model=FiscalDeadlineRead, status_code=201)

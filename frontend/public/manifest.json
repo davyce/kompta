@@ -2,7 +2,9 @@
   "name": "KOMPTA",
   "short_name": "KOMPTA",
   "description": "Application de gestion d'entreprise intelligente",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#111318",
   "theme_color": "#059669",
@@ -11,15 +13,9 @@
   "lang": "fr-FR",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
@@ -29,21 +25,21 @@
       "short_name": "POS",
       "description": "Encaisser une vente rapidement",
       "url": "/pos",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Nouvelle facture",
       "short_name": "Facturer",
       "description": "Créer une facture client",
       "url": "/billing",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Mes groupes",
       "short_name": "Groupes",
       "description": "Accéder à mes groupes/organisations",
       "url": "/groups",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

@@ -23,6 +23,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import Account, Company, JournalEntry, User
 from app.services import accounting as acc
+from app.services.readiness import build_ohada_readiness
 
 router = APIRouter(prefix="/accounting", tags=["accounting"])
 
@@ -131,6 +132,14 @@ def get_balance(db: Session = Depends(get_db), current_user: User = Depends(get_
     if not _can_manage_accounting(current_user):
         raise HTTPException(status_code=403, detail="Permission comptable insuffisante")
     return acc.trial_balance(db, current_user.company_id)
+
+
+@router.get("/ohada-readiness")
+def ohada_readiness(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    """Diagnostic OHADA/CEMAC réel : mentions légales, SYSCOHADA, TVA, fiscal, paie."""
+    if not _can_manage_accounting(current_user):
+        raise HTTPException(status_code=403, detail="Permission comptable insuffisante")
+    return build_ohada_readiness(db, current_user.company_id)
 
 
 # ── Écriture manuelle (mode full) ───────────────────────────────────────────

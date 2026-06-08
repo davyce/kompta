@@ -840,6 +840,7 @@ export const api = {
 
   /** Alertes proactives Limule pour le dashboard. */
   limuleAlerts: () => request<LimuleDashboardAlert[]>("/limule/alerts"),
+  limuleBusinessInsights: () => request<BusinessInsightsDto>("/limule/business-insights"),
 
   /** Conversion de devise via le backend (taux exchangerate.host + fallback). */
   currencyConvert: (amount: number, from: string, to: string) =>
@@ -958,6 +959,7 @@ export const api = {
     request<CashFlowDto[]>(`/accounting/cashflow?period=${period}`),
   expenses: () => request<ExpenseDto[]>("/accounting/expenses"),
   syscemac: () => request<SyscemacDto[]>("/accounting/syscemac-status"),
+  accountingOhadaReadiness: () => request<ReadinessReportDto>("/accounting/ohada-readiness"),
 
   /* ── Reports revenue series ───────────────────────────────── */
   revenueSeries: (period = "month") =>
@@ -1223,6 +1225,8 @@ export const api = {
     request<void>(`/fiscal/deadlines/${id}`, { method: "DELETE" }),
   generateFiscalDeadlines: () =>
     request<FiscalDeadlineDto[]>("/fiscal/deadlines/generate", { method: "POST" }),
+  fiscalVatSummary: (period?: string) =>
+    request<VatSummaryDto>(`/fiscal/vat-summary${period ? `?period=${encodeURIComponent(period)}` : ""}`),
 
   /* ── Relances ─────────────────────────────────────────────────────── */
   sendRelance: (invoiceId: number) =>
@@ -1248,17 +1252,19 @@ export const api = {
       "/admin/system/flags",
       { method: "POST", body: JSON.stringify(payload) }
     ),
-  adminUpdateSystemFlag: (id: number, payload: { key?: string; description?: string; value?: string; enabled?: boolean }) =>
+  adminUpdateSystemFlag: (key: string, payload: { key?: string; description?: string; value?: string; enabled?: boolean }) =>
     request<{ id: number; key: string; description: string; value: string; enabled: boolean }>(
-      `/admin/system/flags/${id}`,
+      `/admin/system/flags/${encodeURIComponent(key)}`,
       { method: "PATCH", body: JSON.stringify(payload) }
     ),
-  adminDeleteSystemFlag: (id: number) =>
-    request<void>(`/admin/system/flags/${id}`, { method: "DELETE" }),
+  adminDeleteSystemFlag: (key: string) =>
+    request<void>(`/admin/system/flags/${encodeURIComponent(key)}`, { method: "DELETE" }),
 
   /* ── Admin System Health ──────────────────────────────────────────── */
   adminSystemHealth: () =>
     request<AdminSystemHealthDto>("/admin/system/health"),
+  adminSystemPreflight: () =>
+    request<AdminSystemPreflightDto>("/admin/system/preflight"),
 
   /* ── Admin Analytics Platform ────────────────────────────────────── */
   adminAnalyticsPlatform: () =>
@@ -1380,6 +1386,7 @@ export const api = {
 
   // ── Module Groupes & Organisations ─────────────────────────────────────
   groups: () => request<OrganizationGroup[]>("/groups"),
+  groupPortfolioSummary: () => request<GroupPortfolioDto>("/groups/portfolio/summary"),
   group: (id: number) => request<OrganizationGroup>(`/groups/${id}`),
   createGroup: (payload: { name: string; type?: string; city?: string; currency?: string; description?: string }) =>
     request<OrganizationGroup>("/groups", { method: "POST", body: JSON.stringify(payload) }),
@@ -2112,8 +2119,97 @@ export interface AdminSystemHealthDto {
   uptime_seconds?: number;
   version?: string;
   environment?: string;
+  database?: string;
   database_name?: string;
   updated_at?: string;
+}
+
+export interface AdminSystemCheckDto {
+  id: string;
+  title: string;
+  status: "pass" | "warn" | "fail";
+  detail: string;
+  action?: string;
+  priority?: string;
+}
+
+export interface AdminSystemPreflightDto {
+  status: "pass" | "warn" | "fail";
+  score: number;
+  environment: string;
+  generated_at: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    status: "pass" | "warn" | "fail";
+    items: AdminSystemCheckDto[];
+  }>;
+  failures: AdminSystemCheckDto[];
+  warnings: AdminSystemCheckDto[];
+  next_actions: string[];
+}
+
+export interface ReadinessReportDto {
+  status: "pass" | "warn" | "fail";
+  score: number;
+  generated_at: string;
+  next_actions?: string[];
+  sections: Array<{
+    id: string;
+    title: string;
+    status: "pass" | "warn" | "fail";
+    items: AdminSystemCheckDto[];
+  }>;
+}
+
+export interface VatSummaryDto {
+  period: string;
+  from_date: string;
+  to_date: string;
+  invoices_count: number;
+  taxable_turnover: number;
+  vat_collected: number;
+  total_including_tax: number;
+  currency: string;
+  status_breakdown: Record<string, number>;
+}
+
+export interface BusinessInsightsDto {
+  generated_at: string;
+  company_id: number;
+  data_quality: "empty" | "partial" | "good";
+  sources: Record<string, number>;
+  cashflow_forecast: {
+    method: string;
+    months: Array<{ month: string; inflow: number; outflow: number; net: number }>;
+    projected_30d_net: number;
+    source_months: number;
+  };
+  anomalies: Array<{ type: string; severity: string; title: string; detail: string; action_url?: string }>;
+  recommendations: string[];
+  confidence: number;
+}
+
+export interface GroupPortfolioDto {
+  company_id: number;
+  generated_at: string;
+  groups_total: number;
+  active_groups: number;
+  linked_groups: number;
+  members_total: number;
+  groups: Array<{
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+    country: string;
+    city: string;
+    currency: string;
+    linked_company_id: number | null;
+    members: number;
+    is_active: boolean;
+  }>;
+  warnings: Array<{ type: string; message: string; count: number }>;
 }
 
 /* ── Feature Flags ────────────────────────────────────────────────── */

@@ -491,6 +491,7 @@ export type OrganizationGroup = {
   city: string;
   address: string;
   currency: string;
+  linked_company_id?: number | null;
   status: string;
   is_active: boolean;
   created_at: string;

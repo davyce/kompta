@@ -17,6 +17,7 @@ import asyncio
 import io
 import json
 import re
+import zlib
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 
@@ -48,6 +49,7 @@ from app.models import (
     User,
     UserPreference,
 )
+from app.services.readiness import build_business_insights
 from app.schemas.domain import (
     AIGenerationCreate,
     AIGenerationRead,
@@ -484,6 +486,19 @@ def limule_alerts(
     from app.services.limule_alerts import compute_dashboard_alerts
 
     return compute_dashboard_alerts(db=db, company_id=current_user.company_id, user=current_user)
+
+
+@router.get("/limule/business-insights")
+def limule_business_insights(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Insights opérationnels réels : forecast trésorerie, anomalies, actions.
+
+    Aucun appel LLM ni donnée inventée : la réponse expose ses sources et renvoie
+    `data_quality=empty` si l'entreprise n'a pas encore de données.
+    """
+    return build_business_insights(db, current_user.company_id)
 
 
 @router.get("/currency/convert")
@@ -2035,6 +2050,7 @@ async def notifications_stream(request: Request, token: str | None = Query(defau
         yield f"data: {json.dumps({'type': 'connected', 'user_id': current_user.id})}\n\n"
 
         sent_ids: set[int] = set()
+        sent_alert_keys: set[int] = set()
         while True:
             if await request.is_disconnected():
                 break
@@ -2049,6 +2065,15 @@ async def notifications_stream(request: Request, token: str | None = Query(defau
                     if alert.id not in sent_ids:
                         sent_ids.add(alert.id)
                         yield f"data: {json.dumps({'type': 'alert', 'id': alert.id, 'title': alert.title, 'severity': alert.severity, 'module': alert.module})}\n\n"
+
+                from app.services.limule_alerts import compute_dashboard_alerts
+                business_alerts = compute_dashboard_alerts(db=db, company_id=current_user.company_id, user=current_user)
+                for alert in business_alerts:
+                    key = zlib.crc32(f"{alert.get('type')}:{alert.get('message')}:{alert.get('action_url')}".encode("utf-8"))
+                    if key in sent_alert_keys:
+                        continue
+                    sent_alert_keys.add(key)
+                    yield f"data: {json.dumps({'type': 'alert', 'id': key, 'title': alert.get('message'), 'severity': alert.get('severity'), 'module': alert.get('type'), 'action_url': alert.get('action_url')})}\n\n"
             except Exception:
                 pass
 
