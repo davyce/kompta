@@ -403,6 +403,11 @@ export function LoginPage() {
             <p className="text-center text-[10px] text-stone-400">
               {t("auth.footer")}
             </p>
+            <p className="text-center text-[10px] text-stone-400">
+              <a href="/privacy" className="hover:text-emerald-600">Confidentialité</a>
+              {" · "}
+              <a href="/terms" className="hover:text-emerald-600">Conditions d'utilisation</a>
+            </p>
           </div>
         </section>
 

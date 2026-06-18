@@ -45,6 +45,8 @@ const EmployeeProfilePage = lazy(() => import("../pages/EmployeeProfilePage").th
 const ActivationPage      = lazy(() => import("../pages/ActivationPage").then(m => ({ default: m.ActivationPage })));
 const AuditLogsPage       = lazy(() => import("../pages/AuditLogsPage").then(m => ({ default: m.AuditLogsPage })));
 const NotFoundPage        = lazy(() => import("../pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+const PrivacyPolicyPage   = lazy(() => import("../pages/LegalPages").then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsPage           = lazy(() => import("../pages/LegalPages").then(m => ({ default: m.TermsPage })));
 const AnalyticsPage       = lazy(() => import("../pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
 const AgendaFiscalPage    = lazy(() => import("../pages/AgendaFiscalPage").then(m => ({ default: m.AgendaFiscalPage })));
 
@@ -199,6 +201,9 @@ function ActivationPageWrapper({ user }: { user: import("../types/domain").User 
 
 export const router = createBrowserRouter([
   { path: "/login",          element: <LoginPage />,          errorElement: <RouteErrorElement /> },
+  /* Pages légales publiques (URL exigées par App Store Connect, sans authentification) */
+  { path: "/privacy",        element: <LazyRoute page={PrivacyPolicyPage} />, errorElement: <RouteErrorElement /> },
+  { path: "/terms",          element: <LazyRoute page={TermsPage} />,         errorElement: <RouteErrorElement /> },
   { path: "/register-group", element: <RegisterGroupPage />,  errorElement: <RouteErrorElement /> },
   { path: "/workspace",      element: <WorkspaceSelectPage />, errorElement: <RouteErrorElement /> },
   /* Activation accessible à TOUS les rôles authentifiés (entreprise ET membre_groupe) */
