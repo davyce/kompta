@@ -1,0 +1,731 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		057002ED40674DA018E3D610 /* AIAnalysisPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */; };
+		09DF9D5C90D9681923DACDDF /* CompanyTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */; };
+		0AEF8026D9E0D0342F6E7C96 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
+		0B2810DE4C7C83C1AE2BF96D /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */; };
+		106AFB4F36DD72888F56143B /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9AB050A928D42ABCE3C91A /* DashboardView.swift */; };
+		1C02606217916D82F1F25503 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
+		1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
+		249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB44CA87A160669133544A47 /* CollaborationViews.swift */; };
+		29102CF06555F6CDA242F95B /* ModuleHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D251BDB584F13900DFC765C /* ModuleHub.swift */; };
+		2B6CE15A0F7F2E70BF9FE0BB /* AdminViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0454B8AA5B3315C76D3966F /* AdminViews.swift */; };
+		2BD1558A5E5DFA9F28816C67 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
+		2EEFA07717C4F79B48299295 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */; };
+		3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9AB050A928D42ABCE3C91A /* DashboardView.swift */; };
+		3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
+		3C9CE01B307A7E2DE47846C1 /* EnterpriseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */; };
+		441100786455C8AEF44FC3B3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
+		4439A878C523FACD266B4623 /* CurrencyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB940D3851D5679A32875AB /* CurrencyManager.swift */; };
+		44F01D0BFDF6030D0E3D7CAD /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
+		45A2CADA6835FB275AB36914 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
+		4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34302996CFECB2C83D8235C1 /* LoginView.swift */; };
+		510163563E592AFACB067336 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */; };
+		53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
+		53FFD748765527C04DEDB1D5 /* CollaborationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB44CA87A160669133544A47 /* CollaborationViews.swift */; };
+		5AA09F6FD212AE1BE5723929 /* HRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028679E157A10132898A78BE /* HRView.swift */; };
+		5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
+		62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
+		66EE91DFA0E7EC16A5BF9249 /* limule-avatar-40.png in Resources */ = {isa = PBXBuildFile; fileRef = B665A2C05922DA21F70C8953 /* limule-avatar-40.png */; };
+		67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660A64A755B0A823DC7B4079 /* BusinessViews.swift */; };
+		68F6D13D45ADEBDB61C26DBF /* ModuleHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D251BDB584F13900DFC765C /* ModuleHub.swift */; };
+		6ADA0B6558FF0BB8B7F45824 /* CurrencyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB940D3851D5679A32875AB /* CurrencyManager.swift */; };
+		6F4196470C273EDE91D46215 /* BusinessViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660A64A755B0A823DC7B4079 /* BusinessViews.swift */; };
+		6FD83BE6A465FC726D5CE48C /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */; };
+		715BE6B23BE795416C8452C2 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E286CB16FEF4524A71D9C0A /* GroupModels.swift */; };
+		75439F2759679EAC1B4D4429 /* RolesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */; };
+		7880938DFF872F614648FF2C /* POSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB8BC953013C1FAE6ADA929 /* POSView.swift */; };
+		7C2B020019256D3AF5D87E27 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F7EC48B1C0BA411551319A /* AppShell.swift */; };
+		7D8F3CE37151828D140D39C1 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34302996CFECB2C83D8235C1 /* LoginView.swift */; };
+		7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55170B62A38E88B30FA3639D /* PDFExport.swift */; };
+		81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55170B62A38E88B30FA3639D /* PDFExport.swift */; };
+		8C5A0388D29DFFD60C0C4921 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */; };
+		8ECAB359A25A46DECE4004B5 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
+		8F9EE32FC39FFF84D419AA74 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */; };
+		9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */; };
+		98013947E273088E2195FC80 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F612F06D2735D2A6A4A02E /* SettingsView.swift */; };
+		9C982BA88E06325FC59FAEB1 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E286CB16FEF4524A71D9C0A /* GroupModels.swift */; };
+		9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
+		9F80F01B7F0CC00827BEA799 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
+		A2847907D197B5B9A9F116B8 /* GroupsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */; };
+		A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
+		A9FF4B865BCEC12CCD2ECFCF /* limule-avatar-40.png in Resources */ = {isa = PBXBuildFile; fileRef = B665A2C05922DA21F70C8953 /* limule-avatar-40.png */; };
+		ACBC4644AA007A79B73C3D45 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F612F06D2735D2A6A4A02E /* SettingsView.swift */; };
+		ADBA825B32E98DA4A88D695D /* AdminViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0454B8AA5B3315C76D3966F /* AdminViews.swift */; };
+		B05A553F779262032FD0174B /* GroupsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */; };
+		B0CB3DA128A97F405395C5AC /* RolesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */; };
+		B1EE692934CAEADBC946691D /* ActivationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28CE337254CC475A9781F72 /* ActivationView.swift */; };
+		BB43B6EA0532EEE5E70799B3 /* SuperAdminShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */; };
+		BB462B1371FC2680A6747AF9 /* POSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB8BC953013C1FAE6ADA929 /* POSView.swift */; };
+		C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
+		C09BFD2F8BFFD63BD4022DB6 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F7EC48B1C0BA411551319A /* AppShell.swift */; };
+		C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */; };
+		CAAD918E9D33BE9CF78CA06A /* HRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028679E157A10132898A78BE /* HRView.swift */; };
+		D035787283582E3E8C838E0B /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */; };
+		D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
+		D606845A08D8434128782415 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
+		D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
+		D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
+		D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
+		E6A47228E0B8F20127E6B362 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
+		ED6E7E66FAC0FBBCBD79BCCD /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */; };
+		F06291DC26435979688D4934 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
+		F553AEF0A1FE12D88D8A8AC8 /* SuperAdminShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */; };
+		F76A1255F3FB5F4303482719 /* ActivationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28CE337254CC475A9781F72 /* ActivationView.swift */; };
+		F87BFAAF08DBA02905925320 /* HRExtraViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */; };
+		F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
+		FAD061691A7FB30C0BBB39DC /* AIAnalysisPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */; };
+		FE5CFF7A4F917558BE3286AE /* HRExtraViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		028679E157A10132898A78BE /* HRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRView.swift; sourceTree = "<group>"; };
+		05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentsView.swift; sourceTree = "<group>"; };
+		09F7EC48B1C0BA411551319A /* AppShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShell.swift; sourceTree = "<group>"; };
+		0E286CB16FEF4524A71D9C0A /* GroupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupModels.swift; sourceTree = "<group>"; };
+		0FB8BC953013C1FAE6ADA929 /* POSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = POSView.swift; sourceTree = "<group>"; };
+		1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
+		2333D4A2BC2297747BB6973E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		27610E5929BD66FE3262DA7D /* GlassComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassComponents.swift; sourceTree = "<group>"; };
+		2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRExtraViews.swift; sourceTree = "<group>"; };
+		34302996CFECB2C83D8235C1 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		39F612F06D2735D2A6A4A02E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3D251BDB584F13900DFC765C /* ModuleHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleHub.swift; sourceTree = "<group>"; };
+		4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisPanel.swift; sourceTree = "<group>"; };
+		55170B62A38E88B30FA3639D /* PDFExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExport.swift; sourceTree = "<group>"; };
+		57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseViews.swift; sourceTree = "<group>"; };
+		5E66EBB800555BAFECCA5529 /* KomptaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KomptaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RolesView.swift; sourceTree = "<group>"; };
+		660A64A755B0A823DC7B4079 /* BusinessViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessViews.swift; sourceTree = "<group>"; };
+		6DB940D3851D5679A32875AB /* CurrencyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyManager.swift; sourceTree = "<group>"; };
+		70651EA3DC1DB98BF48025CF /* FinanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViews.swift; sourceTree = "<group>"; };
+		7845C7FFF59BE30DD1426B8E /* Kompta.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Kompta.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViews.swift; sourceTree = "<group>"; };
+		990D81000FB516878BA7C424 /* LimuleChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleChatView.swift; sourceTree = "<group>"; };
+		9FF68C74D092585F0B42F595 /* FinanceCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCharts.swift; sourceTree = "<group>"; };
+		A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminShell.swift; sourceTree = "<group>"; };
+		AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
+		B229F26743F6401F25679836 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		B665A2C05922DA21F70C8953 /* limule-avatar-40.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "limule-avatar-40.png"; sourceTree = "<group>"; };
+		BA9AB050A928D42ABCE3C91A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
+		D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KomptaApp.swift; sourceTree = "<group>"; };
+		DB44CA87A160669133544A47 /* CollaborationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationViews.swift; sourceTree = "<group>"; };
+		E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanyTheme.swift; sourceTree = "<group>"; };
+		E176A484AD1CA84ECA25942D /* AdminModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminModels.swift; sourceTree = "<group>"; };
+		E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		E948CFB53581DC0B86F422CA /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F0454B8AA5B3315C76D3966F /* AdminViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViews.swift; sourceTree = "<group>"; };
+		F28CE337254CC475A9781F72 /* ActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1164A04438E8BBD212D17CD7 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */,
+				2333D4A2BC2297747BB6973E /* ContentView.swift */,
+				D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */,
+				BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */,
+				E0FB0EB90D9E14763C1BB35C /* Components */,
+				A60C78E44809AF58AD70564B /* Helpers */,
+				DE6DEF1AD7160B84B72BD607 /* Models */,
+				B43B4F394BD7BC628A5D9096 /* Resources */,
+				7C096F0824689351E8773FCF /* Services */,
+				F39D4DBB3951B8443C35B899 /* Theme */,
+				E8A23AFCEEFE8FFFBB839D28 /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		1307BAC8B3FC4041BFBB489B /* Shell */ = {
+			isa = PBXGroup;
+			children = (
+				09F7EC48B1C0BA411551319A /* AppShell.swift */,
+				3D251BDB584F13900DFC765C /* ModuleHub.swift */,
+				A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */,
+			);
+			path = Shell;
+			sourceTree = "<group>";
+		};
+		2ACAEE5247754096A24F1F67 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				F28CE337254CC475A9781F72 /* ActivationView.swift */,
+				34302996CFECB2C83D8235C1 /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		59893025EA812753596C7E62 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7845C7FFF59BE30DD1426B8E /* Kompta.app */,
+				5E66EBB800555BAFECCA5529 /* KomptaMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6105BC4FF7D32C4D59053637 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				F0454B8AA5B3315C76D3966F /* AdminViews.swift */,
+				660A64A755B0A823DC7B4079 /* BusinessViews.swift */,
+				DB44CA87A160669133544A47 /* CollaborationViews.swift */,
+				57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */,
+				70651EA3DC1DB98BF48025CF /* FinanceViews.swift */,
+				944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */,
+				2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */,
+				1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */,
+				05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */,
+				5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		7C096F0824689351E8773FCF /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */,
+				E948CFB53581DC0B86F422CA /* AuthManager.swift */,
+				6DB940D3851D5679A32875AB /* CurrencyManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		81029C45A26D71DDC7099102 /* HR */ = {
+			isa = PBXGroup;
+			children = (
+				028679E157A10132898A78BE /* HRView.swift */,
+			);
+			path = HR;
+			sourceTree = "<group>";
+		};
+		97DA30C580E038A5EF83AE41 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				BA9AB050A928D42ABCE3C91A /* DashboardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		9B9CD3E0F4245F3876A2AA4B /* POS */ = {
+			isa = PBXGroup;
+			children = (
+				0FB8BC953013C1FAE6ADA929 /* POSView.swift */,
+			);
+			path = POS;
+			sourceTree = "<group>";
+		};
+		A60C78E44809AF58AD70564B /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				B229F26743F6401F25679836 /* KeychainHelper.swift */,
+				55170B62A38E88B30FA3639D /* PDFExport.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		B43B4F394BD7BC628A5D9096 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B665A2C05922DA21F70C8953 /* limule-avatar-40.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		DE6DEF1AD7160B84B72BD607 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				E176A484AD1CA84ECA25942D /* AdminModels.swift */,
+				AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */,
+				CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */,
+				0E286CB16FEF4524A71D9C0A /* GroupModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		DE97B09EA34BBEEB19A60EA7 /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				990D81000FB516878BA7C424 /* LimuleChatView.swift */,
+			);
+			path = AI;
+			sourceTree = "<group>";
+		};
+		E0FB0EB90D9E14763C1BB35C /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */,
+				9FF68C74D092585F0B42F595 /* FinanceCharts.swift */,
+				27610E5929BD66FE3262DA7D /* GlassComponents.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		E8A23AFCEEFE8FFFBB839D28 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				DE97B09EA34BBEEB19A60EA7 /* AI */,
+				2ACAEE5247754096A24F1F67 /* Auth */,
+				97DA30C580E038A5EF83AE41 /* Dashboard */,
+				81029C45A26D71DDC7099102 /* HR */,
+				6105BC4FF7D32C4D59053637 /* Modules */,
+				9B9CD3E0F4245F3876A2AA4B /* POS */,
+				F35A24128DE166C9EAE12E80 /* Settings */,
+				1307BAC8B3FC4041BFBB489B /* Shell */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		EE80FD6FA50A8601F3BBF673 = {
+			isa = PBXGroup;
+			children = (
+				1164A04438E8BBD212D17CD7 /* Sources */,
+				59893025EA812753596C7E62 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F35A24128DE166C9EAE12E80 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				39F612F06D2735D2A6A4A02E /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		F39D4DBB3951B8443C35B899 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		342D1AF2939EF8D06C98B381 /* Kompta */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 69A73D605CD8B7CEC4ACC222 /* Build configuration list for PBXNativeTarget "Kompta" */;
+			buildPhases = (
+				AD63B1993867C97341E3CF36 /* Sources */,
+				30C220FF766F98FCD2C39915 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Kompta;
+			packageProductDependencies = (
+			);
+			productName = Kompta;
+			productReference = 7845C7FFF59BE30DD1426B8E /* Kompta.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CF51FF321DD3C694282EE28C /* KomptaMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 965FA9130F4EB0BF3CB79F6B /* Build configuration list for PBXNativeTarget "KomptaMac" */;
+			buildPhases = (
+				BDDC47B041EE744F4E3D1E53 /* Sources */,
+				901A8CB78625D75C1C4DA020 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KomptaMac;
+			packageProductDependencies = (
+			);
+			productName = KomptaMac;
+			productReference = 5E66EBB800555BAFECCA5529 /* KomptaMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4361C51F8C4FC643219416FB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					342D1AF2939EF8D06C98B381 = {
+						DevelopmentTeam = "";
+					};
+					CF51FF321DD3C694282EE28C = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 8EB9F9C11B8F8353BF7F05AE /* Build configuration list for PBXProject "Kompta" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = EE80FD6FA50A8601F3BBF673;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 59893025EA812753596C7E62 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				342D1AF2939EF8D06C98B381 /* Kompta */,
+				CF51FF321DD3C694282EE28C /* KomptaMac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		30C220FF766F98FCD2C39915 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2EEFA07717C4F79B48299295 /* Assets.xcassets in Resources */,
+				441100786455C8AEF44FC3B3 /* PrivacyInfo.xcprivacy in Resources */,
+				66EE91DFA0E7EC16A5BF9249 /* limule-avatar-40.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		901A8CB78625D75C1C4DA020 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C5A0388D29DFFD60C0C4921 /* Assets.xcassets in Resources */,
+				9F80F01B7F0CC00827BEA799 /* PrivacyInfo.xcprivacy in Resources */,
+				A9FF4B865BCEC12CCD2ECFCF /* limule-avatar-40.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AD63B1993867C97341E3CF36 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FAD061691A7FB30C0BBB39DC /* AIAnalysisPanel.swift in Sources */,
+				D606845A08D8434128782415 /* APIClient.swift in Sources */,
+				F76A1255F3FB5F4303482719 /* ActivationView.swift in Sources */,
+				E6A47228E0B8F20127E6B362 /* AdminModels.swift in Sources */,
+				2B6CE15A0F7F2E70BF9FE0BB /* AdminViews.swift in Sources */,
+				0B2810DE4C7C83C1AE2BF96D /* AppModels.swift in Sources */,
+				7C2B020019256D3AF5D87E27 /* AppShell.swift in Sources */,
+				0AEF8026D9E0D0342F6E7C96 /* AuthManager.swift in Sources */,
+				67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */,
+				53FFD748765527C04DEDB1D5 /* CollaborationViews.swift in Sources */,
+				9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */,
+				D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */,
+				4439A878C523FACD266B4623 /* CurrencyManager.swift in Sources */,
+				106AFB4F36DD72888F56143B /* DashboardView.swift in Sources */,
+				6FD83BE6A465FC726D5CE48C /* DomainModels.swift in Sources */,
+				3C9CE01B307A7E2DE47846C1 /* EnterpriseViews.swift in Sources */,
+				A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */,
+				53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */,
+				62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */,
+				715BE6B23BE795416C8452C2 /* GroupModels.swift in Sources */,
+				B05A553F779262032FD0174B /* GroupsViews.swift in Sources */,
+				FE5CFF7A4F917558BE3286AE /* HRExtraViews.swift in Sources */,
+				CAAD918E9D33BE9CF78CA06A /* HRView.swift in Sources */,
+				8F9EE32FC39FFF84D419AA74 /* InventoryView.swift in Sources */,
+				1C02606217916D82F1F25503 /* InvestmentsView.swift in Sources */,
+				3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */,
+				D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */,
+				D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */,
+				7D8F3CE37151828D140D39C1 /* LoginView.swift in Sources */,
+				68F6D13D45ADEBDB61C26DBF /* ModuleHub.swift in Sources */,
+				7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */,
+				BB462B1371FC2680A6747AF9 /* POSView.swift in Sources */,
+				B0CB3DA128A97F405395C5AC /* RolesView.swift in Sources */,
+				98013947E273088E2195FC80 /* SettingsView.swift in Sources */,
+				BB43B6EA0532EEE5E70799B3 /* SuperAdminShell.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDDC47B041EE744F4E3D1E53 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				057002ED40674DA018E3D610 /* AIAnalysisPanel.swift in Sources */,
+				44F01D0BFDF6030D0E3D7CAD /* APIClient.swift in Sources */,
+				B1EE692934CAEADBC946691D /* ActivationView.swift in Sources */,
+				8ECAB359A25A46DECE4004B5 /* AdminModels.swift in Sources */,
+				ADBA825B32E98DA4A88D695D /* AdminViews.swift in Sources */,
+				ED6E7E66FAC0FBBCBD79BCCD /* AppModels.swift in Sources */,
+				C09BFD2F8BFFD63BD4022DB6 /* AppShell.swift in Sources */,
+				9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */,
+				6F4196470C273EDE91D46215 /* BusinessViews.swift in Sources */,
+				249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */,
+				09DF9D5C90D9681923DACDDF /* CompanyTheme.swift in Sources */,
+				F06291DC26435979688D4934 /* ContentView.swift in Sources */,
+				6ADA0B6558FF0BB8B7F45824 /* CurrencyManager.swift in Sources */,
+				3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */,
+				D035787283582E3E8C838E0B /* DomainModels.swift in Sources */,
+				C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */,
+				5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */,
+				1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */,
+				D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */,
+				9C982BA88E06325FC59FAEB1 /* GroupModels.swift in Sources */,
+				A2847907D197B5B9A9F116B8 /* GroupsViews.swift in Sources */,
+				F87BFAAF08DBA02905925320 /* HRExtraViews.swift in Sources */,
+				5AA09F6FD212AE1BE5723929 /* HRView.swift in Sources */,
+				510163563E592AFACB067336 /* InventoryView.swift in Sources */,
+				45A2CADA6835FB275AB36914 /* InvestmentsView.swift in Sources */,
+				C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */,
+				2BD1558A5E5DFA9F28816C67 /* KomptaApp.swift in Sources */,
+				F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */,
+				4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */,
+				29102CF06555F6CDA242F95B /* ModuleHub.swift in Sources */,
+				81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */,
+				7880938DFF872F614648FF2C /* POSView.swift in Sources */,
+				75439F2759679EAC1B4D4429 /* RolesView.swift in Sources */,
+				ACBC4644AA007A79B73C3D45 /* SettingsView.swift in Sources */,
+				F553AEF0A1FE12D88D8A8AC8 /* SuperAdminShell.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1547DD03DD532A52609A9830 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Sources/Info-macOS.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.adansonia.kompta.mac;
+				PRODUCT_NAME = KOMPTA;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4D9ADAB3FB7799716B44963B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_BITCODE = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		50115D827A0E24426D3CE1E9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_BITCODE = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		7379D41C3E0761EC3CFBBACA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.adansonia.kompta;
+				PRODUCT_NAME = KOMPTA;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9B7BC54B11A6224ABC85F9CA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Sources/Info-macOS.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.adansonia.kompta.mac;
+				PRODUCT_NAME = KOMPTA;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		C8EB6621B80D2C7505517F9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.adansonia.kompta;
+				PRODUCT_NAME = KOMPTA;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		69A73D605CD8B7CEC4ACC222 /* Build configuration list for PBXNativeTarget "Kompta" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7379D41C3E0761EC3CFBBACA /* Debug */,
+				C8EB6621B80D2C7505517F9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8EB9F9C11B8F8353BF7F05AE /* Build configuration list for PBXProject "Kompta" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4D9ADAB3FB7799716B44963B /* Debug */,
+				50115D827A0E24426D3CE1E9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		965FA9130F4EB0BF3CB79F6B /* Build configuration list for PBXNativeTarget "KomptaMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1547DD03DD532A52609A9830 /* Debug */,
+				9B7BC54B11A6224ABC85F9CA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4361C51F8C4FC643219416FB /* Project object */;
+}
