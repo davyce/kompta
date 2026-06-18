@@ -1,0 +1,21 @@
+# HTTPS automatique (Let's Encrypt) pour KOMPTA.
+# Caddy obtient et renouvelle le certificat tout seul tant que le DNS du domaine
+# pointe vers l'IP statique de l'instance et que les ports 80/443 sont ouverts.
+{
+	email {$TLS_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip zstd
+
+	# Tout (SPA + /api + /ws) est servi par le conteneur frontend (nginx),
+	# qui proxifie déjà /api et /ws vers le backend.
+	reverse_proxy frontend:80
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
