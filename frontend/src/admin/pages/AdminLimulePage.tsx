@@ -319,7 +319,7 @@ export function AdminLimulePage() {
                 <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   msg.role === "user"
                     ? "bg-indigo-600 text-white"
-                    : "border border-white/10 bg-black/25 text-white/85"
+                    : "border border-slate-200 bg-slate-100 text-slate-800 dark:border-white/10 dark:bg-black/25 dark:text-white/85"
                 }`}>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
                 </div>
@@ -327,7 +327,7 @@ export function AdminLimulePage() {
             ))}
             {streaming && streamText && (
               <div className="flex justify-start">
-                <div className="max-w-[88%] rounded-2xl border border-indigo-500/30 bg-black/25 px-4 py-3 text-sm leading-6 text-white/85">
+                <div className="max-w-[88%] rounded-2xl border border-indigo-300 bg-slate-100 px-4 py-3 text-sm leading-6 text-slate-800 dark:border-indigo-500/30 dark:bg-black/25 dark:text-white/85">
                   <p className="whitespace-pre-wrap">{streamText}</p>
                   <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-indigo-500" />
                 </div>
