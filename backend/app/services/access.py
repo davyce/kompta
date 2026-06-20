@@ -78,6 +78,14 @@ def _create_employee_account(
     role: str,
     current_user: User,
 ) -> tuple[User, str, str]:
+    # Limite d'utilisateurs selon l'offre (essai/Business = illimité).
+    from app.services.subscriptions import can_add_user
+    if not can_add_user(db, current_user.company_id):
+        raise HTTPException(
+            status_code=402,
+            detail="Limite d'utilisateurs de votre offre atteinte. "
+                   "Passez à une offre supérieure pour ajouter plus d'utilisateurs.",
+        )
     temporary_password = generate_temporary_password()
     user = User(
         email=login_email,
