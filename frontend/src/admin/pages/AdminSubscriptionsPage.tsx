@@ -90,11 +90,36 @@ function PlansSection() {
   );
 }
 
+// Modules premium gateables par plan (clés = segments de route, miroir backend).
+const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: "employees", label: "RH / Employés" },
+  { key: "payroll", label: "Paie" },
+  { key: "accounting", label: "Comptabilité" },
+  { key: "declarations", label: "Déclarations" },
+  { key: "fiscal", label: "Fiscalité" },
+  { key: "assistants", label: "Rédaction IA" },
+  { key: "limule", label: "Limule IA" },
+  { key: "projects", label: "Projets" },
+  { key: "kanban", label: "Kanban" },
+  { key: "meetings", label: "Réunions" },
+  { key: "chat", label: "Chat" },
+  { key: "reports", label: "Rapports" },
+  { key: "investments", label: "Investissements" },
+  { key: "groups", label: "Groupes & Tontines" },
+  { key: "reports-teras", label: "TERAS (rapports)" },
+  { key: "teras", label: "TERAS Connect" },
+];
+
 function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSave: (p: Partial<SubscriptionPlanDto>) => void; onDelete: () => void }) {
   const { t: tr } = useTranslation();
   const [price, setPrice] = useState(Math.round(plan.price_cents / 100));
   const [name, setName] = useState(plan.name);
-  const dirty = price !== Math.round(plan.price_cents / 100) || name !== plan.name;
+  const [maxUsers, setMaxUsers] = useState(plan.max_users);
+  const [modules, setModules] = useState<string[]>(plan.included_modules);
+  const toggleModule = (k: string) =>
+    setModules((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
+  const modulesDirty = JSON.stringify([...modules].sort()) !== JSON.stringify([...plan.included_modules].sort());
+  const dirty = price !== Math.round(plan.price_cents / 100) || name !== plan.name || maxUsers !== plan.max_users || modulesDirty;
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between">
@@ -110,13 +135,28 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
           className="w-28 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm font-mono text-white outline-none focus:border-emerald-500" />
         <span className="text-sm text-white/50">{plan.currency} / {plan.period === "year" ? tr("admin.subscriptions.period.yearShort") : tr("admin.subscriptions.period.monthShort")}</span>
       </div>
-      <ul className="mt-3 space-y-1">
-        {plan.features.slice(0, 5).map((f, i) => (
-          <li key={i} className="flex items-center gap-1.5 text-xs text-white/60"><Check size={12} className="text-emerald-400" /> {f}</li>
-        ))}
-      </ul>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs text-white/50">Utilisateurs max</span>
+        <input type="number" min={0} value={maxUsers} onChange={(e) => setMaxUsers(Math.max(0, Number(e.target.value) || 0))}
+          className="w-20 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm font-mono text-white outline-none focus:border-emerald-500" />
+        <span className="text-[10px] text-white/40">(0 = illimité)</span>
+      </div>
+
+      <div className="mt-3">
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-white/40">Modules inclus</p>
+        <div className="grid grid-cols-2 gap-1">
+          {MODULE_OPTIONS.map((m) => (
+            <label key={m.key} className="flex cursor-pointer items-center gap-1.5 text-xs text-white/70">
+              <input type="checkbox" checked={modules.includes(m.key)} onChange={() => toggleModule(m.key)}
+                className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-emerald-500" />
+              {m.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-3 flex gap-2">
-        <button disabled={!dirty} onClick={() => onSave({ price_cents: price * 100, name })}
+        <button disabled={!dirty} onClick={() => onSave({ price_cents: price * 100, name, max_users: maxUsers, included_modules: modules })}
           className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tr("common.save")}</button>
         <button onClick={onDelete} className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-rose-300 hover:bg-rose-500/30"><Trash2 size={14} /></button>
       </div>

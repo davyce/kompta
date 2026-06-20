@@ -206,7 +206,7 @@ async def groupe_member_scope_guard(request: Request, call_next):
 # le profil entreprise (pour voir son propre statut).
 # Premier segment d'URL → module premium (gateable par plan). Le reste = cœur.
 _PREMIUM_PATH_MODULES = {
-    "payroll": "payroll", "employees": "rh", "accounting": "accounting",
+    "payroll": "payroll", "employees": "employees", "accounting": "accounting",
     "declarations": "declarations", "fiscal": "fiscal", "assistants": "assistants",
     "limule": "limule", "projects": "projects", "kanban": "kanban",
     "meetings": "meetings", "reports": "reports", "reports-teras": "reports-teras",
