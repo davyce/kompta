@@ -1653,6 +1653,8 @@ export type SubscriptionPlanDto = {
   currency: string;
   period: "month" | "year";
   features: string[];
+  included_modules: string[];
+  max_users: number;
   trial_days: number;
   is_active: boolean;
   sort_order: number;
