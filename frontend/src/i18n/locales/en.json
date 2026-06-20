@@ -175,6 +175,54 @@
         "settings": {
           "title": "Settings",
           "body": "Configure language, security, company details and work preferences."
+        },
+        "clients": {
+          "title": "Clients & follow-ups",
+          "body": "Centralize your clients, their purchase history and automate reminders."
+        },
+        "employees": {
+          "title": "Employees",
+          "body": "Manage staff records, roles and generate access to the app."
+        },
+        "payroll": {
+          "title": "Payroll",
+          "body": "Prepare payslips, compute contributions and net pay, linked to employees."
+        },
+        "projects": {
+          "title": "Projects",
+          "body": "Track progress, tasks and deadlines of your projects on a Kanban board."
+        },
+        "transactions": {
+          "title": "Transactions",
+          "body": "Record income and expenses, reconcile your cash movements."
+        },
+        "accounting": {
+          "title": "Accounting",
+          "body": "Keep SYSCOHADA-compliant entries and generate your statements."
+        },
+        "investments": {
+          "title": "Investments",
+          "body": "Manage your investments, their yield and portfolio analyses."
+        },
+        "budget": {
+          "title": "Budget",
+          "body": "Set budgets per line and track variances in real time."
+        },
+        "analytics": {
+          "title": "Analytics",
+          "body": "Visualize your KPIs, export reports and let AI comment on them."
+        },
+        "documents": {
+          "title": "Documents",
+          "body": "Store, organize and find your company documents in one safe place."
+        },
+        "declarations": {
+          "title": "Tax filings",
+          "body": "Prepare your filings and meet your CEMAC tax deadlines."
+        },
+        "audit": {
+          "title": "Audit log",
+          "body": "Trace every sensitive action for security and compliance."
         }
       }
     },
@@ -2911,46 +2959,46 @@
       "latency": "Latency",
       "lastCheck": "Last check",
       "comingSoon": "Coming soon",
-    "tabs": {
-      "flags": "Feature Flags",
-      "health": "Health Check",
-      "preflight": "Prod Preflight",
-      "email": "SMTP Email",
-      "system": "System information"
-    },
+      "tabs": {
+        "flags": "Feature Flags",
+        "health": "Health Check",
+        "preflight": "Prod Preflight",
+        "email": "SMTP Email",
+        "system": "System information"
+      },
       "serviceStatus": {
         "healthy": "Operational",
         "degraded": "Degraded",
         "down": "Offline"
       },
-    "defaultServices": {
-      "database": "Database",
-      "limule": "Limule AI",
-      "storage": "Storage",
-      "stripe": "Stripe",
-      "momo": "MTN MoMo",
-      "smtp": "SMTP",
-      "sentry": "Sentry",
-      "uptime": "Uptime"
-    },
-    "info": {
-      "version": "Application version",
-      "environment": "Environment",
-      "database": "Database",
-      "updatedAt": "Last update"
-    },
-    "preflight": {
-      "title": "Production preflight",
-      "summary": "Score {{score}}/100 · {{environment}}",
-      "nextActions": "Priority actions",
-      "unavailable": "Preflight unavailable.",
-      "status": {
-        "pass": "OK",
-        "warn": "Watch",
-        "fail": "Blocking"
-      }
-    },
-    "email": {
+      "defaultServices": {
+        "database": "Database",
+        "limule": "Limule AI",
+        "storage": "Storage",
+        "stripe": "Stripe",
+        "momo": "MTN MoMo",
+        "smtp": "SMTP",
+        "sentry": "Sentry",
+        "uptime": "Uptime"
+      },
+      "info": {
+        "version": "Application version",
+        "environment": "Environment",
+        "database": "Database",
+        "updatedAt": "Last update"
+      },
+      "preflight": {
+        "title": "Production preflight",
+        "summary": "Score {{score}}/100 · {{environment}}",
+        "nextActions": "Priority actions",
+        "unavailable": "Preflight unavailable.",
+        "status": {
+          "pass": "OK",
+          "warn": "Watch",
+          "fail": "Blocking"
+        }
+      },
+      "email": {
         "sendError": "Error while sending",
         "smtpConfig": "SMTP configuration",
         "enabledValue": "✅ Enabled",
@@ -4468,15 +4516,42 @@
     "planDesc": "SYSCEMAC accounting framework used in the CEMAC zone. Click to see class details.",
     "classLabel": "Class {{n}} — {{label}}",
     "syscemac": {
-      "class1": { "label": "Long-term resources", "desc": "Equity and long-term financial debt" },
-      "class2": { "label": "Fixed assets", "desc": "Tangible, intangible, and financial assets" },
-      "class3": { "label": "Inventories", "desc": "Goods, raw materials, finished products" },
-      "class4": { "label": "Third parties", "desc": "Customers, suppliers, State, social bodies" },
-      "class5": { "label": "Cash and treasury", "desc": "Banks, cash registers, marketable securities" },
-      "class6": { "label": "Ordinary activity expenses", "desc": "Purchases, staff costs, depreciation allowances" },
-      "class7": { "label": "Ordinary activity revenue", "desc": "Sales, services, financial income" },
-      "class8": { "label": "Non-ordinary activity", "desc": "Expenses and income outside ordinary activities" },
-      "class9": { "label": "Management accounting", "desc": "Management cost accounting for internal use" }
+      "class1": {
+        "label": "Long-term resources",
+        "desc": "Equity and long-term financial debt"
+      },
+      "class2": {
+        "label": "Fixed assets",
+        "desc": "Tangible, intangible, and financial assets"
+      },
+      "class3": {
+        "label": "Inventories",
+        "desc": "Goods, raw materials, finished products"
+      },
+      "class4": {
+        "label": "Third parties",
+        "desc": "Customers, suppliers, State, social bodies"
+      },
+      "class5": {
+        "label": "Cash and treasury",
+        "desc": "Banks, cash registers, marketable securities"
+      },
+      "class6": {
+        "label": "Ordinary activity expenses",
+        "desc": "Purchases, staff costs, depreciation allowances"
+      },
+      "class7": {
+        "label": "Ordinary activity revenue",
+        "desc": "Sales, services, financial income"
+      },
+      "class8": {
+        "label": "Non-ordinary activity",
+        "desc": "Expenses and income outside ordinary activities"
+      },
+      "class9": {
+        "label": "Management accounting",
+        "desc": "Management cost accounting for internal use"
+      }
     },
     "planFooter1": "SYSCEMAC Revised · CEMAC",
     "planFooter2": "In force since January 1, 2018",

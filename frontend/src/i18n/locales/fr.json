@@ -175,6 +175,54 @@
         "settings": {
           "title": "Paramètres",
           "body": "Configurez la langue, la sécurité, l'entreprise et les préférences de travail."
+        },
+        "clients": {
+          "title": "Clients & relances",
+          "body": "Centralisez vos clients, leur historique d'achats et automatisez les relances."
+        },
+        "employees": {
+          "title": "Employés",
+          "body": "Gérez les fiches du personnel, les rôles et générez les accès à l'application."
+        },
+        "payroll": {
+          "title": "Paie",
+          "body": "Préparez les bulletins, calculez cotisations et net à payer, connectés aux employés."
+        },
+        "projects": {
+          "title": "Projets",
+          "body": "Suivez l'avancement, les tâches et les échéances de vos projets en Kanban."
+        },
+        "transactions": {
+          "title": "Transactions",
+          "body": "Enregistrez recettes et dépenses, rapprochez vos mouvements de trésorerie."
+        },
+        "accounting": {
+          "title": "Comptabilité",
+          "body": "Tenez vos écritures conformes au plan SYSCOHADA et générez vos états."
+        },
+        "investments": {
+          "title": "Investissements",
+          "body": "Pilotez vos placements, leur rendement et vos analyses de portefeuille."
+        },
+        "budget": {
+          "title": "Budget",
+          "body": "Définissez vos budgets par poste et suivez les écarts en temps réel."
+        },
+        "analytics": {
+          "title": "Analytique",
+          "body": "Visualisez vos indicateurs, exportez vos rapports et laissez l'IA les commenter."
+        },
+        "documents": {
+          "title": "Documents",
+          "body": "Stockez, classez et retrouvez vos documents d'entreprise en un endroit sûr."
+        },
+        "declarations": {
+          "title": "Déclarations fiscales",
+          "body": "Préparez vos déclarations et respectez vos échéances fiscales CEMAC."
+        },
+        "audit": {
+          "title": "Journal d'audit",
+          "body": "Tracez chaque action sensible pour la sécurité et la conformité."
         }
       }
     },
@@ -2911,46 +2959,46 @@
       "latency": "Latence",
       "lastCheck": "Dernier check",
       "comingSoon": "Bientôt",
-    "tabs": {
-      "flags": "Feature Flags",
-      "health": "Health Check",
-      "preflight": "Préflight prod",
-      "email": "Email SMTP",
-      "system": "Informations système"
-    },
+      "tabs": {
+        "flags": "Feature Flags",
+        "health": "Health Check",
+        "preflight": "Préflight prod",
+        "email": "Email SMTP",
+        "system": "Informations système"
+      },
       "serviceStatus": {
         "healthy": "Opérationnel",
         "degraded": "Dégradé",
         "down": "Hors ligne"
       },
-    "defaultServices": {
-      "database": "Base de données",
-      "limule": "Limule IA",
-      "storage": "Stockage",
-      "stripe": "Stripe",
-      "momo": "MTN MoMo",
-      "smtp": "SMTP",
-      "sentry": "Sentry",
-      "uptime": "Uptime"
-    },
-    "info": {
-      "version": "Version application",
-      "environment": "Environnement",
-      "database": "Base de données",
-      "updatedAt": "Dernière mise à jour"
-    },
-    "preflight": {
-      "title": "Préflight production",
-      "summary": "Score {{score}}/100 · {{environment}}",
-      "nextActions": "Actions prioritaires",
-      "unavailable": "Préflight indisponible.",
-      "status": {
-        "pass": "OK",
-        "warn": "À surveiller",
-        "fail": "Bloquant"
-      }
-    },
-    "email": {
+      "defaultServices": {
+        "database": "Base de données",
+        "limule": "Limule IA",
+        "storage": "Stockage",
+        "stripe": "Stripe",
+        "momo": "MTN MoMo",
+        "smtp": "SMTP",
+        "sentry": "Sentry",
+        "uptime": "Uptime"
+      },
+      "info": {
+        "version": "Version application",
+        "environment": "Environnement",
+        "database": "Base de données",
+        "updatedAt": "Dernière mise à jour"
+      },
+      "preflight": {
+        "title": "Préflight production",
+        "summary": "Score {{score}}/100 · {{environment}}",
+        "nextActions": "Actions prioritaires",
+        "unavailable": "Préflight indisponible.",
+        "status": {
+          "pass": "OK",
+          "warn": "À surveiller",
+          "fail": "Bloquant"
+        }
+      },
+      "email": {
         "sendError": "Erreur lors de l'envoi",
         "smtpConfig": "Configuration SMTP",
         "enabledValue": "✅ Activé",
@@ -4468,15 +4516,42 @@
     "planDesc": "Référentiel comptable SYSCEMAC utilisé en zone CEMACE. Cliquez pour voir le détail des classes.",
     "classLabel": "Classe {{n}} — {{label}}",
     "syscemac": {
-      "class1": { "label": "Ressources durables", "desc": "Capitaux propres, dettes financières à long terme" },
-      "class2": { "label": "Actifs immobilisés", "desc": "Immobilisations corporelles, incorporelles, financières" },
-      "class3": { "label": "Stocks", "desc": "Marchandises, matières premières, produits finis" },
-      "class4": { "label": "Tiers", "desc": "Clients, fournisseurs, État, organismes sociaux" },
-      "class5": { "label": "Trésorerie", "desc": "Banques, caisses, valeurs mobilières de placement" },
-      "class6": { "label": "Charges AO", "desc": "Achats, charges de personnel, dotations aux amortissements" },
-      "class7": { "label": "Revenus AO", "desc": "Ventes, prestations de services, produits financiers" },
-      "class8": { "label": "Hors AO (HAO)", "desc": "Charges et produits hors activités ordinaires" },
-      "class9": { "label": "CAGE", "desc": "Comptabilité analytique de gestion (usage interne)" }
+      "class1": {
+        "label": "Ressources durables",
+        "desc": "Capitaux propres, dettes financières à long terme"
+      },
+      "class2": {
+        "label": "Actifs immobilisés",
+        "desc": "Immobilisations corporelles, incorporelles, financières"
+      },
+      "class3": {
+        "label": "Stocks",
+        "desc": "Marchandises, matières premières, produits finis"
+      },
+      "class4": {
+        "label": "Tiers",
+        "desc": "Clients, fournisseurs, État, organismes sociaux"
+      },
+      "class5": {
+        "label": "Trésorerie",
+        "desc": "Banques, caisses, valeurs mobilières de placement"
+      },
+      "class6": {
+        "label": "Charges AO",
+        "desc": "Achats, charges de personnel, dotations aux amortissements"
+      },
+      "class7": {
+        "label": "Revenus AO",
+        "desc": "Ventes, prestations de services, produits financiers"
+      },
+      "class8": {
+        "label": "Hors AO (HAO)",
+        "desc": "Charges et produits hors activités ordinaires"
+      },
+      "class9": {
+        "label": "CAGE",
+        "desc": "Comptabilité analytique de gestion (usage interne)"
+      }
     },
     "planFooter1": "SYSCEMAC Révisé · CEMACE",
     "planFooter2": "En vigueur depuis le 1er janvier 2018",

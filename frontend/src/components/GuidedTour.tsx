@@ -39,6 +39,11 @@ const STEPS: TourStep[] = [
     bodyTk: "components.guidedTour.steps.dashboard.body",
   },
   {
+    route: "/clients",
+    titleTk: "components.guidedTour.steps.clients.title",
+    bodyTk: "components.guidedTour.steps.clients.body",
+  },
+  {
     route: "/pos", selector: "[data-tour='pos-checkout']",
     titleTk: "components.guidedTour.steps.pos.title",
     bodyTk: "components.guidedTour.steps.pos.body",
@@ -52,6 +57,61 @@ const STEPS: TourStep[] = [
     route: "/inventory", selector: "[data-tour='add-product']",
     titleTk: "components.guidedTour.steps.stock.title",
     bodyTk: "components.guidedTour.steps.stock.body",
+  },
+  {
+    route: "/employees",
+    titleTk: "components.guidedTour.steps.employees.title",
+    bodyTk: "components.guidedTour.steps.employees.body",
+  },
+  {
+    route: "/payroll",
+    titleTk: "components.guidedTour.steps.payroll.title",
+    bodyTk: "components.guidedTour.steps.payroll.body",
+  },
+  {
+    route: "/projects",
+    titleTk: "components.guidedTour.steps.projects.title",
+    bodyTk: "components.guidedTour.steps.projects.body",
+  },
+  {
+    route: "/transactions",
+    titleTk: "components.guidedTour.steps.transactions.title",
+    bodyTk: "components.guidedTour.steps.transactions.body",
+  },
+  {
+    route: "/accounting",
+    titleTk: "components.guidedTour.steps.accounting.title",
+    bodyTk: "components.guidedTour.steps.accounting.body",
+  },
+  {
+    route: "/investments",
+    titleTk: "components.guidedTour.steps.investments.title",
+    bodyTk: "components.guidedTour.steps.investments.body",
+  },
+  {
+    route: "/budget",
+    titleTk: "components.guidedTour.steps.budget.title",
+    bodyTk: "components.guidedTour.steps.budget.body",
+  },
+  {
+    route: "/analytics",
+    titleTk: "components.guidedTour.steps.analytics.title",
+    bodyTk: "components.guidedTour.steps.analytics.body",
+  },
+  {
+    route: "/documents",
+    titleTk: "components.guidedTour.steps.documents.title",
+    bodyTk: "components.guidedTour.steps.documents.body",
+  },
+  {
+    route: "/declarations",
+    titleTk: "components.guidedTour.steps.declarations.title",
+    bodyTk: "components.guidedTour.steps.declarations.body",
+  },
+  {
+    route: "/audit",
+    titleTk: "components.guidedTour.steps.audit.title",
+    bodyTk: "components.guidedTour.steps.audit.body",
   },
   {
     route: "/", selector: "[data-tour='limule']",
@@ -163,17 +223,23 @@ export function GuidedTour() {
   const progress = Math.round(((idx + 1) / STEPS.length) * 100);
 
   // Position de la bulle : sous la cible si place, sinon au-dessus ; sinon centrée.
+  // Largeur et hauteur responsives pour ne jamais déborder / rogner sur mobile.
   const vh = window.innerHeight;
   const vw = window.innerWidth;
+  const bubbleW = Math.min(340, vw - 24);
+  const bubbleMaxH = Math.min(440, vh - 24);
+  const estH = Math.min(300, bubbleMaxH);
   let bubbleStyle: React.CSSProperties;
   if (rect) {
-    const below = rect.bottom + 16 + 230 < vh;
-    const top = below ? rect.bottom + 14 : Math.max(12, rect.top - 14 - 230);
-    let left = rect.left + rect.width / 2 - 170;
-    left = Math.max(12, Math.min(left, vw - 352));
-    bubbleStyle = { position: "fixed", top, left, width: 340 };
+    const below = rect.bottom + 16 + estH < vh;
+    const top = below
+      ? Math.min(rect.bottom + 14, vh - estH - 12)
+      : Math.max(12, rect.top - 14 - estH);
+    let left = rect.left + rect.width / 2 - bubbleW / 2;
+    left = Math.max(12, Math.min(left, vw - bubbleW - 12));
+    bubbleStyle = { position: "fixed", top, left, width: bubbleW, maxHeight: bubbleMaxH };
   } else {
-    bubbleStyle = { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 340 };
+    bubbleStyle = { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: bubbleW, maxHeight: bubbleMaxH };
   }
 
   const Icon = step.limule ? null : Sparkles;
@@ -203,9 +269,9 @@ export function GuidedTour() {
       {/* Bulle explicative */}
       <div
         style={bubbleStyle}
-        className="overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#1a1d23]"
+        className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#1a1d23]"
       >
-        <div className="flex items-start gap-3 bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 pb-4 pt-5 text-white">
+        <div className="flex shrink-0 items-start gap-3 bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 pb-4 pt-5 text-white">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15">
             {step.limule ? <LimuleIcon size={24} /> : Icon && <Icon size={20} />}
           </span>
@@ -219,7 +285,7 @@ export function GuidedTour() {
             <X size={15} />
           </button>
         </div>
-        <div className="px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           <p className="text-sm leading-relaxed text-[#3f4a55] dark:text-white/75">{tr(step.bodyTk)}</p>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-white/10">
             <div className="h-full rounded-full bg-emerald-600 transition-all duration-300" style={{ width: `${progress}%` }} />
