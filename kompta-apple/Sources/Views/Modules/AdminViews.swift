@@ -1233,6 +1233,8 @@ struct AdminLimuleView: View {
     @State private var prompt = ""
     @State private var asking = false
     @State private var chatResponse: AdminLimuleChatResponse?
+    @State private var exportURL: URL?
+    @State private var exporting = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1354,9 +1356,30 @@ struct AdminLimuleView: View {
         .padding()
     }
 
+    private func exportDataset() async {
+        exporting = true
+        defer { exporting = false }
+        guard let data = try? await APIClient.shared.adminLimuleDatasetExport() else { return }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("limule-dataset-\(Int(Date().timeIntervalSince1970)).jsonl")
+        try? data.write(to: url)
+        exportURL = url
+    }
+
     @ViewBuilder private var datasetTab: some View {
         if let d = dataset.value {
             VStack(spacing: 10) {
+                HStack {
+                    if let exportURL {
+                        ShareLink(item: exportURL) { Label("Exporter (JSONL)", systemImage: "square.and.arrow.down") }
+                    } else {
+                        Button { Task { await exportDataset() } } label: {
+                            if exporting { ProgressView() } else { Label("Exporter le jeu de données (JSONL)", systemImage: "square.and.arrow.down") }
+                        }.disabled(exporting)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
                 if d.isEmpty {
                     ContentUnavailableView("Aucune donnée", systemImage: "tray")
                 } else {

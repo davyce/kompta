@@ -670,6 +670,8 @@ actor APIClient {
         try await post("/admin/limule/chat", body: AdminLimuleChatPayload(prompt: prompt))
     }
     func adminLimuleDataset(limit: Int = 100) async throws -> [AdminLimuleDatasetRecord] { try await get("/admin/limule/dataset?limit=\(limit)") }
+    /// Export brut du dataset d'entraînement (JSONL).
+    func adminLimuleDatasetExport() async throws -> Data { try await perform(try request("/admin/limule/dataset/export")) }
 
     // MARK: - Admin: subscriptions (plans, promotions, companies)
 
