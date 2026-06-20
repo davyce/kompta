@@ -3,6 +3,7 @@ import SwiftUI
 struct AppShell: View {
     @EnvironmentObject private var theme: CompanyTheme
     @EnvironmentObject private var auth: AuthManager
+    @EnvironmentObject private var ent: EntitlementsManager
 
     var body: some View {
         #if os(iOS)
@@ -65,7 +66,13 @@ struct AppShell: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
         } detail: {
             NavigationStack {
-                detailView(for: selection)
+                VStack(spacing: 0) {
+                    if ent.showTrialBanner {
+                        TrialBanner(text: ent.trialBannerText, critical: ent.trialBannerIsCritical)
+                            .padding([.horizontal, .top])
+                    }
+                    detailView(for: selection)
+                }
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -73,16 +80,20 @@ struct AppShell: View {
 
     @ViewBuilder
     private func detailView(for id: String) -> some View {
-        switch id {
-        case "dashboard": DashboardView()
-        case "pos":       POSView()
-        case "limule":    LimuleChatView()
-        case "settings":  SettingsView()
-        default:
-            if let m = ModuleRegistry.all.first(where: { $0.id == id }) {
-                m.make()
-            } else {
-                DashboardView()
+        if ent.isLocked(moduleId: id) {
+            UpgradeRequiredView(title: ModuleRegistry.all.first(where: { $0.id == id })?.title ?? "Cette fonctionnalité")
+        } else {
+            switch id {
+            case "dashboard": DashboardView()
+            case "pos":       POSView()
+            case "limule":    LimuleChatView()
+            case "settings":  SettingsView()
+            default:
+                if let m = ModuleRegistry.all.first(where: { $0.id == id }) {
+                    m.make()
+                } else {
+                    DashboardView()
+                }
             }
         }
     }
@@ -99,7 +110,7 @@ struct AppShell: View {
             ForEach(ModuleRegistry.visibleSections(role: auth.currentUser?.role), id: \.self) { section in
                 Section(section) {
                     ForEach(ModuleRegistry.visibleModules(in: section, role: auth.currentUser?.role)) { m in
-                        SidebarRow(id: m.id, title: m.title, icon: m.icon, tint: m.tint)
+                        SidebarRow(id: m.id, title: m.title, icon: m.icon, tint: m.tint, locked: ent.isLocked(moduleId: m.id))
                     }
                 }
             }
@@ -121,10 +132,14 @@ private struct SidebarRow: View {
     let title: String
     let icon: String
     var tint: Color = .secondary
+    var locked: Bool = false
 
     var body: some View {
         Label {
-            Text(title)
+            HStack {
+                Text(title)
+                if locked { Spacer(); Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary) }
+            }
         } icon: {
             if icon == KomptaBrand.limuleIcon {
                 LimuleMark(size: 18, showAura: false)
@@ -132,7 +147,24 @@ private struct SidebarRow: View {
                 Image(systemName: icon).foregroundStyle(tint)
             }
         }
+        .opacity(locked ? 0.5 : 1)
         .tag(id)
+    }
+}
+
+// Écran affiché quand un module n'est pas inclus dans l'offre courante.
+struct UpgradeRequiredView: View {
+    let title: String
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "lock.fill").font(.system(size: 40)).foregroundStyle(.orange)
+            Text("« \(title) » n'est pas inclus dans votre offre")
+                .font(.headline).multilineTextAlignment(.center)
+            Text("Passez à une offre supérieure dans Réglages → Abonnement pour débloquer cette fonctionnalité.")
+                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 #endif
