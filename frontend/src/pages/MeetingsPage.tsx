@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Calendar, CheckCircle2, Clock, Plus, Sparkles, Trash2, Users, Video, X,
+  Calendar, CheckCircle2, Clock, Plus, Trash2, Users, Video, X,
 } from "lucide-react";
 
 import { api, type MeetingDto } from "../services/api";
@@ -261,7 +262,7 @@ export function MeetingsPage() {
                     </div>
                     {m.ai_summary && (
                       <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                        <Sparkles size={12} /> {m.ai_summary}
+                        <LimuleIcon size={12} /> {m.ai_summary}
                       </div>
                     )}
                   </div>
@@ -275,7 +276,7 @@ export function MeetingsPage() {
                       onClick={(e) => { e.stopPropagation(); generateSummary.mutate(m.id); }}
                       disabled={generateSummary.isPending}
                       className="flex-shrink-0 flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30 transition">
-                      <Sparkles size={14} /> {tr("meetings.summary")}
+                      <LimuleIcon size={14} /> {tr("meetings.summary")}
                     </button>
                   )}
                 </div>
@@ -312,7 +313,7 @@ export function MeetingsPage() {
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-black/[0.1] dark:border-white/[0.08] px-5 py-8 text-center">
-              <Sparkles size={28} className="mx-auto text-emerald-500" />
+              <LimuleIcon size={28} className="mx-auto text-emerald-500" />
               <p className="mt-2 text-sm font-semibold text-[#17211f] dark:text-white">{tr("meetings.noCr")}</p>
               <p className="text-xs text-[#717182]">{tr("meetings.noCrDesc")}</p>
             </div>

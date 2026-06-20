@@ -165,8 +165,12 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   }
   if (!response.ok) {
     const message = await readApiError(response);
-    const isSessionProbe = path === "/auth/me" || path === "/auth/refresh";
-    if (response.status === 401 && !skipUnauthorizedLogout && isSessionProbe) {
+    const isAuthPublicEndpoint =
+      path === "/auth/login" ||
+      path === "/auth/google" ||
+      path === "/auth/request-reset" ||
+      path === "/auth/reset-password";
+    if (response.status === 401 && !skipUnauthorizedLogout && !isAuthPublicEndpoint) {
       _onUnauthorized?.();
     }
     throw new ApiError(response.status, message);

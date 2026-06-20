@@ -1124,7 +1124,7 @@ export function Copilot() {
                       <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("components.copilot.task.priority")}</span>
                       {taskDraft.priority === taskDraft.autoDetectedPriority && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-                          <Sparkles size={9} /> {tr("components.copilot.task.detectedByAi")}
+                          <LimuleIcon size={9} /> {tr("components.copilot.task.detectedByAi")}
                         </span>
                       )}
                     </div>

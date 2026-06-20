@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Building2, Calendar, ChevronRight, Globe, KeyRound,
-  Loader2, MapPin, MessageCircle, Sparkles, User, Users2, Vote, Wallet,
+  Loader2, MapPin, MessageCircle, User, Users2, Vote, Wallet,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -64,7 +64,7 @@ const FEATURES = [
   { key: "chat",          icon: MessageCircle,   tk: "registerGroup.featChat" },
   { key: "votes",         icon: Vote,            tk: "registerGroup.featVotes" },
   { key: "anniversaires", icon: Calendar,        tk: "registerGroup.featBirthdays" },
-  { key: "ia",            icon: Sparkles,        tk: "registerGroup.featAi" },
+  { key: "ia",            icon: LimuleIcon,        tk: "registerGroup.featAi" },
 ];
 
 function countryLabel(value: string, tr: (key: string) => string) {
@@ -434,7 +434,7 @@ export function RegisterGroupPage() {
                 disabled={loading || !form.name.trim()}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white hover:bg-violet-700 transition active:scale-[0.98] disabled:opacity-60"
               >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={16} />}
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <LimuleIcon size={16} />}
                 {loading ? tr("registerGroup.creating") : token ? tr("registerGroup.createGroupBtn") : tr("registerGroup.createAccountGroup")}
               </button>
             )}

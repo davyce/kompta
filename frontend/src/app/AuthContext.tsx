@@ -7,7 +7,8 @@ import type { User } from "../types/domain";
 
 function getTokenExpiry(token: string): number | null {
   try {
-    const body = token.split(".")[1];
+    const parts = token.split(".");
+    const body = parts.length === 2 ? parts[0] : parts[1];
     if (!body) return null;
     const padding = "=".repeat((4 - (body.length % 4)) % 4);
     const decoded = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/") + padding));

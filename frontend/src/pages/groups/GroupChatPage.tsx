@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, FileText, Send, Hash, Loader2, Trash2, Reply, Plus, X, MessageSquare, Sparkles, Wifi, WifiOff, Paperclip, Download, File as FileIcon } from "lucide-react";
+import { Bot, FileText, Send, Hash, Loader2, Trash2, Reply, Plus, X, MessageSquare, Wifi, WifiOff, Paperclip, Download, File as FileIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useAuth } from "../../app/AuthContext";
+import { LimuleIcon } from "../../components/LimuleAvatar";
 import { api } from "../../services/api";
 import { useToast } from "../../components/ToastProvider";
 import i18n from "../../i18n";
@@ -475,7 +476,7 @@ export function GroupChatPage() {
               </div>
             ) : (
               <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
-                <Sparkles size={30} className="text-blue-300 dark:text-blue-500/60" />
+                <LimuleIcon size={30} className="text-blue-300 dark:text-blue-500/60" />
                 <div>
                   <p className="font-black text-[#17211f] dark:text-white">{tr("groupPages.chat.assistantConnected")}</p>
                   <p className="mt-1 text-sm text-[#717182]">{tr("groupPages.chat.assistantPrompt")}</p>
@@ -506,7 +507,7 @@ export function GroupChatPage() {
                 disabled={assistantPending || !assistantQuestion.trim()}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-800 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-900 disabled:opacity-50"
               >
-                <Sparkles size={13} />
+                <LimuleIcon size={13} />
                 {tr("groupPages.chat.ask")}
               </button>
             </div>

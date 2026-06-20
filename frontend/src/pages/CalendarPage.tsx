@@ -10,7 +10,6 @@ import {
   Download,
   MapPin,
   Plus,
-  Sparkles,
   Target,
   Trash2,
   Users,
@@ -22,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { api, type MeetingDto } from "../services/api";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import i18n from "../i18n";
 import type { Task } from "../types/domain";
 
@@ -634,7 +634,7 @@ export function CalendarPage() {
         <aside className="space-y-4">
           <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-500/30 dark:bg-violet-500/10">
             <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
-              <Sparkles size={18} />
+              <LimuleIcon size={18} />
               <h2 className="font-bold">{tr("calendar.limuleSummary.title")}</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-[#17211f] dark:text-white">
@@ -685,7 +685,7 @@ export function CalendarPage() {
                       {meeting.ai_summary ? (
                         <div className="mt-3 rounded-lg bg-white/60 p-2 text-xs leading-5 dark:bg-white/10">
                           <div className="mb-1 flex items-center gap-1 font-bold">
-                            <Sparkles size={12} />
+                            <LimuleIcon size={12} />
                             {tr("calendar.limuleSummary.title")}
                           </div>
                           <p>{meeting.ai_summary}</p>
@@ -720,7 +720,7 @@ export function CalendarPage() {
                           disabled={generateSummary.isPending}
                           className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15"
                         >
-                          <Sparkles size={12} />
+                          <LimuleIcon size={12} />
                           {meeting.ai_summary ? tr("calendar.meeting.regenerate") : tr("calendar.meeting.summary")}
                         </button>
                         {meeting.ai_points.length > 0 ? (

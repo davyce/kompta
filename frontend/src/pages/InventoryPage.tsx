@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
   AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, FileDown, Filter,
-  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X, FileText, Sparkles, Loader2,
+  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X, FileText, Loader2,
 } from "lucide-react";
 
 import { api } from "../services/api";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmProvider";
 import type { Product } from "../types/domain";
@@ -401,7 +402,7 @@ export function InventoryPage() {
             disabled={aiReportMutation.isPending}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
-            {aiReportMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {tr("inventory.reportAi")}
+            {aiReportMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <LimuleIcon size={15} />} {tr("inventory.reportAi")}
           </button>
           {selected.length > 0 && (
             <button onClick={() => setTab("labels")} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm hover:bg-[#f5f5fa] dark:border-white/10 dark:bg-white/5">
@@ -1216,7 +1217,7 @@ export function InventoryPage() {
           >
             <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
-                <Sparkles size={18} className="text-emerald-600" />
+                <LimuleIcon size={18} className="text-emerald-600" />
                 <h2 className="text-lg font-semibold text-[#17211f] dark:text-white">{tr("inventory.aiReportTitle")}</h2>
               </div>
               <button onClick={() => setAiReportOpen(false)} className="rounded-lg p-1 hover:bg-black/[0.04] dark:hover:bg-white/10">

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpenText, Calendar, CheckCircle2, Clock, Download, FileText, Pin, PinOff,
-  Plus, Save, Sparkles, Target, Trash2, X,
+  Plus, Save, Target, Trash2, X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,7 +56,7 @@ function LimuleNotePreview({ note }: { note: DailyNoteDto | null }) {
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-violet-100 bg-violet-50 px-5 py-4 dark:border-violet-500/20 dark:bg-violet-500/10">
         <div>
           <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
-            <Sparkles size={18} />
+            <LimuleIcon size={18} />
             <h2 className="font-black">{tr("notes.latestLimuleNote")}</h2>
           </div>
           <p className="mt-1 text-sm text-[#717182]">{note.title} · {shortDateLabel(note.note_date)}</p>
@@ -324,7 +324,7 @@ export function NotesPage() {
             <article className="space-y-5">
               <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-500/30 dark:bg-violet-500/10">
                 <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
-                  <Sparkles size={18} />
+                  <LimuleIcon size={18} />
                   <h3 className="font-bold">{tr("notes.daySummary")}</h3>
                 </div>
                 <p className="mt-3 text-sm leading-7 text-[#17211f] dark:text-white">{selectedAuto.summary}</p>

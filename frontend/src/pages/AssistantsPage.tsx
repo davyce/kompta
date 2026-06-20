@@ -3,7 +3,7 @@ import { FormEvent, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Braces, ChevronDown, ChevronUp, ClipboardCheck,
-  Copy, Download, Mail, RefreshCcw, Send, Sparkles, Trash2, Zap,
+  Copy, Download, Mail, RefreshCcw, Send, Trash2, Zap,
 } from "lucide-react";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 
@@ -17,10 +17,10 @@ import { api } from "../services/api";
 const TEMPLATES = [
   { key: "email",          labelTk: "assistants.templates.email",          icon: Mail },
   { key: "note",           labelTk: "assistants.templates.note",           icon: ClipboardCheck },
-  { key: "communique",     labelTk: "assistants.templates.communique",     icon: Sparkles },
+  { key: "communique",     labelTk: "assistants.templates.communique",     icon: LimuleIcon },
   { key: "courrier",       labelTk: "assistants.templates.courrier",       icon: ClipboardCheck },
   { key: "reponse_client", labelTk: "assistants.templates.reponseClient",  icon: Mail },
-  { key: "annonce_interne",labelTk: "assistants.templates.annonceInterne", icon: Sparkles },
+  { key: "annonce_interne",labelTk: "assistants.templates.annonceInterne", icon: LimuleIcon },
   { key: "clause",         labelTk: "assistants.templates.clause",         icon: Braces },
   { key: "declaration",    labelTk: "assistants.templates.declaration",    icon: Zap },
 ];
