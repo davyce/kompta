@@ -554,6 +554,11 @@ struct CollectionMethodsResponse: Codable {
     let can_collect: Bool
 }
 
+// 2FA / TOTP
+struct TotpSetup: Codable { let secret: String; let qr_uri: String }
+struct TotpResult: Codable { let totp_enabled: Bool }
+struct TotpCodePayload: Encodable { let code: String }
+
 struct CollectionMethodPayload: Encodable {
     var provider: String
     var label: String = ""

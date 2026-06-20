@@ -690,6 +690,12 @@ actor APIClient {
     func adminReactivateCompany(_ id: Int) async throws -> SuspendResult { try await actionDecoded("/admin/subscription/companies/\(id)/reactivate") }
     func adminGrantSubscription(_ id: Int, _ p: GrantRequestPayload) async throws -> GrantResult { try await post("/admin/subscription/companies/\(id)/grant", body: p) }
 
+    // MARK: - Sécurité : 2FA (TOTP)
+
+    func twoFaSetup() async throws -> TotpSetup { try await actionDecoded("/auth/2fa/setup") }
+    func twoFaEnable(_ code: String) async throws -> TotpResult { try await post("/auth/2fa/enable", body: TotpCodePayload(code: code)) }
+    func twoFaDisable() async throws -> TotpResult { try await actionDecoded("/auth/2fa/disable") }
+
     // MARK: - Entitlements (droits d'accès de l'entreprise)
 
     func myEntitlements() async throws -> Entitlements { try await get("/subscription/entitlements") }

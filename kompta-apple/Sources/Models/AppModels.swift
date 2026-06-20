@@ -72,6 +72,7 @@ struct KomptaUser: Codable, Identifiable {
     var last_login_city: String?
     var custom_role: UserCustomRole?
     var permissions: [String]?
+    var totp_enabled: Bool?
 
     var displayName: String { full_name }
     var firstName: String { full_name.components(separatedBy: " ").first ?? email }

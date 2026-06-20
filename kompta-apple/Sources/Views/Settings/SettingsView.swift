@@ -68,6 +68,14 @@ struct SettingsView: View {
                 Text("Touchez la photo pour changer votre avatar.")
             }
 
+            Section {
+                NavigationLink {
+                    SecurityView()
+                } label: {
+                    Label("Sécurité (2FA)", systemImage: "lock.shield")
+                }
+            } header: { Text("Sécurité") }
+
             // Company
             if let c = auth.company {
                 Section("Entreprise") {
