@@ -35,11 +35,13 @@ interface StripeCardPaymentModalProps {
   description?: string;
   saleId?: number;
   invoiceId?: number;
+  // "charge" : encaissement réel ; "verify" : paiement-test de validation de la carte
+  mode?: "charge" | "verify";
   onSuccess: (transactionId: number) => void;
   onClose: () => void;
 }
 
-export function StripeCardPaymentModal({ amountCents, currency = "XAF", description, saleId, invoiceId, onSuccess, onClose }: StripeCardPaymentModalProps) {
+export function StripeCardPaymentModal({ amountCents, currency = "XAF", description, saleId, invoiceId, mode = "charge", onSuccess, onClose }: StripeCardPaymentModalProps) {
   const { t: tr } = useTranslation();
   const cardMountRef   = useRef<HTMLDivElement>(null);
   const cardElementRef = useRef<StripeCardElement | null>(null);
@@ -56,7 +58,9 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     (async () => {
       try {
         await loadStripeJs();
-        const intent = await api.createStripeIntent({ amount_cents: amountCents, currency, sale_id: saleId, invoice_id: invoiceId, description });
+        const intent = mode === "verify"
+          ? await api.startCardTest()
+          : await api.createStripeIntent({ amount_cents: amountCents, currency, sale_id: saleId, invoice_id: invoiceId, description });
         if (cancelled) return;
         setClientSecret(intent.client_secret);
         setTxnId(intent.transaction_id);
@@ -102,7 +106,12 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     else if (result.paymentIntent?.status === "succeeded") {
       if (!txnId) { setPhase("form"); setError(tr("components.stripe.errors.transactionMissing")); return; }
       try {
-        await waitForServerConfirmation(txnId);
+        if (mode === "verify") {
+          const res = await api.confirmCardTest(txnId);
+          if (!res.verified) throw new Error(res.status || "verification_failed");
+        } else {
+          await waitForServerConfirmation(txnId);
+        }
         setPhase("succeeded");
         setTimeout(() => onSuccess(txnId), 900);
       } catch (e) {

@@ -1,5 +1,6 @@
 import type {
   Channel,
+  CollectionMethod,
   Company,
   CompanyDocument,
   AIRouterDecision,
@@ -473,6 +474,23 @@ export const api = {
   paymentStatus: (txnId: number) =>
     request<{ id: number; provider: string; status: string; amount_cents: number; currency: string; failure_reason: string }>(
       `/payments/${txnId}/status`),
+
+  /* ── Méthodes d'encaissement de l'entreprise (CEMAC) ───────── */
+  listCollectionMethods: () =>
+    request<{ methods: CollectionMethod[]; can_collect: boolean }>("/payments/methods"),
+  upsertCollectionMethod: (payload: Partial<CollectionMethod> & { provider: string }) =>
+    request<CollectionMethod>("/payments/methods", { method: "POST", body: JSON.stringify(payload) }),
+  deleteCollectionMethod: (id: number) =>
+    request<void>(`/payments/methods/${id}`, { method: "DELETE" }),
+  startCardTest: () =>
+    request<{ transaction_id: number; client_secret: string; publishable_key: string; amount_cents: number }>(
+      "/payments/methods/card/test", { method: "POST" }),
+  confirmCardTest: (txnId: number) =>
+    request<{ verified: boolean; status: string; method?: CollectionMethod }>(
+      `/payments/methods/card/test/confirm?transaction_id=${txnId}`, { method: "POST" }),
+  recordDirectPayment: (payload: { method_id: number; amount_cents: number; currency?: string; sale_id?: number; invoice_id?: number; description?: string; customer_phone?: string }) =>
+    request<{ id: number; provider: string; status: string; amount_cents: number; currency: string }>(
+      "/payments/record", { method: "POST", body: JSON.stringify(payload) }),
 
   /* ── Abonnement plateforme (entreprise) ───────────────────── */
   subscriptionPlans: () => request<SubscriptionPlanDto[]>("/subscription/plans"),

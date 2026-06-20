@@ -683,3 +683,18 @@ export type GroupCalendarEvent = {
   location?: string;
   days_until?: number;
 };
+
+export type CollectionMethod = {
+  id: number;
+  provider: "cash" | "momo_mtn" | "momo_airtel" | "momo_moov" | "bank_transfer" | "card_stripe";
+  label: string;
+  enabled: boolean;
+  merchant_number: string;
+  account_name: string;
+  bank_name: string;
+  bank_account: string;
+  instructions: string;
+  verified: boolean;
+  verified_at: string | null;
+  last_test_status: string;
+};
