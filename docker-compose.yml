@@ -6,12 +6,25 @@ services:
     container_name: kompta_backend
     restart: unless-stopped
     environment:
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./kompta.db}
+      # SQLite persisté dans le volume storage (PAS dans /app, sinon le volume
+      # masquerait le code de l'image et les déploiements seraient ignorés).
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/storage/kompta.db}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set — never use default in production}
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
+      - PUBLIC_URL=${PUBLIC_URL:-}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL:-}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - AI_PROVIDER=${AI_PROVIDER:-deepseek}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - MOMO_SUBSCRIPTION_KEY=${MOMO_SUBSCRIPTION_KEY:-}
+      - MOMO_API_USER=${MOMO_API_USER:-}
+      - MOMO_API_KEY=${MOMO_API_KEY:-}
+      - MOMO_TARGET_ENVIRONMENT=${MOMO_TARGET_ENVIRONMENT:-sandbox}
+      - MOMO_CALLBACK_SECRET=${MOMO_CALLBACK_SECRET:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
@@ -21,7 +34,6 @@ services:
       - SEED_DEMO=${SEED_DEMO:-false}
     volumes:
       - kompta_storage:/app/storage
-      - kompta_db:/app  # pour SQLite en mode simple
     ports:
       - "8010:8010"
     healthcheck:
@@ -45,5 +57,3 @@ services:
 
 volumes:
   kompta_storage:
-  kompta_db:
-  kompta_postgres:
