@@ -33,6 +33,7 @@
 		5AA09F6FD212AE1BE5723929 /* HRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028679E157A10132898A78BE /* HRView.swift */; };
 		5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
 		62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
+		65ABD80D7C152A72DB2E4F71 /* CsvImportButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B812E385DF64BCF395BD879 /* CsvImportButton.swift */; };
 		66EE91DFA0E7EC16A5BF9249 /* limule-avatar-40.png in Resources */ = {isa = PBXBuildFile; fileRef = B665A2C05922DA21F70C8953 /* limule-avatar-40.png */; };
 		67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660A64A755B0A823DC7B4079 /* BusinessViews.swift */; };
 		68F6D13D45ADEBDB61C26DBF /* ModuleHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D251BDB584F13900DFC765C /* ModuleHub.swift */; };
@@ -55,6 +56,7 @@
 		99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */; };
 		9C982BA88E06325FC59FAEB1 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E286CB16FEF4524A71D9C0A /* GroupModels.swift */; };
 		9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
+		9D45457B390869DF38C64030 /* CsvImportButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B812E385DF64BCF395BD879 /* CsvImportButton.swift */; };
 		9F80F01B7F0CC00827BEA799 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
 		A2847907D197B5B9A9F116B8 /* GroupsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */; };
 		A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
@@ -113,6 +115,7 @@
 		6DB940D3851D5679A32875AB /* CurrencyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyManager.swift; sourceTree = "<group>"; };
 		70651EA3DC1DB98BF48025CF /* FinanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViews.swift; sourceTree = "<group>"; };
 		7845C7FFF59BE30DD1426B8E /* Kompta.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Kompta.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B812E385DF64BCF395BD879 /* CsvImportButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CsvImportButton.swift; sourceTree = "<group>"; };
 		944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViews.swift; sourceTree = "<group>"; };
 		990D81000FB516878BA7C424 /* LimuleChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleChatView.swift; sourceTree = "<group>"; };
 		9FF68C74D092585F0B42F595 /* FinanceCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCharts.swift; sourceTree = "<group>"; };
@@ -220,6 +223,14 @@
 			path = HR;
 			sourceTree = "<group>";
 		};
+		82DFEDF5D0986A88BFC50B0B /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				7B812E385DF64BCF395BD879 /* CsvImportButton.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
 		97DA30C580E038A5EF83AE41 /* Dashboard */ = {
 			isa = PBXGroup;
 			children = (
@@ -287,6 +298,7 @@
 			children = (
 				DE97B09EA34BBEEB19A60EA7 /* AI */,
 				2ACAEE5247754096A24F1F67 /* Auth */,
+				82DFEDF5D0986A88BFC50B0B /* Components */,
 				97DA30C580E038A5EF83AE41 /* Dashboard */,
 				81029C45A26D71DDC7099102 /* HR */,
 				6105BC4FF7D32C4D59053637 /* Modules */,
@@ -440,6 +452,7 @@
 				C6C4B755272B54CABF97BCCA /* CollectionMethodsView.swift in Sources */,
 				9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */,
 				D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */,
+				65ABD80D7C152A72DB2E4F71 /* CsvImportButton.swift in Sources */,
 				4439A878C523FACD266B4623 /* CurrencyManager.swift in Sources */,
 				106AFB4F36DD72888F56143B /* DashboardView.swift in Sources */,
 				6FD83BE6A465FC726D5CE48C /* DomainModels.swift in Sources */,
@@ -485,6 +498,7 @@
 				99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */,
 				09DF9D5C90D9681923DACDDF /* CompanyTheme.swift in Sources */,
 				F06291DC26435979688D4934 /* ContentView.swift in Sources */,
+				9D45457B390869DF38C64030 /* CsvImportButton.swift in Sources */,
 				6ADA0B6558FF0BB8B7F45824 /* CurrencyManager.swift in Sources */,
 				3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */,
 				D035787283582E3E8C838E0B /* DomainModels.swift in Sources */,

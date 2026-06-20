@@ -88,6 +88,9 @@ struct InventoryView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }
             }
+            ToolbarItem(placement: .secondaryAction) {
+                CsvImportButton(title: "Importer CSV", importer: { d, n in try await APIClient.shared.importProductsCsv(d, fileName: n) }, onDone: { await model.loadAll() })
+            }
         }
         .task { if model.products.isEmpty { await model.loadAll() } }
         .refreshable { await model.loadAll() }

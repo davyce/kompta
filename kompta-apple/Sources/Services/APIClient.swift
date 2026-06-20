@@ -690,6 +690,18 @@ actor APIClient {
     func adminReactivateCompany(_ id: Int) async throws -> SuspendResult { try await actionDecoded("/admin/subscription/companies/\(id)/reactivate") }
     func adminGrantSubscription(_ id: Int, _ p: GrantRequestPayload) async throws -> GrantResult { try await post("/admin/subscription/companies/\(id)/grant", body: p) }
 
+    // MARK: - Imports CSV
+
+    func importProductsCsv(_ data: Data, fileName: String) async throws -> CsvImportResult {
+        try await uploadMultipart("/products/import-csv", fileField: "file", fileData: data, fileName: fileName, mime: "text/csv")
+    }
+    func importEmployeesCsv(_ data: Data, fileName: String) async throws -> CsvImportResult {
+        try await uploadMultipart("/employees/import-csv", fileField: "file", fileData: data, fileName: fileName, mime: "text/csv")
+    }
+    func importTransactionsCsv(_ data: Data, fileName: String) async throws -> CsvImportResult {
+        try await uploadMultipart("/transactions/import", fileField: "file", fileData: data, fileName: fileName, mime: "text/csv")
+    }
+
     // MARK: - Sécurité : 2FA (TOTP)
 
     func twoFaSetup() async throws -> TotpSetup { try await actionDecoded("/auth/2fa/setup") }

@@ -1214,6 +1214,9 @@ struct TransactionsView: View {
         .searchable(text: $search, prompt: "Rechercher…")
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .secondaryAction) {
+                CsvImportButton(title: "Importer CSV", importer: { d, n in try await APIClient.shared.importTransactionsCsv(d, fileName: n) }, onDone: { await load() })
+            }
         }
         .task { await load() }
         .refreshable { await load() }

@@ -554,6 +554,16 @@ struct CollectionMethodsResponse: Codable {
     let can_collect: Bool
 }
 
+// Import CSV (résultat tolérant — on ignore les clés non listées)
+struct CsvImportResult: Codable {
+    var imported: Int?
+    var created: Int?
+    var updated: Int?
+    var skipped: Int?
+    var message: String?
+    var importedCount: Int { imported ?? created ?? 0 }
+}
+
 // 2FA / TOTP
 struct TotpSetup: Codable { let secret: String; let qr_uri: String }
 struct TotpResult: Codable { let totp_enabled: Bool }
