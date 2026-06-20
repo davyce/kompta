@@ -1,29 +1,45 @@
 #!/usr/bin/env bash
-# Sauvegarde Postgres -> fichier local + upload S3 (si BACKUP_S3_BUCKET défini).
-# À planifier en cron sur l'instance, ex. chaque nuit à 3h :
-#   0 3 * * * cd /opt/kompta/infra/aws && ./backup.sh >> /var/log/kompta-backup.log 2>&1
+# Sauvegarde de la base SQLite de KOMPTA (snapshot cohérent en ligne).
+# La prod tourne via le docker-compose.yml RACINE (SQLite dans le volume
+# kompta_storage à /app/storage/kompta.db).
+#
+# Installer en cron sur l'instance (chaque nuit à 3h) :
+#   0 3 * * * /opt/kompta/infra/aws/backup.sh >> /var/log/kompta-backup.log 2>&1
 set -euo pipefail
 
-cd "$(dirname "$0")"
-set -a; source .env.production; set +a
-
+ENV_FILE="/opt/kompta/infra/aws/.env.production"
+COMPOSE="docker compose --env-file $ENV_FILE"
 TS="$(date +%Y%m%d_%H%M%S)"
-OUT_DIR="/opt/kompta/backups"
-mkdir -p "$OUT_DIR"
-FILE="$OUT_DIR/kompta_${TS}.sql.gz"
+HOST_DIR="/opt/kompta/backups"
+RETENTION_DAYS=14
+mkdir -p "$HOST_DIR"
 
-echo "==> Dump Postgres -> $FILE"
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$FILE"
+cd /opt/kompta
 
-# Rétention locale : 14 jours
-find "$OUT_DIR" -name 'kompta_*.sql.gz' -mtime +14 -delete
+# 1) Snapshot SQLite cohérent (API .backup) DANS le volume, + rétention interne.
+$COMPOSE exec -T backend python3 - "$TS" "$RETENTION_DAYS" <<'PY'
+import sqlite3, os, glob, sys
+ts, keep = sys.argv[1], int(sys.argv[2])
+os.makedirs('/app/storage/backups', exist_ok=True)
+out = f'/app/storage/backups/kompta_{ts}.db'
+src = sqlite3.connect('/app/storage/kompta.db'); dst = sqlite3.connect(out)
+with dst:
+    src.backup(dst)
+src.close(); dst.close()
+files = sorted(glob.glob('/app/storage/backups/kompta_*.db'))
+for f in files[:-keep]:
+    os.remove(f)
+print('snapshot', out)
+PY
 
-if [[ -n "${BACKUP_S3_BUCKET:-}" ]]; then
-  echo "==> Upload S3 s3://$BACKUP_S3_BUCKET/"
-  aws s3 cp "$FILE" "s3://$BACKUP_S3_BUCKET/db/" --region "${AWS_REGION:-eu-west-3}"
-fi
+# 2) Miroir HORS du volume (sur le disque hôte) + compression + rétention.
+$COMPOSE cp "backend:/app/storage/backups/kompta_${TS}.db" "$HOST_DIR/kompta_${TS}.db"
+gzip -f "$HOST_DIR/kompta_${TS}.db"
+find "$HOST_DIR" -name 'kompta_*.db.gz' -mtime +"$RETENTION_DAYS" -delete
 
-echo "==> Backup OK : $FILE"
-# Restauration :
-#   gunzip -c kompta_XXX.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+echo "==> Backup OK : $HOST_DIR/kompta_${TS}.db.gz"
+
+# Restauration (exemple) :
+#   gunzip -c /opt/kompta/backups/kompta_XXX.db.gz > /tmp/restore.db
+#   docker compose --env-file infra/aws/.env.production cp /tmp/restore.db backend:/app/storage/kompta.db
+#   docker compose --env-file infra/aws/.env.production restart backend
