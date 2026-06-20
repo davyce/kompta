@@ -1671,6 +1671,18 @@ export type PromotionDto = {
   times_redeemed: number;
 };
 
+export type Entitlements = {
+  status: string;
+  plan_code: string;
+  trialing: boolean;
+  trial_days_left: number;
+  soft_warning: boolean;
+  period_end: string | null;
+  allowed_modules: string[] | null;   // null = tous (essai)
+  max_users: number;                   // 0 = illimité
+  locked: boolean;
+};
+
 export type MySubscriptionDto = {
   status: "none" | "trialing" | "active" | "past_due" | "suspended" | "cancelled";
   company_status: string;
@@ -1679,6 +1691,7 @@ export type MySubscriptionDto = {
   current_period_end: string | null;
   cancel_at_period_end: boolean;
   applied_promo_code: string;
+  entitlements: Entitlements;
 };
 
 export type CompanySubRow = {

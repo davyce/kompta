@@ -19,6 +19,7 @@ import {
   Landmark,
   LayoutDashboard,
   LayoutList,
+  Lock,
   LogOut,
   Menu,
   MessageSquare,
@@ -197,6 +198,25 @@ const navSections: NavSection[] = [
   },
 ];
 
+// Modules premium gateables par plan (miroir du backend _PREMIUM_PATH_MODULES).
+// Le reste = modules « cœur », toujours accessibles.
+const PREMIUM_ROUTES = new Set<string>([
+  "employees", "payroll", "accounting", "declarations", "fiscal", "assistants",
+  "limule", "projects", "kanban", "meetings", "reports", "reports-teras",
+  "teras", "investments", "groups",
+]);
+
+function routeSeg(to: string): string {
+  return to.replace(/^\//, "").split("/")[0];
+}
+
+export function isRouteLocked(to: string, allowedModules: string[] | null | undefined): boolean {
+  if (allowedModules == null) return false;          // essai → tout permis
+  const seg = routeSeg(to);
+  if (!PREMIUM_ROUTES.has(seg)) return false;        // module cœur
+  return !allowedModules.includes(seg);
+}
+
 const routeLabels: Record<string, { sectionKey: string; titleTk: string }> = {
   "/": { sectionKey: "Pilotage", titleTk: "nav.titles./" },
   "/company": { sectionKey: "Entreprise", titleTk: "nav.titles./company" },
@@ -257,6 +277,16 @@ export function Shell() {
   const unreadCount = history.filter((n) => n.unread).length;
   const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // Abonnement + entitlements (pour verrouiller les modules hors plan).
+  const subQ = useQuery({
+    queryKey: ["mySubscription"],
+    queryFn: () => api.mySubscription(),
+    enabled: !!user && user.role !== "super_admin",
+    staleTime: 60_000,
+  });
+  const entitlements = subQ.data?.entitlements;
+  const allowedModules = entitlements?.allowed_modules;
   const { compact, toggleCompact } = useCompact();
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -456,6 +486,28 @@ export function Shell() {
                 const terasCount = terasModuleBadges[item.to] ?? 0;
                 const staticBadge = item.badge;
                 const itemLabel = t(`nav.items.${item.to}`, { defaultValue: item.to });
+                const locked = isRouteLocked(item.to, allowedModules);
+                if (locked) {
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => { setMobileOpen(false); navigate("/settings?tab=subscription"); }}
+                      title={collapsed ? `${itemLabel} — offre supérieure` : undefined}
+                      className={`relative flex w-full items-center rounded-lg px-2 py-2 text-sm text-white/35 transition hover:bg-white/[0.04] hover:text-white/55 ${collapsed ? "justify-center" : "gap-3"}`}
+                    >
+                      <item.icon size={17} className="shrink-0 opacity-60" />
+                      {!collapsed && (
+                        <>
+                          <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
+                          <span className="flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-200">
+                            <Lock size={9} /> Pro
+                          </span>
+                        </>
+                      )}
+                      {collapsed && <Lock size={9} className="absolute right-1.5 top-1.5 text-amber-300" />}
+                    </button>
+                  );
+                }
                 return (
                   <NavLink
                     key={item.to}
@@ -680,6 +732,24 @@ export function Shell() {
         </header>
         {/* pb-[calc(...)] = hauteur nav + safe-area iOS, garantit qu'aucun contenu n'est masqué */}
         <main className={`mx-auto w-full max-w-7xl px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-7 md:px-6 ${compact ? "py-3 md:py-4" : "py-5 md:py-7"}`}>
+          {entitlements && (entitlements.soft_warning || (entitlements.locked && !entitlements.trialing)) && (
+            <button
+              onClick={() => navigate("/settings?tab=subscription")}
+              className={`mb-4 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+                entitlements.locked
+                  ? "border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+                  : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+              }`}
+            >
+              <Lock size={16} className="shrink-0" />
+              <span className="flex-1">
+                {entitlements.trialing
+                  ? `Votre essai gratuit se termine dans ${entitlements.trial_days_left} jour(s). Choisissez une offre pour ne rien perdre.`
+                  : "Votre essai est terminé. Certaines fonctionnalités sont limitées — passez à une offre pour tout débloquer."}
+              </span>
+              <span className="shrink-0 rounded-lg bg-black/5 px-3 py-1.5 text-xs font-black dark:bg-white/10">Voir les offres →</span>
+            </button>
+          )}
           <Outlet />
         </main>
       </div>
