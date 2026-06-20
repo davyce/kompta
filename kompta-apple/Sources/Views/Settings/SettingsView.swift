@@ -86,6 +86,17 @@ struct SettingsView: View {
                         Label("Rôles personnalisés", systemImage: "person.badge.shield.checkmark")
                     }
                 }
+                Section {
+                    NavigationLink {
+                        CollectionMethodsView()
+                    } label: {
+                        Label("Encaissement", systemImage: "creditcard.and.123")
+                    }
+                } header: {
+                    Text("Paiements")
+                } footer: {
+                    Text("Méthodes par lesquelles vos clients vous paient (MoMo, espèces, virement, carte).")
+                }
             }
 
             // Appearance

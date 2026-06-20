@@ -675,7 +675,7 @@ actor APIClient {
 
     func adminPlans() async throws -> [SubscriptionPlan] { try await get("/admin/subscription/plans") }
     func adminCreatePlan(_ p: PlanUpsertPayload) async throws -> SubscriptionPlan { try await post("/admin/subscription/plans", body: p) }
-    func adminUpdatePlan(_ code: String, _ p: PlanUpsertPayload) async throws -> SubscriptionPlan { try await patch("/admin/subscription/plans/\(code)", body: p) }
+    func adminUpdatePlan(_ id: Int, _ p: PlanUpsertPayload) async throws -> SubscriptionPlan { try await patch("/admin/subscription/plans/\(id)", body: p) }
     func adminDeletePlan(_ code: String) async throws -> PlanDeleteResult { try await actionDecoded("/admin/subscription/plans/\(code)", method: "DELETE") }
 
     func adminPromos() async throws -> [Promotion] { try await get("/admin/subscription/promotions") }

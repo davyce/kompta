@@ -48,9 +48,11 @@
 		81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55170B62A38E88B30FA3639D /* PDFExport.swift */; };
 		8C5A0388D29DFFD60C0C4921 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */; };
 		8ECAB359A25A46DECE4004B5 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
+		8F7CC4843217C21CDFFD3D1E /* EntitlementsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */; };
 		8F9EE32FC39FFF84D419AA74 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */; };
 		9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */; };
 		98013947E273088E2195FC80 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F612F06D2735D2A6A4A02E /* SettingsView.swift */; };
+		99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */; };
 		9C982BA88E06325FC59FAEB1 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E286CB16FEF4524A71D9C0A /* GroupModels.swift */; };
 		9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
 		9F80F01B7F0CC00827BEA799 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
@@ -67,7 +69,9 @@
 		C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
 		C09BFD2F8BFFD63BD4022DB6 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F7EC48B1C0BA411551319A /* AppShell.swift */; };
 		C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */; };
+		C6C4B755272B54CABF97BCCA /* CollectionMethodsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */; };
 		CAAD918E9D33BE9CF78CA06A /* HRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028679E157A10132898A78BE /* HRView.swift */; };
+		CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */; };
 		D035787283582E3E8C838E0B /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */; };
 		D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
 		D606845A08D8434128782415 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
@@ -110,12 +114,14 @@
 		944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViews.swift; sourceTree = "<group>"; };
 		990D81000FB516878BA7C424 /* LimuleChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleChatView.swift; sourceTree = "<group>"; };
 		9FF68C74D092585F0B42F595 /* FinanceCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCharts.swift; sourceTree = "<group>"; };
+		A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionMethodsView.swift; sourceTree = "<group>"; };
 		A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminShell.swift; sourceTree = "<group>"; };
 		AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
 		B229F26743F6401F25679836 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		B665A2C05922DA21F70C8953 /* limule-avatar-40.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "limule-avatar-40.png"; sourceTree = "<group>"; };
 		BA9AB050A928D42ABCE3C91A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementsManager.swift; sourceTree = "<group>"; };
 		CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
 		D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KomptaApp.swift; sourceTree = "<group>"; };
 		DB44CA87A160669133544A47 /* CollaborationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationViews.swift; sourceTree = "<group>"; };
@@ -198,6 +204,7 @@
 				E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */,
 				E948CFB53581DC0B86F422CA /* AuthManager.swift */,
 				6DB940D3851D5679A32875AB /* CurrencyManager.swift */,
+				CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -298,6 +305,7 @@
 		F35A24128DE166C9EAE12E80 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */,
 				39F612F06D2735D2A6A4A02E /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -425,12 +433,14 @@
 				0AEF8026D9E0D0342F6E7C96 /* AuthManager.swift in Sources */,
 				67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */,
 				53FFD748765527C04DEDB1D5 /* CollaborationViews.swift in Sources */,
+				C6C4B755272B54CABF97BCCA /* CollectionMethodsView.swift in Sources */,
 				9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */,
 				D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */,
 				4439A878C523FACD266B4623 /* CurrencyManager.swift in Sources */,
 				106AFB4F36DD72888F56143B /* DashboardView.swift in Sources */,
 				6FD83BE6A465FC726D5CE48C /* DomainModels.swift in Sources */,
 				3C9CE01B307A7E2DE47846C1 /* EnterpriseViews.swift in Sources */,
+				CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */,
 				A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */,
 				53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */,
 				62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */,
@@ -467,12 +477,14 @@
 				9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */,
 				6F4196470C273EDE91D46215 /* BusinessViews.swift in Sources */,
 				249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */,
+				99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */,
 				09DF9D5C90D9681923DACDDF /* CompanyTheme.swift in Sources */,
 				F06291DC26435979688D4934 /* ContentView.swift in Sources */,
 				6ADA0B6558FF0BB8B7F45824 /* CurrencyManager.swift in Sources */,
 				3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */,
 				D035787283582E3E8C838E0B /* DomainModels.swift in Sources */,
 				C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */,
+				8F7CC4843217C21CDFFD3D1E /* EntitlementsManager.swift in Sources */,
 				5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */,
 				1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */,
 				D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */,

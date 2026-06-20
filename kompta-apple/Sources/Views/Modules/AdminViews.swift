@@ -1586,7 +1586,19 @@ struct AdminPlanFormView: View {
     @State private var period: String
     @State private var trialDays: Int
     @State private var isActive: Bool
+    @State private var maxUsers: Int
+    @State private var modules: Set<String>
     @State private var saving = false
+
+    // Modules premium gateables (clé = segment de route, miroir backend/web).
+    private static let moduleOptions: [(key: String, label: String)] = [
+        ("employees", "RH / Employés"), ("payroll", "Paie"), ("accounting", "Comptabilité"),
+        ("declarations", "Déclarations"), ("fiscal", "Fiscalité"), ("assistants", "Rédaction IA"),
+        ("limule", "Limule IA"), ("projects", "Projets"), ("kanban", "Kanban"),
+        ("meetings", "Réunions"), ("chat", "Chat"), ("reports", "Rapports"),
+        ("investments", "Investissements"), ("groups", "Groupes & Tontines"),
+        ("reports-teras", "TERAS (rapports)"), ("teras", "TERAS Connect"),
+    ]
 
     init(existing: SubscriptionPlan? = nil, onSaved: @escaping () async -> Void) {
         self.existing = existing
@@ -1598,6 +1610,8 @@ struct AdminPlanFormView: View {
         _period = State(initialValue: existing?.period ?? "month")
         _trialDays = State(initialValue: existing?.trial_days ?? 0)
         _isActive = State(initialValue: existing?.is_active ?? true)
+        _maxUsers = State(initialValue: existing?.max_users ?? 0)
+        _modules = State(initialValue: Set(existing?.included_modules ?? []))
     }
 
     var body: some View {
@@ -1614,7 +1628,23 @@ struct AdminPlanFormView: View {
                         Text("Mois").tag("month"); Text("Année").tag("year")
                     }
                     Stepper("Essai : \(trialDays) j", value: $trialDays, in: 0...365)
+                    Stepper(maxUsers == 0 ? "Utilisateurs : illimité" : "Utilisateurs max : \(maxUsers)", value: $maxUsers, in: 0...500)
                     Toggle("Actif", isOn: $isActive)
+                }
+                Section {
+                    ForEach(Self.moduleOptions, id: \.key) { opt in
+                        Button {
+                            if modules.contains(opt.key) { modules.remove(opt.key) } else { modules.insert(opt.key) }
+                        } label: {
+                            HStack {
+                                Text(opt.label).foregroundStyle(.primary)
+                                Spacer()
+                                if modules.contains(opt.key) { Image(systemName: "checkmark").foregroundStyle(.green) }
+                            }
+                        }
+                    }
+                } header: { Text("Modules inclus") } footer: {
+                    Text("Les modules non cochés seront verrouillés pour ce forfait. Les modules de base restent toujours accessibles.")
                 }
             }
             .navigationTitle(existing == nil ? "Nouveau forfait" : "Modifier le forfait")
@@ -1632,9 +1662,12 @@ struct AdminPlanFormView: View {
 
     private func save() async {
         saving = true
-        let payload = PlanUpsertPayload(code: code, name: name, price_cents: Int(priceText) ?? 0, currency: currency, period: period, trial_days: trialDays, is_active: isActive)
+        let payload = PlanUpsertPayload(code: code, name: name, price_cents: Int(priceText) ?? 0,
+                                        currency: currency, period: period,
+                                        included_modules: Array(modules), max_users: maxUsers,
+                                        trial_days: trialDays, is_active: isActive)
         do {
-            if let existing { _ = try await APIClient.shared.adminUpdatePlan(existing.code, payload) }
+            if let existing { _ = try await APIClient.shared.adminUpdatePlan(existing.id, payload) }
             else { _ = try await APIClient.shared.adminCreatePlan(payload) }
             await onSaved(); dismiss()
         } catch { }
@@ -1704,17 +1737,35 @@ struct AdminGrantFormView: View {
     let onSaved: () async -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var planCode = ""
-    @State private var days = 30
+    @State private var days = 365
+    @State private var plans: [SubscriptionPlan] = []
     @State private var saving = false
+
+    private let presets: [(label: String, days: Int)] = [
+        ("1 mois", 30), ("3 mois", 90), ("1 an", 365), ("Gratuit à vie", 3650),
+    ]
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(row.company_name) {
-                    TextField("Code forfait *", text: $planCode)
-                    Stepper("Durée : \(days) j", value: $days, in: 1...365, step: 30)
+                    if plans.isEmpty {
+                        TextField("Code forfait *", text: $planCode)
+                    } else {
+                        Picker("Forfait", selection: $planCode) {
+                            Text("— Choisir —").tag("")
+                            ForEach(plans) { p in
+                                Text("\(p.name)\(p.max_users == 0 ? " · illimité" : " · \(p.max_users) users")").tag(p.code)
+                            }
+                        }
+                    }
+                    Picker("Durée", selection: $days) {
+                        ForEach(presets, id: \.days) { Text($0.label).tag($0.days) }
+                    }
+                    Stepper("\(days) jour(s)", value: $days, in: 1...3650, step: 30)
                 }
             }
+            .task { plans = (try? await APIClient.shared.adminPlans()) ?? [] }
             .navigationTitle("Accorder un forfait")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
