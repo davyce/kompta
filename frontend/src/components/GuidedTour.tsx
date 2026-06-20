@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../app/AuthContext";
@@ -242,8 +242,6 @@ export function GuidedTour() {
     bubbleStyle = { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: bubbleW, maxHeight: bubbleMaxH };
   }
 
-  const Icon = step.limule ? null : Sparkles;
-
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true">
       {/* Spotlight : assombrit tout sauf la cible (découpe via box-shadow) */}
@@ -273,7 +271,7 @@ export function GuidedTour() {
       >
         <div className="flex shrink-0 items-start gap-3 bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 pb-4 pt-5 text-white">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15">
-            {step.limule ? <LimuleIcon size={24} /> : Icon && <Icon size={20} />}
+            <LimuleIcon size={24} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">

@@ -9,13 +9,13 @@ import {
   Download,
   FlaskConical,
   Send,
-  Sparkles,
   Tags,
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { LimuleIcon } from "../../components/LimuleAvatar";
 import { api } from "../../services/api";
 import { shortDate } from "../../utils/format";
 import i18n from "../../i18n";
@@ -308,7 +308,7 @@ export function AdminLimulePage() {
         <div className="flex min-h-[36rem] flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
           <div className="border-b border-white/10 px-5 py-3">
             <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-indigo-300" />
+              <LimuleIcon size={16} />
               <h2 className="font-black">{tr("admin.limule.freeTestZone")}</h2>
             </div>
             <p className="text-xs text-white/45">{tr("admin.limule.freeTestHint")}</p>
