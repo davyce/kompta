@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 
 import { api, type DailyNoteDto, type MeetingDto } from "../services/api";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import type { Task } from "../types/domain";
 
 function dayKey(date: Date) {
@@ -229,7 +230,7 @@ export function NotesPage() {
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
             className="flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 dark:bg-violet-500/15 dark:border-violet-500/30 dark:text-violet-200 hover:bg-violet-100 disabled:opacity-50">
-            <Sparkles size={15} /> {generate.isPending ? tr("notes.limuleLoading") : tr("notes.limuleBtn")}
+            <LimuleIcon size={15} /> {generate.isPending ? tr("notes.limuleLoading") : tr("notes.limuleBtn")}
           </button>
           <button
             onClick={() => setEditor({ open: true, note: null })}

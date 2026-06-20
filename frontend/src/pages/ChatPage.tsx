@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { api } from "../services/api";
+import { LimuleIcon } from "../components/LimuleAvatar";
 import { useAuth } from "../app/AuthContext";
 import i18n from "../i18n";
 import type { LimuleAction } from "../types/domain";
@@ -529,7 +530,7 @@ export function ChatPage() {
               className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               title={tr("chat.limule.generateSummary")}
             >
-              {summarizeChannel.isPending ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Limule
+              {summarizeChannel.isPending ? <Loader2 size={12} className="animate-spin" /> : <LimuleIcon size={12} />} Limule
             </button>
             <button
               onClick={() => setShowDetails((v) => !v)}

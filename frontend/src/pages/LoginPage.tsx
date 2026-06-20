@@ -1,4 +1,4 @@
-import { BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, Sparkles, UserPlus, Users2, Wallet } from "lucide-react";
+import { BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, UserPlus, Users2, Wallet } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -174,7 +174,7 @@ export function LoginPage() {
               <p className="text-xs text-stone-500 leading-tight">{t("auth.mobileTagline")}</p>
             </div>
             <div className="ml-auto flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-              <Sparkles size={10} /> Limule
+              <LimuleIcon size={10} /> Limule
             </div>
           </header>
 
@@ -376,7 +376,7 @@ export function LoginPage() {
                 { icon: Wallet,     label: t("auth.miniRegister"),   hint: t("auth.miniRegisterHint"),   limule: false },
                 { icon: Users2,     label: t("auth.miniGroups"),     hint: t("auth.miniGroupsHint"),     limule: false },
                 { icon: BarChart3,  label: t("auth.miniAccounting"), hint: t("auth.miniAccountingHint"), limule: false },
-                { icon: Sparkles,   label: t("auth.miniAi"),         hint: t("auth.miniAiHint"),         limule: true  },
+                { icon: LimuleIcon, label: t("auth.miniAi"),         hint: t("auth.miniAiHint"),         limule: true  },
                 { icon: Smartphone, label: t("auth.miniMobile"),     hint: t("auth.miniMobileHint"),     limule: false },
               ].map(({ icon: Icon, label, hint, limule }) => (
                 <div key={label} className="flex flex-col items-center rounded-xl border border-stone-200 bg-white p-3 text-center">
