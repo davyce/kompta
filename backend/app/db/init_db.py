@@ -387,6 +387,10 @@ def seed_demo_data(db: Session) -> None:
     db.add(company)
     db.flush()
 
+    # Essai gratuit complet (comme toute nouvelle entreprise) → accès non bloqué.
+    from app.services.subscriptions import start_trial
+    start_trial(db, company.id)
+
     admin = User(
         email="admin@kompta.local",
         phone="+242060000001",
