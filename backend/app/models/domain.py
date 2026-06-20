@@ -58,8 +58,13 @@ class Company(TimestampMixin, Base):
     manager_title: Mapped[str] = mapped_column(String(80), default="")       # Gérant | Directeur Général | Président
     bank_name: Mapped[str] = mapped_column(String(120), default="")
     bank_account: Mapped[str] = mapped_column(String(80), default="")        # RIB / IBAN
+    logo_path: Mapped[str] = mapped_column(String(512), default="")          # chemin disque du logo uploadé
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
+
+    @property
+    def has_logo(self) -> bool:
+        return bool(self.logo_path)
 
 
 class User(TimestampMixin, Base):
@@ -88,9 +93,54 @@ class User(TimestampMixin, Base):
     token_version: Mapped[int] = mapped_column(Integer, default=0)
     # Visite guidée : vraie une seule fois (1ʳᵉ connexion de cet utilisateur).
     onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Photo de profil (staff/admin) — chemin disque de l'avatar uploadé.
+    avatar_path: Mapped[str] = mapped_column(String(512), default="")
+    # Rôle personnalisé optionnel (défini par un admin) — surclasse `role` pour les permissions.
+    custom_role_id: Mapped[int | None] = mapped_column(ForeignKey("custom_roles.id"), nullable=True)
+    # Coordonnées + géolocalisation de la dernière connexion (staff).
+    address: Mapped[str] = mapped_column(String(255), default="")
+    last_login_ip: Mapped[str] = mapped_column(String(64), default="")
+    last_login_city: Mapped[str] = mapped_column(String(120), default="")
+
+    custom_role: Mapped["CustomRole | None"] = relationship(foreign_keys=[custom_role_id])
 
     company: Mapped[Company] = relationship(back_populates="users")
     messages: Mapped[list["Message"]] = relationship(back_populates="author")
+
+    @property
+    def has_avatar(self) -> bool:
+        return bool(self.avatar_path)
+
+    @property
+    def permissions(self) -> list[str]:
+        """Permissions effectives (issues du rôle personnalisé, sinon vide)."""
+        if self.custom_role and self.custom_role.permissions:
+            import json as _json
+            try:
+                return _json.loads(self.custom_role.permissions)
+            except Exception:
+                return []
+        return []
+
+
+class CustomRole(TimestampMixin, Base):
+    """Rôle personnalisé créé par un admin, avec permissions par module.
+
+    scope : 'company' (rôles internes d'une entreprise), 'admin' (staff plateforme),
+    'group' (rôles de groupe/tontine). `permissions` = JSON liste de clés modules.
+    company_id null = rôle plateforme (scope admin).
+    """
+    __tablename__ = "custom_roles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(String(255), default="")
+    scope: Mapped[str] = mapped_column(String(20), default="company")  # company | admin | group
+    permissions: Mapped[str] = mapped_column(Text, default="[]")        # JSON list[str]
+    color: Mapped[str] = mapped_column(String(16), default="#6366f1")
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+    group_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
 
 class Employee(TimestampMixin, Base):
@@ -431,6 +481,43 @@ class PaymentTransaction(TimestampMixin, Base):
     raw_request: Mapped[str] = mapped_column(Text, default="")
     raw_response: Mapped[str] = mapped_column(Text, default="")
     last_event: Mapped[str] = mapped_column(Text, default="")
+
+
+class CompanyPaymentMethod(TimestampMixin, Base):
+    """Méthode d'encaissement déclarée par une entreprise (CEMAC).
+
+    L'argent va DIRECTEMENT chez l'entreprise (son code marchand MoMo/Airtel,
+    espèces, virement) — KOMPTA ne transite jamais les fonds. La carte (Stripe)
+    sert à l'abonnement KOMPTA et à l'encaissement en ligne, validée par un
+    paiement-test. L'encaissement est bloqué tant qu'aucune méthode n'est
+    activée + vérifiée."""
+    __tablename__ = "company_payment_methods"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+
+    # cash | momo_mtn | momo_airtel | momo_moov | bank_transfer | card_stripe
+    provider: Mapped[str] = mapped_column(String(30), index=True)
+    label: Mapped[str] = mapped_column(String(80), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Mobile money / code marchand
+    merchant_number: Mapped[str] = mapped_column(String(60), default="")   # n° / code marchand
+    account_name: Mapped[str] = mapped_column(String(160), default="")     # nom du compte bénéficiaire
+
+    # Virement bancaire
+    bank_name: Mapped[str] = mapped_column(String(160), default="")
+    bank_account: Mapped[str] = mapped_column(String(80), default="")      # RIB / IBAN
+
+    # Consignes affichées au client payeur (ex: "Composez *126# puis ...")
+    instructions: Mapped[str] = mapped_column(String(400), default="")
+
+    # Vérification : carte → après paiement-test réussi ; autres → confirmée par l'entreprise
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_test_status: Mapped[str] = mapped_column(String(120), default="")
+
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Task(TimestampMixin, Base):

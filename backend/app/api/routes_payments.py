@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
+import hmac
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import PaymentTransaction, User
+from app.models import CompanyPaymentMethod, PaymentTransaction, User
 from app.services import payments as pay
 
 router = APIRouter(tags=["payments"])
@@ -244,8 +246,25 @@ async def create_momo_request(
 
 
 @router.post("/payments/momo/callback")
-async def momo_callback(request: Request, db: Session = Depends(get_db)) -> dict:
+async def momo_callback(
+    request: Request,
+    token: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> dict:
     """Callback MoMo (X-Callback-Url). Met à jour le statut de la transaction."""
+    settings = get_settings()
+    if settings.momo_callback_secret:
+        provided = (
+            token
+            or request.headers.get("X-KOMPTA-MOMO-CALLBACK-SECRET")
+            or request.headers.get("X-Callback-Secret")
+            or ""
+        )
+        if not hmac.compare_digest(provided, settings.momo_callback_secret):
+            raise HTTPException(401, "Callback MoMo non autorisé.")
+    elif settings.is_production:
+        raise HTTPException(503, "MOMO_CALLBACK_SECRET non configuré.")
+
     try:
         body = await request.json()
     except Exception:
@@ -308,4 +327,293 @@ async def payment_status(
             pass  # garder le statut courant si le prestataire est momentanément indisponible
 
     _activate_subscription_if_paid(db, txn)
+    return _serialize(txn)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MÉTHODES D'ENCAISSEMENT (config par entreprise)
+# ═══════════════════════════════════════════════════════════════════════════
+# Modèle CEMAC : l'argent va DIRECTEMENT chez l'entreprise (code marchand MoMo/
+# Airtel, espèces, virement). KOMPTA ne transite pas les fonds — il enregistre
+# le paiement. La carte (Stripe) est validée par un paiement-test.
+
+_VALID_PROVIDERS = {"cash", "momo_mtn", "momo_airtel", "momo_moov", "bank_transfer", "card_stripe"}
+_CARD_TEST_AMOUNT_CENTS = 50_000  # 500 FCFA (interne en centimes ; XAF → 500)
+
+
+class PaymentMethodIn(BaseModel):
+    provider: str
+    label: str = ""
+    enabled: bool = True
+    merchant_number: str = ""
+    account_name: str = ""
+    bank_name: str = ""
+    bank_account: str = ""
+    instructions: str = ""
+
+
+class RecordPaymentIn(BaseModel):
+    method_id: int
+    amount_cents: int
+    currency: str = "XAF"
+    sale_id: int | None = None
+    invoice_id: int | None = None
+    description: str = ""
+    customer_phone: str = ""
+
+
+def _serialize_method(m: CompanyPaymentMethod) -> dict:
+    return {
+        "id": m.id,
+        "provider": m.provider,
+        "label": m.label,
+        "enabled": m.enabled,
+        "merchant_number": m.merchant_number,
+        "account_name": m.account_name,
+        "bank_name": m.bank_name,
+        "bank_account": m.bank_account,
+        "instructions": m.instructions,
+        "verified": m.verified,
+        "verified_at": m.verified_at.isoformat() if m.verified_at else None,
+        "last_test_status": m.last_test_status,
+    }
+
+
+def _method_has_required_fields(m: CompanyPaymentMethod) -> bool:
+    """Champs minimaux requis selon le type pour considérer la méthode utilisable."""
+    if m.provider == "cash":
+        return True
+    if m.provider in {"momo_mtn", "momo_airtel", "momo_moov"}:
+        return bool(m.merchant_number.strip())
+    if m.provider == "bank_transfer":
+        return bool(m.bank_account.strip())
+    if m.provider == "card_stripe":
+        return get_settings().stripe_enabled
+    return False
+
+
+def company_can_collect(db: Session, company_id: int) -> bool:
+    """True si l'entreprise a au moins une méthode activée ET vérifiée."""
+    methods = db.scalars(
+        select(CompanyPaymentMethod).where(CompanyPaymentMethod.company_id == company_id)
+    ).all()
+    return any(m.enabled and m.verified for m in methods)
+
+
+@router.get("/payments/methods")
+def list_payment_methods(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    methods = db.scalars(
+        select(CompanyPaymentMethod)
+        .where(CompanyPaymentMethod.company_id == current_user.company_id)
+        .order_by(CompanyPaymentMethod.sort_order, CompanyPaymentMethod.id)
+    ).all()
+    return {
+        "methods": [_serialize_method(m) for m in methods],
+        "can_collect": any(m.enabled and m.verified for m in methods),
+    }
+
+
+@router.post("/payments/methods")
+def upsert_payment_method(
+    payload: PaymentMethodIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if payload.provider not in _VALID_PROVIDERS:
+        raise HTTPException(400, "Méthode d'encaissement inconnue.")
+    if payload.provider == "card_stripe" and not get_settings().stripe_enabled:
+        raise HTTPException(400, "La carte (Stripe) n'est pas disponible.")
+
+    # Une seule ligne par (entreprise, provider).
+    m = db.scalar(
+        select(CompanyPaymentMethod).where(
+            CompanyPaymentMethod.company_id == current_user.company_id,
+            CompanyPaymentMethod.provider == payload.provider,
+        )
+    )
+    if m is None:
+        m = CompanyPaymentMethod(company_id=current_user.company_id, provider=payload.provider)
+        db.add(m)
+
+    m.label = payload.label.strip()
+    m.enabled = payload.enabled
+    m.merchant_number = payload.merchant_number.strip()
+    m.account_name = payload.account_name.strip()
+    m.bank_name = payload.bank_name.strip()
+    m.bank_account = payload.bank_account.strip()
+    m.instructions = payload.instructions.strip()
+
+    # La carte ne se vérifie QUE par un paiement-test réussi → on ne touche pas
+    # `verified` ici. Les autres méthodes sont « vérifiées » dès que les champs
+    # requis sont remplis (l'entreprise déclare ses propres coordonnées).
+    if m.provider != "card_stripe":
+        if _method_has_required_fields(m):
+            if not m.verified:
+                m.verified = True
+                m.verified_at = datetime.now(timezone.utc)
+        else:
+            m.verified = False
+            m.verified_at = None
+
+    db.commit()
+    db.refresh(m)
+    return _serialize_method(m)
+
+
+@router.delete("/payments/methods/{method_id}", status_code=204)
+def delete_payment_method(
+    method_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    m = db.scalar(
+        select(CompanyPaymentMethod).where(
+            CompanyPaymentMethod.id == method_id,
+            CompanyPaymentMethod.company_id == current_user.company_id,
+        )
+    )
+    if m is None:
+        raise HTTPException(404, "Méthode introuvable.")
+    db.delete(m)
+    db.commit()
+    return Response(status_code=204)
+
+
+# ── Validation carte par paiement-test (~500 FCFA) ──────────────────────────
+@router.post("/payments/methods/card/test")
+async def start_card_test(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Crée un PaymentIntent de ~500 FCFA pour valider la capacité carte.
+    Le front collecte la carte et confirme ; puis appelle .../card/test/confirm."""
+    if not get_settings().stripe_enabled:
+        raise HTTPException(400, "Stripe non configuré.")
+    idem = pay.new_reference()
+    txn = PaymentTransaction(
+        company_id=current_user.company_id,
+        provider="stripe",
+        idempotency_key=idem,
+        amount_cents=_CARD_TEST_AMOUNT_CENTS,
+        currency="XAF",
+        status="pending",
+        purpose="verification",
+        description="Validation carte KOMPTA",
+    )
+    db.add(txn)
+    db.flush()
+    try:
+        intent = await pay.stripe_create_payment_intent(
+            amount_cents=_CARD_TEST_AMOUNT_CENTS,
+            currency="XAF",
+            idempotency_key=idem,
+            description="Validation carte KOMPTA",
+            metadata={"transaction_id": txn.id, "company_id": current_user.company_id, "purpose": "verification"},
+        )
+    except pay.PaymentError as e:
+        txn.status = "failed"
+        txn.failure_reason = e.message[:255]
+        db.commit()
+        raise HTTPException(e.status, e.message)
+    txn.provider_ref = intent.get("id", "")
+    txn.status = pay.normalize_status("stripe", intent.get("status", ""))
+    db.commit()
+    return {
+        "transaction_id": txn.id,
+        "client_secret": intent.get("client_secret"),
+        "publishable_key": get_settings().stripe_publishable_key,
+        "amount_cents": _CARD_TEST_AMOUNT_CENTS,
+    }
+
+
+@router.post("/payments/methods/card/test/confirm")
+async def confirm_card_test(
+    transaction_id: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Vérifie auprès de Stripe que le paiement-test a réussi, puis active +
+    valide la méthode carte de l'entreprise."""
+    txn = db.scalar(
+        select(PaymentTransaction).where(
+            PaymentTransaction.id == transaction_id,
+            PaymentTransaction.company_id == current_user.company_id,
+            PaymentTransaction.purpose == "verification",
+        )
+    )
+    if txn is None:
+        raise HTTPException(404, "Transaction de test introuvable.")
+    try:
+        data = await pay.stripe_retrieve_payment_intent(txn.provider_ref)
+    except pay.PaymentError as e:
+        raise HTTPException(e.status, e.message)
+    txn.status = pay.normalize_status("stripe", data.get("status", ""))
+    db.commit()
+    if txn.status != "succeeded":
+        return {"verified": False, "status": txn.status}
+
+    m = db.scalar(
+        select(CompanyPaymentMethod).where(
+            CompanyPaymentMethod.company_id == current_user.company_id,
+            CompanyPaymentMethod.provider == "card_stripe",
+        )
+    )
+    if m is None:
+        m = CompanyPaymentMethod(
+            company_id=current_user.company_id, provider="card_stripe", label="Carte (Visa/Mastercard)"
+        )
+        db.add(m)
+    m.enabled = True
+    m.verified = True
+    m.verified_at = datetime.now(timezone.utc)
+    m.last_test_status = "test_succeeded"
+    db.commit()
+    db.refresh(m)
+    return {"verified": True, "status": "succeeded", "method": _serialize_method(m)}
+
+
+# ── Enregistrement d'un paiement direct (espèces / code marchand / virement) ─
+@router.post("/payments/record")
+def record_direct_payment(
+    payload: RecordPaymentIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Marque une vente/facture comme payée via une méthode déclarée par
+    l'entreprise (le client a payé en direct : espèces, code marchand, virement).
+    Aucun fonds ne transite par KOMPTA."""
+    if payload.amount_cents <= 0:
+        raise HTTPException(400, "Montant invalide.")
+    m = db.scalar(
+        select(CompanyPaymentMethod).where(
+            CompanyPaymentMethod.id == payload.method_id,
+            CompanyPaymentMethod.company_id == current_user.company_id,
+        )
+    )
+    if m is None:
+        raise HTTPException(404, "Méthode d'encaissement introuvable.")
+    if not (m.enabled and m.verified):
+        raise HTTPException(400, "Cette méthode d'encaissement n'est pas activée/vérifiée.")
+    _reject_if_already_paid(db, current_user.company_id, payload.sale_id, payload.invoice_id)
+
+    ref = pay.new_reference()
+    txn = PaymentTransaction(
+        company_id=current_user.company_id,
+        provider=m.provider,
+        provider_ref=ref,
+        idempotency_key=ref,
+        amount_cents=payload.amount_cents,
+        currency=payload.currency.upper(),
+        status="succeeded",
+        sale_id=payload.sale_id,
+        invoice_id=payload.invoice_id,
+        customer_phone=payload.customer_phone.strip(),
+        description=payload.description or m.label,
+        purpose="invoice" if payload.invoice_id else "sale",
+    )
+    db.add(txn)
+    db.commit()
     return _serialize(txn)

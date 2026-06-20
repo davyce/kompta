@@ -325,3 +325,140 @@ def test_stripe_webhook_without_secret_configured_is_503() -> None:
         else:
             os.environ["STRIPE_WEBHOOK_SECRET"] = previous
         get_settings.cache_clear()
+
+
+def test_momo_callback_rejects_forged_update_when_secret_configured() -> None:
+    """Un callback MoMo sans secret ne doit pas pouvoir valider une transaction."""
+    import os
+    from app.core.config import get_settings
+
+    secret = "momo-callback-secret-test"
+    previous = os.environ.get("MOMO_CALLBACK_SECRET")
+    os.environ["MOMO_CALLBACK_SECRET"] = secret
+    get_settings.cache_clear()
+    ref = f"momo-forged-{uuid4().hex}"
+    txn_id: int | None = None
+    try:
+        with SessionLocal() as db:
+            admin = db.scalar(select(User).where(User.email == "admin@kompta.local"))
+            assert admin is not None
+            txn = PaymentTransaction(
+                company_id=admin.company_id,
+                provider="momo",
+                provider_ref=ref,
+                idempotency_key=f"idem-{ref}",
+                amount_cents=500000,
+                currency="XAF",
+                status="processing",
+            )
+            db.add(txn)
+            db.commit()
+            txn_id = txn.id
+
+        with TestClient(app) as client:
+            resp = client.post("/api/payments/momo/callback", json={"referenceId": ref, "status": "SUCCESSFUL"})
+            assert resp.status_code == 401
+
+        with SessionLocal() as db:
+            t = db.get(PaymentTransaction, txn_id)
+            assert t is not None
+            assert t.status == "processing"
+            db.delete(t)
+            db.commit()
+    finally:
+        if previous is None:
+            os.environ.pop("MOMO_CALLBACK_SECRET", None)
+        else:
+            os.environ["MOMO_CALLBACK_SECRET"] = previous
+        get_settings.cache_clear()
+
+
+def test_momo_callback_accepts_configured_secret() -> None:
+    """Un callback MoMo portant le secret configuré peut mettre à jour le statut."""
+    import os
+    from app.core.config import get_settings
+
+    secret = "momo-callback-secret-test"
+    previous = os.environ.get("MOMO_CALLBACK_SECRET")
+    os.environ["MOMO_CALLBACK_SECRET"] = secret
+    get_settings.cache_clear()
+    ref = f"momo-valid-{uuid4().hex}"
+    txn_id: int | None = None
+    try:
+        with SessionLocal() as db:
+            admin = db.scalar(select(User).where(User.email == "admin@kompta.local"))
+            assert admin is not None
+            txn = PaymentTransaction(
+                company_id=admin.company_id,
+                provider="momo",
+                provider_ref=ref,
+                idempotency_key=f"idem-{ref}",
+                amount_cents=500000,
+                currency="XAF",
+                status="processing",
+            )
+            db.add(txn)
+            db.commit()
+            txn_id = txn.id
+
+        with TestClient(app) as client:
+            resp = client.post(
+                f"/api/payments/momo/callback?token={secret}",
+                json={"referenceId": ref, "status": "SUCCESSFUL"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert resp.json()["status"] == "succeeded"
+
+        with SessionLocal() as db:
+            t = db.get(PaymentTransaction, txn_id)
+            assert t is not None
+            assert t.status == "succeeded"
+            db.delete(t)
+            db.commit()
+    finally:
+        if previous is None:
+            os.environ.pop("MOMO_CALLBACK_SECRET", None)
+        else:
+            os.environ["MOMO_CALLBACK_SECRET"] = previous
+        get_settings.cache_clear()
+
+
+# ── Méthodes d'encaissement (config par entreprise) ─────────────────────────
+def test_collection_methods_lifecycle() -> None:
+    with TestClient(app) as client:
+        h = _auth(client)
+        # Au départ : liste accessible
+        r = client.get("/api/payments/methods", headers=h)
+        assert r.status_code == 200
+        assert "methods" in r.json() and "can_collect" in r.json()
+
+        # Espèces : activable, auto-vérifié (aucun champ requis)
+        r = client.post("/api/payments/methods", headers=h, json={"provider": "cash", "label": "Espèces", "enabled": True})
+        assert r.status_code == 200, r.text
+        cash = r.json()
+        assert cash["verified"] is True and cash["enabled"] is True
+
+        # MoMo sans numéro : pas vérifié ; avec numéro : vérifié
+        r = client.post("/api/payments/methods", headers=h, json={"provider": "momo_mtn", "enabled": True})
+        assert r.json()["verified"] is False
+        r = client.post("/api/payments/methods", headers=h, json={"provider": "momo_mtn", "enabled": True, "merchant_number": "242060000000"})
+        assert r.json()["verified"] is True
+
+        # Provider inconnu rejeté
+        assert client.post("/api/payments/methods", headers=h, json={"provider": "bitcoin"}).status_code == 400
+
+        # can_collect = True maintenant
+        assert client.get("/api/payments/methods", headers=h).json()["can_collect"] is True
+
+
+def test_record_direct_payment_requires_verified_method() -> None:
+    with TestClient(app) as client:
+        h = _auth(client)
+        # méthode espèces vérifiée
+        m = client.post("/api/payments/methods", headers=h, json={"provider": "cash", "enabled": True}).json()
+        r = client.post("/api/payments/record", headers=h, json={"method_id": m["id"], "amount_cents": 250000, "currency": "XAF", "description": "Vente comptoir"})
+        assert r.status_code == 200, r.text
+        assert r.json()["status"] == "succeeded" and r.json()["provider"] == "cash"
+
+        # méthode inexistante → 404
+        assert client.post("/api/payments/record", headers=h, json={"method_id": 999999, "amount_cents": 1000}).status_code == 404
