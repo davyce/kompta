@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -19,15 +19,35 @@ from app.models import (
     CompanySubscription,
     Promotion,
     SubscriptionPlan,
+    User,
 )
 
 # Statuts qui donnent un accès complet à l'app
 ACTIVE_STATUSES = {"trialing", "active"}
 
+# Essai gratuit complet à l'inscription
+TRIAL_DAYS = 90
+# Avertissement souple à partir de J-30 avant la fin d'essai
+SOFT_WARNING_DAYS = 30
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
+
+# ── Modules premium gateables (le reste = modules « cœur », toujours accessibles)
+# Clés alignées sur la navigation / CompanyModule.
+PREMIUM_MODULES = [
+    "payroll", "rh", "employees", "accounting", "declarations", "fiscal",
+    "assistants", "limule", "projects", "kanban", "meetings", "chat",
+    "reports", "reports-teras", "teras", "investments", "groups",
+]
+PRO_MODULES = [
+    "payroll", "rh", "employees", "accounting", "declarations", "fiscal",
+    "assistants", "limule", "projects", "kanban", "meetings", "chat",
+    "reports", "investments", "groups",
+]
+BUSINESS_MODULES = PRO_MODULES + ["reports-teras", "teras"]
 
 # ── Plans par défaut (seedés au démarrage si la table est vide) ──────────────
 DEFAULT_PLANS = [
@@ -36,18 +56,21 @@ DEFAULT_PLANS = [
         "period": "month", "trial_days": 0, "sort_order": 0,
         "description": "Pour démarrer : POS, facturation, 2 utilisateurs.",
         "features": ["POS / Caisse", "Facturation TVA", "2 utilisateurs", "Support communautaire"],
+        "included_modules": [], "max_users": 2,
     },
     {
         "code": "pro", "name": "Pro", "price_cents": 1_500_000, "currency": "XAF",
         "period": "month", "trial_days": 14, "sort_order": 1,
         "description": "Pour les PME en croissance : paie, comptabilité, IA Limule.",
         "features": ["Tout Starter", "Paie CNSS/IRPP", "Comptabilité SYSCOHADA", "IA Limule", "Groupes & Organisations", "10 utilisateurs"],
+        "included_modules": PRO_MODULES, "max_users": 10,
     },
     {
         "code": "business", "name": "Business", "price_cents": 4_000_000, "currency": "XAF",
         "period": "month", "trial_days": 14, "sort_order": 2,
         "description": "Pour les structures établies : groupes, TERAS, utilisateurs illimités.",
         "features": ["Tout Pro", "Groupes & Organisations", "TERAS Connect", "Utilisateurs illimités", "Support prioritaire"],
+        "included_modules": BUSINESS_MODULES, "max_users": 0,
     },
 ]
 
@@ -62,6 +85,8 @@ def seed_default_plans(db: Session) -> None:
             price_cents=p["price_cents"], currency=p["currency"], period=p["period"],
             trial_days=p["trial_days"], sort_order=p["sort_order"],
             features=json.dumps(p["features"], ensure_ascii=False), is_active=True,
+            included_modules=json.dumps(p.get("included_modules", []), ensure_ascii=False),
+            max_users=p.get("max_users", 0),
         ))
     db.commit()
 
@@ -71,10 +96,15 @@ def plan_to_dict(plan: SubscriptionPlan) -> dict:
         features = json.loads(plan.features) if plan.features else []
     except Exception:
         features = []
+    try:
+        included_modules = json.loads(plan.included_modules) if plan.included_modules else []
+    except Exception:
+        included_modules = []
     return {
         "id": plan.id, "code": plan.code, "name": plan.name, "description": plan.description,
         "price_cents": plan.price_cents, "currency": plan.currency, "period": plan.period,
         "features": features, "trial_days": plan.trial_days,
+        "included_modules": included_modules, "max_users": plan.max_users,
         "is_active": plan.is_active, "sort_order": plan.sort_order,
     }
 
@@ -176,3 +206,97 @@ def activate_after_payment(db: Session, company_id: int, plan: SubscriptionPlan,
             promo.times_redeemed = (promo.times_redeemed or 0) + 1
     db.commit()
     return sub
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ESSAI GRATUIT + ENTITLEMENTS (accès par plan)
+# ═══════════════════════════════════════════════════════════════════════════
+def start_trial(db: Session, company_id: int, days: int = TRIAL_DAYS) -> CompanySubscription:
+    """Démarre un essai gratuit complet (accès total) pour une nouvelle entreprise."""
+    sub = get_or_create_subscription(db, company_id)
+    now = _now()
+    sub.status = "trialing"
+    sub.plan_code = ""               # essai = pas de plan payant encore
+    sub.started_at = sub.started_at or now
+    sub.current_period_end = now + timedelta(days=days)
+    sub.cancel_at_period_end = False
+    db.flush()
+    return sub
+
+
+def is_premium_module(module_key: str) -> bool:
+    return module_key in set(PREMIUM_MODULES)
+
+
+def company_entitlements(db: Session, company_id: int) -> dict:
+    """Droits d'accès effectifs d'une entreprise.
+
+    - Essai en cours → accès complet (allowed_modules=None), users illimités.
+    - Abonnement actif → modules du plan + max_users du plan.
+    - Sinon (essai expiré / pas de plan / suspendu) → cœur seulement, verrouillé.
+    `allowed_modules=None` signifie « tous les modules ». Une liste = modules
+    premium autorisés (les modules cœur sont toujours accessibles)."""
+    company = db.get(Company, company_id)
+    sub = db.scalar(select(CompanySubscription).where(CompanySubscription.company_id == company_id))
+    eff = effective_status(db, company, sub) if company else "none"
+    now = _now()
+    period_end = _aware(sub.current_period_end) if (sub and sub.current_period_end) else None
+    days_left = max(0, (period_end - now).days) if period_end else 0
+
+    is_trial = bool(sub and sub.status == "trialing" and eff == "trialing")
+    if is_trial:
+        return {
+            "status": "trialing", "plan_code": "", "trialing": True,
+            "trial_days_left": days_left, "soft_warning": days_left <= SOFT_WARNING_DAYS,
+            "period_end": period_end.isoformat() if period_end else None,
+            "allowed_modules": None, "max_users": 0, "locked": False,
+        }
+
+    if eff in ACTIVE_STATUSES and sub and sub.plan_code:
+        plan = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == sub.plan_code))
+        mods: list[str] = []
+        max_u = 0
+        if plan:
+            try:
+                mods = json.loads(plan.included_modules) if plan.included_modules else []
+            except Exception:
+                mods = []
+            max_u = plan.max_users
+        return {
+            "status": eff, "plan_code": sub.plan_code, "trialing": False,
+            "trial_days_left": 0, "soft_warning": False,
+            "period_end": period_end.isoformat() if period_end else None,
+            "allowed_modules": mods, "max_users": max_u, "locked": False,
+        }
+
+    # Essai expiré / aucun plan / suspendu → cœur seulement
+    return {
+        "status": eff, "plan_code": (sub.plan_code if sub else ""), "trialing": False,
+        "trial_days_left": 0, "soft_warning": False,
+        "period_end": period_end.isoformat() if period_end else None,
+        "allowed_modules": [], "max_users": 1, "locked": True,
+    }
+
+
+def module_allowed(entitlements: dict, module_key: str) -> bool:
+    allowed = entitlements.get("allowed_modules")
+    if allowed is None:               # essai → tout
+        return True
+    if not is_premium_module(module_key):
+        return True                   # module cœur → toujours
+    return module_key in allowed
+
+
+def active_user_count(db: Session, company_id: int) -> int:
+    return db.scalar(
+        select(func.count()).select_from(User).where(
+            User.company_id == company_id, User.is_active == True  # noqa: E712
+        )
+    ) or 0
+
+
+def can_add_user(db: Session, company_id: int) -> bool:
+    ent = company_entitlements(db, company_id)
+    if ent["max_users"] == 0:         # illimité (essai ou plan Business)
+        return True
+    return active_user_count(db, company_id) < ent["max_users"]

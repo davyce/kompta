@@ -1387,7 +1387,10 @@ class SubscriptionPlan(TimestampMixin, Base):
     price_cents: Mapped[int] = mapped_column(BigInteger, default=0)          # prix période, en centimes
     currency: Mapped[str] = mapped_column(String(8), default="XAF")
     period: Mapped[str] = mapped_column(String(10), default="month")         # month | year
-    features: Mapped[str] = mapped_column(Text, default="[]")                # JSON : liste de fonctionnalités
+    features: Mapped[str] = mapped_column(Text, default="[]")                # JSON : liste de fonctionnalités (marketing)
+    # Entitlements réels (éditables par le super-admin) :
+    included_modules: Mapped[str] = mapped_column(Text, default="[]")        # JSON : modules premium débloqués par ce plan
+    max_users: Mapped[int] = mapped_column(Integer, default=0)               # 0 = illimité
     trial_days: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)

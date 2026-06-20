@@ -93,7 +93,7 @@ def build_production_preflight(db: Session, settings: Settings) -> dict[str, Any
     env = settings.environment.strip().lower()
     is_prod_like = env in {"prod", "production", "staging", "preprod", "pre-production"}
     placeholder_secrets = {"dev-kompta-secret", "change-me-in-production", "secret", "changeme", ""}
-    super_password = os.getenv("SUPER_ADMIN_PASSWORD", "super2026")
+    super_password = settings.super_admin_password
 
     deploy_items = [
         _check(

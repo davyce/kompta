@@ -157,6 +157,45 @@ def test_caissier_cannot_read_audit_logs():
         assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
 
 
+def test_caissier_cannot_update_company_profile():
+    """caissier_pos ne peut pas modifier les informations légales de l'entreprise."""
+    with TestClient(app) as client:
+        h = _caissier(client)
+        r = client.patch("/api/company/profile", headers=h, json={"name": "Tentative non autorisée"})
+        assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
+
+
+def test_caissier_cannot_toggle_company_modules():
+    """caissier_pos ne peut pas activer/désactiver les modules du tenant."""
+    with TestClient(app) as client:
+        h = _caissier(client)
+        r = client.patch("/api/company/modules/pos", headers=h, json={"enabled": False})
+        assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
+
+
+def test_user_avatar_is_company_scoped():
+    """Un admin entreprise ne peut pas lire l'avatar d'un utilisateur d'une autre entreprise."""
+    with TestClient(app) as client:
+        suffix = uuid4().hex[:8]
+        created = client.post("/api/auth/register-company", json={
+            "company_name": f"Avatar Scope {suffix}",
+            "legal_name": f"Avatar Scope {suffix}",
+            "industry": "Test",
+            "organization_type": "PME",
+            "country": "Congo",
+            "admin_full_name": "Admin Cross Tenant",
+            "admin_email": f"avatar-scope-{suffix}@test.local",
+            "admin_phone": f"+24207{suffix[:6]}",
+            "password": "CrossTenant2026!",
+        })
+        assert created.status_code == 201, created.text
+        other_user_id = created.json()["user"]["id"]
+
+        h = _admin(client)
+        r = client.get(f"/api/users/{other_user_id}/avatar", headers=h)
+        assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
+
+
 def test_admin_can_read_audit_logs():
     """admin_entreprise peut lire les audit logs."""
     with TestClient(app) as client:

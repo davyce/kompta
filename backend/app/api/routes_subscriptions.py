@@ -35,7 +35,7 @@ logger = logging.getLogger("kompta.subscriptions")
 
 
 def _require_super_admin(user: User) -> None:
-    if user.role != "super_admin":
+    if user.role != "super_admin" and not (user.custom_role and user.custom_role.scope == "admin"):
         raise HTTPException(403, "Réservé au super-administrateur de la plateforme.")
 
 
@@ -72,6 +72,7 @@ def my_subscription(db: Session = Depends(get_db), current_user: User = Depends(
     if sub and sub.plan_code:
         p = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == sub.plan_code))
         plan = subs.plan_to_dict(p) if p else None
+    ent = subs.company_entitlements(db, current_user.company_id)
     return {
         "status": status,
         "company_status": company.status if company else "active",
@@ -80,7 +81,19 @@ def my_subscription(db: Session = Depends(get_db), current_user: User = Depends(
         "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
         "cancel_at_period_end": sub.cancel_at_period_end if sub else False,
         "applied_promo_code": sub.applied_promo_code if sub else "",
+        # Entitlements pour le verrouillage côté front
+        "entitlements": ent,
     }
+
+
+@router.get("/subscription/entitlements")
+def my_entitlements(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    """Droits d'accès effectifs (modules autorisés, limite users, essai)."""
+    ent = subs.company_entitlements(db, current_user.company_id)
+    ent["active_users"] = subs.active_user_count(db, current_user.company_id)
+    ent["can_add_user"] = subs.can_add_user(db, current_user.company_id)
+    ent["premium_modules"] = subs.PREMIUM_MODULES
+    return ent
 
 
 class PromoValidateRequest(BaseModel):
@@ -244,6 +257,8 @@ class PlanUpsert(BaseModel):
     currency: str = "XAF"
     period: str = "month"
     features: list[str] = []
+    included_modules: list[str] = []
+    max_users: int = 0
     trial_days: int = 0
     is_active: bool = True
     sort_order: int = 0
@@ -269,6 +284,8 @@ def admin_create_plan(payload: PlanUpsert, db: Session = Depends(get_db),
         price_cents=max(0, payload.price_cents), currency=payload.currency.upper(),
         period=payload.period if payload.period in {"month", "year"} else "month",
         features=json.dumps(payload.features, ensure_ascii=False),
+        included_modules=json.dumps(payload.included_modules, ensure_ascii=False),
+        max_users=max(0, payload.max_users),
         trial_days=max(0, payload.trial_days), is_active=payload.is_active, sort_order=payload.sort_order,
     )
     db.add(plan); db.commit(); db.refresh(plan)
@@ -282,14 +299,18 @@ def admin_update_plan(plan_id: int, payload: dict, db: Session = Depends(get_db)
     plan = db.get(SubscriptionPlan, plan_id)
     if not plan:
         raise HTTPException(404, "Plan introuvable.")
-    allowed = {"name", "description", "price_cents", "currency", "period", "trial_days", "is_active", "sort_order"}
+    allowed = {"name", "description", "price_cents", "currency", "period", "trial_days", "is_active", "sort_order", "max_users"}
     for k, v in payload.items():
         if k in allowed:
             setattr(plan, k, v)
     if "features" in payload and isinstance(payload["features"], list):
         plan.features = json.dumps(payload["features"], ensure_ascii=False)
+    if "included_modules" in payload and isinstance(payload["included_modules"], list):
+        plan.included_modules = json.dumps(payload["included_modules"], ensure_ascii=False)
     if plan.price_cents < 0:
         plan.price_cents = 0
+    if plan.max_users < 0:
+        plan.max_users = 0
     db.commit(); db.refresh(plan)
     return subs.plan_to_dict(plan)
 

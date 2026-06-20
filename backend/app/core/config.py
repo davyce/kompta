@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     cors_origins: str = "http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173"
     access_token_expire_minutes: int = 480  # 8h (réduit de 12h) ; révocable via token_version
+    super_admin_email: str = "superadmin@kompta.io"
+    super_admin_password: str = "super2026"
+    super_admin_phone: str = "+242060000099"
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
@@ -44,6 +47,7 @@ class Settings(BaseSettings):
     momo_api_user: str = ""
     momo_api_key: str = ""
     momo_callback_host: str = ""
+    momo_callback_secret: str = ""
 
     # ── Authentification : cookie de session ────────────────────────────────────
     auth_cookie_name: str = "kompta_session"

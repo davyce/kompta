@@ -106,3 +106,33 @@ def test_super_admin_grant_period() -> None:
         me = client.get("/api/subscription/me", headers=adm).json()
         assert me["plan_code"] == "pro"
         assert me["current_period_end"] is not None
+
+
+# ── Entitlements (essai 3 mois + gating modules) ────────────────────────────
+def test_new_company_gets_trial_with_full_access() -> None:
+    import uuid
+    with TestClient(app) as client:
+        email = f"trial_{uuid.uuid4().hex[:8]}@kompta.local"
+        r = client.post("/api/auth/register-company", json={
+            "company_name": "Essai SARL", "admin_full_name": "Boss", "admin_email": email,
+            "admin_phone": "", "password": "kompta123",
+        })
+        assert r.status_code == 201, r.text
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        ent = client.get("/api/subscription/entitlements", headers=h).json()
+        assert ent["trialing"] is True
+        assert ent["allowed_modules"] is None        # accès complet pendant l'essai
+        assert ent["trial_days_left"] > 80           # ~90 jours
+        # Un module premium est accessible pendant l'essai (pas de 402)
+        assert client.get("/api/payroll", headers=h).status_code != 402
+
+
+def test_plans_expose_entitlements() -> None:
+    with TestClient(app) as client:
+        plans = {p["code"]: p for p in client.get("/api/subscription/plans", headers=_admin(client)).json()}
+        assert plans["starter"]["max_users"] == 2
+        assert plans["pro"]["max_users"] == 10
+        assert plans["business"]["max_users"] == 0
+        assert "payroll" in plans["pro"]["included_modules"]
+        assert "teras" not in plans["pro"]["included_modules"]
+        assert "teras" in plans["business"]["included_modules"]

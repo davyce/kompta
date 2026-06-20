@@ -208,7 +208,10 @@ async def momo_request_to_pay(
         "Content-Type": "application/json",
     }
     if settings.momo_callback_host:
-        headers["X-Callback-Url"] = f"{settings.momo_callback_host}/api/payments/momo/callback"
+        callback_url = f"{settings.momo_callback_host}/api/payments/momo/callback"
+        if settings.momo_callback_secret:
+            callback_url = f"{callback_url}?token={settings.momo_callback_secret}"
+        headers["X-Callback-Url"] = callback_url
     body = {
         "amount": str(amount),
         "currency": momo_currency,

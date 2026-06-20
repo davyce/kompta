@@ -56,6 +56,11 @@ def ensure_sqlite_migrations() -> None:
             "totp_enabled": "BOOLEAN DEFAULT 0",
             "token_version": "INTEGER DEFAULT 0",
             "onboarding_done": "BOOLEAN DEFAULT 0",
+            "avatar_path": "VARCHAR(512) DEFAULT ''",
+            "custom_role_id": "INTEGER",
+            "address": "VARCHAR(255) DEFAULT ''",
+            "last_login_ip": "VARCHAR(64) DEFAULT ''",
+            "last_login_city": "VARCHAR(120) DEFAULT ''",
         },
         "employees": {
             "phone": "VARCHAR(40) DEFAULT ''",
@@ -133,6 +138,7 @@ def ensure_sqlite_migrations() -> None:
         },
         "companies": {
             "status": "VARCHAR(40) DEFAULT 'active'",
+            "logo_path": "VARCHAR(512) DEFAULT ''",
             "invoice_seq": "INTEGER DEFAULT 0",
             "sale_seq": "INTEGER DEFAULT 0",
             "accounting_mode": "VARCHAR(20) DEFAULT 'simple'",
@@ -234,7 +240,10 @@ def ensure_sqlite_migrations() -> None:
             "purpose": "VARCHAR(20) DEFAULT 'sale'",
             "subscription_plan_code": "VARCHAR(40) DEFAULT ''",
         },
-        "subscription_plans": {},
+        "subscription_plans": {
+            "included_modules": "TEXT DEFAULT '[]'",
+            "max_users": "INTEGER DEFAULT 0",
+        },
         "promotions": {},
         "company_subscriptions": {},
     }
@@ -298,14 +307,15 @@ def seed_platform_admin(db: Session) -> None:
 
     En production, le démarrage est bloqué dans main.py si le password par défaut est utilisé.
     """
-    import os
     import logging
+    from app.core.config import get_settings
     _log = logging.getLogger("kompta.init_db")
+    settings = get_settings()
 
-    email = os.getenv("SUPER_ADMIN_EMAIL", "superadmin@kompta.io").strip().lower()
-    password = os.getenv("SUPER_ADMIN_PASSWORD", "super2026")
+    email = settings.super_admin_email.strip().lower()
+    password = settings.super_admin_password
 
-    _env = os.getenv("ENVIRONMENT", "development").strip().lower()
+    _env = settings.environment.strip().lower()
     if _env in {"prod", "production"} and password == "super2026":
         raise RuntimeError("SUPER_ADMIN_PASSWORD par défaut interdit en production.")
     if password == "super2026":
@@ -325,7 +335,7 @@ def seed_platform_admin(db: Session) -> None:
     existing = db.scalar(select(User).where(User.role == "super_admin"))
     if existing:
         existing.email = existing.email or email
-        existing.phone = existing.phone or os.getenv("SUPER_ADMIN_PHONE", "+242060000099")
+        existing.phone = existing.phone or settings.super_admin_phone
         existing.full_name = existing.full_name or "Super Admin KOMPTA"
         existing.department = "KOMPTA Platform"
         existing.branch = "HQ"
@@ -335,7 +345,7 @@ def seed_platform_admin(db: Session) -> None:
         db.commit()
         return
     admin = User(
-        email=email, phone=os.getenv("SUPER_ADMIN_PHONE", "+242060000099"),
+        email=email, phone=settings.super_admin_phone,
         full_name="Super Admin KOMPTA", role="super_admin",
         department="KOMPTA Platform", branch="HQ",
         password_hash=hash_password(password),

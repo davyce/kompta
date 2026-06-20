@@ -55,7 +55,7 @@ router = APIRouter(tags=["admin-analytics"])
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _require_super_admin(current_user: User) -> None:
-    if current_user.role != "super_admin":
+    if current_user.role != "super_admin" and not (current_user.custom_role and current_user.custom_role.scope == "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super-admin access required")
 
 

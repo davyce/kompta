@@ -824,7 +824,7 @@ def limule_clear_history(
 
 
 def _require_super_admin(current_user: User) -> None:
-    if current_user.role != "super_admin":
+    if current_user.role != "super_admin" and not (current_user.custom_role and current_user.custom_role.scope == "admin"):
         raise HTTPException(status_code=403, detail="Super-admin access required")
 
 
@@ -1373,6 +1373,8 @@ def toggle_module(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> CompanyModule:
+    if current_user.role not in {"admin_entreprise", "manager_entreprise", "super_admin"}:
+        raise HTTPException(status_code=403, detail="Accès refusé : administrateur requis.")
     if key not in DEFAULT_MODULES:
         raise HTTPException(400, f"Module inconnu : {key}")
     _ensure_modules(db, current_user.company_id)

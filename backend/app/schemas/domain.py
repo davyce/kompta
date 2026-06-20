@@ -81,6 +81,7 @@ class CompanyRead(BaseModel):
     manager_title: str = ""
     bank_name: str = ""
     bank_account: str = ""
+    has_logo: bool = False
 
 
 class CompanyUpdate(BaseModel):
@@ -111,6 +112,14 @@ class CompanyUpdate(BaseModel):
     bank_account: str | None = None
 
 
+class CustomRoleBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    scope: str = "company"
+    color: str = "#6366f1"
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -126,6 +135,13 @@ class UserRead(BaseModel):
     must_change_password: bool = False
     account_status: str = "active"
     onboarding_done: bool = False
+    address: str = ""
+    has_avatar: bool = False
+    last_login_at: datetime | None = None
+    last_login_ip: str = ""
+    last_login_city: str = ""
+    custom_role: CustomRoleBrief | None = None
+    permissions: list[str] = []
 
 
 class EmployeeBase(BaseModel):

@@ -129,6 +129,7 @@ from app.services.access import (
     change_first_login_password,
     create_complete_employee_with_account,
     normalize_phone,
+    provision_or_reset_employee_access,
     quick_create_employee_with_account,
     regenerate_temporary_password,
     render_contract_html,
@@ -424,6 +425,25 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "kompta-api"}
 
 
+def _ip_city(ip: str) -> str:
+    """Géolocalisation best-effort d'une IP → ville/pays. Privé → réseau local.
+    Lookup public via ipapi (timeout court) ; échec silencieux → ''."""
+    if not ip or ip in {"127.0.0.1", "::1", "localhost"} or ip.startswith(("10.", "192.168.", "172.16.", "172.17.", "172.18.")):
+        return "Réseau local"
+    try:
+        import httpx
+        with httpx.Client(timeout=1.5) as c:
+            r = c.get(f"https://ipapi.co/{ip}/json/")
+            if r.status_code == 200:
+                d = r.json()
+                city = d.get("city") or ""
+                country = d.get("country_name") or ""
+                return ", ".join([x for x in (city, country) if x])[:120]
+    except Exception:
+        pass
+    return ""
+
+
 @router.post("/auth/login", response_model=TokenResponse)
 @_limiter.limit("20/minute")
 def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
@@ -458,6 +478,12 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     _reset_login_attempts(rate_key)
     if not user.must_change_password:
         user.last_login_at = datetime.now(timezone.utc)
+        # Géolocalisation best-effort : IP du client (en-tête proxy ou socket).
+        fwd = request.headers.get("x-forwarded-for", "")
+        client_ip = (fwd.split(",")[0].strip() if fwd else "") or (request.client.host if request.client else "")
+        if client_ip:
+            user.last_login_ip = client_ip[:64]
+            user.last_login_city = _ip_city(client_ip)
         if user.employee_id:
             employee = db.get(Employee, user.employee_id)
             if employee:
@@ -587,6 +613,9 @@ def register_company(payload: CompanyRegistrationRequest, response: Response, db
     db.flush()
     db.add(ChatChannel(name="general", topic="Canal de depart de votre entreprise", company_id=company.id))
     ensure_default_modules(db, company.id)
+    # Essai gratuit complet (3 mois) offert à toute nouvelle entreprise.
+    from app.services.subscriptions import start_trial
+    start_trial(db, company.id)
     db.commit()
     db.refresh(admin)
 
@@ -776,6 +805,7 @@ def update_company(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Company:
+    _require_admin(current_user)
     company = db.get(Company, current_user.company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
@@ -788,6 +818,68 @@ def update_company(
     company.completion_score = _compute_company_completion(company)
     db.commit()
     db.refresh(company)
+    return company
+
+
+@router.post("/company/logo", response_model=CompanyRead)
+async def upload_company_logo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Company:
+    """Téléverse (ou remplace) le logo de l'entreprise. Image PNG/JPEG/WebP."""
+    _require_admin(current_user)
+    company = db.get(Company, current_user.company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    allowed = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+    if (file.content_type or "") not in allowed:
+        raise HTTPException(status_code=400, detail="Format d'image non supporté (PNG, JPEG ou WebP).")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Logo trop volumineux (max 5 Mo).")
+    logo_dir = Path(get_settings().document_storage_dir).parent / "logos"
+    logo_dir.mkdir(parents=True, exist_ok=True)
+    ext = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp"}.get(file.content_type or "", ".png")
+    # Supprime l'ancien logo s'il existe.
+    if company.logo_path:
+        Path(company.logo_path).unlink(missing_ok=True)
+    dest = logo_dir / f"company-{company.id}-{uuid4().hex[:12]}{ext}"
+    dest.write_bytes(content)
+    company.logo_path = str(dest)
+    db.commit()
+    db.refresh(company)
+    return company
+
+
+@router.get("/company/logo")
+def get_company_logo(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    company = db.get(Company, current_user.company_id)
+    if not company or not company.logo_path:
+        raise HTTPException(status_code=404, detail="Aucun logo")
+    path = Path(company.logo_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Fichier logo manquant")
+    return FileResponse(path)
+
+
+@router.delete("/company/logo", response_model=CompanyRead)
+def delete_company_logo(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Company:
+    _require_admin(current_user)
+    company = db.get(Company, current_user.company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if company.logo_path:
+        Path(company.logo_path).unlink(missing_ok=True)
+        company.logo_path = ""
+        db.commit()
+        db.refresh(company)
     return company
 
 
@@ -1282,6 +1374,31 @@ def reset_employee_access(
     current_user: User = Depends(get_current_user),
 ) -> EmployeeProvisioningResult:
     return generate_employee_temp_password(employee_id, db, current_user)
+
+
+@router.post("/employees/{employee_id}/provision-access", response_model=EmployeeProvisioningResult)
+def provision_employee_access(
+    employee_id: int,
+    role: str = "employe",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> EmployeeProvisioningResult:
+    """Provisions a login account for an existing employee (or regenerates a
+    temporary password if one already exists). Works whether or not the
+    employee was originally created with an account."""
+    employee = _get_scoped_employee(db, employee_id, current_user)
+    login_identifier, temporary_password = provision_or_reset_employee_access(
+        db, employee=employee, role=role, current_user=current_user
+    )
+    db.refresh(employee)
+    return EmployeeProvisioningResult(
+        employee=EmployeeRead.model_validate(employee),
+        login_identifier=login_identifier,
+        temporary_password=temporary_password,
+        account_status=employee.account_status,
+        must_change_password=True,
+        access_note="Accès généré. Conservez ces identifiants — le mot de passe ne sera plus affiché.",
+    )
 
 
 @router.patch("/employees/{employee_id}/permissions", response_model=EmployeeRead)
@@ -3983,7 +4100,7 @@ def modules_settings(current_user: User = Depends(get_current_user)) -> dict:
 # ─── Super-Admin (cross-tenant) ─────────────────────────────────────────────
 
 def _require_super_admin(current_user: User) -> None:
-    if current_user.role != "super_admin":
+    if current_user.role != "super_admin" and not (current_user.custom_role and current_user.custom_role.scope == "admin"):
         raise HTTPException(status_code=403, detail="Super-admin access required")
 
 
@@ -4134,7 +4251,17 @@ def admin_list_users(
             "must_change_password": bool(u.must_change_password),
             "company_id": u.company_id,
             "company_name": company_names.get(u.company_id, ""),
+            "phone": u.phone or "",
+            "address": getattr(u, "address", "") or "",
+            "has_avatar": bool(getattr(u, "avatar_path", "")),
             "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+            "last_login_ip": getattr(u, "last_login_ip", "") or "",
+            "last_login_city": getattr(u, "last_login_city", "") or "",
+            "custom_role": (
+                {"id": u.custom_role.id, "name": u.custom_role.name,
+                 "scope": u.custom_role.scope, "color": u.custom_role.color}
+                if getattr(u, "custom_role", None) else None
+            ),
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users

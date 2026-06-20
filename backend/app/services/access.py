@@ -254,6 +254,34 @@ def regenerate_temporary_password(db: Session, *, employee: Employee, current_us
     return login_identifier, temporary_password
 
 
+def provision_or_reset_employee_access(
+    db: Session, *, employee: Employee, role: str, current_user: User
+) -> tuple[str, str]:
+    """Returns (login_identifier, temporary_password).
+
+    If the employee already has a linked user account, regenerates a temporary
+    password. Otherwise provisions a brand-new account for the existing employee.
+    """
+    assert_can_manage_employee_access(current_user)
+    if employee.user_id:
+        return regenerate_temporary_password(db, employee=employee, current_user=current_user)
+    login_email = (employee.email or "").strip().lower()
+    phone = normalize_phone(employee.phone or "")
+    if not login_email and not phone:
+        raise HTTPException(status_code=400, detail="Email ou téléphone requis pour créer un accès")
+    _, temporary_password, login_identifier = _create_employee_account(
+        db,
+        employee=employee,
+        login_email=login_email or f"emp{employee.id}@local",
+        phone=phone,
+        role=role or "employe",
+        current_user=current_user,
+    )
+    db.commit()
+    db.refresh(employee)
+    return login_identifier, temporary_password
+
+
 def change_first_login_password(db: Session, *, user: User, current_password: str, new_password: str) -> User:
     if user.account_status in {"suspended", "disabled", "archived"}:
         raise HTTPException(status_code=403, detail="Compte suspendu ou desactive")
