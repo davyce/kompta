@@ -290,6 +290,9 @@ private struct InvestmentDetailScreen: View {
                     }
                 } label: { Image(systemName: "ellipsis.circle").font(.title3) }
             }
+            DownloadButton(title: "Analyse (PDF)", fileName: "analyse-\(inv.id).pdf",
+                           fetch: { try await APIClient.shared.investmentAnalysisPDF(inv.id) })
+                .font(.caption)
             if let q = quote {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text("\(numStr(q.price ?? 0)) \(q.currency)").font(.title.bold())

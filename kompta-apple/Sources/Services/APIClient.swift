@@ -452,6 +452,14 @@ actor APIClient {
     /// Downloads an individual employee payslip as PDF bytes.
     func payslipPDF(_ id: Int) async throws -> Data { try await rawData("/payroll/payslips/\(id)/download") }
 
+    // MARK: - Téléchargements PDF/CSV (parité web)
+    func invoiceExportPDF(_ id: Int) async throws -> Data { try await rawData("/invoices/\(id)/export?format=pdf") }
+    func payrollRunExportPDF(_ id: Int) async throws -> Data { try await rawData("/payroll/runs/\(id)/export?format=pdf") }
+    func posSalesExportCSV() async throws -> Data { try await rawData("/pos/sales/export-csv") }
+    func declarationPDF(_ id: Int) async throws -> Data { try await rawData("/declarations/\(id)/pdf") }
+    func employeeContractPDF(_ id: Int) async throws -> Data { try await rawData("/employees/\(id)/contract") }
+    func investmentAnalysisPDF(_ id: Int) async throws -> Data { try await rawData("/investments/\(id)/analysis/pdf") }
+
     // MARK: - Meetings
 
     func meetings() async throws -> [Meeting] { try await get("/meetings") }

@@ -523,6 +523,12 @@ struct DeclarationDetailView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                DownloadButton(title: "PDF", fileName: "declaration-\(declaration.id).pdf",
+                               fetch: { try await APIClient.shared.declarationPDF(declaration.id) })
+            }
+        }
     }
 }
 

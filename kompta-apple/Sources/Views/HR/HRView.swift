@@ -391,6 +391,10 @@ struct EmployeeDetailView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Fermer") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    DownloadButton(title: "Contrat (PDF)", fileName: "contrat-\(employee.id).pdf",
+                                   fetch: { try await APIClient.shared.employeeContractPDF(employee.id) })
+                }
             }
             .task { account = try? await APIClient.shared.employeeAccountInfo(employee.id) }
             .sheet(item: $credsBox) { box in

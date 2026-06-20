@@ -140,6 +140,10 @@ struct POSView: View {
             #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) { cartBadgeButton }
             #endif
+            ToolbarItem(placement: .secondaryAction) {
+                DownloadButton(title: "Exporter ventes (CSV)", fileName: "ventes-pos.csv",
+                               fetch: { try await APIClient.shared.posSalesExportCSV() })
+            }
         }
         .sheet(isPresented: $showCart) { cartSheetView }
         .sheet(isPresented: $showReceipt) { receiptSheetView }

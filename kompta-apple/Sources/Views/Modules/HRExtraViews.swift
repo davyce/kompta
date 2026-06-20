@@ -158,6 +158,12 @@ struct PayrollRunDetailView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                DownloadButton(title: "Exporter (PDF)", fileName: "cycle-paie-\(run.id).pdf",
+                               fetch: { try await APIClient.shared.payrollRunExportPDF(run.id) })
+            }
+        }
         .sheet(item: $selectedPayslip) { p in
             PayslipDetailView(payslip: p, period: run.period,
                               onPaid: { Task { await markPaid(p) } },
