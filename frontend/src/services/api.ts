@@ -75,6 +75,10 @@ export type CompanyRegistrationPayload = {
   admin_email: string;
   admin_phone: string;
   password: string;
+  signatory_name?: string;
+  accept_privacy?: boolean;
+  accept_terms?: boolean;
+  accept_disclaimer?: boolean;
 };
 
 export class ApiError extends Error {

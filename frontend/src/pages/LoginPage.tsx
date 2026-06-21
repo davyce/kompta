@@ -33,6 +33,10 @@ export function LoginPage() {
     admin_email: "",
     admin_phone: "",
     password: "",
+    signatory_name: "",
+    accept_privacy: false,
+    accept_terms: false,
+    accept_disclaimer: false,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -332,11 +336,34 @@ export function LoginPage() {
                     value={registration.password}
                     onChange={(event) => setRegistration({ ...registration, password: event.target.value })}
                   />
+                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Consentement</p>
+                    <TextInput
+                      label="Nom du signataire"
+                      value={registration.signatory_name}
+                      onChange={(event) => setRegistration({ ...registration, signatory_name: event.target.value })}
+                    />
+                    <label className="flex items-start gap-2 text-xs text-stone-600">
+                      <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={registration.accept_privacy}
+                        onChange={(e) => setRegistration({ ...registration, accept_privacy: e.target.checked })} />
+                      <span>J'ai lu et j'accepte la <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-emerald-700 underline">Politique de confidentialité</a>.</span>
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-stone-600">
+                      <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={registration.accept_terms}
+                        onChange={(e) => setRegistration({ ...registration, accept_terms: e.target.checked })} />
+                      <span>J'accepte les <a href="/terms" target="_blank" rel="noreferrer" className="font-semibold text-emerald-700 underline">Conditions d'utilisation</a>.</span>
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-stone-600">
+                      <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={registration.accept_disclaimer}
+                        onChange={(e) => setRegistration({ ...registration, accept_disclaimer: e.target.checked })} />
+                      <span>Je reconnais la <strong>décharge de responsabilité</strong> : KOMPTA est fourni « en l'état » ; je reste responsable de mes données et obligations légales/fiscales. Les analyses IA sont indicatives.</span>
+                    </label>
+                  </div>
                 </>
               )}
               {error ? <p className="rounded-lg bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700">{error}</p> : null}
               <button
-                disabled={loading || resetLoading}
+                disabled={loading || resetLoading || (mode === "register" && !(registration.accept_privacy && registration.accept_terms && registration.accept_disclaimer && registration.signatory_name.trim().length > 0))}
                 className="flex min-h-[52px] sm:min-h-0 w-full items-center justify-center gap-2 rounded-xl sm:rounded-lg bg-emerald-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition active:scale-[0.98] hover:bg-emerald-700 disabled:opacity-60 disabled:active:scale-100"
               >
                 {(loading || resetLoading) ? (
