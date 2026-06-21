@@ -24,6 +24,10 @@ struct CompanyRegistrationPayload: Encodable {
     var admin_email: String
     var admin_phone: String
     var password: String
+    var signatory_name: String = ""
+    var accept_privacy: Bool = false
+    var accept_terms: Bool = false
+    var accept_disclaimer: Bool = false
 }
 
 struct PasswordResetRequestPayload: Encodable {

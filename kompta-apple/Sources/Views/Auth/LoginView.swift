@@ -254,6 +254,22 @@ struct LoginView: View {
             }
             AuthTextField(label: "Email admin", icon: "envelope.fill", placeholder: "admin@entreprise.com", text: $registration.adminEmail, kind: .email)
             AuthSecureField(label: "Mot de passe admin", icon: "lock.fill", placeholder: "8 caractères minimum", text: $registration.password, kind: .newPassword)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CONSENTEMENT").font(.caption2.bold()).foregroundStyle(.secondary)
+                AuthTextField(label: "Nom du signataire", icon: "signature", placeholder: "Votre nom", text: $registration.signatoryName)
+                Toggle(isOn: $registration.acceptPrivacy) {
+                    Text("J'accepte la Politique de confidentialité.").font(.caption)
+                }
+                Toggle(isOn: $registration.acceptTerms) {
+                    Text("J'accepte les Conditions d'utilisation.").font(.caption)
+                }
+                Toggle(isOn: $registration.acceptDisclaimer) {
+                    Text("Je reconnais la décharge : KOMPTA est fourni « en l'état » ; je reste responsable de mes données et obligations. L'IA est indicative.").font(.caption)
+                }
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
         }
     }
 
@@ -775,12 +791,18 @@ private struct RegistrationDraft {
     var adminEmail = ""
     var adminPhone = ""
     var password = ""
+    var signatoryName = ""
+    var acceptPrivacy = false
+    var acceptTerms = false
+    var acceptDisclaimer = false
 
     var isValid: Bool {
         companyName.trimmed.count >= 2 &&
         adminName.trimmed.count >= 2 &&
         !adminEmail.trimmed.isEmpty &&
-        password.count >= 8
+        password.count >= 8 &&
+        !signatoryName.trimmed.isEmpty &&
+        acceptPrivacy && acceptTerms && acceptDisclaimer
     }
 
     var payload: CompanyRegistrationPayload {
@@ -793,7 +815,11 @@ private struct RegistrationDraft {
             admin_full_name: adminName.trimmed,
             admin_email: adminEmail.trimmed,
             admin_phone: adminPhone.trimmed,
-            password: password
+            password: password,
+            signatory_name: signatoryName.trimmed,
+            accept_privacy: acceptPrivacy,
+            accept_terms: acceptTerms,
+            accept_disclaimer: acceptDisclaimer
         )
     }
 }
