@@ -588,9 +588,12 @@ def _archive_consent_document(db: Session, company_id: int, signatory_name: str,
         "",
         f"[{'X' if accepted.get('privacy') else ' '}] J'ai lu et j'accepte la Politique de confidentialité.",
         f"[{'X' if accepted.get('terms') else ' '}] J'accepte les Conditions générales d'utilisation.",
-        f"[{'X' if accepted.get('disclaimer') else ' '}] Je reconnais la décharge de responsabilité : KOMPTA est fourni « en l'état » ; "
-        "je reste responsable de mes données, déclarations et obligations légales/fiscales. Les analyses de l'IA sont indicatives "
-        "et ne remplacent pas un conseil professionnel.",
+        f"[{'X' if accepted.get('disclaimer') else ' '}] Je reconnais et accepte la décharge de responsabilité : KOMPTA est fourni "
+        "« en l'état » et « selon disponibilité », sans garantie. Mes données peuvent être hébergées et traitées hors de mon pays "
+        "(transfert international), ce que j'accepte. Les résultats de l'IA sont non contractuels et indicatifs, ne remplacent aucun "
+        "conseil professionnel, et toute décision relève de ma seule responsabilité. La responsabilité de l'éditeur est limitée, dans "
+        "la mesure permise par la loi, au montant des abonnements payés sur les 3 derniers mois. Je reste seul responsable de mes "
+        "sauvegardes, déclarations et obligations légales/fiscales/sociales.",
     ]
     text = "\n".join(lines)
     db.add(CompanyDocument(

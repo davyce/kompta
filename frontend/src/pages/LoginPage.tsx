@@ -356,7 +356,7 @@ export function LoginPage() {
                     <label className="flex items-start gap-2 text-xs text-stone-600">
                       <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={registration.accept_disclaimer}
                         onChange={(e) => setRegistration({ ...registration, accept_disclaimer: e.target.checked })} />
-                      <span>Je reconnais la <strong>décharge de responsabilité</strong> : KOMPTA est fourni « en l'état » ; je reste responsable de mes données et obligations légales/fiscales. Les analyses IA sont indicatives.</span>
+                      <span>Je reconnais la <strong>décharge de responsabilité</strong> : KOMPTA est fourni « en l'état », sans garantie ; mes données peuvent être hébergées hors de mon pays ; l'IA est non contractuelle et indicative ; la responsabilité de l'éditeur est limitée. Je reste seul responsable de mes sauvegardes, déclarations et obligations légales/fiscales.</span>
                     </label>
                   </div>
                 </>

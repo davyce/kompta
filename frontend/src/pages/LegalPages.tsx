@@ -5,11 +5,13 @@ import { ShieldCheck, FileText, ArrowLeft } from "lucide-react";
 // Remplacez ces valeurs par les informations réelles de l'éditeur.
 const LEGAL = {
   appName: "KOMPTA",
-  publisher: "Adansonia",            // raison sociale de l'éditeur
+  publisher: "Adansonia",            // À COMPLÉTER : raison sociale exacte de l'éditeur
+  legalForm: "[forme juridique à compléter]", // SARL | SAS | EI | GIE…
   contactEmail: "privacy@kompta.app", // email de contact RGPD / confidentialité
   dpoEmail: "dpo@kompta.app",         // délégué à la protection des données
   jurisdiction: "République Démocratique du Congo",
-  lastUpdated: "18 juin 2026",
+  hostingRegion: "l'Union européenne (AWS, région eu-west-3, Paris)",
+  lastUpdated: "20 juin 2026",
 };
 
 function LegalShell({ icon: Icon, title, children }: { icon: typeof ShieldCheck; title: string; children: React.ReactNode }) {
@@ -74,13 +76,22 @@ export function PrivacyPolicyPage() {
         </ul>
       </Section>
 
-      <Section title="3. Partage des données">
+      <Section title="3. Partage, hébergement et transferts internationaux">
         <p>
           Vos données ne sont jamais vendues. Elles sont accessibles aux membres autorisés de votre
           organisation selon leurs rôles, et partagées uniquement avec les sous-traitants
-          strictement nécessaires : hébergeur (AWS), prestataires de paiement (Stripe, MTN MoMo),
-          et le fournisseur du modèle d'IA pour le traitement des requêtes de l'assistant. Chaque
-          sous-traitant est tenu par contrat à la confidentialité.
+          strictement nécessaires : hébergeur (AWS), prestataires de paiement (Stripe, MTN MoMo) et
+          le fournisseur du modèle d'IA. Chaque sous-traitant est tenu par contrat à la confidentialité.
+        </p>
+        <p className="mt-2">
+          <strong>Hébergement hors zone.</strong> Vous reconnaissez et acceptez expressément que vos
+          données soient <strong>hébergées et traitées en dehors de votre pays de résidence</strong>,
+          notamment dans {LEGAL.hostingRegion}, ainsi que dans tout autre pays où sont établis nos
+          sous-traitants techniques et d'IA. En utilisant {LEGAL.appName}, vous consentez à ce
+          <strong> transfert international</strong> de vos données, y compris vers des pays dont la
+          législation sur la protection des données peut différer de la vôtre. {LEGAL.publisher} met en
+          œuvre des mesures contractuelles et techniques raisonnables, mais ne saurait garantir un
+          niveau de protection identique à celui de votre juridiction d'origine.
         </p>
       </Section>
 
@@ -161,31 +172,78 @@ export function TermsPage() {
         </p>
       </Section>
 
-      <Section title="4. Assistant IA (Limule)">
+      <Section title="4. Assistant IA (Limule) — caractère non contractuel">
         <p>
-          Les analyses et suggestions de l'assistant sont fournies à titre indicatif et ne
-          remplacent pas un conseil professionnel (comptable, fiscal, juridique). Les actions
-          sensibles requièrent une validation humaine.
+          Les analyses, résumés, scores, prévisions et suggestions générés par l'intelligence
+          artificielle sont fournis <strong>à titre purement informatif et non contractuel</strong>.
+          Ils peuvent contenir des erreurs, des approximations ou des informations obsolètes, ne
+          constituent <strong>en aucun cas un conseil comptable, fiscal, juridique, financier ou
+          d'investissement</strong>, et ne sauraient engager la responsabilité de {LEGAL.publisher}.
+          Toute décision prise sur la base de l'IA relève de votre <strong>seule responsabilité</strong>
+          et requiert une validation humaine et, le cas échéant, l'avis d'un professionnel qualifié.
         </p>
       </Section>
 
-      <Section title="5. Limitation de responsabilité">
+      <Section title="5. Absence de garantie">
         <p>
-          {LEGAL.appName} est fourni « en l'état ». Dans les limites permises par la loi, {LEGAL.publisher}
-          ne saurait être tenu responsable des pertes indirectes liées à l'usage du service. Vous
-          êtes responsable de vos sauvegardes et déclarations.
+          {LEGAL.appName} est fourni <strong>« en l'état » et « selon disponibilité »</strong>, sans
+          garantie d'aucune sorte, expresse ou implicite, notamment de qualité marchande, d'adéquation
+          à un usage particulier, d'absence d'erreurs, de continuité, d'exactitude des calculs ou de
+          conformité réglementaire. {LEGAL.publisher} ne garantit pas que le service sera ininterrompu,
+          sécurisé ou exempt d'anomalies, ni que les résultats obtenus seront exacts ou fiables.
         </p>
       </Section>
 
-      <Section title="6. Résiliation">
+      <Section title="6. Limitation de responsabilité">
         <p>
-          Vous pouvez résilier à tout moment. Nous pouvons suspendre un compte en cas de violation
-          des présentes conditions ou d'usage frauduleux.
+          Dans toute la mesure permise par la loi applicable, {LEGAL.publisher} <strong>ne pourra être
+          tenu responsable</strong> d'aucun dommage indirect, accessoire, spécial ou consécutif, ni
+          d'aucune perte de données, de chiffre d'affaires, de bénéfices, de clientèle, d'exploitation,
+          d'image ou d'opportunité, résultant de l'utilisation ou de l'impossibilité d'utiliser le
+          service, des décisions prises à partir de l'IA, d'un retard, d'une indisponibilité, d'une
+          perte ou corruption de données, ou de l'action d'un prestataire tiers (hébergeur, paiement, IA).
+        </p>
+        <p className="mt-2">
+          En tout état de cause, la <strong>responsabilité totale et cumulée</strong> de {LEGAL.publisher},
+          toutes causes confondues, est expressément <strong>limitée au montant des abonnements
+          effectivement payés par vous au cours des trois (3) mois</strong> précédant le fait générateur.
         </p>
       </Section>
 
-      <Section title="7. Droit applicable">
-        <p>Les présentes conditions sont régies par le droit de la {LEGAL.jurisdiction}.</p>
+      <Section title="7. Vos responsabilités & indemnisation">
+        <p>
+          Vous êtes seul responsable de l'exactitude de vos données, de vos <strong>sauvegardes</strong>,
+          de vos déclarations comptables, fiscales et sociales, et du respect des lois applicables à votre
+          activité. Vous vous engagez à <strong>garantir et indemniser</strong> {LEGAL.publisher} contre
+          toute réclamation, dommage ou frais (y compris frais de défense) résultant de votre utilisation
+          du service, de la violation des présentes conditions ou d'une atteinte aux droits de tiers.
+        </p>
+      </Section>
+
+      <Section title="8. Disponibilité & force majeure">
+        <p>
+          Le service peut être suspendu pour maintenance, mise à jour, raison de sécurité ou cas de
+          force majeure (panne réseau/électrique, défaillance d'un hébergeur ou d'un prestataire,
+          catastrophe, acte d'autorité, etc.), sans que la responsabilité de {LEGAL.publisher} puisse
+          être engagée. Nous nous efforçons d'assurer une disponibilité raisonnable sans y être tenus
+          par une obligation de résultat.
+        </p>
+      </Section>
+
+      <Section title="9. Résiliation">
+        <p>
+          Vous pouvez résilier à tout moment. Nous pouvons suspendre ou résilier un compte, sans
+          préavis, en cas de violation des présentes conditions, de défaut de paiement ou d'usage
+          frauduleux, sans droit à remboursement des sommes déjà versées.
+        </p>
+      </Section>
+
+      <Section title="10. Droit applicable & juridiction">
+        <p>
+          Les présentes conditions sont régies par le droit applicable dans {LEGAL.jurisdiction} et,
+          le cas échéant, par le droit OHADA. Tout litige sera, après tentative de règlement amiable,
+          soumis aux <strong>tribunaux compétents du siège de {LEGAL.publisher}</strong>.
+        </p>
       </Section>
 
       <p className="pt-4 text-sm text-[#717182] dark:text-white/50">

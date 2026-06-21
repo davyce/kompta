@@ -265,7 +265,7 @@ struct LoginView: View {
                     Text("J'accepte les Conditions d'utilisation.").font(.caption)
                 }
                 Toggle(isOn: $registration.acceptDisclaimer) {
-                    Text("Je reconnais la décharge : KOMPTA est fourni « en l'état » ; je reste responsable de mes données et obligations. L'IA est indicative.").font(.caption)
+                    Text("Décharge : KOMPTA est fourni « en l'état », sans garantie ; mes données peuvent être hébergées hors de mon pays ; l'IA est non contractuelle et indicative ; la responsabilité de l'éditeur est limitée. Je reste seul responsable de mes sauvegardes, déclarations et obligations.").font(.caption)
                 }
             }
             .padding(12)
