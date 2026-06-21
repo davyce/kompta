@@ -554,6 +554,16 @@ struct CollectionMethodsResponse: Codable {
     let can_collect: Bool
 }
 
+// Employabilité (TERAS)
+struct EmployabilityCheck: Codable {
+    let id: Int
+    let employee_id: Int
+    let status: String
+    let score: Int
+    let result_summary: String
+}
+struct EmployabilityPayload: Encodable { let employee_id: Int; let include_documents: Bool }
+
 // Limule — chat sur un document existant
 struct LimuleDocChatTurn: Codable { let role: String; let content: String }
 struct LimuleDocChatPayload: Encodable { let prompt: String; let conversation_history: [LimuleDocChatTurn] }

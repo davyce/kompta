@@ -305,6 +305,14 @@ struct EmployeeDetailView: View {
     @State private var account: EmployeeAccountInfo?
     @State private var generating = false
     @State private var credsBox: CredsBox?
+    @State private var employability: EmployabilityCheck?
+    @State private var checkingEmp = false
+
+    private func runEmployability() async {
+        checkingEmp = true
+        employability = try? await APIClient.shared.submitEmployability(employee.id)
+        checkingEmp = false
+    }
 
     var body: some View {
         NavigationStack {
@@ -343,6 +351,17 @@ struct EmployeeDetailView: View {
                             }
                         }
                     }
+                    .padding(.horizontal)
+
+                    AIAnalysisPanel(
+                        title: "Employabilité (TERAS)",
+                        runLabel: "Vérifier l'employabilité",
+                        loadingLabel: "TERAS évalue l'employé…",
+                        emptyLabel: "Lancez une vérification de conformité / employabilité.",
+                        analysis: employability.map { "Score : \($0.score)/100 · \($0.status)\n\n\($0.result_summary)" },
+                        isLoading: checkingEmp,
+                        onRun: { Task { await runEmployability() } }
+                    )
                     .padding(.horizontal)
 
                     // Access & account

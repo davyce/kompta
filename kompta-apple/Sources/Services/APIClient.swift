@@ -698,6 +698,12 @@ actor APIClient {
     func adminReactivateCompany(_ id: Int) async throws -> SuspendResult { try await actionDecoded("/admin/subscription/companies/\(id)/reactivate") }
     func adminGrantSubscription(_ id: Int, _ p: GrantRequestPayload) async throws -> GrantResult { try await post("/admin/subscription/companies/\(id)/grant", body: p) }
 
+    // MARK: - Employabilité (TERAS)
+
+    func submitEmployability(_ employeeId: Int) async throws -> EmployabilityCheck {
+        try await post("/teras/employability", body: EmployabilityPayload(employee_id: employeeId, include_documents: true))
+    }
+
     // MARK: - Limule : chat sur un document
 
     func limuleDocumentChat(_ id: Int, prompt: String, history: [LimuleDocChatTurn]) async throws -> LimuleDocChatResponse {
