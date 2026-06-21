@@ -698,6 +698,13 @@ actor APIClient {
     func adminReactivateCompany(_ id: Int) async throws -> SuspendResult { try await actionDecoded("/admin/subscription/companies/\(id)/reactivate") }
     func adminGrantSubscription(_ id: Int, _ p: GrantRequestPayload) async throws -> GrantResult { try await post("/admin/subscription/companies/\(id)/grant", body: p) }
 
+    // MARK: - Scan QR produit
+
+    func scanProductQr(_ token: String) async throws -> Product {
+        let enc = token.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? token
+        return try await get("/products/scan/\(enc)")
+    }
+
     // MARK: - Employabilité (TERAS)
 
     func submitEmployability(_ employeeId: Int) async throws -> EmployabilityCheck {

@@ -27,6 +27,7 @@
 		44F01D0BFDF6030D0E3D7CAD /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
 		45A2CADA6835FB275AB36914 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
 		4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34302996CFECB2C83D8235C1 /* LoginView.swift */; };
+		4A9A4098A3108750CDF42A85 /* ScanProductView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33D00FB95CA5427EB049A576 /* ScanProductView.swift */; };
 		50E2CDCCA83B680DB017DEF1 /* LimuleDocumentChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DEA1E7799EEA39F09ECBEAE /* LimuleDocumentChatView.swift */; };
 		510163563E592AFACB067336 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */; };
 		53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
@@ -74,6 +75,7 @@
 		C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
 		C09BFD2F8BFFD63BD4022DB6 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F7EC48B1C0BA411551319A /* AppShell.swift */; };
 		C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */; };
+		C407F9024F86F3CF55D7FF7F /* ScanProductView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33D00FB95CA5427EB049A576 /* ScanProductView.swift */; };
 		C6C4B755272B54CABF97BCCA /* CollectionMethodsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */; };
 		CAAD918E9D33BE9CF78CA06A /* HRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028679E157A10132898A78BE /* HRView.swift */; };
 		CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */; };
@@ -107,6 +109,7 @@
 		2333D4A2BC2297747BB6973E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		27610E5929BD66FE3262DA7D /* GlassComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassComponents.swift; sourceTree = "<group>"; };
 		2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRExtraViews.swift; sourceTree = "<group>"; };
+		33D00FB95CA5427EB049A576 /* ScanProductView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanProductView.swift; sourceTree = "<group>"; };
 		34302996CFECB2C83D8235C1 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		39F612F06D2735D2A6A4A02E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3D251BDB584F13900DFC765C /* ModuleHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleHub.swift; sourceTree = "<group>"; };
@@ -250,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				0FB8BC953013C1FAE6ADA929 /* POSView.swift */,
+				33D00FB95CA5427EB049A576 /* ScanProductView.swift */,
 			);
 			path = POS;
 			sourceTree = "<group>";
@@ -485,6 +489,7 @@
 				7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */,
 				BB462B1371FC2680A6747AF9 /* POSView.swift in Sources */,
 				B0CB3DA128A97F405395C5AC /* RolesView.swift in Sources */,
+				C407F9024F86F3CF55D7FF7F /* ScanProductView.swift in Sources */,
 				EA8C06FAFB8C286B8C8A1889 /* SecurityView.swift in Sources */,
 				98013947E273088E2195FC80 /* SettingsView.swift in Sources */,
 				BB43B6EA0532EEE5E70799B3 /* SuperAdminShell.swift in Sources */,
@@ -533,6 +538,7 @@
 				81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */,
 				7880938DFF872F614648FF2C /* POSView.swift in Sources */,
 				75439F2759679EAC1B4D4429 /* RolesView.swift in Sources */,
+				4A9A4098A3108750CDF42A85 /* ScanProductView.swift in Sources */,
 				DBA190C6E3B8D0AC62EDA501 /* SecurityView.swift in Sources */,
 				ACBC4644AA007A79B73C3D45 /* SettingsView.swift in Sources */,
 				F553AEF0A1FE12D88D8A8AC8 /* SuperAdminShell.swift in Sources */,

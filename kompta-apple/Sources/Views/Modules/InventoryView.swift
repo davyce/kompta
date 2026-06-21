@@ -53,6 +53,7 @@ struct InventoryView: View {
     @State private var search = ""
     @State private var category = "Tous"
     @State private var showAdd = false
+    @State private var showScan = false
     @State private var editTarget: Product?
     @State private var movementTarget: Product?
 
@@ -91,7 +92,15 @@ struct InventoryView: View {
             ToolbarItem(placement: .secondaryAction) {
                 CsvImportButton(title: "Importer CSV", importer: { d, n in try await APIClient.shared.importProductsCsv(d, fileName: n) }, onDone: { await model.loadAll() })
             }
+            #if os(iOS)
+            ToolbarItem(placement: .secondaryAction) {
+                Button { showScan = true } label: { Label("Scanner un produit", systemImage: "qrcode.viewfinder") }
+            }
+            #endif
         }
+        #if os(iOS)
+        .sheet(isPresented: $showScan) { ScanProductView() }
+        #endif
         .task { if model.products.isEmpty { await model.loadAll() } }
         .refreshable { await model.loadAll() }
         .sheet(isPresented: $showAdd) { ProductFormSheet(product: nil) { await model.loadAll() } }
