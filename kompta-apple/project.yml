@@ -10,7 +10,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "264EZSM3VZ"
+    CODE_SIGN_STYLE: Automatic
     ENABLE_BITCODE: NO
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     OTHER_SWIFT_FLAGS: ""
