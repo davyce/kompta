@@ -340,6 +340,7 @@ def test_company_registration_and_workspace_reset_flow() -> None:
                 "admin_email": f"diane.dg.{suffix}@kompta.local",
                 "admin_phone": f"+24207{suffix[:6]}",
                 "password": "Kompta2026!",
+                "signatory_name": "Diane DG", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
             },
         )
         assert registration.status_code == 201
@@ -512,6 +513,7 @@ def test_super_admin_password_reset_forces_user_to_create_new_password() -> None
                 "admin_email": f"reset.target.{suffix}@test.cg",
                 "admin_phone": f"+24206{str(uuid4().int)[-6:]}",
                 "password": old_password,
+                "signatory_name": "Reset Target", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
             },
         )
         assert register.status_code == 201
@@ -670,3 +672,24 @@ def test_super_admin_console_and_ticket_flow(monkeypatch) -> None:
         limule_export = client.get("/api/admin/limule/dataset/export?limit=10", headers=headers)
         assert limule_export.status_code == 200
         assert "application/x-ndjson" in limule_export.headers["content-type"]
+
+
+def test_registration_requires_legal_consent() -> None:
+    import uuid
+    with TestClient(app) as client:
+        sfx = uuid.uuid4().hex[:8]
+        base = {
+            "company_name": f"Consent {sfx}", "admin_full_name": "Boss",
+            "admin_email": f"consent.{sfx}@kompta.local", "admin_phone": "", "password": "kompta123",
+        }
+        # Sans consentement → 400
+        r = client.post("/api/auth/register-company", json=base)
+        assert r.status_code == 400, r.text
+        # Avec consentement → 201 + document légal archivé
+        ok = {**base, "signatory_name": "Boss", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True}
+        r2 = client.post("/api/auth/register-company", json=ok)
+        assert r2.status_code == 201, r2.text
+        h = {"Authorization": f"Bearer {r2.json()['access_token']}"}
+        docs = client.get("/api/documents", headers=h).json()
+        items = docs if isinstance(docs, list) else docs.get("items", docs.get("documents", []))
+        assert any(d.get("document_type") == "legal" or "onsentement" in (d.get("title") or "") for d in items), items

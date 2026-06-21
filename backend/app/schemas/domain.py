@@ -26,6 +26,11 @@ class CompanyRegistrationRequest(BaseModel):
     admin_email: str
     admin_phone: str = ""
     password: str = Field(min_length=8)
+    # Consentement légal obligatoire (confidentialité + conditions + décharge)
+    signatory_name: str = ""
+    accept_privacy: bool = False
+    accept_terms: bool = False
+    accept_disclaimer: bool = False
 
 
 class GroupRegistrationRequest(BaseModel):

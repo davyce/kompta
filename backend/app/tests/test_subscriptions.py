@@ -116,6 +116,7 @@ def test_new_company_gets_trial_with_full_access() -> None:
         r = client.post("/api/auth/register-company", json={
             "company_name": "Essai SARL", "admin_full_name": "Boss", "admin_email": email,
             "admin_phone": "", "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
         })
         assert r.status_code == 201, r.text
         h = {"Authorization": f"Bearer {r.json()['access_token']}"}

@@ -11,6 +11,15 @@ from app.models import PasswordResetToken, User
 
 def _register_company(client: TestClient, suffix: str) -> dict:
     r = client.post("/api/auth/register-company", json={
+        "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+        "company_name": f"Reset {suffix}",
+        "legal_name": f"Reset {suffix}",
+        "industry": "Test",
+        "organization_type": "PME",
+        "country": "Congo",
+        "admin_full_name": f"Admin {suffix}",
+        "admin_email": f"reset.{suffix}@test.cg",
+        "admin_phone": f"+24206{suffix[-7:]}",
         "company_name": f"Reset {suffix}",
         "legal_name": f"Reset {suffix}",
         "industry": "Test",

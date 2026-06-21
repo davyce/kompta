@@ -178,6 +178,15 @@ def test_user_avatar_is_company_scoped():
     with TestClient(app) as client:
         suffix = uuid4().hex[:8]
         created = client.post("/api/auth/register-company", json={
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+            "company_name": f"Avatar Scope {suffix}",
+            "legal_name": f"Avatar Scope {suffix}",
+            "industry": "Test",
+            "organization_type": "PME",
+            "country": "Congo",
+            "admin_full_name": "Admin Cross Tenant",
+            "admin_email": f"avatar-scope-{suffix}@test.local",
+            "admin_phone": f"+24207{suffix[:6]}",
             "company_name": f"Avatar Scope {suffix}",
             "legal_name": f"Avatar Scope {suffix}",
             "industry": "Test",

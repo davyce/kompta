@@ -115,6 +115,7 @@ def test_tenant_isolation_on_groups():
             "organization_type": "PME", "country": "Congo",
             "admin_full_name": "Autre Admin", "admin_email": f"autre.{suffix}@kompta.local",
             "admin_phone": f"+24206{suffix[:6]}", "password": "Kompta123!",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
         })
         assert reg.status_code == 201
         other_h = {"Authorization": f"Bearer {reg.json()['access_token']}"}

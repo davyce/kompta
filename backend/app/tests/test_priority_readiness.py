@@ -31,6 +31,7 @@ def _register_company(client: TestClient) -> dict[str, str]:
             "admin_full_name": "Admin Priorites",
             "admin_email": f"prio.{suffix}@kompta.local",
             "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
         },
     )
     assert response.status_code == 201, response.text

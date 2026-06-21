@@ -575,10 +575,51 @@ def logout(response: Response, current_user: User = Depends(get_current_user), d
     return {"status": "logged_out", "revoked": True}
 
 
+CONSENT_VERSION = "1.0"
+
+def _archive_consent_document(db: Session, company_id: int, signatory_name: str, accepted: dict) -> None:
+    """Crée un document « Consentement & décharge » consultable dans Documents."""
+    now = datetime.now(timezone.utc)
+    lines = [
+        "CONSENTEMENT & DÉCHARGE — KOMPTA",
+        f"Version : {CONSENT_VERSION}",
+        f"Signataire : {signatory_name}",
+        f"Date : {now.strftime('%Y-%m-%d %H:%M UTC')}",
+        "",
+        f"[{'X' if accepted.get('privacy') else ' '}] J'ai lu et j'accepte la Politique de confidentialité.",
+        f"[{'X' if accepted.get('terms') else ' '}] J'accepte les Conditions générales d'utilisation.",
+        f"[{'X' if accepted.get('disclaimer') else ' '}] Je reconnais la décharge de responsabilité : KOMPTA est fourni « en l'état » ; "
+        "je reste responsable de mes données, déclarations et obligations légales/fiscales. Les analyses de l'IA sont indicatives "
+        "et ne remplacent pas un conseil professionnel.",
+    ]
+    text = "\n".join(lines)
+    db.add(CompanyDocument(
+        title="Consentement & décharge (inscription)",
+        filename="consentement-decharge.txt",
+        storage_path="",
+        mime_type="text/plain",
+        size_bytes=len(text.encode("utf-8")),
+        document_type="legal",
+        source_module="registration",
+        status="classified",
+        ai_summary=f"Consentement légal (v{CONSENT_VERSION}) signé par {signatory_name} à l'inscription.",
+        ai_tags="consentement,décharge,confidentialité,légal",
+        raw_text=text,
+        text_length=len(text),
+        parse_method="text",
+        company_id=company_id,
+    ))
+
+
 @router.post("/auth/register-company", response_model=TokenResponse, status_code=201)
 def register_company(payload: CompanyRegistrationRequest, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     email = payload.admin_email.strip().lower()
     phone = payload.admin_phone.strip()
+    # Consentement légal obligatoire à l'inscription.
+    if not (payload.accept_privacy and payload.accept_terms and payload.accept_disclaimer):
+        raise HTTPException(status_code=400, detail="Vous devez accepter la confidentialité, les conditions et la décharge.")
+    if not payload.signatory_name.strip():
+        raise HTTPException(status_code=400, detail="Le nom du signataire du consentement est requis.")
     duplicate_filter = User.email == email
     if phone:
         duplicate_filter = or_(duplicate_filter, User.phone == phone)
@@ -616,6 +657,9 @@ def register_company(payload: CompanyRegistrationRequest, response: Response, db
     # Essai gratuit complet (3 mois) offert à toute nouvelle entreprise.
     from app.services.subscriptions import start_trial
     start_trial(db, company.id)
+    # Archive le consentement légal comme document consultable dans « Documents ».
+    _archive_consent_document(db, company.id, payload.signatory_name.strip(),
+                              accepted={"privacy": payload.accept_privacy, "terms": payload.accept_terms, "disclaimer": payload.accept_disclaimer})
     db.commit()
     db.refresh(admin)
 
