@@ -698,6 +698,12 @@ actor APIClient {
     func adminReactivateCompany(_ id: Int) async throws -> SuspendResult { try await actionDecoded("/admin/subscription/companies/\(id)/reactivate") }
     func adminGrantSubscription(_ id: Int, _ p: GrantRequestPayload) async throws -> GrantResult { try await post("/admin/subscription/companies/\(id)/grant", body: p) }
 
+    // MARK: - Limule : chat sur un document
+
+    func limuleDocumentChat(_ id: Int, prompt: String, history: [LimuleDocChatTurn]) async throws -> LimuleDocChatResponse {
+        try await post("/limule/documents/\(id)/chat", body: LimuleDocChatPayload(prompt: prompt, conversation_history: history))
+    }
+
     // MARK: - Imports CSV
 
     func importProductsCsv(_ data: Data, fileName: String) async throws -> CsvImportResult {

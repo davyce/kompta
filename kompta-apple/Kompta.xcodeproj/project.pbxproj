@@ -27,6 +27,7 @@
 		44F01D0BFDF6030D0E3D7CAD /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
 		45A2CADA6835FB275AB36914 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
 		4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34302996CFECB2C83D8235C1 /* LoginView.swift */; };
+		50E2CDCCA83B680DB017DEF1 /* LimuleDocumentChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DEA1E7799EEA39F09ECBEAE /* LimuleDocumentChatView.swift */; };
 		510163563E592AFACB067336 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */; };
 		53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
 		53FFD748765527C04DEDB1D5 /* CollaborationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB44CA87A160669133544A47 /* CollaborationViews.swift */; };
@@ -93,6 +94,7 @@
 		F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
 		FAD061691A7FB30C0BBB39DC /* AIAnalysisPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */; };
 		FE5CFF7A4F917558BE3286AE /* HRExtraViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */; };
+		FEEDBB9988A519C6C1FA4B52 /* LimuleDocumentChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DEA1E7799EEA39F09ECBEAE /* LimuleDocumentChatView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -108,6 +110,7 @@
 		34302996CFECB2C83D8235C1 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		39F612F06D2735D2A6A4A02E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3D251BDB584F13900DFC765C /* ModuleHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleHub.swift; sourceTree = "<group>"; };
+		3DEA1E7799EEA39F09ECBEAE /* LimuleDocumentChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleDocumentChatView.swift; sourceTree = "<group>"; };
 		4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisPanel.swift; sourceTree = "<group>"; };
 		55170B62A38E88B30FA3639D /* PDFExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExport.swift; sourceTree = "<group>"; };
 		57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseViews.swift; sourceTree = "<group>"; };
@@ -283,6 +286,7 @@
 			isa = PBXGroup;
 			children = (
 				990D81000FB516878BA7C424 /* LimuleChatView.swift */,
+				3DEA1E7799EEA39F09ECBEAE /* LimuleDocumentChatView.swift */,
 			);
 			path = AI;
 			sourceTree = "<group>";
@@ -475,6 +479,7 @@
 				3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */,
 				D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */,
 				D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */,
+				FEEDBB9988A519C6C1FA4B52 /* LimuleDocumentChatView.swift in Sources */,
 				7D8F3CE37151828D140D39C1 /* LoginView.swift in Sources */,
 				68F6D13D45ADEBDB61C26DBF /* ModuleHub.swift in Sources */,
 				7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */,
@@ -522,6 +527,7 @@
 				C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */,
 				2BD1558A5E5DFA9F28816C67 /* KomptaApp.swift in Sources */,
 				F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */,
+				50E2CDCCA83B680DB017DEF1 /* LimuleDocumentChatView.swift in Sources */,
 				4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */,
 				29102CF06555F6CDA242F95B /* ModuleHub.swift in Sources */,
 				81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */,

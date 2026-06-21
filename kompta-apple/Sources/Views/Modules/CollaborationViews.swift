@@ -869,6 +869,16 @@ private struct DocumentDetailView: View {
                         analysis: summary.isEmpty ? nil : summary, isLoading: analyzing,
                         onRun: { Task { await analyze() } }
                     )
+                    NavigationLink {
+                        LimuleDocumentChatView(documentId: document.id,
+                                               documentTitle: document.title.isEmpty ? document.filename : document.title)
+                    } label: {
+                        Label("Discuter avec Limule", systemImage: "bubble.left.and.text.bubble.right")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding()
             }

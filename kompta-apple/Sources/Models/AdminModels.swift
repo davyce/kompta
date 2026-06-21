@@ -554,6 +554,11 @@ struct CollectionMethodsResponse: Codable {
     let can_collect: Bool
 }
 
+// Limule — chat sur un document existant
+struct LimuleDocChatTurn: Codable { let role: String; let content: String }
+struct LimuleDocChatPayload: Encodable { let prompt: String; let conversation_history: [LimuleDocChatTurn] }
+struct LimuleDocChatResponse: Codable { let response: String }
+
 // Import CSV (résultat tolérant — on ignore les clés non listées)
 struct CsvImportResult: Codable {
     var imported: Int?
