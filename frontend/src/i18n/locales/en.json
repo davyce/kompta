@@ -223,6 +223,46 @@
         "audit": {
           "title": "Audit log",
           "body": "Trace every sensitive action for security and compliance."
+        },
+        "chat": {
+          "title": "Team channels",
+          "body": "Chat with your team in real time across topic channels, and turn messages into tasks."
+        },
+        "tasks": {
+          "title": "Tasks & Kanban",
+          "body": "Organize work in To-do / In progress / Done columns. AI can create tasks automatically."
+        },
+        "calendar": {
+          "title": "Calendar",
+          "body": "See meetings, tax deadlines and company events all in one place."
+        },
+        "meetings": {
+          "title": "Meetings",
+          "body": "Schedule meetings, invite attendees and keep track of minutes."
+        },
+        "notes": {
+          "title": "Notes",
+          "body": "Capture quick notes and let AI structure and summarize them."
+        },
+        "reports": {
+          "title": "Reports",
+          "body": "Generate financial and HR reports, exportable as PDF or Excel."
+        },
+        "fiscal": {
+          "title": "Tax calendar",
+          "body": "Never miss a tax or social deadline thanks to automatic reminders."
+        },
+        "legislation": {
+          "title": "Legislation",
+          "body": "Browse the OHADA/CEMAC regulations relevant to your activity."
+        },
+        "groups": {
+          "title": "Groups & Tontines",
+          "body": "Manage tontines, contributions, expenses and collective projects with your community."
+        },
+        "help": {
+          "title": "Help & support",
+          "body": "Find tutorials, FAQ and reach support in one click anytime."
         }
       }
     },

@@ -223,6 +223,46 @@
         "audit": {
           "title": "Journal d'audit",
           "body": "Tracez chaque action sensible pour la sécurité et la conformité."
+        },
+        "chat": {
+          "title": "Canaux d'équipe",
+          "body": "Discutez en temps réel avec votre équipe par canaux thématiques, et créez des tâches depuis vos échanges."
+        },
+        "tasks": {
+          "title": "Tâches & Kanban",
+          "body": "Organisez le travail en colonnes À faire / En cours / Terminé. L'IA peut créer des tâches automatiquement."
+        },
+        "calendar": {
+          "title": "Calendrier",
+          "body": "Visualisez réunions, échéances fiscales et événements de l'entreprise au même endroit."
+        },
+        "meetings": {
+          "title": "Réunions",
+          "body": "Planifiez vos réunions, invitez les participants et gardez une trace des comptes-rendus."
+        },
+        "notes": {
+          "title": "Notes",
+          "body": "Prenez des notes rapides et laissez l'IA les structurer et les résumer."
+        },
+        "reports": {
+          "title": "Rapports",
+          "body": "Générez des rapports financiers et RH, exportables en PDF ou Excel."
+        },
+        "fiscal": {
+          "title": "Agenda fiscal",
+          "body": "Ne manquez aucune échéance fiscale ou sociale grâce aux rappels automatiques."
+        },
+        "legislation": {
+          "title": "Législation",
+          "body": "Consultez la réglementation OHADA/CEMAC applicable à votre activité."
+        },
+        "groups": {
+          "title": "Groupes & Tontines",
+          "body": "Gérez tontines, cotisations, dépenses et projets collectifs avec votre communauté."
+        },
+        "help": {
+          "title": "Aide & support",
+          "body": "Retrouvez tutoriels, FAQ et contactez le support en un clic à tout moment."
         }
       }
     },

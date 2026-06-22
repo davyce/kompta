@@ -114,6 +114,56 @@ const STEPS: TourStep[] = [
     bodyTk: "components.guidedTour.steps.audit.body",
   },
   {
+    route: "/reports",
+    titleTk: "components.guidedTour.steps.reports.title",
+    bodyTk: "components.guidedTour.steps.reports.body",
+  },
+  {
+    route: "/fiscal",
+    titleTk: "components.guidedTour.steps.fiscal.title",
+    bodyTk: "components.guidedTour.steps.fiscal.body",
+  },
+  {
+    route: "/legislation",
+    titleTk: "components.guidedTour.steps.legislation.title",
+    bodyTk: "components.guidedTour.steps.legislation.body",
+  },
+  {
+    route: "/chat",
+    titleTk: "components.guidedTour.steps.chat.title",
+    bodyTk: "components.guidedTour.steps.chat.body",
+  },
+  {
+    route: "/kanban",
+    titleTk: "components.guidedTour.steps.tasks.title",
+    bodyTk: "components.guidedTour.steps.tasks.body",
+  },
+  {
+    route: "/calendar",
+    titleTk: "components.guidedTour.steps.calendar.title",
+    bodyTk: "components.guidedTour.steps.calendar.body",
+  },
+  {
+    route: "/meetings",
+    titleTk: "components.guidedTour.steps.meetings.title",
+    bodyTk: "components.guidedTour.steps.meetings.body",
+  },
+  {
+    route: "/notes",
+    titleTk: "components.guidedTour.steps.notes.title",
+    bodyTk: "components.guidedTour.steps.notes.body",
+  },
+  {
+    route: "/groups",
+    titleTk: "components.guidedTour.steps.groups.title",
+    bodyTk: "components.guidedTour.steps.groups.body",
+  },
+  {
+    route: "/help",
+    titleTk: "components.guidedTour.steps.help.title",
+    bodyTk: "components.guidedTour.steps.help.body",
+  },
+  {
     route: "/", selector: "[data-tour='limule']",
     titleTk: "components.guidedTour.steps.limule.title",
     bodyTk: "components.guidedTour.steps.limule.body",
