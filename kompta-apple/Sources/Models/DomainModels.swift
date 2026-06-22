@@ -183,6 +183,26 @@ struct BankTransaction: Codable, Identifiable, Hashable {
     let notes: String?
 
     var isInflow: Bool { (credit ?? 0) > 0 || amount > 0 }
+
+    // Décodage tolérant : une ligne avec un champ texte vide/null (anciennes
+    // données) ne doit jamais casser tout l'écran. On applique des valeurs par
+    // défaut sûres au lieu d'échouer.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id        = try c.decode(Int.self, forKey: .id)
+        date      = (try? c.decodeIfPresent(String.self, forKey: .date)) ?? "" ?? ""
+        label     = (try? c.decodeIfPresent(String.self, forKey: .label)) ?? "" ?? ""
+        amount    = (try? c.decodeIfPresent(Double.self, forKey: .amount)) ?? 0 ?? 0
+        debit     = try? c.decodeIfPresent(Double.self, forKey: .debit) ?? nil
+        credit    = try? c.decodeIfPresent(Double.self, forKey: .credit) ?? nil
+        balance   = try? c.decodeIfPresent(Double.self, forKey: .balance) ?? nil
+        currency  = (try? c.decodeIfPresent(String.self, forKey: .currency)) ?? "XAF" ?? "XAF"
+        category  = (try? c.decodeIfPresent(String.self, forKey: .category)) ?? "divers" ?? "divers"
+        counterpart = try? c.decodeIfPresent(String.self, forKey: .counterpart) ?? nil
+        reference   = try? c.decodeIfPresent(String.self, forKey: .reference) ?? nil
+        status    = (try? c.decodeIfPresent(String.self, forKey: .status)) ?? "confirmed" ?? "confirmed"
+        notes     = try? c.decodeIfPresent(String.self, forKey: .notes) ?? nil
+    }
 }
 
 struct BankTransactionPayload: Encodable {

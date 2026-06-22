@@ -171,6 +171,9 @@ def _serialize_member(m: GroupMember, roles: list[str] | None = None) -> dict:
         "date_of_birth": m.date_of_birth, "zone": m.zone, "profession": m.profession,
         "member_number": m.member_number, "status": m.status, "is_active": m.is_active,
         "roles": roles or [],
+        # Compte de connexion lié (None = aucun accès généré) : permet à l'app
+        # d'afficher « Accès actif » et de proposer « Réinitialiser » vs « Générer ».
+        "user_id": m.user_id,
     }
 
 

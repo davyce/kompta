@@ -50,7 +50,6 @@ struct DashboardView: View {
         .navigationBarTitleDisplayMode(.large)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { AppearanceToggle() }
             ToolbarItem(placement: .primaryAction) { NotificationBell() }
         }
         .task { await load() }
@@ -545,6 +544,10 @@ struct DashboardView: View {
             meetings = (try? await mt) ?? []
             investments = (try? await iv) ?? []
             employees = (try? await em) ?? []
+        } catch is CancellationError {
+            // Rafraîchissement concurrent / navigation : requête annulée, on ignore.
+        } catch let urlErr as URLError where urlErr.code == .cancelled {
+            // Idem (annulation réseau via pull-to-refresh).
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

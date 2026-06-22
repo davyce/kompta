@@ -58,6 +58,19 @@ struct GroupMember: Codable, Identifiable, Hashable {
     let status: String
     let is_active: Bool
     let roles: [String]
+    /// Compte de connexion lié (nil = aucun accès généré pour l'instant).
+    let user_id: Int?
+}
+
+/// Résultat de la génération / réinitialisation d'accès d'un membre de groupe.
+/// `temporary_password` n'est présent que lorsqu'un nouveau mot de passe est créé.
+struct GroupMemberAccessResult: Codable {
+    let created: Bool?
+    let user_id: Int?
+    let login_identifier: String?
+    let temporary_password: String?
+    let account_status: String?
+    let message: String?
 }
 
 struct GroupMemberPayload: Encodable {

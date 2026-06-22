@@ -571,14 +571,24 @@ actor APIClient {
     func groupMembers(_ id: Int) async throws -> [GroupMember] { try await get("/groups/\(id)/members") }
     func addGroupMember(_ id: Int, _ p: GroupMemberPayload) async throws -> GroupMember { try await post("/groups/\(id)/members", body: p) }
 
+    /// Crée un compte de connexion pour un membre (mot de passe temporaire),
+    /// ou renvoie le compte existant s'il y en a déjà un.
+    func provisionGroupMemberAccount(_ groupId: Int, _ memberId: Int) async throws -> GroupMemberAccessResult {
+        try await actionDecoded("/groups/\(groupId)/members/\(memberId)/provision-account")
+    }
+    /// Réinitialise l'accès d'un membre (nouveau mot de passe temporaire).
+    func resetGroupMemberAccess(_ groupId: Int, _ memberId: Int) async throws -> GroupMemberAccessResult {
+        try await actionDecoded("/groups/\(groupId)/members/\(memberId)/reset-access")
+    }
+
     func groupFinanceDashboard(_ id: Int) async throws -> GroupFinanceDashboard { try await get("/groups/\(id)/dashboard/finance") }
 
-    func groupPlans(_ id: Int) async throws -> [ContributionPlan] { try await get("/groups/\(id)/plans") }
-    func createGroupPlan(_ id: Int, _ p: ContributionPlanPayload) async throws -> ContributionPlan { try await post("/groups/\(id)/plans", body: p) }
+    func groupPlans(_ id: Int) async throws -> [ContributionPlan] { try await get("/groups/\(id)/contributions/plans") }
+    func createGroupPlan(_ id: Int, _ p: ContributionPlanPayload) async throws -> ContributionPlan { try await post("/groups/\(id)/contributions/plans", body: p) }
 
-    func groupPayments(_ id: Int) async throws -> [ContributionPayment] { try await get("/groups/\(id)/payments") }
-    func createGroupPayment(_ id: Int, _ p: ContributionPaymentPayload) async throws -> ContributionPayment { try await post("/groups/\(id)/payments", body: p) }
-    func validateGroupPayment(_ id: Int, _ paymentId: Int) async throws { try await send("/groups/\(id)/payments/\(paymentId)/validate", body: ["validate": true]) }
+    func groupPayments(_ id: Int) async throws -> [ContributionPayment] { try await get("/groups/\(id)/contributions/payments") }
+    func createGroupPayment(_ id: Int, _ p: ContributionPaymentPayload) async throws -> ContributionPayment { try await post("/groups/\(id)/contributions/payments", body: p) }
+    func validateGroupPayment(_ id: Int, _ paymentId: Int) async throws { try await send("/groups/\(id)/contributions/payments/\(paymentId)/validate", body: ["validate": true]) }
 
     func groupTransactions(_ id: Int) async throws -> [GroupTransaction] { try await get("/groups/\(id)/transactions") }
 

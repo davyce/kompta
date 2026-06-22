@@ -41,7 +41,9 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: "5"
+        # Chiffrement standard uniquement (HTTPS) → exempté, pas de question export.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         # Scan de QR/code-barres produit (Caisse / Inventaire).
         NSCameraUsageDescription: "KOMPTA utilise la caméra pour scanner les codes-barres et QR codes de vos produits."
@@ -51,6 +53,12 @@ targets:
           NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # iPad : Apple impose les 4 orientations (multitâche).
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
 
@@ -76,6 +84,20 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: "5"
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "© 2026 Adansonia"
+        ITSAppUsesNonExemptEncryption: false
+        # Catégorie App Store (obligatoire pour le Mac App Store).
+        LSApplicationCategoryType: "public.app-category.business"
+        # Scan QR/code-barres (si utilisé sur Mac avec caméra).
+        NSCameraUsageDescription: "KOMPTA utilise la caméra pour scanner les codes-barres et QR codes de vos produits."
+    entitlements:
+      path: Sources/KomptaMac.entitlements
+      properties:
+        # App Sandbox obligatoire pour le Mac App Store.
+        com.apple.security.app-sandbox: true
+        # Appels à l'API backend (HTTPS).
+        com.apple.security.network.client: true
+        # Imports CSV et téléchargements via fileImporter/exporter.
+        com.apple.security.files.user-selected.read-write: true

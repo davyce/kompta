@@ -12,6 +12,7 @@
 		0AEF8026D9E0D0342F6E7C96 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
 		0B2810DE4C7C83C1AE2BF96D /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */; };
 		106AFB4F36DD72888F56143B /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9AB050A928D42ABCE3C91A /* DashboardView.swift */; };
+		16A81ECF434F2FD0D9D8E14D /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */; };
 		1C02606217916D82F1F25503 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
 		1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
 		249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB44CA87A160669133544A47 /* CollaborationViews.swift */; };
@@ -89,6 +90,7 @@
 		E6A47228E0B8F20127E6B362 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
 		EA8C06FAFB8C286B8C8A1889 /* SecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */; };
 		ED6E7E66FAC0FBBCBD79BCCD /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */; };
+		EF435CEBDF925053AB31D202 /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */; };
 		F06291DC26435979688D4934 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
 		F553AEF0A1FE12D88D8A8AC8 /* SuperAdminShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */; };
 		F76A1255F3FB5F4303482719 /* ActivationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28CE337254CC475A9781F72 /* ActivationView.swift */; };
@@ -120,6 +122,7 @@
 		5E66EBB800555BAFECCA5529 /* KomptaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KomptaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RolesView.swift; sourceTree = "<group>"; };
 		660A64A755B0A823DC7B4079 /* BusinessViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessViews.swift; sourceTree = "<group>"; };
+		6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardDismiss.swift; sourceTree = "<group>"; };
 		6DB940D3851D5679A32875AB /* CurrencyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyManager.swift; sourceTree = "<group>"; };
 		70651EA3DC1DB98BF48025CF /* FinanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViews.swift; sourceTree = "<group>"; };
 		7845C7FFF59BE30DD1426B8E /* Kompta.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Kompta.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -128,6 +131,7 @@
 		944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViews.swift; sourceTree = "<group>"; };
 		990D81000FB516878BA7C424 /* LimuleChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleChatView.swift; sourceTree = "<group>"; };
 		9FF68C74D092585F0B42F595 /* FinanceCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCharts.swift; sourceTree = "<group>"; };
+		A37030ADEE946EE51FAA1C2E /* KomptaMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KomptaMac.entitlements; sourceTree = "<group>"; };
 		A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionMethodsView.swift; sourceTree = "<group>"; };
 		A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminShell.swift; sourceTree = "<group>"; };
 		AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
@@ -156,6 +160,7 @@
 				EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */,
 				2333D4A2BC2297747BB6973E /* ContentView.swift */,
 				D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */,
+				A37030ADEE946EE51FAA1C2E /* KomptaMac.entitlements */,
 				BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */,
 				E0FB0EB90D9E14763C1BB35C /* Components */,
 				A60C78E44809AF58AD70564B /* Helpers */,
@@ -261,6 +266,7 @@
 		A60C78E44809AF58AD70564B /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
+				6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */,
 				B229F26743F6401F25679836 /* KeychainHelper.swift */,
 				55170B62A38E88B30FA3639D /* PDFExport.swift */,
 			);
@@ -396,10 +402,12 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					342D1AF2939EF8D06C98B381 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 264EZSM3VZ;
+						ProvisioningStyle = Automatic;
 					};
 					CF51FF321DD3C694282EE28C = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 264EZSM3VZ;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -480,6 +488,7 @@
 				CAAD918E9D33BE9CF78CA06A /* HRView.swift in Sources */,
 				8F9EE32FC39FFF84D419AA74 /* InventoryView.swift in Sources */,
 				1C02606217916D82F1F25503 /* InvestmentsView.swift in Sources */,
+				16A81ECF434F2FD0D9D8E14D /* KeyboardDismiss.swift in Sources */,
 				3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */,
 				D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */,
 				D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */,
@@ -529,6 +538,7 @@
 				5AA09F6FD212AE1BE5723929 /* HRView.swift in Sources */,
 				510163563E592AFACB067336 /* InventoryView.swift in Sources */,
 				45A2CADA6835FB275AB36914 /* InvestmentsView.swift in Sources */,
+				EF435CEBDF925053AB31D202 /* KeyboardDismiss.swift in Sources */,
 				C066C4069FAAC483234E55EC /* KeychainHelper.swift in Sources */,
 				2BD1558A5E5DFA9F28816C67 /* KomptaApp.swift in Sources */,
 				F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */,
@@ -552,6 +562,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/KomptaMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = "Sources/Info-macOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -598,9 +609,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 264EZSM3VZ;
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -664,9 +676,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 264EZSM3VZ;
 				ENABLE_BITCODE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -713,6 +726,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/KomptaMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = "Sources/Info-macOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = (

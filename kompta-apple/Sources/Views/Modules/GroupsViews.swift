@@ -231,6 +231,9 @@ struct GroupMembersView: View {
     let group: OrgGroup
     @StateObject private var state = Loadable<[GroupMember]>()
     @State private var showNew = false
+    @State private var working: Int?          // id du membre en cours de provisioning
+    @State private var accessResult: GroupMemberAccessResult?
+    @State private var accessError: String?
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun membre", emptyIcon: "person.3", reload: load) { members in
@@ -241,8 +244,29 @@ struct GroupMembersView: View {
                             Text(m.full_name).font(.subheadline.bold())
                             Text(m.roles.isEmpty ? (m.phone.isEmpty ? "Membre" : m.phone) : m.roles.joined(separator: ", "))
                                 .font(.caption).foregroundStyle(.secondary)
+                            if m.user_id != nil {
+                                Label("Accès actif", systemImage: "key.fill")
+                                    .font(.caption2).foregroundStyle(KomptaBrand.primary)
+                            }
                         }
                         Spacer()
+                        if working == m.id {
+                            ProgressView()
+                        } else {
+                            Menu {
+                                if m.user_id == nil {
+                                    Button { Task { await provision(m, reset: false) } } label: {
+                                        Label("Générer un accès", systemImage: "key.fill")
+                                    }
+                                } else {
+                                    Button { Task { await provision(m, reset: true) } } label: {
+                                        Label("Réinitialiser l'accès", systemImage: "arrow.clockwise")
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle").foregroundStyle(KomptaBrand.primary)
+                            }
+                        }
                         StatusPill(text: m.status, colorName: m.status == "active" ? "green" : "gray")
                     }
                 }
@@ -261,8 +285,91 @@ struct GroupMembersView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showNew) { GroupMemberFormView(group: group) { await load() } }
+        .sheet(item: Binding(get: { accessResult.map { AccessResultBox($0) } }, set: { _ in accessResult = nil })) { box in
+            GroupAccessResultSheet(result: box.result)
+        }
+        .alert("Accès", isPresented: Binding(get: { accessError != nil }, set: { _ in accessError = nil })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(accessError ?? "") }
     }
+
     private func load() async { await state.load { try await APIClient.shared.groupMembers(group.id) } }
+
+    private func provision(_ m: GroupMember, reset: Bool) async {
+        working = m.id
+        defer { working = nil }
+        do {
+            let r = reset
+                ? try await APIClient.shared.resetGroupMemberAccess(group.id, m.id)
+                : try await APIClient.shared.provisionGroupMemberAccount(group.id, m.id)
+            accessResult = r
+            await load()
+        } catch {
+            accessError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+}
+
+/// Boîte Identifiable pour présenter le résultat en `.sheet(item:)`.
+private struct AccessResultBox: Identifiable {
+    let id = UUID()
+    let result: GroupMemberAccessResult
+    init(_ r: GroupMemberAccessResult) { result = r }
+}
+
+/// Feuille affichant l'identifiant + le mot de passe temporaire à transmettre.
+private struct GroupAccessResultSheet: View {
+    let result: GroupMemberAccessResult
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                if let msg = result.message {
+                    Text(msg).font(.subheadline).foregroundStyle(.secondary)
+                }
+                if let id = result.login_identifier {
+                    credentialRow(title: "Identifiant de connexion", value: id)
+                }
+                if let pwd = result.temporary_password {
+                    credentialRow(title: "Mot de passe temporaire", value: pwd)
+                    Label("À transmettre au membre. Il devra le changer à la première connexion.",
+                          systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Label("Ce membre a déjà un compte — aucun nouveau mot de passe généré.",
+                          systemImage: "checkmark.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Accès du membre")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Terminé") { dismiss() } } }
+        }
+    }
+
+    private func credentialRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption.bold()).foregroundStyle(.secondary)
+            HStack {
+                Text(value).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                Spacer()
+                Button {
+                    #if os(iOS)
+                    UIPasteboard.general.string = value
+                    #elseif os(macOS)
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value, forType: .string)
+                    #endif
+                } label: { Image(systemName: "doc.on.doc") }
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
 }
 
 struct GroupMemberFormView: View {

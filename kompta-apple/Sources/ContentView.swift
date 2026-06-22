@@ -4,7 +4,6 @@ struct ContentView: View {
     @EnvironmentObject private var auth:  AuthManager
     @EnvironmentObject private var theme: CompanyTheme
     @EnvironmentObject private var currency: CurrencyManager
-    @AppStorage("appAppearance") private var appearanceRaw = AppAppearance.system.rawValue
 
     var body: some View {
         // Observing `currency.code` here re-renders the whole tree when the user
@@ -40,7 +39,12 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: auth.state == .authenticated)
-        .preferredColorScheme((AppAppearance(rawValue: appearanceRaw) ?? .system).colorScheme)
+        // L'interface est conçue avec des surfaces claires fixes (cartes blanches,
+        // champs gris clair). Le mode sombre rendait le texte blanc sur blanc :
+        // on verrouille donc l'app en clair tant que le thème sombre n'est pas
+        // entièrement adapté. (Le réglage d'apparence reste pour un usage futur.)
+        .preferredColorScheme(.light)
+        .installKeyboardDismiss()
     }
 }
 

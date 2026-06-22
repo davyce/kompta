@@ -10,7 +10,6 @@ struct SettingsView: View {
     @AppStorage("notif_meetings")     private var notifMeetings     = true
     @AppStorage("notif_transactions") private var notifTransactions = true
     @AppStorage("notif_support")      private var notifSupport      = true
-    @AppStorage("appAppearance")      private var appearanceRaw = AppAppearance.system.rawValue
     @ObservedObject private var currency = CurrencyManager.shared
     @State private var showLogoutAlert = false
     @State private var avatarData: Data?
@@ -19,13 +18,6 @@ struct SettingsView: View {
 
     private var isManager: Bool {
         ["super_admin", "admin_entreprise", "manager_entreprise"].contains(auth.currentUser?.role ?? "")
-    }
-
-    private var appearance: Binding<AppAppearance> {
-        Binding(
-            get: { AppAppearance(rawValue: appearanceRaw) ?? .system },
-            set: { appearanceRaw = $0.rawValue }
-        )
     }
 
     var body: some View {
@@ -109,14 +101,8 @@ struct SettingsView: View {
 
             // Appearance
             Section("Apparence") {
-                Picker(selection: appearance) {
-                    ForEach(AppAppearance.allCases) { a in
-                        Label(a.label, systemImage: a.icon).tag(a)
-                    }
-                } label: {
-                    Label("Thème", systemImage: "circle.lefthalf.filled")
-                }
-                .pickerStyle(.segmented)
+                // Le sélecteur clair/sombre est retiré tant que le thème sombre
+                // n'est pas entièrement adapté (l'app est verrouillée en clair).
                 Toggle(isOn: $theme.useLiquidGlass) {
                     Label("Liquid Glass (iOS 26+)", systemImage: "sparkles")
                 }

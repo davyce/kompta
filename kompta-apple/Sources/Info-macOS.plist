@@ -19,9 +19,15 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>5</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.business</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>KOMPTA utilise la caméra pour scanner les codes-barres et QR codes de vos produits.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Adansonia</string>
 </dict>
