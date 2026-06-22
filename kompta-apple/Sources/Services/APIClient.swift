@@ -422,6 +422,12 @@ actor APIClient {
 
     func tasks() async throws -> [KTask] { try await get("/tasks") }
     func createTask(_ p: TaskPayload) async throws -> KTask { try await post("/tasks", body: p) }
+    /// Extraction IA : transforme un texte (message Limule, fil de canal) en une
+    /// tâche bien formée (titre court, description, priorité) au lieu de recopier
+    /// tout le texte brut.
+    func extractTask(text: String, source: String = "ai", project: String = "") async throws -> KTask {
+        try await post("/tasks/extract", body: ["text": text, "source": source, "project": project])
+    }
     func updateTask(_ id: Int, _ p: TaskPayload) async throws -> KTask { try await put("/tasks/\(id)", body: p) }
     func deleteTask(_ id: Int) async throws { try await delete("/tasks/\(id)") }
 

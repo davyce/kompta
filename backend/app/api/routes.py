@@ -2541,6 +2541,98 @@ def create_task(
     return _serialize_task(db, task, current_user, subjects)
 
 
+class TaskExtractRequest(BaseModel):
+    text: str
+    source: str = "ai"
+    project: str = ""
+
+
+@router.post("/tasks/extract", response_model=TaskRead, status_code=201)
+async def extract_task_from_text(
+    payload: TaskExtractRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Transforme un texte libre (message Limule, fil de canal, note) en UNE
+    tâche actionnable bien formée via l'IA : titre court impératif, description,
+    priorité, échéance — au lieu de recopier tout le texte brut."""
+    text = (payload.text or "").strip()
+    if len(text) < 3:
+        raise HTTPException(status_code=422, detail="Texte trop court pour en extraire une tâche.")
+
+    from app.services.limule import _call_llm
+    import re as _re
+    from datetime import date as _date
+
+    system = (
+        "Tu transformes un texte (message, analyse, discussion d'entreprise) en UNE "
+        "tâche actionnable. Réponds STRICTEMENT en JSON, sans aucun texte autour, au format : "
+        '{"title": "...", "description": "...", "priority": "low|normal|high", "due_date": null}. '
+        "Règles : title = à l'impératif, max 70 caractères, SANS salutation ni « Bonjour » ; "
+        "description = 1 à 2 phrases d'actions concrètes ; "
+        "priority = high si urgent ou risque financier, sinon normal ; "
+        "due_date = null sauf si une date explicite est mentionnée (format YYYY-MM-DD)."
+    )
+    raw = await _call_llm(
+        [{"role": "system", "content": system}, {"role": "user", "content": text[:4000]}],
+        max_tokens=300, temperature=0.2,
+    )
+
+    title: str | None = None
+    description = text[:500]
+    priority = "normal"
+    due = None
+    if raw:
+        m = _re.search(r"\{.*\}", raw, _re.S)
+        if m:
+            try:
+                d = json.loads(m.group(0))
+                t = (d.get("title") or "").strip()
+                if t:
+                    title = t[:120]
+                description = (d.get("description") or description).strip()[:1000]
+                if d.get("priority") in ("low", "normal", "high"):
+                    priority = d["priority"]
+                if d.get("due_date"):
+                    try:
+                        due = _date.fromisoformat(str(d["due_date"]))
+                    except ValueError:
+                        due = None
+            except Exception:
+                pass
+
+    if not title:
+        # Repli : première ligne non vide, nettoyée des salutations.
+        first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "Tâche")
+        title = first[:70]
+
+    subjects, employee = _task_subjects_for_user(db, current_user)
+    assignee = current_user.full_name if _can_manage_tasks(current_user) else _employee_display_name(employee, current_user)
+
+    task = Task(
+        title=title,
+        description=description,
+        priority=priority,
+        due_date=due,
+        assignee_name=assignee,
+        project=(payload.project or "Limule"),
+        source=(payload.source or "ai"),
+        status="todo",
+        company_id=current_user.company_id,
+    )
+    db.add(task)
+    db.flush()
+    audit_access(
+        db, actor=current_user, company_id=current_user.company_id,
+        action="task_created_ai",
+        employee=_task_assignee_employee(db, task), target_user=current_user,
+        details=json.dumps({"task_id": task.id, "title": task.title, "source": task.source}, ensure_ascii=False),
+    )
+    db.commit()
+    db.refresh(task)
+    return _serialize_task(db, task, current_user, subjects)
+
+
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
 def update_task(
     task_id: int,

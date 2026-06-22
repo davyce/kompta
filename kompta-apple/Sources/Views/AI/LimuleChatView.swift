@@ -159,18 +159,14 @@ struct LimuleChatView: View {
     }
 
     private func createTask(from message: ChatMessage) async {
-        let title = message.content
-            .split(separator: "\n")
-            .first
-            .map { String($0.prefix(72)) } ?? "Action Limule"
         do {
-            _ = try await APIClient.shared.createTask(TaskPayload(
-                title: title,
-                description: message.content,
-                priority: message.signals.contains { ["high", "critical"].contains($0.severity) } ? "high" : "normal",
-                project: "Limule"
-            ))
-            toast = "Tâche créée dans le projet Limule."
+            // L'IA analyse le message et en extrait une tâche bien formée
+            // (titre court impératif, description, priorité) — au lieu de
+            // recopier tout le texte brut du message.
+            let task = try await APIClient.shared.extractTask(
+                text: message.content, source: "chat:limule", project: "Limule"
+            )
+            toast = "Tâche créée : « \(task.title) »"
         } catch {
             toast = error.localizedDescription
         }

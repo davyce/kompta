@@ -20,15 +20,28 @@ struct TasksKanbanView: View {
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune tâche", emptyIcon: "checklist",
                   reload: load) { tasks in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 16) {
-                    ForEach(taskColumns, id: \.key) { col in
-                        KanbanColumn(title: col.title, tasks: tasks.filter { $0.status == col.key }.sorted { $0.order_index < $1.order_index },
-                                     onAdvance: { task in Task { await advance(task) } },
-                                     onDelete: { task in Task { await remove(task) } })
+            // Une ScrollView horizontale est gourmande sur les DEUX axes : elle
+            // remplit toute la hauteur et centre verticalement son contenu plus
+            // court (d'où le gros vide en haut). `.fixedSize(vertical:)` la force
+            // à épouser la hauteur des colonnes ; la ScrollView verticale externe
+            // ancre le contenu en haut et gère le débordement si une colonne est
+            // très longue.
+            ScrollView(.vertical, showsIndicators: false) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 14) {
+                        ForEach(taskColumns, id: \.key) { col in
+                            KanbanColumn(
+                                columnKey: col.key,
+                                title: col.title,
+                                tasks: tasks.filter { $0.status == col.key }.sorted { $0.order_index < $1.order_index },
+                                onAdvance: { task in Task { await advance(task) } },
+                                onDelete: { task in Task { await remove(task) } }
+                            )
+                        }
                     }
+                    .padding(16)
                 }
-                .padding()
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .navigationTitle("Tâches")
@@ -57,44 +70,118 @@ struct TasksKanbanView: View {
 }
 
 private struct KanbanColumn: View {
+    let columnKey: String
     let title: String
     let tasks: [KTask]
     let onAdvance: (KTask) -> Void
     let onDelete: (KTask) -> Void
 
+    private var accent: Color {
+        switch columnKey {
+        case "todo":        return .orange
+        case "in_progress": return .blue
+        default:            return .green
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Circle().fill(accent).frame(width: 9, height: 9)
                 Text(title).font(.subheadline.bold())
-                Text("\(tasks.count)").font(.caption2.bold())
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.15)).clipShape(Capsule())
+                Text("\(tasks.count)")
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(accent.opacity(0.15))
+                    .foregroundStyle(accent)
+                    .clipShape(Capsule())
+                Spacer(minLength: 0)
             }
-            VStack(spacing: 10) {
-                ForEach(tasks) { task in
-                    GlassCard(padding: 12, cornerRadius: 14) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(task.title).font(.subheadline.bold()).lineLimit(2)
-                            if !task.assignee_name.isEmpty {
-                                Text(task.assignee_name).font(.caption).foregroundStyle(.secondary)
-                            }
-                            HStack {
-                                StatusPill(text: task.priority, colorName: task.priorityColorName)
-                                Spacer()
-                                if task.status != "done" {
-                                    Button { onAdvance(task) } label: { Image(systemName: "arrow.right.circle.fill") }
-                                        .buttonStyle(.plain)
-                                }
-                                Button(role: .destructive) { onDelete(task) } label: { Image(systemName: "trash") }
-                                    .buttonStyle(.plain)
-                            }
-                            .font(.caption)
-                        }
+
+            if tasks.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "tray").font(.title3).foregroundStyle(.tertiary)
+                    Text("Vide").font(.caption).foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(tasks) { task in
+                        TaskKanbanCard(task: task, accent: accent,
+                                       onAdvance: { onAdvance(task) },
+                                       onDelete: { onDelete(task) })
                     }
                 }
             }
         }
-        .frame(width: 240)
+        .padding(12)
+        .frame(width: 290, alignment: .top)
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct TaskKanbanCard: View {
+    let task: KTask
+    let accent: Color
+    let onAdvance: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(task.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !task.description.isEmpty {
+                Text(task.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            HStack(spacing: 8) {
+                if !task.assignee_name.isEmpty {
+                    Label(task.assignee_name, systemImage: "person.fill")
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                }
+                if let due = task.due_date, !due.isEmpty {
+                    Label(due, systemImage: "calendar")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+
+            HStack {
+                StatusPill(text: task.priority, colorName: task.priorityColorName)
+                Spacer()
+                if task.status != "done" {
+                    Button(action: onAdvance) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundStyle(accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button(action: onDelete) {
+                    Image(systemName: "trash").foregroundStyle(.red.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            }
+            .font(.callout)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.black.opacity(0.06), lineWidth: 1)
+        )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(accent)
+                .frame(width: 3)
+                .padding(.vertical, 8)
+        }
     }
 }
 
@@ -228,6 +315,7 @@ struct ChannelDetailView: View {
     @State private var draft = ""
     @State private var sending = false
     @State private var showMembers = false
+    @State private var taskToast: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -240,6 +328,13 @@ struct ChannelDetailView: View {
                             ForEach(msgs) { m in
                                 ChannelMessageRow(msg: m, isMine: m.author_id == auth.currentUser?.id)
                                     .id(m.id)
+                                    .contextMenu {
+                                        Button {
+                                            Task { await createTask(from: m) }
+                                        } label: {
+                                            Label("Créer une tâche (IA)", systemImage: "checklist")
+                                        }
+                                    }
                             }
                         }
                         .padding()
@@ -250,6 +345,14 @@ struct ChannelDetailView: View {
                 }
             }
             Divider()
+            if let taskToast {
+                Text(taskToast)
+                    .font(.caption.bold())
+                    .foregroundStyle(theme.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal).padding(.top, 6)
+                    .transition(.opacity)
+            }
             HStack(spacing: 10) {
                 TextField("Message dans #\(channel.name)…", text: $draft, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
@@ -314,6 +417,21 @@ struct ChannelDetailView: View {
         do { _ = try await APIClient.shared.sendMessage(channel.id, body: text); await load() }
         catch { draft = text }
         sending = false
+    }
+
+    // L'IA analyse le message du canal et en extrait une tâche bien formée
+    // (titre court impératif, description, priorité).
+    private func createTask(from message: ChatMsg) async {
+        do {
+            let task = try await APIClient.shared.extractTask(
+                text: message.body, source: "channel:\(channel.name)", project: "#\(channel.name)"
+            )
+            withAnimation { taskToast = "Tâche créée : « \(task.title) »" }
+        } catch {
+            withAnimation { taskToast = error.localizedDescription }
+        }
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        withAnimation { taskToast = nil }
     }
 }
 
