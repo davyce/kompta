@@ -19,6 +19,7 @@
 		29102CF06555F6CDA242F95B /* ModuleHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D251BDB584F13900DFC765C /* ModuleHub.swift */; };
 		2B6CE15A0F7F2E70BF9FE0BB /* AdminViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0454B8AA5B3315C76D3966F /* AdminViews.swift */; };
 		2BD1558A5E5DFA9F28816C67 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
+		2CB65EA47452A8A556A6E5A5 /* CompanySetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9471E40EB42F94905659F795 /* CompanySetupWizard.swift */; };
 		2EEFA07717C4F79B48299295 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */; };
 		3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9AB050A928D42ABCE3C91A /* DashboardView.swift */; };
 		3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
@@ -82,6 +83,7 @@
 		CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */; };
 		D035787283582E3E8C838E0B /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */; };
 		D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
+		D560DD8805248AB11CEABF3F /* CompanySetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9471E40EB42F94905659F795 /* CompanySetupWizard.swift */; };
 		D606845A08D8434128782415 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
 		D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
 		D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
@@ -129,6 +131,7 @@
 		7B812E385DF64BCF395BD879 /* CsvImportButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CsvImportButton.swift; sourceTree = "<group>"; };
 		868253779BC26B47B67C3BB2 /* DownloadButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadButton.swift; sourceTree = "<group>"; };
 		944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViews.swift; sourceTree = "<group>"; };
+		9471E40EB42F94905659F795 /* CompanySetupWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupWizard.swift; sourceTree = "<group>"; };
 		990D81000FB516878BA7C424 /* LimuleChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimuleChatView.swift; sourceTree = "<group>"; };
 		9FF68C74D092585F0B42F595 /* FinanceCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCharts.swift; sourceTree = "<group>"; };
 		A37030ADEE946EE51FAA1C2E /* KomptaMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KomptaMac.entitlements; sourceTree = "<group>"; };
@@ -190,6 +193,14 @@
 				34302996CFECB2C83D8235C1 /* LoginView.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		3CF27B3E5AF3346BCDAF2727 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				9471E40EB42F94905659F795 /* CompanySetupWizard.swift */,
+			);
+			path = Onboarding;
 			sourceTree = "<group>";
 		};
 		59893025EA812753596C7E62 /* Products */ = {
@@ -320,6 +331,7 @@
 				97DA30C580E038A5EF83AE41 /* Dashboard */,
 				81029C45A26D71DDC7099102 /* HR */,
 				6105BC4FF7D32C4D59053637 /* Modules */,
+				3CF27B3E5AF3346BCDAF2727 /* Onboarding */,
 				9B9CD3E0F4245F3876A2AA4B /* POS */,
 				F35A24128DE166C9EAE12E80 /* Settings */,
 				1307BAC8B3FC4041BFBB489B /* Shell */,
@@ -470,6 +482,7 @@
 				67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */,
 				53FFD748765527C04DEDB1D5 /* CollaborationViews.swift in Sources */,
 				C6C4B755272B54CABF97BCCA /* CollectionMethodsView.swift in Sources */,
+				2CB65EA47452A8A556A6E5A5 /* CompanySetupWizard.swift in Sources */,
 				9097BC6952ECF4E8DFAC2E51 /* CompanyTheme.swift in Sources */,
 				D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */,
 				65ABD80D7C152A72DB2E4F71 /* CsvImportButton.swift in Sources */,
@@ -520,6 +533,7 @@
 				6F4196470C273EDE91D46215 /* BusinessViews.swift in Sources */,
 				249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */,
 				99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */,
+				D560DD8805248AB11CEABF3F /* CompanySetupWizard.swift in Sources */,
 				09DF9D5C90D9681923DACDDF /* CompanyTheme.swift in Sources */,
 				F06291DC26435979688D4934 /* ContentView.swift in Sources */,
 				9D45457B390869DF38C64030 /* CsvImportButton.swift in Sources */,

@@ -7,6 +7,8 @@ struct SettingsView: View {
 
     @AppStorage("api_base_url") private var apiURL = "https://kompta0.com/api"
     @AppStorage("appAppearance") private var appearanceRaw = AppAppearance.system.rawValue
+    @AppStorage("kompta_setup_dismissed") private var setupDismissed = false
+    @AppStorage("kompta_force_setup") private var forceSetup = false
     @AppStorage("notif_invoices")     private var notifInvoices    = true
     @AppStorage("notif_meetings")     private var notifMeetings     = true
     @AppStorage("notif_transactions") private var notifTransactions = true
@@ -158,6 +160,18 @@ struct SettingsView: View {
                 }
                 Toggle(isOn: $notifSupport) {
                     Label("Demandes de support", systemImage: "lifepreserver.fill")
+                }
+            }
+
+            if auth.currentUser?.role == "admin_entreprise" {
+                Section("Configuration") {
+                    Button {
+                        setupDismissed = false
+                        forceSetup = true
+                    } label: {
+                        Label("Configuration de l'entreprise", systemImage: "building.2.crop.circle")
+                    }
+                    .help("Reprendre l'assistant de configuration pas à pas du profil de l'entreprise.")
                 }
             }
 

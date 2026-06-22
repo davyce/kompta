@@ -5,7 +5,22 @@ struct AppShell: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var ent: EntitlementsManager
 
+    @AppStorage("kompta_setup_dismissed") private var setupDismissed = false
+    @AppStorage("kompta_force_setup") private var forceSetup = false
+    @State private var showSetup = false
+
     var body: some View {
+        shell
+            .task { evaluateSetup() }
+            .onChange(of: forceSetup) { _, forced in if forced { showSetup = true } }
+            #if os(iOS)
+            .fullScreenCover(isPresented: $showSetup) { setupWizard }
+            #else
+            .sheet(isPresented: $showSetup) { setupWizard.frame(minWidth: 520, minHeight: 620) }
+            #endif
+    }
+
+    @ViewBuilder private var shell: some View {
         #if os(iOS)
         iOSShell
         #else
@@ -17,6 +32,25 @@ struct AppShell: View {
             .textFieldStyle(.roundedBorder)
             .formStyle(.grouped)
         #endif
+    }
+
+    private var setupWizard: some View {
+        CompanySetupWizard {
+            showSetup = false
+            setupDismissed = true
+            forceSetup = false
+        }
+        .environmentObject(theme)
+    }
+
+    /// Lance l'assistant de configuration à la 1re connexion d'un admin
+    /// d'entreprise au profil incomplet (ou sur relance manuelle), une fois.
+    private func evaluateSetup() {
+        guard auth.currentUser?.role == "admin_entreprise" else { return }
+        if forceSetup { showSetup = true; return }
+        guard !setupDismissed else { return }
+        let score = auth.company?.completion_score ?? 100
+        if score < 100 { showSetup = true }
     }
 
     // MARK: - iOS: TabView
