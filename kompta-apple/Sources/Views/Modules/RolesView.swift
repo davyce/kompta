@@ -16,6 +16,7 @@ struct RolesManagementView: View {
     @State private var editing: CustomRole?
     @State private var showNew = false
     @State private var showStaff = false
+    @State private var showAssign = false
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun rôle personnalisé",
@@ -24,6 +25,12 @@ struct RolesManagementView: View {
                 Section {
                     Text("Créez des rôles avec un accès limité à certains modules, puis attribuez-les à vos utilisateurs.")
                         .font(.caption).foregroundStyle(.secondary)
+                    if scope == "company" {
+                        Button { showAssign = true } label: {
+                            Label("Attribuer un rôle à un membre", systemImage: "person.badge.shield.checkmark")
+                        }
+                        .disabled((state.value?.isEmpty ?? true))
+                    }
                 }
                 ForEach(roles) { r in
                     Button { editing = r } label: { roleRow(r) }.buttonStyle(.plain)
@@ -56,6 +63,7 @@ struct RolesManagementView: View {
         .sheet(isPresented: $showNew) { RoleFormView(scope: scope, role: nil, permissions: permissions, groupId: groupId) { await load() } }
         .sheet(item: $editing) { r in RoleFormView(scope: scope, role: r, permissions: permissions, groupId: groupId) { await load() } }
         .sheet(isPresented: $showStaff) { StaffCreateView(roles: state.value ?? []) { await load() } }
+        .sheet(isPresented: $showAssign) { MembersAccessView(roles: state.value ?? []) { await load() } }
     }
 
     private func roleRow(_ r: CustomRole) -> some View {
@@ -81,6 +89,87 @@ struct RolesManagementView: View {
         await load()
     }
     private func load() async { await state.load { try await APIClient.shared.roles(scope: scope, groupId: groupId) } }
+}
+
+// MARK: - Attribution d'un rôle personnalisé aux membres de l'entreprise
+
+struct MembersAccessView: View {
+    let roles: [CustomRole]
+    let onSaved: () async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+    @StateObject private var state = Loadable<[CompanyUserRow]>()
+    @State private var working: Int?
+    @State private var toast: String?
+
+    var body: some View {
+        NavigationStack {
+            AsyncList(state: state, emptyTitle: "Aucun membre", emptyIcon: "person.2", reload: load) { users in
+                List {
+                    if let toast {
+                        Section { Text(toast).font(.caption.bold()).foregroundStyle(theme.primary) }
+                    }
+                    Section {
+                        Text("Choisissez un rôle personnalisé pour chaque membre. Le rôle limite les modules visibles dans l'app.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(users) { u in row(u) }
+                }
+                #if os(iOS)
+                .listStyle(.insetGrouped)
+                #endif
+            }
+            .navigationTitle("Membres & accès")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
+            .task { await load() }
+        }
+    }
+
+    private func row(_ u: CompanyUserRow) -> some View {
+        HStack(spacing: 12) {
+            AvatarView(initials: u.initials, size: 38, color: theme.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(u.full_name).font(.subheadline.bold())
+                Text(u.email).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            if working == u.id {
+                ProgressView()
+            } else {
+                Picker("", selection: Binding(
+                    get: { u.custom_role_id ?? -1 },
+                    set: { newValue in Task { await assign(u, roleId: newValue == -1 ? nil : newValue) } }
+                )) {
+                    Text("Rôle de base").tag(-1)
+                    ForEach(roles) { r in Text(r.name).tag(r.id) }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(theme.primary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func load() async { await state.load { try await APIClient.shared.companyUsers() } }
+
+    private func assign(_ u: CompanyUserRow, roleId: Int?) async {
+        working = u.id
+        defer { working = nil }
+        do {
+            try await APIClient.shared.assignCustomRole(u.id, roleId: roleId)
+            let name = roleId.flatMap { id in roles.first(where: { $0.id == id })?.name } ?? "Rôle de base"
+            withAnimation { toast = "« \(u.full_name) » → \(name)" }
+            await load()
+            await onSaved()
+        } catch {
+            withAnimation { toast = error.localizedDescription }
+        }
+    }
 }
 
 struct RoleFormView: View {

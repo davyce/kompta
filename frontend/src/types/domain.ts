@@ -11,6 +11,9 @@ export type User = {
   must_change_password: boolean;
   account_status: string;
   onboarding_done?: boolean;
+  /** Permissions effectives issues du rôle personnalisé (allowlist de modules). */
+  permissions?: string[];
+  custom_role?: { id: number; name: string; scope: string; color?: string } | null;
 };
 
 export type Company = {

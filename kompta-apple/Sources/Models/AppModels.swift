@@ -392,6 +392,21 @@ struct AppNotification: Identifiable {
     }
 }
 
+/// Utilisateur de l'entreprise (GET /company/users) — pour assigner un rôle.
+struct CompanyUserRow: Codable, Identifiable {
+    let id: Int
+    let full_name: String
+    let email: String
+    let role: String
+    var custom_role_id: Int?
+    var custom_role_name: String?
+    var has_avatar: Bool?
+
+    var initials: String {
+        full_name.components(separatedBy: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+    }
+}
+
 /// Diffusion admin persistée (GET /notifications).
 struct BroadcastNotification: Codable, Identifiable {
     let id: Int

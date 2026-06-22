@@ -340,6 +340,7 @@ actor APIClient {
     func assignCustomRole(_ userId: Int, roleId: Int?) async throws {
         try await send("/users/\(userId)/custom-role", method: "PATCH", body: AssignRolePayload(custom_role_id: roleId))
     }
+    func companyUsers() async throws -> [CompanyUserRow] { try await get("/company/users") }
     func uploadMyAvatar(_ data: Data, fileName: String, mime: String) async throws {
         struct R: Decodable { let has_avatar: Bool }
         let _: R = try await uploadMultipart("/users/me/avatar", fileField: "file", fileData: data, fileName: fileName, mime: mime)

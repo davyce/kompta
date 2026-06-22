@@ -26,7 +26,7 @@ struct AppShell: View {
             NavigationStack { DashboardView() }
                 .tabItem { Label("Tableau de bord", systemImage: "chart.bar.fill") }
 
-            if RolePermissions.canAccess(role: auth.currentUser?.role, moduleId: "pos") {
+            if RolePermissions.canAccess(user: auth.currentUser, moduleId: "pos") {
                 NavigationStack { POSView() }
                     .tabItem { Label("Caisse", systemImage: "cart.fill") }
             }
@@ -102,14 +102,14 @@ struct AppShell: View {
         List(selection: $selection) {
             Section("Principal") {
                 SidebarRow(id: "dashboard", title: "Tableau de bord", icon: "chart.bar.fill", tint: theme.primary)
-                if RolePermissions.canAccess(role: auth.currentUser?.role, moduleId: "pos") {
+                if RolePermissions.canAccess(user: auth.currentUser, moduleId: "pos") {
                     SidebarRow(id: "pos", title: "Caisse (POS)", icon: "cart.fill", tint: .pink)
                 }
                 SidebarRow(id: "limule", title: "Limule", icon: KomptaBrand.limuleIcon, tint: KomptaBrand.limuleBlue)
             }
-            ForEach(ModuleRegistry.visibleSections(role: auth.currentUser?.role), id: \.self) { section in
+            ForEach(ModuleRegistry.visibleSections(for: auth.currentUser), id: \.self) { section in
                 Section(section) {
-                    ForEach(ModuleRegistry.visibleModules(in: section, role: auth.currentUser?.role)) { m in
+                    ForEach(ModuleRegistry.visibleModules(in: section, for: auth.currentUser)) { m in
                         SidebarRow(id: m.id, title: m.title, icon: m.icon, tint: m.tint, locked: ent.isLocked(moduleId: m.id))
                     }
                 }

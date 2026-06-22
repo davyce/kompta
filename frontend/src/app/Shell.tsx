@@ -57,6 +57,7 @@ import { ApiError, api } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import { initials } from "../utils/format";
 import { useAuth } from "./AuthContext";
+import type { User } from "../types/domain";
 
 function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
@@ -112,7 +113,38 @@ const ROLE_ROUTES: Record<string, string[]> = {
   membre_groupe: ["/", "/groups", "/chat", "/calendar", "/meetings", "/notes", "/documents", "/investments", "/projects", "/kanban", "/assistants", "/work", "/settings", "/help"],
 };
 
-function canAccess(role: string | undefined, path: string): boolean {
+// Chemins toujours accessibles (collaboration, support, paramètres) lorsqu'un
+// rôle personnalisé est actif — indépendants de la liste de permissions.
+const UNIVERSAL_PATHS = new Set<string>([
+  "/", "/chat", "/calendar", "/meetings", "/notes", "/assistants",
+  "/settings", "/safe-mode", "/help", "/groups",
+]);
+
+// Chemin → clé de permission du catalogue de rôles. Absent ⇒ universel.
+const PATH_PERMISSION: Record<string, string> = {
+  "/company": "company", "/employees": "hr", "/documents": "documents",
+  "/payroll": "payroll", "/billing": "billing", "/clients": "clients",
+  "/pos": "pos", "/inventory": "inventory", "/work": "tasks", "/kanban": "tasks",
+  "/reports": "reports", "/analytics": "analytics", "/fiscal": "fiscal",
+  "/reports-teras": "teras", "/teras": "teras", "/declarations": "declarations",
+  "/legislation": "legislation", "/accounting": "accounting", "/projects": "projects",
+  "/investments": "investments", "/budget": "budget", "/transactions": "transactions",
+  "/audit": "audit",
+};
+
+function canAccess(user: User | null | undefined, path: string): boolean {
+  const role = user?.role;
+  if (role === "super_admin" || role === "admin_entreprise") return true;
+
+  // Un rôle personnalisé d'entreprise (permissions non vides) surclasse le rôle
+  // de base : c'est ce qui rend les restrictions réellement effectives.
+  const perms = user?.permissions ?? [];
+  if (user?.custom_role?.scope === "company" && perms.length > 0) {
+    if (UNIVERSAL_PATHS.has(path)) return true;
+    const key = PATH_PERMISSION[path];
+    return key ? perms.includes(key) : true;
+  }
+
   const allowed = ROLE_ROUTES[role ?? "employe"] ?? ROLE_ROUTES.employe;
   return allowed.includes("*") || allowed.includes(path);
 }
@@ -411,10 +443,10 @@ export function Shell() {
       navSections
         .map((section) => ({
           ...section,
-          items: section.items.filter((item) => canAccess(user?.role, item.to)),
+          items: section.items.filter((item) => canAccess(user, item.to)),
         }))
         .filter((section) => section.items.length > 0),
-    [user?.role]
+    [user]
   );
 
   /* ─── Sidebar content ─────────────────────────────────────────────── */

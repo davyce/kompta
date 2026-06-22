@@ -106,16 +106,16 @@ enum ModuleRegistry {
     /// Modules this role is allowed to see, in registry order. `super_admin`
     /// never reaches this grid at all (dedicated SuperAdminShell instead),
     /// but is included here defensively in case of a transient render.
-    static func visibleModules(role: String?) -> [AppModule] {
-        all.filter { RolePermissions.canAccess(role: role, moduleId: $0.id) }
+    static func visibleModules(for user: KomptaUser?) -> [AppModule] {
+        all.filter { RolePermissions.canAccess(user: user, moduleId: $0.id) }
     }
-    static func visibleSections(role: String?) -> [String] {
+    static func visibleSections(for user: KomptaUser?) -> [String] {
         var seen = Set<String>(); var order = [String]()
-        for m in visibleModules(role: role) where !seen.contains(m.section) { seen.insert(m.section); order.append(m.section) }
+        for m in visibleModules(for: user) where !seen.contains(m.section) { seen.insert(m.section); order.append(m.section) }
         return order
     }
-    static func visibleModules(in section: String, role: String?) -> [AppModule] {
-        visibleModules(role: role).filter { $0.section == section }
+    static func visibleModules(in section: String, for user: KomptaUser?) -> [AppModule] {
+        visibleModules(for: user).filter { $0.section == section }
     }
 }
 
@@ -156,12 +156,41 @@ enum RolePermissions {
     /// plus "settings" (kept universal in the native app since it's also where
     /// "Se déconnecter" lives — the web exposes logout outside RBAC entirely,
     /// via the sidebar footer, regardless of which role is signed in).
-    private static let universal: Set<String> = ["dashboard", "groups", "chat", "calendar", "meetings", "notes", "help", "limule", "settings"]
+    private static let universal: Set<String> = ["dashboard", "groups", "chat", "calendar", "meetings", "notes", "help", "limule", "settings", "ai_writing", "safe_mode"]
 
-    static func canAccess(role: String?, moduleId: String) -> Bool {
-        guard let role else { return false }
+    /// Clé de permission (catalogue rôles) correspondant à un module. `nil` =
+    /// module universel toujours visible (collaboration, support, paramètres).
+    /// Quelques modules partagent une clé (ex. reports_teras → teras).
+    private static func permissionKey(for moduleId: String) -> String? {
+        switch moduleId {
+        case "payment_accounts": return "transactions"
+        case "reports_teras":    return "teras"
+        case "work":             return "tasks"
+        case "dashboard", "groups", "chat", "calendar", "meetings",
+             "notes", "help", "limule", "settings", "ai_writing", "safe_mode":
+            return nil
+        default:                 return moduleId   // company, hr, billing, pos, …
+        }
+    }
+
+    /// Gating par utilisateur : un rôle personnalisé (permissions non vides)
+    /// SURCLASSE le rôle de base — c'est ce qui rend les restrictions effectives.
+    /// Sans rôle personnalisé, on retombe sur la table par rôle (comportement web).
+    static func canAccess(user: KomptaUser?, moduleId: String) -> Bool {
+        guard let user else { return false }
+        let role = user.role
         if moduleId == "admin" { return role == "super_admin" }
         if unrestricted.contains(role) { return true }
+
+        // Rôle personnalisé scope entreprise → allowlist par permissions.
+        let perms = Set(user.permissions ?? [])
+        if user.custom_role?.scope == "company", !perms.isEmpty {
+            if universal.contains(moduleId) { return true }
+            guard let key = permissionKey(for: moduleId) else { return true }
+            return perms.contains(key)
+        }
+
+        // Fallback : table par rôle de base (inchangé).
         if universal.contains(moduleId) { return true }
         let allowed = table[role] ?? table["employe"] ?? []
         return allowed.contains(moduleId)
@@ -183,13 +212,13 @@ struct ModuleHubView: View {
                 if ent.showTrialBanner {
                     TrialBanner(text: ent.trialBannerText, critical: ent.trialBannerIsCritical)
                 }
-                ForEach(ModuleRegistry.visibleSections(role: auth.currentUser?.role), id: \.self) { section in
+                ForEach(ModuleRegistry.visibleSections(for: auth.currentUser), id: \.self) { section in
                     VStack(alignment: .leading, spacing: 12) {
                         Text(section)
                             .font(.headline)
                             .padding(.horizontal, 4)
                         LazyVGrid(columns: cols, spacing: 14) {
-                            ForEach(ModuleRegistry.visibleModules(in: section, role: auth.currentUser?.role)) { m in
+                            ForEach(ModuleRegistry.visibleModules(in: section, for: auth.currentUser)) { m in
                                 if ent.isLocked(moduleId: m.id) {
                                     Button { lockedModuleTitle = m.title } label: { ModuleTile(module: m, locked: true) }
                                         .buttonStyle(.plain)

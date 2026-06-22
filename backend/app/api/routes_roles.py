@@ -186,6 +186,32 @@ class AssignRolePayload(BaseModel):
     custom_role_id: int | None = None
 
 
+@router.get("/company/users")
+def list_company_users(db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)) -> list[dict]:
+    """Liste les utilisateurs de l'entreprise courante avec leur rôle d'accès,
+    pour permettre à un admin/manager d'assigner des rôles personnalisés."""
+    if current_user.role not in {"super_admin", "admin_entreprise", "manager_entreprise"}:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    users = db.scalars(
+        select(User)
+        .where(User.company_id == current_user.company_id)
+        .order_by(User.full_name)
+    ).all()
+    return [
+        {
+            "id": u.id,
+            "full_name": u.full_name,
+            "email": u.email,
+            "role": u.role,
+            "custom_role_id": u.custom_role_id,
+            "custom_role_name": u.custom_role.name if u.custom_role else None,
+            "has_avatar": bool(u.avatar_path),
+        }
+        for u in users
+    ]
+
+
 @router.patch("/users/{user_id}/custom-role", status_code=200)
 def assign_role(user_id: int, payload: AssignRolePayload, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)) -> dict:
