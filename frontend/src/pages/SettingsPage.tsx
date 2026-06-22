@@ -4,13 +4,14 @@ import { useLocation } from "react-router-dom";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
-  Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, User, Wallet, X, Zap,
+  Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, User, UserCog, Wallet, X, Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../services/api";
 import { SubscriptionPanel } from "../components/SubscriptionPanel";
 import { CollectionMethodsPanel } from "../components/CollectionMethodsPanel";
+import { RolesSettings } from "../components/settings/RolesSettings";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
 import { useConfirm } from "../components/ConfirmProvider";
@@ -23,7 +24,7 @@ import i18n from "../i18n";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ── Types ────────────────────────────────────────────────────────── */
-type Tab = "general" | "subscription" | "modules" | "payments" | "security" | "notifications" | "teras" | "billing" | "audit";
+type Tab = "general" | "subscription" | "modules" | "payments" | "roles" | "security" | "notifications" | "teras" | "billing" | "audit";
 
 const PROVIDERS = [
   { key: "zola", tk: "settingsPage.providers.zola", icon: Wallet },
@@ -403,15 +404,17 @@ export function SettingsPage() {
     { key: "subscription",  label: tr("settingsPage.tabs.subscription"),  icon: Sparkles    },
     { key: "modules",       label: tr("settingsPage.tabs.modules"),       icon: Zap         },
     { key: "payments",      label: tr("settingsPage.tabs.payments"),      icon: Wallet      },
+    { key: "roles",         label: "Rôles & accès",                       icon: UserCog     },
     { key: "security",      label: tr("settingsPage.tabs.security"),      icon: Lock        },
     { key: "notifications", label: tr("settingsPage.tabs.notifications"), icon: Bell        },
     { key: "teras",         label: tr("settingsPage.tabs.teras"),         icon: ShieldCheck },
     { key: "billing",       label: tr("settingsPage.tabs.billing"),       icon: CreditCard  },
     { key: "audit",         label: tr("settingsPage.tabs.audit"),         icon: FileText    },
   ];
+  const isCompanyManager = user?.role === "admin_entreprise" || user?.role === "manager_entreprise";
   const TABS = isEmployeeSelfService
     ? allTabs.filter((item) => ["general", "payments", "notifications", "security"].includes(item.key))
-    : allTabs;
+    : allTabs.filter((item) => item.key !== "roles" || isCompanyManager);
 
   const modulesData = modulesQ.data ?? [];
   const filteredModules = modulesData.filter((mod) => {
@@ -799,6 +802,12 @@ export function SettingsPage() {
           )}
 
           {/* ── PAIEMENTS ── */}
+          {tab === "roles" && isCompanyManager && (
+            <div className="p-6">
+              <RolesSettings />
+            </div>
+          )}
+
           {tab === "payments" && (
             <div>
               <div className="border-b border-black/[0.05] dark:border-white/[0.05] px-6 py-5">

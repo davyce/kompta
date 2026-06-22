@@ -523,6 +523,31 @@ export type GroupRole = {
   permissions: string[];
 };
 
+/** Rôle personnalisé d'entreprise (scope "company"). */
+export type CustomRole = {
+  id: number;
+  name: string;
+  description: string;
+  scope: string;
+  permissions: string[];
+  color: string;
+  company_id: number | null;
+  group_id: number | null;
+  member_count: number;
+};
+
+export type RolePermissionItem = { key: string; label: string; scopes: string[] };
+
+export type CompanyUserRow = {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  custom_role_id: number | null;
+  custom_role_name: string | null;
+  has_avatar: boolean;
+};
+
 export type GroupLeadershipHistory = {
   id: number;
   president_member_id: number | null;

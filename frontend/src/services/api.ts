@@ -16,6 +16,9 @@ import type {
   OrganizationGroup,
   GroupMember,
   GroupRole,
+  CustomRole,
+  RolePermissionItem,
+  CompanyUserRow,
   GroupLeadershipHistory,
   ContributionPlan,
   ContributionPayment,
@@ -1480,6 +1483,21 @@ export const api = {
       must_change_password?: boolean;
       message: string;
     }>(`/groups/${groupId}/members/${memberId}/provision-account`, { method: "POST" }),
+
+  /* ── Rôles personnalisés d'entreprise ─────────────────────────────── */
+  customRoles: (scope = "company") => request<CustomRole[]>(`/roles?scope=${scope}`),
+  rolePermissionCatalog: (scope = "company") => request<RolePermissionItem[]>(`/roles/permissions?scope=${scope}`),
+  createCustomRole: (payload: { name: string; description: string; scope: string; permissions: string[]; color: string }) =>
+    request<CustomRole>("/roles", { method: "POST", body: JSON.stringify(payload) }),
+  updateCustomRole: (id: number, payload: { name: string; description: string; scope: string; permissions: string[]; color: string }) =>
+    request<CustomRole>(`/roles/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteCustomRole: (id: number) => request<{ deleted: boolean }>(`/roles/${id}`, { method: "DELETE" }),
+  companyUsers: () => request<CompanyUserRow[]>("/company/users"),
+  assignCustomRole: (userId: number, roleId: number | null) =>
+    request<{ user_id: number; custom_role_id: number | null }>(`/users/${userId}/custom-role`, {
+      method: "PATCH",
+      body: JSON.stringify({ custom_role_id: roleId }),
+    }),
 
   groupRoles: (groupId: number) => request<GroupRole[]>(`/groups/${groupId}/roles`),
   assignRole: (groupId: number, payload: { member_id: number; role_name: string; reason?: string }) =>
