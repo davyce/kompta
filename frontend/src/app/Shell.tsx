@@ -45,6 +45,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import { Copilot } from "../components/Copilot";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { GuidedTour } from "../components/GuidedTour";
+import { CompanySetupWizard } from "../components/CompanySetupWizard";
 import { SubscriptionGate } from "../components/SubscriptionGate";
 import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import { useToast } from "../components/ToastProvider";
@@ -842,6 +843,7 @@ export function Shell() {
         onClear={clearHistory}
       />
       <GuidedTour />
+      <CompanySetupWizard />
       <SubscriptionGate />
       <Copilot />
     </div>

@@ -15,6 +15,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
 import { useConfirm } from "../components/ConfirmProvider";
 import { resetOnboardingTour } from "../components/GuidedTour";
+import { resetCompanySetup } from "../components/CompanySetupWizard";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../contexts/CurrencyContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import type { CurrencyCode } from "../utils/format";
@@ -711,6 +712,17 @@ export function SettingsPage() {
                     {tr("settingsPage.general.restartTour")}
                   </button>
                 </SettingRow>
+                {user?.role === "admin_entreprise" && (
+                  <SettingRow icon={Building2} label="Configuration de l'entreprise" description="Reprenez l'assistant de configuration pas à pas du profil de votre entreprise.">
+                    <button
+                      type="button"
+                      onClick={() => { resetCompanySetup(); window.location.reload(); }}
+                      className="rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300"
+                    >
+                      Lancer la configuration
+                    </button>
+                  </SettingRow>
+                )}
               </div>
             </div>
           )}

@@ -239,6 +239,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  uploadCompanyLogo: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<Company>("/company/logo", { method: "POST", body: form });
+  },
   resetWorkspace: () => request<{ status: string; message: string }>("/workspace/reset", { method: "POST" }),
   paymentAccounts: () => request<PaymentAccount[]>("/payment-accounts"),
   createPaymentAccount: (payload: Partial<PaymentAccount>) =>
