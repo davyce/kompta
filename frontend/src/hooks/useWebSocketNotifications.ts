@@ -15,6 +15,8 @@ export type NotificationRecord = {
   tone: AppToast["tone"];
   createdAt: string;
   unread: boolean;
+  /** Identifiant backend d'une diffusion admin persistée (dédoublonnage). */
+  broadcastId?: number;
 };
 
 type WSNotification = {
@@ -154,6 +156,41 @@ export function useWebSocketNotifications(
       wsRef.current?.close();
     };
   }, [companyId, push]);
+
+  // Récupère les diffusions admin persistées (GET /notifications) et les fusionne
+  // dans l'historique. Indispensable pour les utilisateurs hors-ligne au moment
+  // de l'envoi : le WebSocket ne couvre que les clients connectés.
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const broadcasts = await api.notifications();
+        if (cancelled || broadcasts.length === 0) return;
+        setHistory((prev) => {
+          const seen = new Set(prev.map((r) => r.broadcastId).filter((x): x is number => x != null));
+          const fresh = broadcasts
+            .filter((b) => !seen.has(b.id))
+            .map<NotificationRecord>((b) => ({
+              id: ++recordSeq,
+              title: b.title,
+              detail: b.message,
+              tone: b.type === "critical" ? "error" : b.type === "warning" ? "warning" : "info",
+              createdAt: b.created_at ?? new Date().toISOString(),
+              unread: true,
+              broadcastId: b.id,
+            }));
+          if (fresh.length === 0) return prev;
+          const next = [...fresh, ...prev]
+            .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+            .slice(0, MAX_HISTORY);
+          saveHistory(next);
+          return next;
+        });
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   return { liveAlertCount, push, history, markAllRead, clearHistory };
 }

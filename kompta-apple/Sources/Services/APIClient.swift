@@ -502,6 +502,7 @@ actor APIClient {
     // MARK: - Tickets
 
     func tickets() async throws -> [Ticket] { try await get("/tickets") }
+    func broadcastNotifications() async throws -> [BroadcastNotification] { try await get("/notifications") }
     func createTicket(_ p: TicketPayload) async throws -> Ticket { try await post("/tickets", body: p) }
 
     // MARK: - Preferences

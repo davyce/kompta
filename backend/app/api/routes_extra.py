@@ -33,6 +33,7 @@ from app.db.session import get_db
 from app.models import (
     AIGeneration,
     BankTransaction,
+    BroadcastLog,
     Company,
     CompanyDocument,
     CompanyModule,
@@ -2015,6 +2016,46 @@ async def limule_document_chat_stream(
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IN-APP NOTIFICATIONS (broadcasts persistés)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/notifications")
+def list_notifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Diffusions admin visibles par l'utilisateur courant (in-app).
+
+    Inclut les broadcasts ciblant tout le monde (`all`) ou son entreprise
+    (`company_id:<id>`), des 30 derniers jours, du plus récent au plus ancien.
+    Permet aux clients (web/iOS/macOS) d'afficher les diffusions même si
+    l'utilisateur n'était pas connecté au moment de l'envoi.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    company_target = f"company_id:{current_user.company_id}" if current_user.company_id else "__none__"
+    rows = db.scalars(
+        select(BroadcastLog)
+        .where(
+            BroadcastLog.created_at >= since,
+            BroadcastLog.target.in_(["all", company_target]),
+        )
+        .order_by(BroadcastLog.created_at.desc())
+        .limit(50)
+    ).all()
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "message": r.message,
+            "type": r.type,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

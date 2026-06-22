@@ -279,6 +279,9 @@ class BroadcastPayload(BaseModel):
     message: str
     type: str = "info"   # info | warning | critical
     target: str = "all"  # all | company_id:123
+    # Le frontend envoie historiquement `target_company_id` ; on l'accepte aussi
+    # et il prime sur `target` quand il est fourni (corrige la sélection ignorée).
+    target_company_id: int | None = None
 
 
 @router.post("/admin/broadcast")
@@ -290,12 +293,17 @@ def broadcast_notification(
 ):
     _require_super_admin(current_user)
 
+    # Cible : `target_company_id` (frontend) prime, sinon on lit `target`.
+    target = payload.target
+    if payload.target_company_id is not None:
+        target = f"company_id:{payload.target_company_id}"
+
     # Déterminer les entreprises ciblées
-    if payload.target == "all":
-        target_company_ids = db.scalars(select(Company.id)).all()
-    elif payload.target.startswith("company_id:"):
+    if target == "all":
+        target_company_ids = list(db.scalars(select(Company.id)).all())
+    elif target.startswith("company_id:"):
         try:
-            cid = int(payload.target.split(":")[1])
+            cid = int(target.split(":")[1])
         except (IndexError, ValueError):
             raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
         company = db.get(Company, cid)
@@ -318,7 +326,7 @@ def broadcast_notification(
         title=payload.title,
         message=payload.message,
         type=payload.type,
-        target=payload.target,
+        target=target,
         sent_count=sent_count,
         sent_by_user_id=current_user.id,
     )
@@ -331,10 +339,19 @@ def broadcast_notification(
         action="create",
         resource_type="broadcast",
         resource_id=None,
-        details=f"Broadcast '{payload.title}' envoyé à {sent_count} utilisateurs (target={payload.target})",
+        details=f"Broadcast '{payload.title}' envoyé à {sent_count} utilisateurs (target={target})",
         company_id=current_user.company_id,
     ))
     db.commit()
+
+    # Notification in-app temps réel : push WebSocket à chaque entreprise ciblée
+    # (les clients connectés — web/iOS/macOS — l'affichent immédiatement). La
+    # persistance reste assurée par BroadcastLog, relue via GET /notifications
+    # pour les utilisateurs hors-ligne au moment de l'envoi.
+    background_tasks.add_task(
+        _push_broadcast_realtime, list(target_company_ids),
+        payload.title, payload.message, payload.type,
+    )
 
     # Envoi emails en arrière-plan
     for user in target_users:
@@ -348,7 +365,24 @@ def broadcast_notification(
                 msg_type=payload.type,
             )
 
-    return {"sent_to": sent_count, "message": "Broadcast envoyé"}
+    return {"sent_to": sent_count, "user_count": sent_count, "message": "Broadcast envoyé"}
+
+
+async def _push_broadcast_realtime(company_ids: list[int], title: str, message: str, msg_type: str) -> None:
+    """Pousse le broadcast en temps réel via le ConnectionManager des notifications."""
+    from app.api.routes import notifier
+    # `business_alert` + `severity` est le format que les clients web mappent en
+    # ton (critical→error, warning→warning, info→info).
+    severity = msg_type if msg_type in {"critical", "warning", "info"} else "info"
+    for cid in company_ids:
+        try:
+            await notifier.broadcast(cid, {
+                "type": "business_alert", "severity": severity,
+                "title": title, "detail": message, "count": 1,
+                "source": "broadcast",
+            })
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────

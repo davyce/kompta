@@ -392,6 +392,15 @@ struct AppNotification: Identifiable {
     }
 }
 
+/// Diffusion admin persistée (GET /notifications).
+struct BroadcastNotification: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let message: String
+    let type: String        // info | warning | critical
+    let created_at: String?
+}
+
 // MARK: - AI Chat (Limule)
 
 struct ChatMessage: Identifiable {

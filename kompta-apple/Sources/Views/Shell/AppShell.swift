@@ -193,6 +193,19 @@ final class NotificationManager: ObservableObject {
         isLoading = true
         var collected: [AppNotification] = []
 
+        // Diffusions admin (broadcasts) — affichées en tête.
+        if let broadcasts = try? await APIClient.shared.broadcastNotifications() {
+            for b in broadcasts.prefix(10) {
+                let tint: String = b.type == "critical" ? "red" : (b.type == "warning" ? "orange" : "blue")
+                let icon: String = b.type == "critical" ? "exclamationmark.octagon.fill"
+                    : (b.type == "warning" ? "exclamationmark.triangle.fill" : "megaphone.fill")
+                collected.append(AppNotification(
+                    title: b.title, subtitle: b.message,
+                    icon: icon, tint: tint, moduleId: "dashboard"
+                ))
+            }
+        }
+
         // Invoices — unpaid / overdue
         if let invoices = try? await APIClient.shared.invoices() {
             for inv in invoices.filter({ $0.status == "sent" || $0.status == "overdue" }).prefix(5) {

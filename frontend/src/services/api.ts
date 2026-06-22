@@ -1270,6 +1270,12 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  /** Diffusions admin persistées visibles par l'utilisateur courant (in-app). */
+  notifications: () =>
+    request<Array<{ id: number; title: string; message: string; type: string; created_at: string | null }>>(
+      "/notifications"
+    ),
+
   /* ── Admin System Flags ───────────────────────────────────────────── */
   adminSystemFlags: () =>
     request<Array<{ id: number; key: string; description: string; value: string; enabled: boolean }>>(
