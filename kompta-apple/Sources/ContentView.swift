@@ -8,6 +8,15 @@ struct ContentView: View {
 
     private var appearance: AppAppearance { AppAppearance(rawValue: appearanceRaw) ?? .system }
 
+    /// Apparence effective. Les écrans pré-connexion (connexion, inscription,
+    /// activation, splash) ont des surfaces blanches codées en dur : on les force
+    /// en clair pour éviter le texte clair sur fond blanc en mode sombre. Le
+    /// réglage de thème de l'utilisateur ne s'applique qu'une fois connecté.
+    private var effectiveScheme: ColorScheme? {
+        let signedIn = auth.state == .authenticated && auth.currentUser?.must_change_password != true
+        return signedIn ? appearance.colorScheme : .light
+    }
+
     var body: some View {
         // Observing `currency.code` here re-renders the whole tree when the user
         // switches display currency, so every `fcfa(...)` refreshes immediately.
@@ -42,10 +51,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: auth.state == .authenticated)
-        // Apparence pilotée par le réglage utilisateur (Système / Clair / Sombre).
-        // Les surfaces de l'app utilisent des matériaux adaptatifs (.ultraThinMaterial,
-        // couleurs sémantiques) : le mode sombre est donc rendu correctement.
-        .preferredColorScheme(appearance.colorScheme)
+        // Apparence pilotée par le réglage utilisateur (Système / Clair / Sombre)
+        // une fois connecté ; clair forcé sur les écrans pré-connexion.
+        .preferredColorScheme(effectiveScheme)
         .installKeyboardDismiss()
     }
 }
