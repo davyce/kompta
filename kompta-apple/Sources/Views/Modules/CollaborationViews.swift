@@ -12,36 +12,55 @@ private let taskColumns: [(key: String, title: String)] = [
     ("todo", "À faire"), ("in_progress", "En cours"), ("done", "Terminé"),
 ]
 
+private func taskAccent(_ key: String) -> Color {
+    switch key {
+    case "todo":        return .orange
+    case "in_progress": return .blue
+    default:            return .green
+    }
+}
+
+/// Surface de carte adaptative (claire en mode clair, sombre en mode sombre) —
+/// remplace le blanc codé en dur qui cassait en thème sombre.
+private extension Color {
+    static var taskCardSurface: Color {
+        #if os(iOS)
+        Color(.secondarySystemGroupedBackground)
+        #elseif os(macOS)
+        Color(nsColor: .controlBackgroundColor)
+        #else
+        Color.white
+        #endif
+    }
+}
+
 struct TasksKanbanView: View {
     @EnvironmentObject private var theme: CompanyTheme
     @StateObject private var state = Loadable<[KTask]>()
     @State private var showNew = false
+    @State private var selectedStatus = "todo"
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var hSize
+    #endif
+
+    /// Kanban horizontal en colonnes sur écran large (iPad / macOS) ; sur iPhone
+    /// (largeur compacte) on bascule sur un sélecteur de statut + liste verticale
+    /// pleine largeur — plus lisible et sans scroll horizontal.
+    private var useKanban: Bool {
+        #if os(macOS)
+        return true
+        #else
+        return hSize == .regular
+        #endif
+    }
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune tâche", emptyIcon: "checklist",
                   reload: load) { tasks in
-            // Une ScrollView horizontale est gourmande sur les DEUX axes : elle
-            // remplit toute la hauteur et centre verticalement son contenu plus
-            // court (d'où le gros vide en haut). `.fixedSize(vertical:)` la force
-            // à épouser la hauteur des colonnes ; la ScrollView verticale externe
-            // ancre le contenu en haut et gère le débordement si une colonne est
-            // très longue.
-            ScrollView(.vertical, showsIndicators: false) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 14) {
-                        ForEach(taskColumns, id: \.key) { col in
-                            KanbanColumn(
-                                columnKey: col.key,
-                                title: col.title,
-                                tasks: tasks.filter { $0.status == col.key }.sorted { $0.order_index < $1.order_index },
-                                onAdvance: { task in Task { await advance(task) } },
-                                onDelete: { task in Task { await remove(task) } }
-                            )
-                        }
-                    }
-                    .padding(16)
-                }
-                .fixedSize(horizontal: false, vertical: true)
+            if useKanban {
+                kanbanLayout(tasks)
+            } else {
+                listLayout(tasks)
             }
         }
         .navigationTitle("Tâches")
@@ -51,6 +70,69 @@ struct TasksKanbanView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showNew) { TaskFormView { await load() } }
+    }
+
+    // MARK: iPad / macOS — kanban horizontal en colonnes
+    @ViewBuilder
+    private func kanbanLayout(_ tasks: [KTask]) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 14) {
+                    ForEach(taskColumns, id: \.key) { col in
+                        KanbanColumn(
+                            columnKey: col.key,
+                            title: col.title,
+                            tasks: sorted(tasks, col.key),
+                            onAdvance: { task in Task { await advance(task) } },
+                            onDelete: { task in Task { await remove(task) } }
+                        )
+                    }
+                }
+                .padding(16)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: iPhone — sélecteur de statut + liste verticale pleine largeur
+    @ViewBuilder
+    private func listLayout(_ tasks: [KTask]) -> some View {
+        let current = sorted(tasks, selectedStatus)
+        VStack(spacing: 0) {
+            StatusSwitcher(
+                selected: $selectedStatus,
+                counts: Dictionary(uniqueKeysWithValues: taskColumns.map { col in (col.key, tasks.filter { $0.status == col.key }.count) })
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+
+            if current.isEmpty {
+                Spacer(minLength: 0)
+                VStack(spacing: 8) {
+                    Image(systemName: "tray").font(.largeTitle).foregroundStyle(.tertiary)
+                    Text("Aucune tâche ici").font(.subheadline).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 12) {
+                        ForEach(current) { task in
+                            TaskKanbanCard(task: task, accent: taskAccent(task.status),
+                                           onAdvance: { Task { await advance(task) } },
+                                           onDelete: { Task { await remove(task) } })
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.easeInOut(duration: 0.2), value: selectedStatus)
+    }
+
+    private func sorted(_ tasks: [KTask], _ key: String) -> [KTask] {
+        tasks.filter { $0.status == key }.sorted { $0.order_index < $1.order_index }
     }
 
     private func load() async { await state.load { try await APIClient.shared.tasks() } }
@@ -66,6 +148,42 @@ struct TasksKanbanView: View {
     private func remove(_ task: KTask) async {
         try? await APIClient.shared.deleteTask(task.id)
         await load()
+    }
+}
+
+/// Sélecteur de statut (iPhone) : pastille colorée + libellé + compteur, le
+/// segment actif teinté de sa couleur. Défilable horizontalement par sécurité.
+private struct StatusSwitcher: View {
+    @Binding var selected: String
+    let counts: [String: Int]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(taskColumns, id: \.key) { col in
+                    let isOn = selected == col.key
+                    let accent = taskAccent(col.key)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { selected = col.key }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Circle().fill(accent).frame(width: 8, height: 8)
+                            Text(col.title).font(.subheadline.weight(.semibold))
+                            Text("\(counts[col.key] ?? 0)")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 6).padding(.vertical, 1)
+                                .background((isOn ? accent : Color.secondary).opacity(0.18), in: Capsule())
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .background(isOn ? accent.opacity(0.15) : Color.secondary.opacity(0.08), in: Capsule())
+                        .foregroundStyle(isOn ? accent : .secondary)
+                        .overlay(Capsule().strokeBorder(isOn ? accent.opacity(0.4) : .clear, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
     }
 }
 
@@ -171,10 +289,10 @@ private struct TaskKanbanCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.taskCardSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 2)
