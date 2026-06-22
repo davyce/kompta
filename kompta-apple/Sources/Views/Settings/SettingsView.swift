@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var theme: CompanyTheme
 
     @AppStorage("api_base_url") private var apiURL = "https://kompta0.com/api"
+    @AppStorage("appAppearance") private var appearanceRaw = AppAppearance.system.rawValue
     @AppStorage("notif_invoices")     private var notifInvoices    = true
     @AppStorage("notif_meetings")     private var notifMeetings     = true
     @AppStorage("notif_transactions") private var notifTransactions = true
@@ -101,8 +102,13 @@ struct SettingsView: View {
 
             // Appearance
             Section("Apparence") {
-                // Le sélecteur clair/sombre est retiré tant que le thème sombre
-                // n'est pas entièrement adapté (l'app est verrouillée en clair).
+                Picker(selection: $appearanceRaw) {
+                    ForEach(AppAppearance.allCases, id: \.rawValue) { mode in
+                        Label(mode.label, systemImage: mode.icon).tag(mode.rawValue)
+                    }
+                } label: {
+                    Label("Thème", systemImage: "circle.lefthalf.filled")
+                }
                 Toggle(isOn: $theme.useLiquidGlass) {
                     Label("Liquid Glass (iOS 26+)", systemImage: "sparkles")
                 }
