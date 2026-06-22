@@ -739,6 +739,25 @@ actor APIClient {
         try await uploadMultipart("/transactions/import", fileField: "file", fileData: data, fileName: fileName, mime: "text/csv")
     }
 
+    /// Import / transcription IA de transactions depuis n'importe quel fichier
+    /// (PDF, Excel, CSV, image). Le type MIME est déduit de l'extension ; le
+    /// backend extrait le texte puis fait extraire les transactions par Limule.
+    func importTransactionsFile(_ data: Data, fileName: String) async throws -> CsvImportResult {
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        let mime: String
+        switch ext {
+        case "pdf":              mime = "application/pdf"
+        case "xlsx", "xlsm":     mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        case "xls":              mime = "application/vnd.ms-excel"
+        case "csv":              mime = "text/csv"
+        case "png":              mime = "image/png"
+        case "jpg", "jpeg":      mime = "image/jpeg"
+        case "txt":              mime = "text/plain"
+        default:                 mime = "application/octet-stream"
+        }
+        return try await uploadMultipart("/transactions/import", fileField: "file", fileData: data, fileName: fileName, mime: mime)
+    }
+
     // MARK: - Sécurité : 2FA (TOTP)
 
     func twoFaSetup() async throws -> TotpSetup { try await actionDecoded("/auth/2fa/setup") }

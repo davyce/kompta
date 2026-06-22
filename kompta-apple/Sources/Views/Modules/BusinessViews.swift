@@ -1215,7 +1215,15 @@ struct TransactionsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
             ToolbarItem(placement: .secondaryAction) {
-                CsvImportButton(title: "Importer CSV", importer: { d, n in try await APIClient.shared.importTransactionsCsv(d, fileName: n) }, onDone: { await load() })
+                // Transcription IA : accepte PDF, Excel, CSV, image (relevé banque/MoMo)
+                // → Limule extrait les transactions et les ajoute au flux.
+                CsvImportButton(
+                    title: "Transcrire un relevé",
+                    importer: { d, n in try await APIClient.shared.importTransactionsFile(d, fileName: n) },
+                    onDone: { await load() },
+                    allowedTypes: [.pdf, .spreadsheet, .commaSeparatedText, .plainText, .png, .jpeg, .image],
+                    icon: "doc.text.viewfinder"
+                )
             }
         }
         .task { await load() }
