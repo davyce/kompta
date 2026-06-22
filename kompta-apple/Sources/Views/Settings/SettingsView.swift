@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("appAppearance") private var appearanceRaw = AppAppearance.system.rawValue
     @AppStorage("kompta_setup_dismissed") private var setupDismissed = false
     @AppStorage("kompta_force_setup") private var forceSetup = false
+    @AppStorage("kompta_force_tour") private var forceTour = false
     @AppStorage("notif_invoices")     private var notifInvoices    = true
     @AppStorage("notif_meetings")     private var notifMeetings     = true
     @AppStorage("notif_transactions") private var notifTransactions = true
@@ -163,8 +164,12 @@ struct SettingsView: View {
                 }
             }
 
-            if auth.currentUser?.role == "admin_entreprise" {
-                Section("Configuration") {
+            Section("Aide & visite") {
+                Button { forceTour = true } label: {
+                    Label("Revoir la visite guidée", systemImage: "sparkles")
+                }
+                .help("Relancer la présentation des fonctions de KOMPTA.")
+                if auth.currentUser?.role == "admin_entreprise" {
                     Button {
                         setupDismissed = false
                         forceSetup = true

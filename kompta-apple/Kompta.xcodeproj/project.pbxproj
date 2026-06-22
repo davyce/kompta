@@ -65,6 +65,7 @@
 		9F80F01B7F0CC00827BEA799 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
 		A199839B982B5DBE9E385762 /* DownloadButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868253779BC26B47B67C3BB2 /* DownloadButton.swift */; };
 		A2847907D197B5B9A9F116B8 /* GroupsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944E74E3BA6A099DB14D1B97 /* GroupsViews.swift */; };
+		A47047E9B448D767BE246B51 /* FeatureTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6D6CE31D2190E2B95D1BD5 /* FeatureTour.swift */; };
 		A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
 		A9FF4B865BCEC12CCD2ECFCF /* limule-avatar-40.png in Resources */ = {isa = PBXBuildFile; fileRef = B665A2C05922DA21F70C8953 /* limule-avatar-40.png */; };
 		ACBC4644AA007A79B73C3D45 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F612F06D2735D2A6A4A02E /* SettingsView.swift */; };
@@ -86,6 +87,7 @@
 		D560DD8805248AB11CEABF3F /* CompanySetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9471E40EB42F94905659F795 /* CompanySetupWizard.swift */; };
 		D606845A08D8434128782415 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
 		D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
+		D84D42B5F38E53D61EBA26D2 /* FeatureTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6D6CE31D2190E2B95D1BD5 /* FeatureTour.swift */; };
 		D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
 		D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
 		DBA190C6E3B8D0AC62EDA501 /* SecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */; };
@@ -107,6 +109,7 @@
 		028679E157A10132898A78BE /* HRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRView.swift; sourceTree = "<group>"; };
 		05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentsView.swift; sourceTree = "<group>"; };
 		09F7EC48B1C0BA411551319A /* AppShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShell.swift; sourceTree = "<group>"; };
+		0D6D6CE31D2190E2B95D1BD5 /* FeatureTour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureTour.swift; sourceTree = "<group>"; };
 		0E286CB16FEF4524A71D9C0A /* GroupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupModels.swift; sourceTree = "<group>"; };
 		0FB8BC953013C1FAE6ADA929 /* POSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = POSView.swift; sourceTree = "<group>"; };
 		1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
@@ -199,6 +202,7 @@
 			isa = PBXGroup;
 			children = (
 				9471E40EB42F94905659F795 /* CompanySetupWizard.swift */,
+				0D6D6CE31D2190E2B95D1BD5 /* FeatureTour.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -492,6 +496,7 @@
 				A199839B982B5DBE9E385762 /* DownloadButton.swift in Sources */,
 				3C9CE01B307A7E2DE47846C1 /* EnterpriseViews.swift in Sources */,
 				CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */,
+				A47047E9B448D767BE246B51 /* FeatureTour.swift in Sources */,
 				A9D41BCBB5454EF8A3E9319B /* FinanceCharts.swift in Sources */,
 				53E6594B60C88FFFBF3638F6 /* FinanceViews.swift in Sources */,
 				62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */,
@@ -543,6 +548,7 @@
 				5C81A14C0B020F97A7380BE8 /* DownloadButton.swift in Sources */,
 				C231FF7716DCAB0BDE73374B /* EnterpriseViews.swift in Sources */,
 				8F7CC4843217C21CDFFD3D1E /* EntitlementsManager.swift in Sources */,
+				D84D42B5F38E53D61EBA26D2 /* FeatureTour.swift in Sources */,
 				5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */,
 				1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */,
 				D94D1D5253F0A30862836C28 /* GlassComponents.swift in Sources */,

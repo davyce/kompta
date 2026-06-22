@@ -7,17 +7,34 @@ struct AppShell: View {
 
     @AppStorage("kompta_setup_dismissed") private var setupDismissed = false
     @AppStorage("kompta_force_setup") private var forceSetup = false
+    @AppStorage("kompta_tour_done") private var tourDone = false
+    @AppStorage("kompta_force_tour") private var forceTour = false
     @State private var showSetup = false
+    @State private var showTour = false
 
     var body: some View {
         shell
-            .task { evaluateSetup() }
-            .onChange(of: forceSetup) { _, forced in if forced { showSetup = true } }
+            .task { evaluateOnboarding() }
+            .onChange(of: forceSetup) { _, forced in if forced { showTour = false; showSetup = true } }
+            .onChange(of: forceTour) { _, forced in if forced { showTour = true } }
             #if os(iOS)
+            .fullScreenCover(isPresented: $showTour) { tourView }
             .fullScreenCover(isPresented: $showSetup) { setupWizard }
             #else
+            .sheet(isPresented: $showTour) { tourView.frame(minWidth: 520, minHeight: 600) }
             .sheet(isPresented: $showSetup) { setupWizard.frame(minWidth: 520, minHeight: 620) }
             #endif
+    }
+
+    private var tourView: some View {
+        FeatureTour {
+            showTour = false
+            tourDone = true
+            forceTour = false
+            // Enchaîne sur l'assistant de configuration si le profil est incomplet.
+            evaluateSetup()
+        }
+        .environmentObject(theme)
     }
 
     @ViewBuilder private var shell: some View {
@@ -41,6 +58,14 @@ struct AppShell: View {
             forceSetup = false
         }
         .environmentObject(theme)
+    }
+
+    /// À la 1re connexion : la visite guidée d'abord (tous les utilisateurs),
+    /// puis l'assistant de configuration (admin au profil incomplet).
+    private func evaluateOnboarding() {
+        if forceTour { showTour = true; return }
+        if !tourDone { showTour = true; return }
+        evaluateSetup()
     }
 
     /// Lance l'assistant de configuration à la 1re connexion d'un admin
