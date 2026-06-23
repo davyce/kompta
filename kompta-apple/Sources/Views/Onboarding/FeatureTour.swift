@@ -13,6 +13,7 @@ private struct TourCard: Identifiable {
     let tint: Color
     let title: String
     let body: String
+    var isLimule = false
 }
 
 private let tourCards: [TourCard] = [
@@ -45,7 +46,7 @@ private let tourCards: [TourCard] = [
     .init(icon: "shield.checkered", tint: .red, title: "Intelligence TERAS",
           body: "Un score de santé de votre entreprise, des alertes et des recommandations concrètes."),
     .init(icon: "sparkles", tint: KomptaBrand.limuleBlue, title: "Limule, votre Grand Sage IA",
-          body: "Posez vos questions sur vos ventes, stocks, employés ou finances : Limule analyse vos données et vous répond."),
+          body: "Posez vos questions sur vos ventes, stocks, employés ou finances : Limule analyse vos données et vous répond.", isLimule: true),
     .init(icon: "gearshape.fill", tint: .secondary, title: "Tout est paramétrable",
           body: "Thème clair/sombre, devise, rôles & accès, méthodes d'encaissement, profil entreprise… le tout dans Réglages. Bonne route avec KOMPTA !"),
 ]
@@ -73,10 +74,14 @@ struct FeatureTour: View {
             VStack(spacing: 22) {
                 ZStack {
                     Circle().fill(card.tint.opacity(0.15)).frame(width: 132, height: 132)
-                    Image(systemName: card.icon)
-                        .font(.system(size: 54))
-                        .foregroundStyle(card.tint)
-                        .symbolRenderingMode(.hierarchical)
+                    if card.isLimule {
+                        LimuleMark(size: 76, showAura: false)
+                    } else {
+                        Image(systemName: card.icon)
+                            .font(.system(size: 54))
+                            .foregroundStyle(card.tint)
+                            .symbolRenderingMode(.hierarchical)
+                    }
                 }
                 .transition(.scale.combined(with: .opacity))
                 .id(card.id)

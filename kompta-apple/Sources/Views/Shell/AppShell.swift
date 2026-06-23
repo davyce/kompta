@@ -9,32 +9,33 @@ struct AppShell: View {
     @AppStorage("kompta_force_setup") private var forceSetup = false
     @AppStorage("kompta_tour_done") private var tourDone = false
     @AppStorage("kompta_force_tour") private var forceTour = false
-    @State private var showSetup = false
-    @State private var showTour = false
+
+    /// Étape d'onboarding présentée. UN SEUL cover/sheet pilote l'affichage :
+    /// empiler deux `.fullScreenCover` sur la même vue provoquait un écran noir
+    /// figé lors du passage tour → assistant et à la réouverture.
+    private enum OnboardingStage: Int, Identifiable { case tour, setup; var id: Int { rawValue } }
+    @State private var stage: OnboardingStage?
 
     var body: some View {
         shell
             .task { evaluateOnboarding() }
-            .onChange(of: forceSetup) { _, forced in if forced { showTour = false; showSetup = true } }
-            .onChange(of: forceTour) { _, forced in if forced { showTour = true } }
+            .onChange(of: forceSetup) { _, forced in if forced { presentSetup() } }
+            .onChange(of: forceTour) { _, forced in if forced { stage = .tour } }
             #if os(iOS)
-            .fullScreenCover(isPresented: $showTour) { tourView }
-            .fullScreenCover(isPresented: $showSetup) { setupWizard }
+            .fullScreenCover(item: $stage) { stageView($0) }
             #else
-            .sheet(isPresented: $showTour) { tourView.frame(minWidth: 520, minHeight: 600) }
-            .sheet(isPresented: $showSetup) { setupWizard.frame(minWidth: 520, minHeight: 620) }
+            .sheet(item: $stage) { stageView($0).frame(minWidth: 520, minHeight: 620) }
             #endif
     }
 
-    private var tourView: some View {
-        FeatureTour {
-            showTour = false
-            tourDone = true
-            forceTour = false
-            // Enchaîne sur l'assistant de configuration si le profil est incomplet.
-            evaluateSetup()
+    @ViewBuilder
+    private func stageView(_ s: OnboardingStage) -> some View {
+        switch s {
+        case .tour:
+            FeatureTour { finishTour() }.environmentObject(theme)
+        case .setup:
+            CompanySetupWizard { finishSetup() }.environmentObject(theme)
         }
-        .environmentObject(theme)
     }
 
     @ViewBuilder private var shell: some View {
@@ -51,31 +52,43 @@ struct AppShell: View {
         #endif
     }
 
-    private var setupWizard: some View {
-        CompanySetupWizard {
-            showSetup = false
-            setupDismissed = true
-            forceSetup = false
-        }
-        .environmentObject(theme)
-    }
-
     /// À la 1re connexion : la visite guidée d'abord (tous les utilisateurs),
     /// puis l'assistant de configuration (admin au profil incomplet).
     private func evaluateOnboarding() {
-        if forceTour { showTour = true; return }
-        if !tourDone { showTour = true; return }
-        evaluateSetup()
+        guard stage == nil else { return }
+        if forceTour { stage = .tour; return }
+        if forceSetup { stage = .setup; return }
+        if !tourDone { stage = .tour; return }
+        if shouldShowSetup() { stage = .setup }
     }
 
-    /// Lance l'assistant de configuration à la 1re connexion d'un admin
-    /// d'entreprise au profil incomplet (ou sur relance manuelle), une fois.
-    private func evaluateSetup() {
-        guard auth.currentUser?.role == "admin_entreprise" else { return }
-        if forceSetup { showSetup = true; return }
-        guard !setupDismissed else { return }
-        let score = auth.company?.completion_score ?? 100
-        if score < 100 { showSetup = true }
+    private func finishTour() {
+        tourDone = true
+        forceTour = false
+        stage = nil
+        // Enchaîne proprement sur l'assistant APRÈS la fermeture du tour
+        // (un seul cover à la fois : on attend la fin de l'animation de dismiss).
+        guard shouldShowSetup() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { stage = .setup }
+    }
+
+    private func finishSetup() {
+        setupDismissed = true
+        forceSetup = false
+        stage = nil
+    }
+
+    private func presentSetup() {
+        stage = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { stage = .setup }
+    }
+
+    /// L'assistant ne s'affiche que pour un admin d'entreprise au profil incomplet
+    /// et non encore reporté.
+    private func shouldShowSetup() -> Bool {
+        guard auth.currentUser?.role == "admin_entreprise" else { return false }
+        guard !setupDismissed else { return false }
+        return (auth.company?.completion_score ?? 100) < 100
     }
 
     // MARK: - iOS: TabView
