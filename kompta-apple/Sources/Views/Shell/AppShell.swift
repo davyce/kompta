@@ -108,7 +108,13 @@ struct AppShell: View {
                     Label {
                         Text("Limule")
                     } icon: {
-                        Image("LimuleAvatar").renderingMode(.original)
+                        // Imageset dédié, dimensionné pour la barre d'onglets
+                        // (net et à la même taille optique que les autres icônes).
+                        Image("LimuleTab")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 22, height: 22)
                     }
                 }
 
