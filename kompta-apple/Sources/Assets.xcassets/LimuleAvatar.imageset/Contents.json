@@ -1,15 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "limule-avatar-40.png",
+      "filename" : "limule-avatar-64.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
+      "filename" : "limule-avatar-128.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
+      "filename" : "limule-avatar-256.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
