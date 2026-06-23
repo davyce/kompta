@@ -298,6 +298,26 @@ private struct ProductFormSheet: View {
     @State private var reorder: String
     @State private var saving = false
     @State private var errorMsg: String?
+    /// Dernier SKU généré automatiquement : tant que l'utilisateur ne l'a pas
+    /// modifié manuellement, on le régénère quand le nom/la catégorie changent.
+    @State private var lastAutoSKU = ""
+
+    private var isNew: Bool { product == nil }
+
+    /// Construit un SKU à partir des infos saisies : CAT-NOM-#### (alphanum).
+    private func makeSKU() -> String {
+        let cat = String(category.uppercased().filter(\.isLetter).prefix(3))
+        let nm  = String(name.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(4))
+        let suffix = String(format: "%04d", Int.random(in: 0...9999))
+        return [cat, nm, suffix].filter { !$0.isEmpty }.joined(separator: "-")
+    }
+
+    /// Régénère le SKU si l'utilisateur ne l'a pas saisi manuellement.
+    private func autoSKU() {
+        guard isNew, sku.isEmpty || sku == lastAutoSKU else { return }
+        let s = makeSKU()
+        sku = s; lastAutoSKU = s
+    }
 
     init(product: Product?, onSaved: @escaping () async -> Void) {
         self.product = product; self.onSaved = onSaved
@@ -316,8 +336,23 @@ private struct ProductFormSheet: View {
             Form {
                 Section("Identité") {
                     TextField("Nom *", text: $name)
-                    TextField("SKU *", text: $sku)
+                        .onChange(of: name) { _, _ in autoSKU() }
+                    HStack {
+                        TextField("SKU *", text: $sku)
+                            #if os(iOS)
+                            .autocapitalization(.allCharacters)
+                            #endif
+                            .autocorrectionDisabled()
+                        if isNew {
+                            Button { let s = makeSKU(); sku = s; lastAutoSKU = s } label: {
+                                Image(systemName: "wand.and.stars")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Générer un SKU à partir du nom et de la catégorie")
+                        }
+                    }
                     TextField("Catégorie", text: $category)
+                        .onChange(of: category) { _, _ in autoSKU() }
                 }
                 Section("Détails") {
                     TextField("Marque", text: $brand)

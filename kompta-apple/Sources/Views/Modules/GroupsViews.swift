@@ -1136,20 +1136,47 @@ struct GroupVoteFormView: View {
     let onSaved: () async -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
-    @State private var optionsText = ""
+    @State private var description = ""
+    @State private var options: [String] = ["", ""]
     @State private var start = Date()
     @State private var end = Date().addingTimeInterval(86400 * 3)
     @State private var saving = false
+    @State private var errorMsg: String?
+
+    private var cleanOptions: [String] {
+        options.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+    private var canCreate: Bool { !title.trimmingCharacters(in: .whitespaces).isEmpty && cleanOptions.count >= 2 && !saving }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Vote") {
-                    TextField("Titre *", text: $title)
-                    TextField("Options (séparées par virgule) *", text: $optionsText)
+                Section("Question") {
+                    TextField("Titre du vote *", text: $title)
+                    TextField("Description (optionnel)", text: $description, axis: .vertical)
+                        .lineLimit(1...4)
+                }
+                Section {
+                    ForEach(options.indices, id: \.self) { i in
+                        HStack {
+                            Image(systemName: "\(min(i + 1, 50)).circle").foregroundStyle(.secondary)
+                            TextField("Choix \(i + 1)", text: $options[i])
+                            if options.count > 2 {
+                                Button { options.remove(at: i) } label: { Image(systemName: "minus.circle.fill").foregroundStyle(.red) }
+                                    .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                    Button { options.append("") } label: { Label("Ajouter un choix", systemImage: "plus.circle.fill") }
+                        .disabled(options.count >= 10)
+                } header: {
+                    Text("Choix (\(cleanOptions.count)) — au moins 2")
+                }
+                Section("Période") {
                     DatePicker("Début", selection: $start)
                     DatePicker("Fin", selection: $end)
                 }
+                if let errorMsg { Section { Text(errorMsg).foregroundStyle(.red).font(.caption) } }
             }
             .navigationTitle("Nouveau vote")
             #if os(iOS)
@@ -1158,22 +1185,25 @@ struct GroupVoteFormView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") { Task { await save() } }.disabled(title.isEmpty || optionsText.isEmpty || saving)
+                    Button("Créer") { Task { await save() } }.disabled(!canCreate)
                 }
             }
         }
     }
 
     private func save() async {
-        let opts = optionsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        guard !opts.isEmpty else { return }
-        saving = true
+        let opts = cleanOptions
+        guard opts.count >= 2 else { errorMsg = "Ajoutez au moins 2 choix."; return }
+        saving = true; defer { saving = false }
         let f = ISO8601DateFormatter()
         do {
-            _ = try await APIClient.shared.createGroupVote(group.id, GroupVotePayload(title: title, options: opts, start_datetime: f.string(from: start), end_datetime: f.string(from: end)))
+            _ = try await APIClient.shared.createGroupVote(group.id, GroupVotePayload(
+                title: title, description: description, options: opts,
+                start_datetime: f.string(from: start), end_datetime: f.string(from: end)))
             await onSaved(); dismiss()
-        } catch { }
-        saving = false
+        } catch {
+            errorMsg = error.localizedDescription
+        }
     }
 }
 

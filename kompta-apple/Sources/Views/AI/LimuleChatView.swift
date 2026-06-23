@@ -10,6 +10,7 @@ struct LimuleChatView: View {
     @State private var isWaiting = false
     @State private var isLoadingHistory = false
     @State private var toast: String?
+    @State private var showHistory = false
     @FocusState private var focused: Bool
     @Namespace private var scroll
 
@@ -94,15 +95,23 @@ struct LimuleChatView: View {
         #endif
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button { Task { await loadHistory(force: true) } } label: {
-                    Label("Historique", systemImage: isLoadingHistory ? "hourglass" : "clock.arrow.circlepath")
+                Button { showHistory = true } label: {
+                    Label("Historique", systemImage: "clock.arrow.circlepath")
                 }
-                .disabled(isLoadingHistory)
-                .help("Recharger l'historique des conversations")
+                .help("Parcourir l'historique de vos échanges")
                 Button { withAnimation { messages = [welcome]; input = "" } } label: {
                     Label("Nouvelle conversation", systemImage: "square.and.pencil")
                 }
                 .help("Démarrer une nouvelle conversation")
+            }
+        }
+        .sheet(isPresented: $showHistory) {
+            LimuleHistorySheet { item in
+                // Reprend l'échange sélectionné dans le fil courant.
+                messages.append(ChatMessage(role: "user", content: item.prompt))
+                messages.append(ChatMessage(role: "assistant", content: item.response,
+                                            apiId: item.id, module: item.module, intent: item.intent,
+                                            sources: item.sources, signals: item.signals))
             }
         }
     }
@@ -301,5 +310,77 @@ struct TypingBubble: View {
             Spacer()
         }
         .onAppear { beat = true }
+    }
+}
+
+// MARK: - Historique Limule (navigateur d'échanges passés)
+
+struct LimuleHistorySheet: View {
+    let onPick: (LimuleHistoryItem) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+    @State private var items: [LimuleHistoryItem] = []
+    @State private var loading = true
+    @State private var expanded: Set<Int> = []
+    @State private var query = ""
+
+    private var filtered: [LimuleHistoryItem] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return items }
+        return items.filter { $0.prompt.lowercased().contains(q) || $0.response.lowercased().contains(q) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if loading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if items.isEmpty {
+                    ContentUnavailableView("Aucun échange", systemImage: "clock.arrow.circlepath",
+                                           description: Text("Vos questions à Limule apparaîtront ici."))
+                } else {
+                    List {
+                        ForEach(filtered) { item in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    LimuleMark(size: 16, showAura: false)
+                                    Text(item.prompt).font(.subheadline.weight(.semibold)).lineLimit(expanded.contains(item.id) ? nil : 2)
+                                    Spacer(minLength: 0)
+                                }
+                                if let d = item.created_at { Text(shortDate(d)).font(.caption2).foregroundStyle(.tertiary) }
+                                if expanded.contains(item.id) {
+                                    AIMarkdownText(text: item.response, accent: theme.primary)
+                                        .font(.callout)
+                                    Button {
+                                        onPick(item); dismiss()
+                                    } label: { Label("Reprendre dans le chat", systemImage: "arrowshape.turn.up.left") }
+                                        .font(.caption.bold()).buttonStyle(.borderless).padding(.top, 2)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation {
+                                    if expanded.contains(item.id) { expanded.remove(item.id) } else { expanded.insert(item.id) }
+                                }
+                            }
+                        }
+                    }
+                    #if os(iOS)
+                    .listStyle(.insetGrouped)
+                    #endif
+                    .searchable(text: $query, prompt: "Rechercher dans l'historique")
+                }
+            }
+            .navigationTitle("Historique Limule")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
+            .task {
+                items = (try? await APIClient.shared.limuleHistory(limit: 60)) ?? []
+                loading = false
+            }
+        }
     }
 }
