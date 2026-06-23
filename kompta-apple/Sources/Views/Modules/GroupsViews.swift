@@ -1183,6 +1183,7 @@ struct GroupLeadershipView: View {
     let group: OrgGroup
     @StateObject private var state = Loadable<GroupLeadershipResponse>()
     @StateObject private var members = Loadable<[GroupMember]>()
+    @State private var showEdit = false
 
     private func name(for id: Int?) -> String {
         guard let id, let m = members.value?.first(where: { $0.id == id }) else { return "—" }
@@ -1228,11 +1229,91 @@ struct GroupLeadershipView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showEdit = true } label: { Label("Modifier le bureau", systemImage: "person.2.badge.gearshape") }
+                    .disabled((members.value?.isEmpty ?? true))
+            }
+        }
         .task {
             await members.load { try await APIClient.shared.groupMembers(group.id) }
             await state.load { try await APIClient.shared.groupLeadership(group.id) }
         }
         .refreshable { await state.load { try await APIClient.shared.groupLeadership(group.id) } }
+        .sheet(isPresented: $showEdit) {
+            LeadershipEditView(group: group, members: members.value ?? [], current: state.value?.current) {
+                await state.load { try await APIClient.shared.groupLeadership(group.id) }
+            }
+        }
+    }
+}
+
+/// Édition du bureau : sélection des 4 responsables → POST leadership/change.
+private struct LeadershipEditView: View {
+    let group: OrgGroup
+    let members: [GroupMember]
+    let current: GroupLeadershipEntry?
+    let onSaved: () async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+    @State private var president: Int?
+    @State private var vice: Int?
+    @State private var secretary: Int?
+    @State private var treasurer: Int?
+    @State private var saving = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Bureau") {
+                    memberPicker("Président", selection: $president)
+                    memberPicker("Vice-président", selection: $vice)
+                    memberPicker("Secrétaire", selection: $secretary)
+                    memberPicker("Trésorier", selection: $treasurer)
+                }
+                if let error { Section { Text(error).foregroundStyle(.red).font(.caption) } }
+            }
+            .navigationTitle("Modifier le bureau")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? "…" : "Enregistrer") { Task { await save() } }.disabled(saving)
+                }
+            }
+            .onAppear {
+                president = current?.president_member_id
+                vice = current?.vice_president_member_id
+                secretary = current?.secretary_member_id
+                treasurer = current?.treasurer_member_id
+            }
+        }
+    }
+
+    private func memberPicker(_ label: String, selection: Binding<Int?>) -> some View {
+        Picker(label, selection: selection) {
+            Text("—").tag(Int?.none)
+            ForEach(members) { m in Text(m.full_name).tag(Int?.some(m.id)) }
+        }
+    }
+
+    private func save() async {
+        saving = true; defer { saving = false }
+        let payload = GroupLeadershipPayload(
+            president_member_id: president, vice_president_member_id: vice,
+            secretary_member_id: secretary, treasurer_member_id: treasurer, elected_by: "manuel"
+        )
+        do {
+            try await APIClient.shared.changeGroupLeadership(group.id, payload)
+            await onSaved()
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }
 

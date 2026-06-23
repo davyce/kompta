@@ -429,7 +429,12 @@ actor APIClient {
     func extractTask(text: String, source: String = "ai", project: String = "") async throws -> KTask {
         try await post("/tasks/extract", body: ["text": text, "source": source, "project": project])
     }
-    func updateTask(_ id: Int, _ p: TaskPayload) async throws -> KTask { try await put("/tasks/\(id)", body: p) }
+    func updateTask(_ id: Int, _ p: TaskPayload) async throws -> KTask { try await patch("/tasks/\(id)", body: p) }
+    /// Avancer une tâche : PATCH minimal (statut seul) — autorisé même aux
+    /// non-managers (le backend n'autorise qu'`status`/`order_index` pour eux).
+    func setTaskStatus(_ id: Int, _ status: String) async throws -> KTask {
+        try await patch("/tasks/\(id)", body: ["status": status])
+    }
     func deleteTask(_ id: Int) async throws { try await delete("/tasks/\(id)") }
 
     // MARK: - Chat
@@ -594,11 +599,21 @@ actor APIClient {
     func groupPlans(_ id: Int) async throws -> [ContributionPlan] { try await get("/groups/\(id)/contributions/plans") }
     func createGroupPlan(_ id: Int, _ p: ContributionPlanPayload) async throws -> ContributionPlan { try await post("/groups/\(id)/contributions/plans", body: p) }
 
-    func groupPayments(_ id: Int) async throws -> [ContributionPayment] { try await get("/groups/\(id)/contributions/payments") }
+    func groupPayments(_ id: Int) async throws -> [ContributionPayment] {
+        // Le backend renvoie { items: [...], stats: {...} } — on extrait items.
+        struct Wrapper: Decodable { let items: [ContributionPayment] }
+        let w: Wrapper = try await get("/groups/\(id)/contributions/payments")
+        return w.items
+    }
     func createGroupPayment(_ id: Int, _ p: ContributionPaymentPayload) async throws -> ContributionPayment { try await post("/groups/\(id)/contributions/payments", body: p) }
     func validateGroupPayment(_ id: Int, _ paymentId: Int) async throws { try await send("/groups/\(id)/contributions/payments/\(paymentId)/validate", body: ["validate": true]) }
 
-    func groupTransactions(_ id: Int) async throws -> [GroupTransaction] { try await get("/groups/\(id)/transactions") }
+    func groupTransactions(_ id: Int) async throws -> [GroupTransaction] {
+        // Le backend renvoie { balance, total_in, total_out, items: [...] }.
+        struct Wrapper: Decodable { let items: [GroupTransaction] }
+        let w: Wrapper = try await get("/groups/\(id)/transactions")
+        return w.items
+    }
 
     func groupExpenses(_ id: Int) async throws -> [GroupExpense] { try await get("/groups/\(id)/expenses") }
     func createGroupExpense(_ id: Int, _ p: GroupExpensePayload) async throws -> GroupExpense { try await post("/groups/\(id)/expenses", body: p) }

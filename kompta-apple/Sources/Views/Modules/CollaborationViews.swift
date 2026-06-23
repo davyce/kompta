@@ -140,9 +140,8 @@ struct TasksKanbanView: View {
     private func advance(_ task: KTask) async {
         guard let idx = taskColumns.firstIndex(where: { $0.key == task.status }), idx < taskColumns.count - 1 else { return }
         let next = taskColumns[idx + 1].key
-        let payload = TaskPayload(title: task.title, description: task.description, status: next,
-                                   priority: task.priority, due_date: task.due_date, assignee_name: task.assignee_name, project: task.project)
-        _ = try? await APIClient.shared.updateTask(task.id, payload)
+        // PATCH minimal (statut seul) : fonctionne pour tous les profils.
+        _ = try? await APIClient.shared.setTaskStatus(task.id, next)
         await load()
     }
     private func remove(_ task: KTask) async {
