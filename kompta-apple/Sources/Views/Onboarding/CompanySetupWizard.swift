@@ -94,7 +94,6 @@ struct CompanySetupWizard: View {
     @State private var idx = 0
     @State private var draft = CompanyDraft()
     @State private var completion = 0
-    @State private var saving = false
     @State private var showLogoPicker = false
     @State private var logoPicked = false
 
@@ -238,14 +237,13 @@ struct CompanySetupWizard: View {
                 Button { withAnimation { idx -= 1 } } label: { Label("Précédent", systemImage: "chevron.left") }
                     .buttonStyle(.bordered)
             }
-            Button { Task { await next() } } label: {
+            Button { next() } label: {
                 HStack(spacing: 6) {
-                    if saving { ProgressView().controlSize(.small) }
                     Text(isLast ? "Terminer" : "Suivant")
                     if !isLast { Image(systemName: "chevron.right") }
                 }
             }
-            .buttonStyle(.borderedProminent).tint(theme.primary).disabled(saving)
+            .buttonStyle(.borderedProminent).tint(theme.primary)
         }
         .padding(.horizontal, 20).padding(.vertical, 14)
         .background(.regularMaterial)
@@ -269,19 +267,35 @@ struct CompanySetupWizard: View {
         logoPicked = true
     }
 
-    private func next() async {
-        if saving { return }
-        saving = true
-        await persistCurrent()
-        saving = false
-        if isLast { onClose() } else { withAnimation { idx += 1 } }
+    /// Avance IMMÉDIATEMENT (UI synchrone, indépendante du réseau) et persiste
+    /// l'étape quittée en arrière-plan. Évite tout blocage du bouton « Suivant »
+    /// sur appareil réel si une requête réseau est lente ou échoue.
+    private func next() {
+        let leaving = step
+        if isLast {
+            persistInBackground(leaving)
+            onClose()
+        } else {
+            withAnimation { idx += 1 }
+            persistInBackground(leaving)
+        }
     }
 
-    /// Persiste seulement les champs de l'étape courante.
-    private func persistCurrent() async {
-        guard step.kind == .form else { return }
+    /// Persiste les champs de l'étape donnée sans bloquer la navigation.
+    private func persistInBackground(_ s: SetupStep) {
+        guard let p = payload(for: s) else { return }
+        Task { @MainActor in
+            if let updated = try? await APIClient.shared.updateCompany(p) {
+                completion = updated.completion_score ?? completion
+            }
+        }
+    }
+
+    /// Construit la charge utile des champs d'une étape de formulaire (nil sinon).
+    private func payload(for s: SetupStep) -> CompanyUpdatePayload? {
+        guard s.kind == .form else { return nil }
         var p = CompanyUpdatePayload()
-        switch step.key {
+        switch s.key {
         case "org": p.organization_type = draft.organizationType; p.industry = draft.industry
         case "name": p.name = draft.name; p.legal_name = draft.legalName
         case "legalForm": p.legal_form = draft.legalForm
@@ -299,11 +313,9 @@ struct CompanySetupWizard: View {
         case "bank": p.bank_name = draft.bankName; p.bank_account = draft.bankAccount
         case "threshold": p.cash_low_threshold_cents = Int(draft.cashThreshold).map { $0 * 100 }
         case "colors": p.primary_color = draft.primaryColor; p.accent_color = draft.accentColor
-        default: return
+        default: return nil
         }
-        if let updated = try? await APIClient.shared.updateCompany(p) {
-            completion = updated.completion_score ?? completion
-        }
+        return p
     }
 }
 
@@ -355,7 +367,7 @@ private extension Color {
     }
     static var wizardField: Color {
         #if os(iOS)
-        Color.wizardField
+        Color(uiColor: .tertiarySystemBackground)
         #else
         Color(nsColor: .controlBackgroundColor)
         #endif
