@@ -54,11 +54,17 @@ struct AppShell: View {
 
     /// À la 1re connexion : la visite guidée d'abord (tous les utilisateurs),
     /// puis l'assistant de configuration (admin au profil incomplet).
+    ///
+    /// « Vue » = flag LOCAL (instantané, pas d'attente réseau) OU flag SERVEUR
+    /// (`onboarding_done` sur le compte). Le flag serveur est ce qui évite que
+    /// la visite guidée réapparaisse à chaque réinstallation ou nouvel appareil
+    /// — un simple flag local ne survit pas à ça.
     private func evaluateOnboarding() {
         guard stage == nil else { return }
         if forceTour { stage = .tour; return }
         if forceSetup { stage = .setup; return }
-        if !tourDone { stage = .tour; return }
+        let seenOnServer = auth.currentUser?.onboarding_done ?? false
+        if !tourDone && !seenOnServer { stage = .tour; return }
         if shouldShowSetup() { stage = .setup }
     }
 
@@ -66,6 +72,7 @@ struct AppShell: View {
         tourDone = true
         forceTour = false
         stage = nil
+        Task { await auth.markOnboardingDone() }
         // Enchaîne proprement sur l'assistant APRÈS la fermeture du tour
         // (un seul cover à la fois : on attend la fin de l'animation de dismiss).
         guard shouldShowSetup() else { return }

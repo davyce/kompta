@@ -77,6 +77,9 @@ struct KomptaUser: Codable, Identifiable {
     var custom_role: UserCustomRole?
     var permissions: [String]?
     var totp_enabled: Bool?
+    /// Visite guidée déjà vue — piloté serveur (persiste au-delà d'une
+    /// réinstallation ou d'un nouvel appareil, contrairement à un simple flag local).
+    var onboarding_done: Bool?
 
     var displayName: String { full_name }
     var firstName: String { full_name.components(separatedBy: " ").first ?? email }

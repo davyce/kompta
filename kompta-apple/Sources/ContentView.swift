@@ -73,12 +73,11 @@ struct SplashView: View {
                     ForEach([1.4, 1.2, 1.0], id: \.self) { scale in
                         Circle()
                             .fill(.white.opacity(0.07))
-                            .frame(width: 90, height: 90)
+                            .frame(width: 108, height: 108)
                             .scaleEffect(pulse ? scale : 1)
                     }
-                    Text("K")
-                        .font(.system(size: 46, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                    KomptaLogoMark(size: 76, cornerRadius: 18)
+                        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
                 }
                 .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulse)
 

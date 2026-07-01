@@ -202,6 +202,7 @@ actor APIClient {
     }
 
     func me() async throws -> KomptaUser { try await get("/auth/me") }
+    func markOnboardingDone() async throws -> KomptaUser { try await actionDecoded("/auth/onboarding-done") }
 
     /// Forced password change on first login / after an admin-issued temporary password.
     func firstLoginChangePassword(currentPassword: String, newPassword: String) async throws -> KomptaUser {

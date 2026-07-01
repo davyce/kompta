@@ -19,14 +19,31 @@ final class AuthManager: ObservableObject {
 
     private func restoreSession() async {
         guard KeychainHelper.get("auth_token") != nil else { state = .unauthenticated; return }
-        do {
-            async let user    = api.me()
-            async let company = api.company()
-            (currentUser, self.company) = try await (user, company)
-            state = .authenticated
-        } catch {
-            KeychainHelper.clearAll()
-            state = .unauthenticated
+        // Ne déconnecte QUE sur un rejet explicite du serveur (token invalide/expiré,
+        // compte suspendu). Une erreur réseau/serveur transitoire ne doit jamais
+        // effacer la session — sinon un simple accroc de connexion mobile déconnecte
+        // l'utilisateur et le renvoie à l'écran de connexion à chaque démarrage.
+        for attempt in 0..<2 {
+            do {
+                async let user    = api.me()
+                async let company = api.company()
+                (currentUser, self.company) = try await (user, company)
+                state = .authenticated
+                return
+            } catch APIError.unauthorized {
+                KeychainHelper.clearAll()
+                state = .unauthenticated
+                return
+            } catch {
+                if attempt == 0 {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    continue
+                }
+                // Toujours en échec après un essai : on reste connecté avec le jeton
+                // existant (probable coupure réseau) plutôt que de forcer une
+                // reconnexion. Les écrans referont leurs propres appels au besoin.
+                state = .authenticated
+            }
         }
     }
 
@@ -65,6 +82,12 @@ final class AuthManager: ObservableObject {
     /// Re-fetch the current user (after a self-profile edit, role change, etc.).
     func refreshUser() async {
         if let user = try? await api.me() { currentUser = user }
+    }
+
+    /// Marque la visite guidée comme vue, côté serveur — persiste au-delà d'une
+    /// réinstallation ou d'un changement d'appareil (contrairement à un flag local).
+    func markOnboardingDone() async {
+        if let user = try? await api.markOnboardingDone() { currentUser = user }
     }
 
     // MARK: - Logout

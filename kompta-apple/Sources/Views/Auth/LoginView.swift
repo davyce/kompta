@@ -214,7 +214,10 @@ struct LoginView: View {
                 icon: "envelope.fill",
                 placeholder: "admin@kompta.local",
                 text: $email,
-                kind: .email
+                // .username (pas .email) : le champ accepte aussi un numéro de
+                // téléphone, et c'est le contentType qu'iOS associe fiablement au
+                // mot de passe pour proposer l'enregistrement dans le Trousseau.
+                kind: .username
             )
             .focused($focus, equals: .email)
 
@@ -750,36 +753,8 @@ private struct TrustItem: View {
     }
 }
 
-private struct KomptaLogoMark: View {
-    var size: CGFloat
-    var cornerRadius: CGFloat
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(KomptaBrand.primary)
-            Capsule()
-                .fill(.white)
-                .frame(width: size * 0.13, height: size * 0.58)
-                .offset(x: -size * 0.08)
-            Capsule()
-                .fill(.white)
-                .frame(width: size * 0.13, height: size * 0.39)
-                .rotationEffect(.degrees(42))
-                .offset(x: size * 0.09, y: -size * 0.12)
-            Capsule()
-                .fill(.white)
-                .frame(width: size * 0.13, height: size * 0.39)
-                .rotationEffect(.degrees(-42))
-                .offset(x: size * 0.09, y: size * 0.12)
-            Circle()
-                .fill(KomptaBrand.limuleGold)
-                .frame(width: size * 0.18, height: size * 0.18)
-                .offset(x: -size * 0.08, y: -size * 0.02)
-        }
-        .frame(width: size, height: size)
-    }
-}
+// KomptaLogoMark est défini dans Components/GlassComponents.swift (partagé
+// avec le splash screen et toute autre vue qui a besoin du vrai logo).
 
 private struct RegistrationDraft {
     var companyName = ""
