@@ -128,6 +128,8 @@ struct KomptaCompany: Codable, Identifiable {
     let bank_name: String?
     let bank_account: String?
     let has_logo: Bool?
+    let loyalty_enabled: Bool?
+    let loyalty_points_per_1000: Int?
 
     var initial: String { String(name.prefix(1)).uppercased() }
     /// Alias kept for call sites written against the older "secondary_color" name.
@@ -143,6 +145,8 @@ struct CompanyUpdatePayload: Encodable {
     var primary_color: String?
     var accent_color: String?
     var cash_low_threshold_cents: Int?
+    var loyalty_enabled: Bool?
+    var loyalty_points_per_1000: Int?
     var legal_form: String?
     var rccm: String?
     var niu: String?
@@ -215,6 +219,7 @@ struct SalePayload: Encodable {
     let items: [SaleItemPayload]
     let payment_method: String
     var payment_account_id: Int?
+    var client_id: Int?
     let discount_percent: Double
     let tva_enabled: Bool
     let tax_rate: Double
@@ -238,9 +243,38 @@ struct SaleResponse: Decodable {
     let total_amount: Double
     let payment_method: String?
     let payment_account_label: String?
+    let client_id: Int?
+    let client_name: String?
+    let discount_percent: Double?
+    let discount_amount: Double?
+    let loyalty_points_earned: Int?
     let items: [SaleLineItem]?
 
     var total: Double { total_amount }
+}
+
+/// Élément de l'historique des ventes (GET /pos/sales) — champs différents de
+/// SaleLineItem (réponse de POST /pos/sales) côté backend : product_name/
+/// unit_price/line_total au lieu de name/total.
+struct SaleHistoryLine: Decodable, Hashable {
+    let product_name: String
+    let quantity: Int
+    let unit_price: Double
+    let line_total: Double
+}
+
+struct SaleHistoryItem: Decodable, Identifiable, Hashable {
+    let id: Int
+    let receipt_number: String?
+    let payment_method: String?
+    let payment_account_label: String?
+    let total_amount: Double
+    let status: String?
+    let client_id: Int?
+    let client_name: String?
+    let loyalty_points_earned: Int?
+    let created_at: String?
+    let items: [SaleHistoryLine]
 }
 
 struct CartItem: Identifiable {

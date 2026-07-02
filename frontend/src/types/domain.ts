@@ -29,6 +29,8 @@ export type Company = {
   teras_score: number;
   /** Seuil d'alerte trésorerie (Limule), en centimes. Défaut 5 000 000 (= 50 000). */
   cash_low_threshold_cents?: number;
+  loyalty_enabled?: boolean;
+  loyalty_points_per_1000?: number;
   // Mentions légales (entreprise réelle CEMAC / OHADA)
   legal_form?: string;
   rccm?: string;
@@ -354,6 +356,9 @@ export type SaleRecord = {
   payment_account_label: string;
   total_amount: number;
   status: string;
+  client_id?: number | null;
+  client_name?: string;
+  loyalty_points_earned?: number;
   created_at: string;
   items: Array<{
     product_name: string;

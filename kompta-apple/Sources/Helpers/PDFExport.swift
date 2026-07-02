@@ -50,10 +50,19 @@ final class HTMLToPDF: NSObject, WKNavigationDelegate {
 /// in the temp directory, returning its URL.
 @MainActor
 func exportInvoicePDF(invoiceId: Int, number: String) async -> URL? {
-    guard let data = try? await APIClient.shared.invoiceExportHTML(invoiceId),
-          let html = String(data: data, encoding: .utf8) else { return nil }
-    guard let pdf = await HTMLToPDF().render(html: html) else { return nil }
+    // Le backend produit le document officiel (logo, mentions légales, lignes,
+    // paiement) de façon identique sur Web, iOS et macOS.
+    guard let pdf = try? await APIClient.shared.invoiceExportPDF(invoiceId) else { return nil }
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(number).pdf")
+    try? pdf.write(to: url, options: .atomic)
+    return url
+}
+
+/// Convenience: fetch the printable POS receipt PDF (ticket de caisse) for a sale.
+@MainActor
+func exportSaleReceiptPDF(saleId: Int, receiptNumber: String) async -> URL? {
+    guard let pdf = try? await APIClient.shared.saleReceiptPDF(saleId) else { return nil }
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(receiptNumber).pdf")
     try? pdf.write(to: url, options: .atomic)
     return url
 }

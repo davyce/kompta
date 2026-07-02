@@ -37,6 +37,9 @@ class Company(TimestampMixin, Base):
     invoice_approval_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     # Seuil d'alerte trésorerie (Limule) : alerte si solde < seuil. Défaut 50 000 (en centimes).
     cash_low_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
+    # Programme fidélité POS (désactivé par défaut, activable par l'entreprise).
+    loyalty_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    loyalty_points_per_1000: Mapped[int] = mapped_column(Integer, default=1)
 
     # ── Mentions légales (entreprise réelle — zone CEMAC / OHADA) ─────────────
     legal_form: Mapped[str] = mapped_column(String(40), default="")          # SARL | SA | SAS | SUARL | EI | GIE | Association | Coopérative
@@ -427,6 +430,9 @@ class Sale(TimestampMixin, Base):
     total_amount: Mapped[float] = mapped_column(Float, default=0)
     total_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     status: Mapped[str] = mapped_column(String(40), default="paid")
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    client_name: Mapped[str] = mapped_column(String(160), default="")
+    loyalty_points_earned: Mapped[int] = mapped_column(Integer, default=0)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan", back_populates="sale")

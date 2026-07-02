@@ -415,7 +415,7 @@ export function ChatPage() {
   })();
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem-2rem)] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#1e2229]" role="main" aria-label={tr("chat.pageTitle", { defaultValue: "Messagerie interne" })}>
+    <div className="flex h-[calc(100dvh-3.5rem-4rem-2.5rem-env(safe-area-inset-bottom))] min-h-[30rem] overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#1e2229] lg:h-[calc(100vh-3.5rem-2rem)]" role="main" aria-label={tr("chat.pageTitle", { defaultValue: "Messagerie interne" })}>
     {/* Titre sémantique pour les lecteurs d'écran */}
     <h1 className="sr-only">{tr("chat.pageTitle", { defaultValue: "Messagerie interne" })}</h1>
 

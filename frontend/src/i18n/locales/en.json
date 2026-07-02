@@ -4723,6 +4723,8 @@
     "kpiTotal": "Total invoices",
     "kpiTotalHint": "issued this cycle",
     "panelInvoices": "Invoices",
+    "posSaleBadge": "POS sale",
+    "ticket": "Receipt",
     "exportExcel": "Export Excel",
     "results": "{{count}} results",
     "searchPlaceholder": "Invoice no., client…",

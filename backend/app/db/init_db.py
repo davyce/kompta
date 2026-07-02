@@ -145,6 +145,8 @@ def ensure_sqlite_migrations() -> None:
             "accounting_seq": "INTEGER DEFAULT 0",
             "invoice_approval_threshold_cents": "INTEGER DEFAULT 0",
             "cash_low_threshold_cents": "INTEGER DEFAULT 5000000",
+            "loyalty_enabled": "BOOLEAN DEFAULT 0",
+            "loyalty_points_per_1000": "INTEGER DEFAULT 1",
             # Mentions légales entreprise réelle (CEMAC / OHADA)
             "legal_form": "VARCHAR(40) DEFAULT ''",
             "rccm": "VARCHAR(80) DEFAULT ''",
@@ -183,7 +185,12 @@ def ensure_sqlite_migrations() -> None:
             "total_cents": "INTEGER DEFAULT 0",
         },
         "sales": {
+            "payment_account_id": "INTEGER",
+            "payment_account_label": "VARCHAR(160) DEFAULT ''",
             "total_amount_cents": "INTEGER DEFAULT 0",
+            "client_id": "INTEGER",
+            "client_name": "VARCHAR(160) DEFAULT ''",
+            "loyalty_points_earned": "INTEGER DEFAULT 0",
         },
         "sale_items": {
             "unit_price_cents": "INTEGER DEFAULT 0",

@@ -4723,6 +4723,8 @@
     "kpiTotal": "Total factures",
     "kpiTotalHint": "émises ce cycle",
     "panelInvoices": "Factures",
+    "posSaleBadge": "Vente caisse",
+    "ticket": "Ticket",
     "exportExcel": "Exporter Excel",
     "results": "{{count}} résultats",
     "searchPlaceholder": "Nº facture, client…",

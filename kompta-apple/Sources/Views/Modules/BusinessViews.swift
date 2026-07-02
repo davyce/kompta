@@ -597,11 +597,57 @@ struct ClientFormView: View {
     }
 }
 
-// MARK: - Facturation (Invoices)
+// MARK: - Facturation (Invoices + ventes caisse)
+
+/// Unifie les factures classiques et les ventes payées à la Caisse : côté backend
+/// ce sont deux tables séparées (une vente POS ne crée jamais de facture), donc sans
+/// cette fusion les ventes caisse n'apparaissaient nulle part dans la Facturation.
+enum BillingEntry: Identifiable, Hashable {
+    case invoice(Invoice)
+    case sale(SaleHistoryItem)
+
+    var id: String {
+        switch self {
+        case .invoice(let inv): return "invoice-\(inv.id)"
+        case .sale(let s): return "sale-\(s.id)"
+        }
+    }
+    var number: String {
+        switch self {
+        case .invoice(let inv): return inv.number
+        case .sale(let s): return s.receipt_number ?? "—"
+        }
+    }
+    var customerName: String {
+        switch self {
+        case .invoice(let inv): return inv.customer_name
+        case .sale(let s): return (s.client_name?.isEmpty == false) ? s.client_name! : "Client anonyme"
+        }
+    }
+    var status: String {
+        switch self {
+        case .invoice(let inv): return inv.status
+        case .sale: return "paid"
+        }
+    }
+    var totalAmount: Double {
+        switch self {
+        case .invoice(let inv): return inv.total_amount
+        case .sale(let s): return s.total_amount
+        }
+    }
+    var dueDate: String? {
+        switch self {
+        case .invoice(let inv): return inv.due_date
+        case .sale(let s): return s.created_at
+        }
+    }
+    var isPosSale: Bool { if case .sale = self { return true }; return false }
+}
 
 struct BillingView: View {
     @EnvironmentObject private var theme: CompanyTheme
-    @StateObject private var state = Loadable<[Invoice]>()
+    @StateObject private var state = Loadable<[BillingEntry]>()
     @State private var statusFilter = "all"
     @State private var search = ""
     @State private var showNew = false
@@ -613,16 +659,16 @@ struct BillingView: View {
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune facture", emptyIcon: "doc.text",
-                  reload: load) { invoices in
-            let displayed = filtered(invoices)
+                  reload: load) { entries in
+            let displayed = filtered(entries)
             List {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            kpiChip("Total", fcfa(invoices.reduce(0) { $0 + $1.total_amount }), "doc.richtext", theme.primary)
-                            kpiChip("Payées", fcfa(invoices.filter(\.isPaid).reduce(0) { $0 + $1.total_amount }), "checkmark.seal", .green)
-                            kpiChip("En attente", fcfa(invoices.filter { $0.status == "sent" }.reduce(0) { $0 + $1.total_amount }), "clock", .orange)
-                            kpiChip("En retard", fcfa(invoices.filter { $0.status == "overdue" }.reduce(0) { $0 + $1.total_amount }), "exclamationmark.circle", .red)
+                            kpiChip("Total", fcfa(entries.reduce(0) { $0 + $1.totalAmount }), "doc.richtext", theme.primary)
+                            kpiChip("Payées", fcfa(entries.filter { $0.status == "paid" }.reduce(0) { $0 + $1.totalAmount }), "checkmark.seal", .green)
+                            kpiChip("En attente", fcfa(entries.filter { $0.status == "sent" }.reduce(0) { $0 + $1.totalAmount }), "clock", .orange)
+                            kpiChip("En retard", fcfa(entries.filter { $0.status == "overdue" }.reduce(0) { $0 + $1.totalAmount }), "exclamationmark.circle", .red)
                         }
                         .padding(.horizontal, 2)
                     }
@@ -648,11 +694,20 @@ struct BillingView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
 
-                ForEach(displayed) { inv in
-                    NavigationLink {
-                        InvoiceDetailView(invoice: inv, onChanged: load)
-                    } label: {
-                        InvoiceRow(invoice: inv)
+                ForEach(displayed) { entry in
+                    switch entry {
+                    case .invoice(let inv):
+                        NavigationLink {
+                            InvoiceDetailView(invoice: inv, onChanged: load)
+                        } label: {
+                            BillingEntryRow(entry: entry)
+                        }
+                    case .sale(let sale):
+                        NavigationLink {
+                            SaleReceiptDetailView(sale: sale)
+                        } label: {
+                            BillingEntryRow(entry: entry)
+                        }
                     }
                 }
             }
@@ -687,36 +742,55 @@ struct BillingView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private func filtered(_ all: [Invoice]) -> [Invoice] {
-        all.filter { inv in
-            let matchStatus = statusFilter == "all" || inv.status == statusFilter
+    private func filtered(_ all: [BillingEntry]) -> [BillingEntry] {
+        all.filter { entry in
+            let matchStatus = statusFilter == "all" || entry.status == statusFilter
             let matchSearch = search.isEmpty ||
-                inv.number.localizedCaseInsensitiveContains(search) ||
-                inv.customer_name.localizedCaseInsensitiveContains(search)
+                entry.number.localizedCaseInsensitiveContains(search) ||
+                entry.customerName.localizedCaseInsensitiveContains(search)
             return matchStatus && matchSearch
         }
     }
 
-    private func load() async { await state.load { try await APIClient.shared.invoices() } }
+    private func load() async {
+        await state.load {
+            async let invoices = APIClient.shared.invoices()
+            async let sales = APIClient.shared.posSales(limit: 200)
+            let (inv, sls) = try await (invoices, sales)
+            let entries = inv.map(BillingEntry.invoice) + sls.map(BillingEntry.sale)
+            return entries.sorted { ($0.dueDate ?? "") > ($1.dueDate ?? "") }
+        }
+    }
 }
 
-private struct InvoiceRow: View {
-    let invoice: Invoice
+private struct BillingEntryRow: View {
+    let entry: BillingEntry
     @EnvironmentObject private var theme: CompanyTheme
 
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(invoice.number).font(.subheadline.bold())
-                Text(invoice.customer_name).font(.caption).foregroundStyle(.secondary)
-                if let due = invoice.due_date {
-                    Text("Échéance : \(shortDate(due))").font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(entry.number).font(.subheadline.bold())
+                    if entry.isPosSale {
+                        Text("Vente caisse")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.12))
+                            .foregroundStyle(.blue)
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(entry.customerName).font(.caption).foregroundStyle(.secondary)
+                if let due = entry.dueDate {
+                    Text(entry.isPosSale ? "Le \(shortDate(due))" : "Échéance : \(shortDate(due))")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text(fcfa(invoice.total_amount)).font(.subheadline.bold())
-                StatusPill(text: invStatusLabel(invoice.status), colorName: invoice.statusColorName)
+                Text(fcfa(entry.totalAmount)).font(.subheadline.bold())
+                StatusPill(text: invStatusLabel(entry.status), colorName: entry.status == "paid" ? "green" : "orange")
             }
         }
         .padding(.vertical, 3)
@@ -876,6 +950,104 @@ struct InvoiceDetailView: View {
             dismiss()
         } catch { }
         paying = false
+    }
+}
+
+/// Ticket de caisse détaillé pour une vente POS, avec le même téléchargement/
+/// impression PDF que les factures (voir InvoiceDetailView).
+struct SaleReceiptDetailView: View {
+    let sale: SaleHistoryItem
+    @EnvironmentObject private var theme: CompanyTheme
+    @State private var exporting = false
+    @State private var exportURL: URL?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                VStack(spacing: 8) {
+                    Text(sale.receipt_number ?? "—").font(.title2.bold())
+                    StatusPill(text: "Payée", colorName: "green")
+                    Text((sale.client_name?.isEmpty == false) ? sale.client_name! : "Client anonyme")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    if let date = sale.created_at {
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar").font(.caption)
+                            Text(shortDate(date)).font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top)
+                .frame(maxWidth: .infinity)
+
+                GlassCard(padding: 0, cornerRadius: 18) {
+                    VStack(spacing: 0) {
+                        ForEach(sale.items, id: \.product_name) { line in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(line.product_name).font(.subheadline)
+                                    Text("\(line.quantity) × \(fcfa(line.unit_price))")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(fcfa(line.line_total)).font(.subheadline.bold())
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            Divider().padding(.leading, 16)
+                        }
+                        HStack {
+                            Text("Total (TTC)").font(.subheadline.bold())
+                            Spacer()
+                            Text(fcfa(sale.total_amount)).font(.headline).foregroundStyle(theme.primary)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                    }
+                }
+
+                if let method = sale.payment_account_label, !method.isEmpty {
+                    Text("Paiement : \(method)").font(.caption).foregroundStyle(.secondary)
+                }
+
+                if let exportURL {
+                    VStack(spacing: 10) {
+                        ShareLink(item: exportURL) {
+                            Label("Télécharger / partager le ticket", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: theme.buttonRadius))
+                                .foregroundStyle(theme.primary)
+                        }
+                        .buttonStyle(.plain)
+                        #if os(macOS)
+                        Button { NSWorkspace.shared.open(exportURL) } label: {
+                            Label("Imprimer", systemImage: "printer.fill")
+                                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: theme.buttonRadius))
+                        }
+                        .buttonStyle(.plain)
+                        #endif
+                    }
+                }
+            }.padding()
+        }
+        .navigationTitle("Ticket de caisse")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await exportReceipt() } } label: {
+                    Image(systemName: exporting ? "hourglass" : "square.and.arrow.down")
+                }
+                .disabled(exporting)
+            }
+        }
+    }
+
+    private func exportReceipt() async {
+        exporting = true
+        exportURL = await exportSaleReceiptPDF(saleId: sale.id, receiptNumber: sale.receipt_number ?? "ticket-\(sale.id)")
+        exporting = false
     }
 }
 

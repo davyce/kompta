@@ -19,6 +19,9 @@ struct SettingsView: View {
     @State private var avatarData: Data?
     @State private var showAvatarPicker = false
     @State private var uploadingAvatar = false
+    @State private var loyaltyEnabled = false
+    @State private var loyaltyPointsPer1000 = 1
+    @State private var savingLoyalty = false
 
     private var isManager: Bool {
         ["super_admin", "admin_entreprise", "manager_entreprise"].contains(auth.currentUser?.role ?? "")
@@ -78,6 +81,24 @@ struct SettingsView: View {
                     LabeledContent("Nom",      value: c.name)
                     LabeledContent("Pays",     value: c.country ?? "—")
                     LabeledContent("Secteur",  value: c.industry ?? "—")
+                }
+                if isManager {
+                    Section {
+                        Toggle("Activer les points de fidélité", isOn: $loyaltyEnabled)
+                            .disabled(savingLoyalty)
+                            .onChange(of: loyaltyEnabled) { _, _ in Task { await saveLoyalty() } }
+                        Stepper(
+                            "\(loyaltyPointsPer1000) point(s) par tranche de 1 000",
+                            value: $loyaltyPointsPer1000,
+                            in: 0...100
+                        )
+                        .disabled(!loyaltyEnabled || savingLoyalty)
+                        .onChange(of: loyaltyPointsPer1000) { _, _ in Task { await saveLoyalty() } }
+                    } header: {
+                        Text("Fidélité clients")
+                    } footer: {
+                        Text("Les points sont crédités automatiquement quand une vente est liée à un client de votre fichier.")
+                    }
                 }
             }
 
@@ -219,7 +240,11 @@ struct SettingsView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
         #endif
-        .task { avatarData = try? await APIClient.shared.myAvatarData() }
+        .task {
+            avatarData = try? await APIClient.shared.myAvatarData()
+            loyaltyEnabled = auth.company?.loyalty_enabled ?? false
+            loyaltyPointsPer1000 = auth.company?.loyalty_points_per_1000 ?? 1
+        }
         .fileImporter(isPresented: $showAvatarPicker, allowedContentTypes: [.png, .jpeg, .image]) { result in
             Task { await handleAvatar(result) }
         }
@@ -250,6 +275,18 @@ struct SettingsView: View {
             avatarData = data
         }
         uploadingAvatar = false
+    }
+
+    private func saveLoyalty() async {
+        guard !savingLoyalty else { return }
+        savingLoyalty = true
+        var payload = CompanyUpdatePayload()
+        payload.loyalty_enabled = loyaltyEnabled
+        payload.loyalty_points_per_1000 = loyaltyPointsPer1000
+        if let company = try? await APIClient.shared.updateCompany(payload) {
+            auth.company = company
+        }
+        savingLoyalty = false
     }
 }
 

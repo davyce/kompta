@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, CreditCard, Download, Minus, Percent, Plus, Printer,
+  CheckCircle2, Clock3, CreditCard, Download, Minus, Percent, Plus, Printer,
   QrCode, RefreshCcw, Scan, Search, ShoppingCart,
   Smartphone, Trash2, User, Wallet, WifiOff, X, Zap,
 } from "lucide-react";
@@ -16,7 +16,7 @@ import { productIconLabel, productIconSuggestions } from "../utils/productIcons"
 import { api } from "../services/api";
 import { useToast } from "../components/ToastProvider";
 import { enqueue, listPending, dequeue } from "../lib/offlineQueue";
-import type { PaymentAccount, Product } from "../types/domain";
+import type { PaymentAccount, Product, SaleRecord } from "../types/domain";
 import { inferProductIcon } from "../utils/productIcons";
 import { money } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
@@ -218,6 +218,13 @@ export function PosPage() {
   const payConfig      = useQuery({ queryKey: ["paymentsConfig"],   queryFn: api.paymentsConfig });
   // Nom de l'entreprise — affiché et imprimé sur le ticket de caisse
   const company        = useQuery({ queryKey: ["company"],          queryFn: api.company });
+  const clients        = useQuery({ queryKey: ["clients", "pos"],   queryFn: () => api.clients({ status: "active" }) });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const salesHistory = useQuery({
+    queryKey: ["posSales"],
+    queryFn: () => api.posSales(50),
+    enabled: historyOpen,
+  });
 
   /* ── Recherche + catégorie ── */
   const [search,   setSearch]   = useState("");
@@ -256,6 +263,12 @@ export function PosPage() {
 
   /* ── Client (optionnel) — figure sur le ticket ── */
   const [clientName, setClientName] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const selectedClientDiscounts = useQuery({
+    queryKey: ["clientDiscounts", selectedClientId],
+    queryFn: () => api.clientDiscounts(selectedClientId!),
+    enabled: selectedClientId !== null,
+  });
 
   /* ── Ticket modal ── */
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
@@ -410,6 +423,7 @@ export function PosPage() {
       setCart([]);
       setDiscountPercent(0);
       setClientName("");
+      setSelectedClientId(null);
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["posSales"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
@@ -451,6 +465,24 @@ export function PosPage() {
   const tax             = tvaEnabled ? Math.round(subtotalAfterDiscount * (tvaRate / 100)) : 0;
   const total           = subtotalAfterDiscount + tax;
 
+  useEffect(() => {
+    if (selectedClientId === null) return;
+    const client = clients.data?.find((item) => item.id === selectedClientId);
+    if (!client) return;
+    const eligible = (selectedClientDiscounts.data ?? []).filter(
+      (promo) => promo.active && ["all", "pos"].includes(promo.applies_to) && promo.min_order_amount <= subtotal,
+    );
+    const bestSpecificPercent = eligible
+      .filter((promo) => promo.discount_type === "percent")
+      .reduce((best, promo) => Math.max(best, promo.discount_value), 0);
+    const bestFixed = eligible
+      .filter((promo) => promo.discount_type === "fixed")
+      .reduce((best, promo) => Math.max(best, promo.discount_value), 0);
+    const fixedAsPercent = subtotal > 0 ? Math.min(100, (bestFixed / subtotal) * 100) : 0;
+    setClientName(client.name);
+    setDiscountPercent(Math.max(client.global_discount_percent ?? 0, bestSpecificPercent, fixedAsPercent));
+  }, [clients.data, selectedClientDiscounts.data, selectedClientId, subtotal]);
+
   /* ── Actions ── */
   function addToCart(p: Product) {
     if (p.stock_quantity <= 0) return;
@@ -485,6 +517,7 @@ export function PosPage() {
     return {
       payment_method: paymentMethod,
       payment_account_id: paymentAccountId,
+      client_id: selectedClientId,
       items: cart.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
       // Remise + TVA envoyées pour que le serveur calcule le MÊME total que la caisse
       // (sinon le paiement carte/MoMo est rejeté : montant ≠ total).
@@ -544,6 +577,43 @@ export function PosPage() {
     finally { setExportLoading(false); }
   }
 
+  async function downloadReceipt(saleId: number, receiptNumber: string) {
+    try {
+      const blob = await api.posReceiptPdf(saleId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ticket-${receiptNumber}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch {
+      toast.error(tr("pos.exportError"));
+    }
+  }
+
+  function reopenReceipt(record: SaleRecord) {
+    const subtotal = record.items.reduce((sum, item) => sum + item.line_total, 0);
+    setTicketData({
+      receipt_number: record.receipt_number,
+      total_amount: record.total_amount,
+      payment_method: record.payment_method,
+      payment_account_label: record.payment_account_label,
+      items: record.items.map((item, index) => ({
+        product_id: -(index + 1),
+        name: item.product_name,
+        quantity: item.quantity,
+        total: item.line_total,
+      })),
+      cart: [],
+      discount_percent: 0,
+      subtotal_before_discount: subtotal,
+      tax: Math.max(0, record.total_amount - subtotal),
+      date: new Date(record.created_at).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+      company_name: company.data?.name,
+    });
+    setHistoryOpen(false);
+  }
+
   const cartTotal = total;
 
   /* ════════════════════════════════════════════════════════════════════ */
@@ -594,6 +664,13 @@ export function PosPage() {
           >
             <Download size={12} />
             {exportLoading ? tr("pos.exporting") : tr("pos.exportCsv")}
+          </button>
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-1 text-xs font-semibold text-[#17211f] hover:bg-stone-50 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          >
+            <Clock3 size={12} />
+            Historique
           </button>
         </div>
 
@@ -864,13 +941,25 @@ export function PosPage() {
           {/* Client (optionnel) — figure sur le ticket de caisse */}
           <div className="flex items-center gap-2">
             <User size={13} className="shrink-0 text-[#717182]" />
-            <input
-              type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder={tr("pos.clientPlaceholder")}
+            <select
+              value={selectedClientId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : null;
+                setSelectedClientId(id);
+                if (id === null) {
+                  setClientName("");
+                  setDiscountPercent(0);
+                }
+              }}
               className="min-w-0 flex-1 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1.5 text-sm text-[#17211f] outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
-            />
+            >
+              <option value="">{tr("pos.clientPlaceholder")}</option>
+              {clients.data?.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}{client.global_discount_percent > 0 ? ` · -${client.global_discount_percent}%` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Remise */}
@@ -1017,8 +1106,49 @@ export function PosPage() {
       <TicketModal
         ticket={ticketData}
         onClose={() => setTicketData(null)}
-        onNewSale={() => { setTicketData(null); setCart([]); setDiscountPercent(0); setClientName(""); }}
+        onNewSale={() => { setTicketData(null); setCart([]); setDiscountPercent(0); setClientName(""); setSelectedClientId(null); }}
       />
+    )}
+
+    {historyOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setHistoryOpen(false)}>
+        <div className="max-h-[85dvh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#1e2229]" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.08]">
+            <div>
+              <h2 className="font-black text-[#17211f] dark:text-white">Historique des ventes</h2>
+              <p className="text-xs text-[#717182]">Retrouvez, imprimez ou téléchargez chaque ticket.</p>
+            </div>
+            <button onClick={() => setHistoryOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.08]">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="max-h-[calc(85dvh-5rem)] overflow-y-auto p-3">
+            {salesHistory.isLoading && <p className="p-6 text-center text-sm text-[#717182]">{tr("common.loading")}</p>}
+            {salesHistory.isError && <p className="p-6 text-center text-sm text-red-600">{salesHistory.error.message}</p>}
+            {salesHistory.data?.length === 0 && <p className="p-6 text-center text-sm text-[#717182]">Aucune vente enregistrée.</p>}
+            <div className="space-y-2">
+              {salesHistory.data?.map((record) => (
+                <div key={record.id} className="flex items-center gap-3 rounded-xl border border-black/[0.06] p-3 dark:border-white/[0.08]">
+                  <button onClick={() => reopenReceipt(record)} className="min-w-0 flex-1 text-left">
+                    <p className="truncate text-sm font-bold text-[#17211f] dark:text-white">{record.receipt_number}</p>
+                    <p className="text-xs text-[#717182]">
+                      {new Date(record.created_at).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" })} · {record.items.length} article(s)
+                    </p>
+                  </button>
+                  <p className="shrink-0 text-sm font-black text-emerald-700 dark:text-emerald-400">{money(record.total_amount)}</p>
+                  <button
+                    onClick={() => void downloadReceipt(record.id, record.receipt_number)}
+                    aria-label={`Télécharger ${record.receipt_number}`}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-black/[0.08] text-[#17211f] hover:bg-stone-50 dark:border-white/10 dark:text-white dark:hover:bg-white/[0.08]"
+                  >
+                    <Download size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     )}
 
     {/* Scanner QR / code-barres produit */}

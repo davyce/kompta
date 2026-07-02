@@ -827,6 +827,12 @@ export function ClientsPage() {
     queryFn: () => api.clients(),
   });
   const clients = clientsQuery.data ?? [];
+  const companyQuery = useQuery({ queryKey: ["company"], queryFn: api.company });
+  const loyaltySettings = useMutation({
+    mutationFn: (payload: { loyalty_enabled?: boolean; loyalty_points_per_1000?: number }) =>
+      api.updateCompany(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),
+  });
 
   // ── Derived KPIs ──────────────────────────────────────────────────
   const invoicesQuery = useQuery<Invoice[]>({
@@ -1004,6 +1010,43 @@ export function ClientsPage() {
         >
           <Plus size={16} />
           {tr("clientsPage.header.newClient")}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+            <Star size={19} />
+          </div>
+          <div>
+            <p className="text-sm font-black text-[#17211f] dark:text-white">Points de fidélité automatiques</p>
+            <p className="text-xs text-[#717182]">Après chaque vente liée à un client, KOMPTA crédite ses points automatiquement.</p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-bold text-[#17211f] dark:text-white">
+          <input
+            key={companyQuery.data?.loyalty_points_per_1000 ?? 1}
+            type="number"
+            min={0}
+            max={100}
+            defaultValue={companyQuery.data?.loyalty_points_per_1000 ?? 1}
+            disabled={!companyQuery.data?.loyalty_enabled || loyaltySettings.isPending}
+            onBlur={(event) => loyaltySettings.mutate({ loyalty_points_per_1000: Math.max(0, Number(event.target.value) || 0) })}
+            className="w-16 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-right dark:border-amber-500/30 dark:bg-white/5"
+          />
+          pt / 1 000
+        </label>
+        <button
+          type="button"
+          disabled={loyaltySettings.isPending || companyQuery.isLoading}
+          onClick={() => loyaltySettings.mutate({ loyalty_enabled: !companyQuery.data?.loyalty_enabled })}
+          className={`rounded-full px-4 py-2 text-xs font-black transition ${
+            companyQuery.data?.loyalty_enabled
+              ? "bg-emerald-600 text-white"
+              : "bg-white text-[#717182] ring-1 ring-black/10 dark:bg-white/5 dark:ring-white/10"
+          }`}
+        >
+          {companyQuery.data?.loyalty_enabled ? "Activé" : "Désactivé"}
         </button>
       </div>
 

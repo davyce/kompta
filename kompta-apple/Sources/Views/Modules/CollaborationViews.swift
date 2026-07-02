@@ -443,7 +443,11 @@ struct ChannelDetailView: View {
                     ScrollView {
                         LazyVStack(spacing: 10) {
                             ForEach(msgs) { m in
-                                ChannelMessageRow(msg: m, isMine: m.author_id == auth.currentUser?.id)
+                                ChannelMessageRow(
+                                    msg: m,
+                                    isMine: m.author_id == auth.currentUser?.id,
+                                    onCreateDetectedTask: { Task { await createDetectedTask(from: m) } }
+                                )
                                     .id(m.id)
                                     .contextMenu {
                                         Button {
@@ -550,11 +554,25 @@ struct ChannelDetailView: View {
         try? await Task.sleep(nanoseconds: 3_000_000_000)
         withAnimation { taskToast = nil }
     }
+
+    /// Utilise directement l'action structurée détectée par Limule à l'envoi :
+    /// @mention, priorité et échéance sont conservées par le backend.
+    private func createDetectedTask(from message: ChatMsg) async {
+        do {
+            let task = try await APIClient.shared.quickTaskFromMessage(message.id)
+            withAnimation { taskToast = "Tâche assignée : « \(task.title) »" }
+        } catch {
+            withAnimation { taskToast = error.localizedDescription }
+        }
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        withAnimation { taskToast = nil }
+    }
 }
 
 private struct ChannelMessageRow: View {
     let msg: ChatMsg
     let isMine: Bool
+    let onCreateDetectedTask: () -> Void
     @EnvironmentObject private var theme: CompanyTheme
 
     var body: some View {
@@ -571,6 +589,27 @@ private struct ChannelMessageRow: View {
                     .background(isMine ? theme.primary : Color.secondary.opacity(0.12),
                                 in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .foregroundStyle(isMine ? .white : .primary)
+                if let action = msg.ai_action, action.detected {
+                    Button(action: onCreateDetectedTask) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "sparkles")
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Action détectée par Limule").font(.caption2.bold())
+                                Text(action.title ?? msg.ai_suggestion ?? "Créer une tâche")
+                                    .font(.caption).lineLimit(2)
+                                if let assignee = action.assignee, !assignee.isEmpty {
+                                    Text("Assignée à \(assignee)").font(.caption2).opacity(0.8)
+                                }
+                            }
+                            Spacer(minLength: 4)
+                            Image(systemName: "plus.circle.fill")
+                        }
+                        .padding(9)
+                        .background(theme.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                        .foregroundStyle(theme.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             if !isMine { Spacer(minLength: 40) }
         }

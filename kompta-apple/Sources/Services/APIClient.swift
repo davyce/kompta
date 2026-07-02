@@ -241,6 +241,8 @@ actor APIClient {
     func createSale(_ payload: SalePayload) async throws -> SaleResponse {
         try await post("/pos/sales", body: payload)
     }
+    func posSales(limit: Int = 50) async throws -> [SaleHistoryItem] { try await get("/pos/sales?limit=\(limit)") }
+    func saleReceiptPDF(_ id: Int) async throws -> Data { try await rawData("/pos/sales/\(id)/receipt") }
 
     // MARK: - Employees
 
@@ -448,6 +450,9 @@ actor APIClient {
     func channelDetail(_ id: Int) async throws -> ChatChannelDetail { try await get("/chat/channels/\(id)/detail") }
     func sendMessage(_ channelId: Int, body: String) async throws -> ChatMsg {
         try await post("/chat/channels/\(channelId)/messages", body: MessagePayload(body: body))
+    }
+    func quickTaskFromMessage(_ messageId: Int) async throws -> KTask {
+        try await actionDecoded("/chat/messages/\(messageId)/quick-task")
     }
 
     // MARK: - Payroll

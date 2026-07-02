@@ -100,6 +100,13 @@ def test_core_product_flow() -> None:
         assert sale.status_code == 201
         assert sale.json()["total_amount"] > 0
         assert sale.json()["payment_account_label"] == payment_account.json()["label"]
+        receipt = client.get(
+            f"/api/pos/sales/{sale.json()['id']}/receipt",
+            headers=headers,
+        )
+        assert receipt.status_code == 200
+        assert receipt.headers["content-type"].startswith("application/pdf")
+        assert receipt.content[:4] == b"%PDF"
 
         invoice = client.post(
             "/api/invoices",

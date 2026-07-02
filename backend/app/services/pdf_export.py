@@ -2,6 +2,8 @@
 import re
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -10,6 +12,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     HRFlowable,
+    Image,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -32,7 +35,7 @@ def _money(amount: float) -> str:
 def _styles():
     base = getSampleStyleSheet()
     return {
-        "logo": ParagraphStyle("logo", parent=base["Title"], fontSize=24, textColor=TEAL, spaceAfter=2),
+        "logo": ParagraphStyle("logo", parent=base["Title"], fontSize=24, textColor=TEAL, spaceAfter=2, alignment=TA_LEFT),
         "h2": ParagraphStyle("h2", parent=base["Heading2"], fontSize=18, textColor=INK, spaceAfter=4),
         "muted": ParagraphStyle("muted", parent=base["Normal"], fontSize=10, textColor=MUTED),
         "body": ParagraphStyle("body", parent=base["Normal"], fontSize=11, textColor=INK),
@@ -40,6 +43,27 @@ def _styles():
         "footer": ParagraphStyle("footer", parent=base["Normal"], fontSize=9, textColor=MUTED, alignment=1),
         "badge": ParagraphStyle("badge", parent=base["Normal"], fontSize=10, textColor=TEAL, alignment=2),
     }
+
+
+def _company_logo(company, width: float = 1.5 * cm, height: float = 1.5 * cm):
+    """Return a ReportLab image when the tenant has uploaded a valid logo."""
+    raw_path = getattr(company, "logo_path", "") if company else ""
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if not path.is_file():
+        # Production normally starts in backend/, while some test/build commands
+        # start at the repository root.
+        candidate = Path(__file__).resolve().parents[2] / raw_path
+        path = candidate if candidate.is_file() else path
+    if not path.is_file():
+        return None
+    try:
+        image = Image(str(path), width=width, height=height)
+        image.hAlign = "LEFT"
+        return image
+    except Exception:
+        return None
 
 
 def render_invoice_pdf(invoice, company) -> bytes:
@@ -59,8 +83,15 @@ def render_invoice_pdf(invoice, company) -> bytes:
     company_legal = company.legal_name if company and company.legal_name else ""
     company_country = company.country if company and company.country else ""
 
+    brand: list = []
+    logo = _company_logo(company)
+    if logo:
+        brand.append(logo)
+        brand.append(Spacer(1, 0.12 * cm))
+    brand.append(Paragraph(escape(company_name), s["logo"]))
+
     header = Table(
-        [[Paragraph(company_name, s["logo"]), Paragraph("FACTURE", s["badge"])],
+        [[brand, Paragraph("FACTURE", s["badge"])],
          [Paragraph(f"{company_legal} · {company_country}", s["muted"]), ""]],
         colWidths=[12 * cm, 5 * cm],
     )
@@ -129,6 +160,118 @@ def render_invoice_pdf(invoice, company) -> bytes:
         s["footer"],
     ))
 
+    doc.build(story)
+    return buffer.getvalue()
+
+
+def render_receipt_pdf(sale, company) -> bytes:
+    """Build a printable 80 mm POS receipt with the company logo and line items."""
+    item_count = max(len(getattr(sale, "items", []) or []), 1)
+    page_height = max(14 * cm, (11.5 + item_count * 0.72) * cm)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=(8 * cm, page_height),
+        rightMargin=0.45 * cm,
+        leftMargin=0.45 * cm,
+        topMargin=0.45 * cm,
+        bottomMargin=0.45 * cm,
+        title=f"Ticket {sale.receipt_number}",
+    )
+    base = getSampleStyleSheet()
+    centered = ParagraphStyle(
+        "receipt_center", parent=base["Normal"], alignment=TA_CENTER,
+        fontName="Helvetica", fontSize=8.5, leading=11, textColor=INK,
+    )
+    name_style = ParagraphStyle(
+        "receipt_name", parent=centered, fontName="Helvetica-Bold",
+        fontSize=12, leading=14, textColor=INK,
+    )
+    tiny = ParagraphStyle(
+        "receipt_tiny", parent=centered, fontSize=7, leading=9, textColor=MUTED,
+    )
+    total_style = ParagraphStyle(
+        "receipt_total", parent=base["Normal"], fontName="Helvetica-Bold",
+        fontSize=11, leading=13, alignment=2, textColor=INK,
+    )
+    story = []
+
+    logo = _company_logo(company, 1.25 * cm, 1.25 * cm)
+    if logo:
+        logo.hAlign = "CENTER"
+        story.extend([logo, Spacer(1, 0.12 * cm)])
+    company_name = escape(company.name if company else "KOMPTA")
+    story.append(Paragraph(company_name, name_style))
+    legal_bits = [
+        getattr(company, "legal_name", ""),
+        getattr(company, "address", ""),
+        getattr(company, "city", ""),
+        getattr(company, "phone", ""),
+        f"NIU {company.niu}" if company and getattr(company, "niu", "") else "",
+    ]
+    legal_line = " · ".join(escape(str(value)) for value in legal_bits if value)
+    if legal_line:
+        story.append(Paragraph(legal_line, tiny))
+    story.extend([
+        Spacer(1, 0.2 * cm),
+        HRFlowable(width="100%", thickness=0.7, color=MUTED, dash=[2, 2]),
+        Spacer(1, 0.16 * cm),
+        Paragraph(f"<b>TICKET DE CAISSE</b><br/>{escape(sale.receipt_number)}", centered),
+        Paragraph(str(sale.created_at)[:16].replace("T", " "), tiny),
+        Spacer(1, 0.18 * cm),
+    ])
+    if getattr(sale, "client_name", ""):
+        story.extend([
+            Paragraph(f"Client : <b>{escape(sale.client_name)}</b>", centered),
+            Spacer(1, 0.12 * cm),
+        ])
+
+    rows = [["Article", "Qté", "Montant"]]
+    for item in sale.items:
+        rows.append([
+            Paragraph(escape(item.product_name), ParagraphStyle("receipt_item", parent=tiny, alignment=TA_LEFT)),
+            str(item.quantity),
+            _money(item.line_total).replace(" XAF", " F"),
+        ])
+    table = Table(rows, colWidths=[4.0 * cm, 0.7 * cm, 2.35 * cm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, MUTED),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.extend([table, Spacer(1, 0.18 * cm)])
+
+    payment = getattr(sale, "payment_account_label", "") or getattr(sale, "payment_method", "") or ""
+    totals = Table(
+        [
+            [Paragraph("<b>TOTAL TTC</b>", centered), Paragraph(_money(sale.total_amount), total_style)],
+            [Paragraph("Paiement", tiny), Paragraph(escape(str(payment)), tiny)],
+        ],
+        colWidths=[3.1 * cm, 3.95 * cm],
+    )
+    totals.setStyle(TableStyle([
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.8, INK),
+        ("TOPPADDING", (0, 0), (-1, 0), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.extend([
+        totals,
+        Paragraph(
+            f"+{int(getattr(sale, 'loyalty_points_earned', 0))} point(s) fidélité"
+            if int(getattr(sale, "loyalty_points_earned", 0) or 0) > 0 else "",
+            tiny,
+        ),
+        Spacer(1, 0.25 * cm),
+        HRFlowable(width="100%", thickness=0.7, color=MUTED, dash=[2, 2]),
+        Spacer(1, 0.2 * cm),
+        Paragraph("Merci pour votre achat", centered),
+        Paragraph("Ticket généré par KOMPTA", tiny),
+    ])
     doc.build(story)
     return buffer.getvalue()
 

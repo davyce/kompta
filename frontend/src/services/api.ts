@@ -389,8 +389,8 @@ export const api = {
     request<{ product: Product; label: Record<string, string | number> }>(`/products/${id}/qr-label`, {
       method: "POST"
     }),
-  createSale: (payload: { payment_method: string; payment_account_id?: number | null; payment_transaction_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number; tva_enabled?: boolean; tax_rate?: number }) =>
-    request<{ receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
+  createSale: (payload: { payment_method: string; payment_account_id?: number | null; payment_transaction_id?: number | null; client_id?: number | null; items: Array<{ product_id: number; quantity: number }>; discount_percent?: number; tva_enabled?: boolean; tax_rate?: number }) =>
+    request<{ id: number; receipt_number: string; total_amount: number; payment_method: string; payment_account_label?: string; client_id?: number | null; client_name?: string; discount_percent?: number; discount_amount?: number; loyalty_points_earned?: number; items: Array<{ product_id: number; name: string; quantity: number; total: number }> }>(
       "/pos/sales",
       {
         method: "POST",
@@ -398,6 +398,7 @@ export const api = {
       }
     ),
   posSales: (limit = 50) => request<SaleRecord[]>(`/pos/sales?limit=${limit}`),
+  posReceiptPdf: (saleId: number) => requestBlob(`/pos/sales/${saleId}/receipt`),
   inventoryMovements: () => request<InventoryMovement[]>("/inventory/movements"),
   invoices: () => request<Invoice[]>("/invoices"),
   createInvoice: (payload: {

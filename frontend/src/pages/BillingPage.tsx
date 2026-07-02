@@ -14,6 +14,19 @@ import { exportTableToExcel } from "../utils/export";
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
 type StatusFilter = "all" | "sent" | "paid" | "draft" | "overdue";
 
+type BillingRow = {
+  kind: "invoice" | "pos";
+  id: number;
+  number: string;
+  customer_name: string;
+  status: string;
+  due_date: string | null;
+  paid_at: string | null;
+  total_amount: number;
+  payment_account_label?: string;
+  relance_count?: number;
+};
+
 const STATUS_TR: Record<string, string> = {
   paid: "billing.statusPaid", sent: "billing.statusSent", draft: "billing.statusDraft", overdue: "billing.statusOverdue",
 };
@@ -52,6 +65,7 @@ export function BillingPage() {
   const queryClient = useQueryClient();
   useCurrency();
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
+  const posSales = useQuery({ queryKey: ["posSales"], queryFn: () => api.posSales(200) });
   const paymentAccounts = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -114,9 +128,10 @@ export function BillingPage() {
     },
   });
 
-  const [exportingId, setExportingId] = useState<number | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   async function exportInvoice(id: number, number: string) {
-    setExportingId(id);
+    const key = `invoice:${id}`;
+    setExportingId(key);
     try {
       const blob = await api.exportInvoice(id, "pdf");
       const url = URL.createObjectURL(blob);
@@ -127,32 +142,74 @@ export function BillingPage() {
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } finally { setExportingId(null); }
   }
+  async function exportReceipt(id: number, number: string) {
+    const key = `pos:${id}`;
+    setExportingId(key);
+    try {
+      const blob = await api.posReceiptPdf(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ticket-${number}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } finally { setExportingId(null); }
+  }
+
+  /* ── lignes unifiées : factures + ventes caisse (sinon les ventes payées à la Caisse
+     n'apparaissent nulle part dans la facturation) ── */
+  const rows = useMemo<BillingRow[]>(() => {
+    const invoiceRows: BillingRow[] = (invoices.data ?? []).map((inv) => ({
+      kind: "invoice",
+      id: inv.id,
+      number: inv.number,
+      customer_name: inv.customer_name,
+      status: inv.status,
+      due_date: inv.due_date ?? null,
+      paid_at: inv.paid_at ?? null,
+      total_amount: inv.total_amount ?? 0,
+      payment_account_label: inv.payment_account_label,
+      relance_count: inv.relance_count,
+    }));
+    const saleRows: BillingRow[] = (posSales.data ?? []).map((s) => ({
+      kind: "pos",
+      id: s.id,
+      number: s.receipt_number,
+      customer_name: s.client_name || tr("billing.anonClient"),
+      status: "paid",
+      due_date: s.created_at ?? null,
+      paid_at: s.created_at ?? null,
+      total_amount: s.total_amount ?? 0,
+      payment_account_label: s.payment_account_label,
+      relance_count: 0,
+    }));
+    return [...invoiceRows, ...saleRows];
+  }, [invoices.data, posSales.data, tr]);
 
   /* ── computed ── */
   const kpis = useMemo(() => {
-    const all = invoices.data ?? [];
-    const paid = all.filter((i) => i.status === "paid");
-    const pending = all.filter((i) => i.status === "sent");
+    const paid = rows.filter((r) => r.status === "paid");
+    const pending = rows.filter((r) => r.status === "sent");
     const today = new Date().toISOString().slice(0, 10);
-    const overdue = all.filter((i) => i.status === "sent" && i.due_date && i.due_date < today);
+    const overdue = rows.filter((r) => r.status === "sent" && r.due_date && r.due_date < today);
     return {
-      totalPaid: paid.reduce((s, i) => s + (i.total_amount || 0), 0),
-      totalPending: pending.reduce((s, i) => s + (i.total_amount || 0), 0),
+      totalPaid: paid.reduce((s, r) => s + (r.total_amount || 0), 0),
+      totalPending: pending.reduce((s, r) => s + (r.total_amount || 0), 0),
       overdueCount: overdue.length,
-      totalInvoices: all.length,
+      totalInvoices: rows.length,
     };
-  }, [invoices.data]);
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const q = search.trim().toLowerCase();
-    const base = (invoices.data ?? []).filter((inv) => {
-      const isOverdue = inv.status === "sent" && inv.due_date && inv.due_date < today;
+    const base = rows.filter((r) => {
+      const isOverdue = r.status === "sent" && r.due_date && r.due_date < today;
       const matchStatus =
         statusFilter === "all" ? true :
         statusFilter === "overdue" ? isOverdue :
-        inv.status === statusFilter;
-      const matchSearch = !q || `${inv.number} ${inv.customer_name}`.toLowerCase().includes(q);
+        r.status === statusFilter;
+      const matchSearch = !q || `${r.number} ${r.customer_name}`.toLowerCase().includes(q);
       return matchStatus && matchSearch;
     });
     return [...base].sort((a, b) => {
@@ -163,7 +220,7 @@ export function BillingPage() {
       if (sortField === "status")   cmp = a.status.localeCompare(b.status);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [invoices.data, statusFilter, search, sortField, sortDir]);
+  }, [rows, statusFilter, search, sortField, sortDir]);
 
   const totalLines = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
 
@@ -175,15 +232,15 @@ export function BillingPage() {
 
   function exportBillingExcel() {
     const headers = [tr("billing.excelNumber"), tr("billing.excelClient"), tr("billing.excelDate"), tr("billing.excelAmount"), tr("billing.excelStatus"), tr("billing.excelRelances")];
-    const rows = filtered.map((inv) => [
-      inv.number,
-      inv.customer_name,
-      inv.due_date ?? "",
-      inv.total_amount ?? 0,
-      inv.status,
-      inv.relance_count ?? 0,
+    const excelRows = filtered.map((r) => [
+      r.number,
+      r.customer_name,
+      r.due_date ?? "",
+      r.total_amount ?? 0,
+      r.status,
+      r.relance_count ?? 0,
     ]);
-    exportTableToExcel(headers, rows, `factures-kompta-${new Date().toISOString().slice(0, 10)}`);
+    exportTableToExcel(headers, excelRows, `factures-kompta-${new Date().toISOString().slice(0, 10)}`);
   }
 
   function submit(e: FormEvent) {
@@ -284,58 +341,64 @@ export function BillingPage() {
           </div>
 
           <div className="space-y-2">
-            {filtered.map((invoice) => {
+            {filtered.map((r) => {
               const today = new Date().toISOString().slice(0, 10);
-              const isOverdue = invoice.status === "sent" && invoice.due_date && invoice.due_date < today;
-              const displayStatus = isOverdue ? "overdue" : invoice.status;
-              const defaultChoice = paymentChoice[invoice.id] ?? "method:cash";
+              const isOverdue = r.status === "sent" && r.due_date && r.due_date < today;
+              const displayStatus = isOverdue ? "overdue" : r.status;
+              const defaultChoice = paymentChoice[r.id] ?? "method:cash";
+              const rowKey = `${r.kind}:${r.id}`;
               return (
-                <div key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3 dark:border-white/[0.05]">
+                <div key={rowKey} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/[0.05] p-3 dark:border-white/[0.05]">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge
                         label={STATUS_TR[displayStatus] ? tr(STATUS_TR[displayStatus]) : displayStatus}
                         tone={STATUS_TONES[displayStatus] ?? "blue"}
                       />
-                      <p className="font-semibold text-ink dark:text-white">{invoice.number} · {invoice.customer_name}</p>
-                      {(invoice.relance_count ?? 0) > 0 && (
+                      {r.kind === "pos" && (
+                        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
+                          {tr("billing.posSaleBadge")}
+                        </span>
+                      )}
+                      <p className="font-semibold text-ink dark:text-white">{r.number} · {r.customer_name}</p>
+                      {(r.relance_count ?? 0) > 0 && (
                         <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                          {tr("billing.relancedTimes", { count: invoice.relance_count })}
+                          {tr("billing.relancedTimes", { count: r.relance_count })}
                         </span>
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-[#717182]">
-                      {invoice.status === "paid"
-                        ? `${tr("billing.paidOn", { date: invoice.paid_at ? shortDate(invoice.paid_at) : "" })}${invoice.payment_account_label ? ` · ${invoice.payment_account_label}` : ""}`
-                        : tr("billing.dueOn", { date: invoice.due_date ? shortDate(invoice.due_date) : "—" })}
+                      {r.status === "paid"
+                        ? `${tr("billing.paidOn", { date: r.paid_at ? shortDate(r.paid_at) : "" })}${r.payment_account_label ? ` · ${r.payment_account_label}` : ""}`
+                        : tr("billing.dueOn", { date: r.due_date ? shortDate(r.due_date) : "—" })}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="font-bold text-ink dark:text-white">{money(invoice.total_amount)}</p>
+                    <p className="font-bold text-ink dark:text-white">{money(r.total_amount)}</p>
                     <button
-                      onClick={() => exportInvoice(invoice.id, invoice.number)}
-                      disabled={exportingId === invoice.id}
+                      onClick={() => (r.kind === "pos" ? exportReceipt(r.id, r.number) : exportInvoice(r.id, r.number))}
+                      disabled={exportingId === rowKey}
                       className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 disabled:text-stone-400 dark:bg-white/5 dark:text-white"
                     >
                       <Download size={13} />
-                      {exportingId === invoice.id ? "…" : "PDF"}
+                      {exportingId === rowKey ? "…" : r.kind === "pos" ? tr("billing.ticket") : "PDF"}
                     </button>
-                    {invoice.status !== "paid" && (
+                    {r.kind === "invoice" && r.status !== "paid" && (
                       <button
-                        onClick={() => relance.mutate(invoice.id)}
+                        onClick={() => relance.mutate(r.id)}
                         disabled={relance.isPending}
                         className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                       >
                         <Bell size={13} /> {tr("billing.relancer")}
                       </button>
                     )}
-                    {invoice.status !== "paid" && invoice.status !== "draft" && (
+                    {r.kind === "invoice" && r.status !== "paid" && r.status !== "draft" && (
                       <div className="flex flex-wrap items-center gap-1">
                         <label className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2 py-1 text-xs font-bold text-[#17211f] dark:bg-white/5 dark:text-white">
                           <CreditCard size={13} />
                           <select
                             value={defaultChoice}
-                            onChange={(e) => setPaymentChoice((c) => ({ ...c, [invoice.id]: e.target.value }))}
+                            onChange={(e) => setPaymentChoice((c) => ({ ...c, [r.id]: e.target.value }))}
                             className="bg-transparent outline-none"
                           >
                             <option value="method:cash">{tr("billing.optCash")}</option>
@@ -346,7 +409,7 @@ export function BillingPage() {
                           </select>
                         </label>
                         <button
-                          onClick={() => markPaid.mutate({ id: invoice.id, choice: defaultChoice })}
+                          onClick={() => markPaid.mutate({ id: r.id, choice: defaultChoice })}
                           disabled={markPaid.isPending}
                           className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-stone-300"
                         >

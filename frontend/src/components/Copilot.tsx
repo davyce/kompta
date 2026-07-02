@@ -749,6 +749,10 @@ export function Copilot() {
   const panelCls = fullscreen
     ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229]"
     : "fixed right-5 z-40 flex h-[min(38rem,calc(100vh-12rem))] w-[calc(100vw-2rem)] max-w-[26rem] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-2xl dark:border-white/10 dark:bg-[#1e2229] bottom-[calc(9rem+env(safe-area-inset-bottom))] lg:bottom-24";
+  // Sur mobile, le FAB recouvrait les contrôles essentiels de la caisse et la
+  // zone d'envoi du chat. Limule reste accessible via la navigation dédiée ;
+  // le bouton flottant réapparaît sur desktop où l'espace est suffisant.
+  const suppressMobileFab = location.pathname === "/pos" || location.pathname === "/chat";
 
   const suggestions = (PAGE_SUGGESTIONS[location.pathname] ?? DEFAULT_CHIPS).map((s) => ({ ...s, label: tr(s.tk) }));
   const pinnedMsgs = messages.filter((m) => pinnedIds.has(m.id));
@@ -762,7 +766,7 @@ export function Copilot() {
   return (
     <>
       {/* ── FAB avec badge alerte (#11) ──────────────────────────────────── */}
-      <div className="fixed right-5 z-30 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5">
+      <div className={`fixed right-5 z-30 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-5 ${suppressMobileFab ? "hidden lg:block" : ""}`}>
         <button
           data-tour="limule"
           onClick={() => setOpen(true)}

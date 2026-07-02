@@ -31,6 +31,8 @@ from app.models import (
     AIGeneration,
     BankTransaction,
     ChatChannel,
+    Client,
+    ClientDiscount,
     Company,
     CompanyDocument,
     CompanyModule,
@@ -1992,11 +1994,19 @@ def create_sale(
         payment_account_id=payload.payment_account_id,
         use_case="pos",
     )
+    selected_client = None
+    if payload.client_id is not None:
+        selected_client = db.get(Client, payload.client_id)
+        if not selected_client or selected_client.company_id != current_user.company_id:
+            raise HTTPException(status_code=404, detail="Client introuvable dans votre fichier clients")
+
     sale = Sale(
         receipt_number=_next_receipt_number(db, current_user.company_id),
         payment_method=payment_method,
         payment_account_id=payment_account.id if payment_account else None,
         payment_account_label=payment_account.label if payment_account else "",
+        client_id=selected_client.id if selected_client else None,
+        client_name=selected_client.name if selected_client else "",
         company_id=current_user.company_id,
     )
     total = 0.0
@@ -2053,13 +2063,56 @@ def create_sale(
         return int(_math.floor(float(x) + 0.5))
 
     subtotal = total
-    discount_amount = _round_half_up(subtotal * (payload.discount_percent / 100.0)) if payload.discount_percent else 0
+    # Appliquer automatiquement la meilleure promotion POS du client sélectionné.
+    # La remise manuelle reste possible, mais ne peut pas écraser une promotion
+    # client plus avantageuse.
+    effective_discount_percent = max(0.0, min(float(payload.discount_percent or 0), 100.0))
+    fixed_discount = 0.0
+    if selected_client:
+        effective_discount_percent = max(
+            effective_discount_percent,
+            max(0.0, min(float(selected_client.global_discount_percent or 0), 100.0)),
+        )
+        client_discounts = db.scalars(
+            select(ClientDiscount).where(
+                ClientDiscount.client_id == selected_client.id,
+                ClientDiscount.company_id == current_user.company_id,
+                ClientDiscount.active.is_(True),
+                ClientDiscount.applies_to.in_(["all", "pos"]),
+                ClientDiscount.min_order_amount <= subtotal,
+            )
+        ).all()
+        for promo in client_discounts:
+            if promo.discount_type == "percent":
+                effective_discount_percent = max(
+                    effective_discount_percent,
+                    max(0.0, min(float(promo.discount_value or 0), 100.0)),
+                )
+            elif promo.discount_type == "fixed":
+                fixed_discount = max(fixed_discount, max(float(promo.discount_value or 0), 0.0))
+
+    percent_discount = _round_half_up(subtotal * (effective_discount_percent / 100.0))
+    discount_amount = min(subtotal, max(percent_discount, fixed_discount))
     after_discount = subtotal - discount_amount
     tax = _round_half_up(after_discount * (payload.tax_rate / 100.0)) if payload.tva_enabled else 0
     grand_total = after_discount + tax
     sale.total_amount = grand_total
     sale.total_amount_cents = _round_half_up(grand_total * 100)
     total = grand_total  # le reste de la fonction (transaction bancaire, réponse) utilise le total final
+
+    company = db.get(Company, current_user.company_id)
+    if selected_client and company and company.loyalty_enabled:
+        rate = max(int(company.loyalty_points_per_1000 or 0), 0)
+        earned = max(int(grand_total // 1000) * rate, 0)
+        sale.loyalty_points_earned = earned
+        selected_client.loyalty_points = int(selected_client.loyalty_points or 0) + earned
+        points = selected_client.loyalty_points
+        selected_client.loyalty_tier = (
+            "vip" if points >= 5000 else
+            "gold" if points >= 2000 else
+            "silver" if points >= 500 else
+            "standard"
+        )
 
     if payload.payment_transaction_id is not None:
         payment_txn = db.get(PaymentTransaction, payload.payment_transaction_id)
@@ -2103,7 +2156,7 @@ def create_sale(
     db.add(pos_txn)
     # ── Écriture comptable automatique (partie double) ──
     try:
-        company = db.get(Company, current_user.company_id)
+        company = company or db.get(Company, current_user.company_id)
         _accounting.record_sale(
             db, company, sale_id=sale.id, total=total,
             payment_method=payment_method, tax_amount=0.0, user_id=current_user.id,
@@ -2119,6 +2172,11 @@ def create_sale(
         "payment_account_id": sale.payment_account_id,
         "payment_account_label": sale.payment_account_label,
         "status": sale.status,
+        "client_id": sale.client_id,
+        "client_name": sale.client_name,
+        "discount_percent": effective_discount_percent,
+        "discount_amount": discount_amount,
+        "loyalty_points_earned": sale.loyalty_points_earned,
         "total_amount": sale.total_amount,
         "items": response_items,
         "transaction_id": pos_txn.id,
@@ -2148,6 +2206,9 @@ def list_sales(
             "payment_account_label": s.payment_account_label,
             "total_amount": s.total_amount,
             "status": s.status,
+            "client_id": s.client_id,
+            "client_name": s.client_name,
+            "loyalty_points_earned": s.loyalty_points_earned,
             "created_at": s.created_at,
             "items": [
                 {
@@ -2161,6 +2222,32 @@ def list_sales(
         }
         for s in sales
     ]
+
+
+@router.get("/pos/sales/{sale_id}/receipt")
+def export_sale_receipt(
+    sale_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Return a printable 80 mm PDF receipt for a tenant-owned POS sale."""
+    sale = db.scalar(
+        select(Sale)
+        .options(selectinload(Sale.items))
+        .where(Sale.id == sale_id, Sale.company_id == current_user.company_id)
+    )
+    if not sale:
+        raise HTTPException(status_code=404, detail="Vente introuvable")
+    company = db.get(Company, current_user.company_id)
+    from app.services.pdf_export import render_receipt_pdf
+
+    pdf_bytes = render_receipt_pdf(sale, company)
+    safe_number = "".join(c for c in sale.receipt_number if c.isalnum() or c in "-_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="ticket-{safe_number}.pdf"'},
+    )
 
 
 @router.get("/invoices", response_model=list[InvoiceRead])

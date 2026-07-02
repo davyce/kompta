@@ -448,6 +448,20 @@ struct ChatMsg: Codable, Identifiable, Hashable {
     let author_name: String
     let body: String
     let created_at: String
+    let ai_suggestion: String?
+    let ai_action: ChatAIAction?
+}
+
+struct ChatAIAction: Codable, Hashable {
+    let detected: Bool
+    let type: String?
+    let title: String?
+    let description: String?
+    let priority: String?
+    let due_date: String?
+    let due_time: String?
+    let assignee: String?
+    let confidence: Double?
 }
 
 struct ChatMember: Codable, Identifiable, Hashable {

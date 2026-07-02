@@ -75,7 +75,7 @@ struct AppShell: View {
         Task { await auth.markOnboardingDone() }
         // Enchaîne proprement sur l'assistant APRÈS la fermeture du tour
         // (un seul cover à la fois : on attend la fin de l'animation de dismiss).
-        guard shouldShowSetup() else { return }
+        guard shouldShowSetup(ignoreServerCompletion: true) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { stage = .setup }
     }
 
@@ -92,9 +92,13 @@ struct AppShell: View {
 
     /// L'assistant ne s'affiche que pour un admin d'entreprise au profil incomplet
     /// et non encore reporté.
-    private func shouldShowSetup() -> Bool {
+    private func shouldShowSetup(ignoreServerCompletion: Bool = false) -> Bool {
         guard auth.currentUser?.role == "admin_entreprise" else { return false }
         guard !setupDismissed else { return false }
+        // Le flag serveur doit aussi empêcher l'assistant de réapparaître après
+        // une réinstallation ou sur un nouvel appareil. On l'ignore uniquement
+        // pendant l'enchaînement de la toute première visite guidée.
+        if !ignoreServerCompletion && auth.currentUser?.onboarding_done == true { return false }
         return (auth.company?.completion_score ?? 100) < 100
     }
 

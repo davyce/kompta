@@ -68,6 +68,8 @@ class CompanyRead(BaseModel):
     completion_score: int
     teras_score: int
     cash_low_threshold_cents: int = 5_000_000
+    loyalty_enabled: bool = False
+    loyalty_points_per_1000: int = 1
     # Mentions légales (entreprise réelle CEMAC / OHADA)
     legal_form: str = ""
     rccm: str = ""
@@ -98,6 +100,8 @@ class CompanyUpdate(BaseModel):
     primary_color: str | None = None
     accent_color: str | None = None
     cash_low_threshold_cents: int | None = None
+    loyalty_enabled: bool | None = None
+    loyalty_points_per_1000: int | None = Field(default=None, ge=0, le=100)
     legal_form: str | None = None
     rccm: str | None = None
     niu: str | None = None
@@ -465,6 +469,7 @@ class SaleCreate(BaseModel):
     payment_method: str = "cash"
     payment_account_id: int | None = None
     payment_transaction_id: int | None = None
+    client_id: int | None = None
     items: list[SaleItemCreate]
     # Remise et TVA appliquées par la caisse (le serveur recalcule le total EXACT
     # de la même façon que le POS, pour que le montant encaissé corresponde).

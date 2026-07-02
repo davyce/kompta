@@ -59,6 +59,7 @@ struct POSView: View {
     // Data
     @State private var products:        [Product]        = []
     @State private var payAccounts:     [PaymentAccount] = []
+    @State private var clients:         [Client]         = []
     @State private var isLoading        = true
 
     // Catalog filters
@@ -79,6 +80,8 @@ struct POSView: View {
 
     // Client shown on receipt
     @State private var clientName       = ""
+    @State private var selectedClientId: Int?
+    @State private var clientDiscounts: [ClientDiscount] = []
 
     // UI
     @State private var showCart         = false
@@ -86,6 +89,7 @@ struct POSView: View {
     @State private var showReceipt      = false
     @State private var isSaving         = false
     @State private var errorMsg:        String?
+    @State private var showHistory      = false
 
     // MARK: Computed
 
@@ -115,11 +119,18 @@ struct POSView: View {
     // MARK: Body
 
     var body: some View {
-        #if os(iOS)
-        iOSLayout
-        #else
-        macOSLayout
-        #endif
+        Group {
+            #if os(iOS)
+            iOSLayout
+            #else
+            macOSLayout
+            #endif
+        }
+        .onChange(of: subtotal) { _, _ in
+            if let id = selectedClientId, let client = clients.first(where: { $0.id == id }) {
+                applyClientPromotion(client)
+            }
+        }
     }
 
     // MARK: - iOS layout
@@ -141,12 +152,16 @@ struct POSView: View {
             ToolbarItem(placement: .navigationBarTrailing) { cartBadgeButton }
             #endif
             ToolbarItem(placement: .secondaryAction) {
+                Button { showHistory = true } label: { Label("Historique des ventes", systemImage: "clock.arrow.circlepath") }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 DownloadButton(title: "Exporter ventes (CSV)", fileName: "ventes-pos.csv",
                                fetch: { try await APIClient.shared.posSalesExportCSV() })
             }
         }
         .sheet(isPresented: $showCart) { cartSheetView }
         .sheet(isPresented: $showReceipt) { receiptSheetView }
+        .sheet(isPresented: $showHistory) { SalesHistoryView().environmentObject(theme) }
         .task { await loadData() }
     }
 
@@ -170,7 +185,13 @@ struct POSView: View {
             macCartPanel.frame(width: 340)
         }
         .navigationTitle("Point de vente")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showHistory = true } label: { Label("Historique des ventes", systemImage: "clock.arrow.circlepath") }
+            }
+        }
         .sheet(isPresented: $showReceipt) { receiptSheetView }
+        .sheet(isPresented: $showHistory) { SalesHistoryView().environmentObject(theme) }
         .task { await loadData() }
     }
 
@@ -457,9 +478,20 @@ struct POSView: View {
             // Client name
             HStack(spacing: 8) {
                 Image(systemName: "person").font(.caption).foregroundStyle(.secondary)
-                TextField("Nom du client (optionnel)", text: $clientName)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
+                Picker("Client", selection: $selectedClientId) {
+                    Text("Aucun client").tag(nil as Int?)
+                    ForEach(clients.filter(\.isActive)) { client in
+                        Text(client.global_discount_percent > 0
+                             ? "\(client.name) · -\(Int(client.global_discount_percent))%"
+                             : client.name)
+                            .tag(client.id as Int?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onChange(of: selectedClientId) { _, id in
+                    Task { await selectClient(id) }
+                }
             }
             .padding(8)
             .background(Color.secondary.opacity(0.08))
@@ -613,6 +645,7 @@ struct POSView: View {
             items: cart.map { SaleItemPayload(product_id: $0.product.id, quantity: Int($0.quantity)) },
             payment_method: paymentMethod,
             payment_account_id: paymentAccountId,
+            client_id: selectedClientId,
             discount_percent: discountPercent,
             tva_enabled: tvaEnabled,
             tax_rate: tvaRate
@@ -623,6 +656,8 @@ struct POSView: View {
             cart = []
             discountPercent = 0
             clientName = ""
+            selectedClientId = nil
+            clientDiscounts = []
             showCart = false
             showReceipt = true
         } catch {
@@ -635,8 +670,10 @@ struct POSView: View {
         isLoading = true
         async let productsTask = APIClient.shared.products()
         async let accountsTask = APIClient.shared.paymentAccounts()
+        async let clientsTask = APIClient.shared.clients()
         products    = (try? await productsTask) ?? []
         payAccounts = (try? await accountsTask) ?? []
+        clients     = (try? await clientsTask) ?? []
         // Auto-select default POS account
         let posAccounts = payAccounts.filter { $0.enabled && $0.use_for_pos }
         if let def = posAccounts.first(where: { $0.is_default_pos }) ?? posAccounts.first {
@@ -644,6 +681,33 @@ struct POSView: View {
             paymentAccountId = def.id
         }
         isLoading = false
+    }
+
+    private func selectClient(_ id: Int?) async {
+        guard let id, let client = clients.first(where: { $0.id == id }) else {
+            clientName = ""
+            clientDiscounts = []
+            discountPercent = 0
+            return
+        }
+        clientName = client.name
+        clientDiscounts = (try? await APIClient.shared.clientDiscounts(id)) ?? []
+        applyClientPromotion(client)
+    }
+
+    private func applyClientPromotion(_ client: Client) {
+        let eligible = clientDiscounts.filter {
+            $0.active && ($0.applies_to == "all" || $0.applies_to == "pos")
+                && $0.min_order_amount <= subtotal
+        }
+        let bestPercent = eligible
+            .filter { $0.discount_type == "percent" }
+            .map(\.discount_value).max() ?? 0
+        let bestFixed = eligible
+            .filter { $0.discount_type == "fixed" }
+            .map(\.discount_value).max() ?? 0
+        let fixedAsPercent = subtotal > 0 ? min(100, bestFixed / subtotal * 100) : 0
+        discountPercent = max(client.global_discount_percent, bestPercent, fixedAsPercent)
     }
 }
 
@@ -665,12 +729,22 @@ struct POSProductCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(icon.tint.opacity(0.12))
                     Image(systemName: icon.symbol)
                         .font(.title2)
                         .foregroundStyle(icon.tint)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Badge de stock : fond plein + texte blanc pour rester lisible
+                    // même à 3 chiffres (l'ancien badge en coin de ligne de prix,
+                    // en .caption2 sur fond à 15% d'opacité, était illisible).
+                    Text(stockBadge.label)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(stockBadge.color, in: Capsule())
+                        .padding(5)
                 }
                 .frame(height: 56)
 
@@ -686,18 +760,9 @@ struct POSProductCard: View {
                         .lineLimit(1)
                 }
 
-                HStack(alignment: .firstTextBaseline) {
-                    Text(fcfa(product.price))
-                        .font(.caption.bold())
-                        .foregroundStyle(product.stock_quantity <= 0 ? Color.secondary : theme.primary)
-                    Spacer()
-                    Text(stockBadge.label)
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 5).padding(.vertical, 2)
-                        .background(stockBadge.color.opacity(0.15))
-                        .foregroundStyle(stockBadge.color)
-                        .clipShape(Capsule())
-                }
+                Text(fcfa(product.price))
+                    .font(.caption.bold())
+                    .foregroundStyle(product.stock_quantity <= 0 ? Color.secondary : theme.primary)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -733,8 +798,12 @@ struct ReceiptView: View {
                         if let num = sale.receipt_number {
                             Text("Reçu n° \(num)").font(.subheadline).foregroundStyle(.secondary)
                         }
-                        if !clientName.isEmpty {
-                            Text("Client : \(clientName)").font(.caption).foregroundStyle(.secondary)
+                        let receiptClient = sale.client_name?.isEmpty == false ? sale.client_name! : clientName
+                        if !receiptClient.isEmpty {
+                            Text("Client : \(receiptClient)").font(.caption).foregroundStyle(.secondary)
+                        }
+                        if let points = sale.loyalty_points_earned, points > 0 {
+                            Text("+\(points) point(s) fidélité").font(.caption.bold()).foregroundStyle(theme.primary)
                         }
                     }
 
@@ -789,6 +858,13 @@ struct ReceiptView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    DownloadButton(
+                        title: "Partager le ticket",
+                        fileName: "ticket-\(sale.receipt_number ?? String(sale.id)).pdf",
+                        fetch: { try await APIClient.shared.saleReceiptPDF(sale.id) }
+                    )
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Nouvelle vente") { dismiss() }
                 }
@@ -797,3 +873,126 @@ struct ReceiptView: View {
     }
 }
 
+// MARK: - Historique des ventes
+//
+// Après paiement à la caisse, la vente n'apparaît jamais sur la page
+// Facturation (un ticket de caisse n'est pas une facture client — deux
+// enregistrements distincts, par design). Mais il n'existait AUCUN endroit
+// pour retrouver un ticket déjà payé une fois la feuille de reçu fermée :
+// cet écran comble ce vide via GET /pos/sales.
+
+struct SalesHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+    @StateObject private var state = Loadable<[SaleHistoryItem]>()
+    @State private var selected: SaleHistoryItem?
+
+    var body: some View {
+        NavigationStack {
+            AsyncList(state: state, emptyTitle: "Aucune vente enregistrée", emptyIcon: "cart",
+                      reload: load) { sales in
+                List(sales) { sale in
+                    Button { selected = sale } label: { row(sale) }
+                        .buttonStyle(.plain)
+                }
+                #if os(iOS)
+                .listStyle(.insetGrouped)
+                #endif
+            }
+            .navigationTitle("Historique des ventes")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
+            .task { await load() }
+            .refreshable { await load() }
+            .sheet(item: $selected) { sale in SaleDetailView(sale: sale).environmentObject(theme) }
+        }
+    }
+
+    private func row(_ sale: SaleHistoryItem) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(theme.primary.opacity(0.12))
+                Image(systemName: "receipt").foregroundStyle(theme.primary)
+            }
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sale.receipt_number ?? "Vente #\(sale.id)").font(.subheadline.bold())
+                Text("\(sale.items.count) article(s) · \(sale.payment_account_label?.isEmpty == false ? sale.payment_account_label! : (sale.payment_method?.capitalized ?? ""))")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if let d = sale.created_at { Text(shortDate(d)).font(.caption2).foregroundStyle(.tertiary) }
+            }
+            Spacer()
+            Text(fcfa(sale.total_amount)).font(.subheadline.bold()).foregroundStyle(theme.primary)
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func load() async { await state.load { try await APIClient.shared.posSales() } }
+}
+
+/// Détail d'une vente passée — même présentation qu'un reçu, en lecture seule.
+private struct SaleDetailView: View {
+    let sale: SaleHistoryItem
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(spacing: 4) {
+                        Text(sale.receipt_number ?? "Vente #\(sale.id)").font(.title3.bold())
+                        if let d = sale.created_at { Text(shortDate(d)).font(.caption).foregroundStyle(.secondary) }
+                    }
+
+                    GlassCard(padding: 16, cornerRadius: 16) {
+                        VStack(spacing: 10) {
+                            ForEach(sale.items, id: \.product_name) { item in
+                                HStack {
+                                    Text("\(item.quantity)× \(item.product_name)").font(.subheadline).lineLimit(1)
+                                    Spacer()
+                                    Text(fcfa(item.line_total)).font(.subheadline.weight(.semibold))
+                                }
+                            }
+                            Divider()
+                            HStack {
+                                Text("TOTAL TTC").font(.headline.weight(.heavy))
+                                Spacer()
+                                Text(fcfa(sale.total_amount)).font(.title3.bold()).foregroundStyle(theme.primary)
+                            }
+                            let payLabel = (sale.payment_account_label?.isEmpty == false)
+                                ? sale.payment_account_label! : (sale.payment_method?.capitalized ?? "")
+                            if !payLabel.isEmpty {
+                                HStack {
+                                    Text("Paiement").foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text(payLabel).foregroundStyle(.secondary)
+                                }
+                                .font(.caption)
+                            }
+                        }
+                    }
+                    .environmentObject(theme)
+                }
+                .padding(24)
+            }
+            .navigationTitle("Reçu")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    DownloadButton(
+                        title: "Partager le ticket",
+                        fileName: "ticket-\(sale.receipt_number ?? String(sale.id)).pdf",
+                        fetch: { try await APIClient.shared.saleReceiptPDF(sale.id) }
+                    )
+                }
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+            }
+        }
+    }
+}
