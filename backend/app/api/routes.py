@@ -3043,16 +3043,22 @@ def list_messages(
     channel_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[Message]:
+) -> list[MessageRead]:
     channel = db.get(ChatChannel, channel_id)
     if not channel or channel.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Channel not found")
-    return db.scalars(
+    messages = db.scalars(
         select(Message)
         .where(Message.channel_id == channel_id)
         .options(selectinload(Message.author))
         .order_by(Message.created_at.asc())
     ).all()
+    # response_model=MessageRead seul ne suffit pas : le champ `ai_action` (dict)
+    # n'existe pas sur le modèle ORM (seulement `ai_action_json`, une string) —
+    # sans ce parsing explicite, Pydantic renvoie toujours ai_action=null pour
+    # l'historique, alors que la carte d'action Limule ne s'affichait que sur le
+    # message tout juste envoyé (réponse du POST, qui utilise déjà ce helper).
+    return [MessageRead.from_orm_with_action(m) for m in messages]
 
 
 @router.post("/chat/channels/{channel_id}/messages", response_model=MessageRead, status_code=201)

@@ -433,6 +433,17 @@ struct ChannelDetailView: View {
     @State private var sending = false
     @State private var showMembers = false
     @State private var taskToast: String?
+    @State private var mentionQuery: String?
+
+    /// Employés du canal dont le nom correspond au "@..." en cours de frappe —
+    /// insérer le nom exact garantit que Limule associe correctement la
+    /// tâche à la bonne personne (voir chat_ai_action côté backend).
+    private var mentionSuggestions: [ChatMember] {
+        guard let mentionQuery, let detail else { return [] }
+        let q = mentionQuery.lowercased()
+        let matches = detail.members.filter { q.isEmpty || $0.name.lowercased().contains(q) }
+        return Array(matches.prefix(5))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -474,11 +485,15 @@ struct ChannelDetailView: View {
                     .padding(.horizontal).padding(.top, 6)
                     .transition(.opacity)
             }
+            if !mentionSuggestions.isEmpty {
+                mentionDropdown
+            }
             HStack(spacing: 10) {
                 TextField("Message dans #\(channel.name)…", text: $draft, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                     .onSubmit { Task { await send() } }
+                    .onChange(of: draft) { _, newValue in updateMentionQuery(newValue) }
                 Button { Task { await send() } } label: {
                     Image(systemName: sending ? "ellipsis.circle" : "arrow.up.circle.fill").font(.title2)
                         .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : theme.primary)
@@ -534,10 +549,57 @@ struct ChannelDetailView: View {
     private func send() async {
         let text = draft.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
+        mentionQuery = nil
         sending = true; draft = ""
         do { _ = try await APIClient.shared.sendMessage(channel.id, body: text); await load() }
         catch { draft = text }
         sending = false
+    }
+
+    private var mentionDropdown: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(mentionSuggestions) { member in
+                Button { insertMention(member) } label: {
+                    HStack(spacing: 8) {
+                        Circle().fill(theme.primary.opacity(0.15)).frame(width: 26, height: 26)
+                            .overlay(Text(member.initials).font(.caption2.bold()).foregroundStyle(theme.primary))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(member.name).font(.caption.bold())
+                            if !member.role.isEmpty {
+                                Text(member.role).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                }
+                .buttonStyle(.plain)
+                if member.id != mentionSuggestions.last?.id { Divider().padding(.leading, 46) }
+            }
+        }
+        .background(Color.taskCardSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.primary.opacity(0.2)))
+        .padding(.horizontal)
+        .padding(.top, 6)
+    }
+
+    /// Repère un "@..." en cours de frappe à la fin du brouillon (les messages
+    /// de chat sont courts, la mention est quasi toujours en fin de texte).
+    private func updateMentionQuery(_ text: String) {
+        guard let range = text.range(of: "@[\\wÀ-ÿ]*$", options: .regularExpression) else {
+            mentionQuery = nil
+            return
+        }
+        mentionQuery = String(text[range].dropFirst())
+    }
+
+    private func insertMention(_ member: ChatMember) {
+        if let range = draft.range(of: "@[\\wÀ-ÿ]*$", options: .regularExpression) {
+            draft.replaceSubrange(range, with: "@\(member.name) ")
+        } else {
+            draft += "@\(member.name) "
+        }
+        mentionQuery = nil
     }
 
     // L'IA analyse le message du canal et en extrait une tâche bien formée
