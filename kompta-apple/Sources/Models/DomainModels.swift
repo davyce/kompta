@@ -147,7 +147,8 @@ struct InvoiceLinePayload: Encodable {
     var description: String
     var quantity: Int = 1
     var unit_price: Double = 0
-    var tax_rate: Double = 18.0
+    // Pas de TVA par défaut — l'entreprise l'active elle-même à la création.
+    var tax_rate: Double = 0
 }
 
 struct InvoicePayload: Encodable {

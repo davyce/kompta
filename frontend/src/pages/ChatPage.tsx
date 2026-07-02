@@ -97,6 +97,31 @@ function taskStatusLabel(status: string, tr: TFunction) {
   return map[status] ? tr(map[status]) : status;
 }
 
+/* ── Couleur de mention par personne ──────────────────────────────────
+   Chaque @mention garde une couleur stable (dérivée d'un hash de son nom),
+   distincte du violet des cartes "Action Limule" et lisible en clair/sombre
+   ET sur les bulles colorées (isMe) comme neutres — d'où le pill avec fond
+   teinté + texte de la même teinte, saturé assez pour rester visible sur
+   fond blanc translucide (bulle "moi") ou fond neutre (bulle "autre"). */
+const MENTION_PALETTE = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-500/25 dark:text-blue-200",
+  "bg-purple-100 text-purple-700 dark:bg-purple-500/25 dark:text-purple-200",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/25 dark:text-orange-200",
+  "bg-pink-100 text-pink-700 dark:bg-pink-500/25 dark:text-pink-200",
+  "bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-200",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/25 dark:text-indigo-200",
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/25 dark:text-rose-200",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-200",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/25 dark:text-cyan-200",
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/25 dark:text-amber-200",
+];
+
+function mentionClasses(name: string): string {
+  let hash = 0;
+  for (const ch of name.toLowerCase()) hash = (hash + ch.charCodeAt(0)) | 0;
+  return MENTION_PALETTE[Math.abs(hash) % MENTION_PALETTE.length];
+}
+
 /* ── Inline message renderer (mentions + links) ───────────────────── */
 function MessageBody({ text, isMe }: { text: string; isMe: boolean }) {
   const parts = useMemo(() => {
@@ -118,7 +143,7 @@ function MessageBody({ text, isMe }: { text: string; isMe: boolean }) {
     <>
       {parts.map((p, i) => {
         if (p.kind === "mention")
-          return <span key={i} className={`rounded px-1 font-bold ${isMe ? "bg-white/20" : "bg-violet-50 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300"}`}>{p.value}</span>;
+          return <span key={i} className={`rounded px-1 font-bold ${mentionClasses(p.value)}`}>{p.value}</span>;
         if (p.kind === "link")
           return <a key={i} href={p.value} target="_blank" rel="noreferrer" className={`underline ${isMe ? "text-white/90" : "text-violet-600"}`}>{p.value}</a>;
         return <span key={i}>{p.value}</span>;
@@ -599,7 +624,7 @@ export function ChatPage() {
                     <div className="mt-2 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50/60 px-3 py-2.5 text-left dark:border-violet-500/30 dark:from-violet-500/10 dark:to-indigo-500/5">
                       {/* Header */}
                       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">
-                        <Zap size={10} className="text-amber-500" />
+                        <LimuleIcon size={13} />
                         {tr("chat.limule.actionDetected")}
                         {m.ai_action?.detected && (
                           <span className="ml-auto rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">

@@ -87,6 +87,10 @@ export function BillingPage() {
   const [invoiceNotes, setInvoiceNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saveAsDraft, setSaveAsDraft] = useState(false);
+  // Comme à la Caisse : la TVA n'est PAS appliquée par défaut, l'entreprise
+  // l'active elle-même au moment de créer la facture.
+  const [tvaEnabled, setTvaEnabled] = useState(false);
+  const [tvaRate, setTvaRate] = useState(18);
 
   /* ── mutations ── */
   const create = useMutation({
@@ -222,7 +226,9 @@ export function BillingPage() {
     });
   }, [rows, statusFilter, search, sortField, sortDir]);
 
-  const totalLines = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
+  const subtotalHT = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
+  const tvaAmount = tvaEnabled ? subtotalHT * (tvaRate / 100) : 0;
+  const totalLines = subtotalHT + tvaAmount;
 
   function addLine() { setLines((l) => [...l, { description: "", quantity: 1, unit_price: 0 }]); }
   function removeLine(i: number) { setLines((l) => l.filter((_, idx) => idx !== i)); }
@@ -249,7 +255,7 @@ export function BillingPage() {
     create.mutate({
       customer_name: customerName.trim() || tr("billing.anonClient"),
       status: saveAsDraft ? "draft" : "sent",
-      lines,
+      lines: lines.map((l) => ({ ...l, tax_rate: tvaEnabled ? tvaRate : 0 })),
       ...(dueDate ? { due_date: dueDate } : {}),
       ...(invoiceNotes.trim() ? { notes: invoiceNotes } : {}),
     });
@@ -439,18 +445,18 @@ export function BillingPage() {
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder={tr("billing.clientPlaceholder")}
             />
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block min-w-0">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.dueDate")}</span>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
+                  className="mt-1 w-full min-w-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
                 />
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="flex-1">
+              <label className="flex min-w-0 items-center gap-2 cursor-pointer">
+                <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#717182]">{tr("billing.mode")}</span>
                   <div className="mt-1 flex rounded-lg border border-black/[0.06] overflow-hidden text-sm font-semibold">
                     <button
@@ -539,10 +545,46 @@ export function BillingPage() {
               />
             </label>
 
+            {/* TVA — désactivée par défaut, comme à la Caisse */}
+            <div className="flex items-center justify-between rounded-lg border border-black/[0.06] bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink dark:text-white">
+                <input
+                  type="checkbox"
+                  checked={tvaEnabled}
+                  onChange={(e) => setTvaEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                {tr("billing.applyTva")}
+              </label>
+              {tvaEnabled && (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" min={0} max={100}
+                    value={tvaRate}
+                    onChange={(e) => setTvaRate(Number(e.target.value))}
+                    className="w-16 rounded-lg border border-black/[0.06] bg-stone-50 px-2 py-1 text-right text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
+                  />
+                  <span className="text-sm text-[#717182]">%</span>
+                </div>
+              )}
+            </div>
+
             {/* Total */}
-            <div className="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
-              <span className="font-bold text-ink dark:text-white">{tr("billing.totalHt")}</span>
-              <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">{money(totalLines)}</span>
+            <div className="space-y-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
+              <div className="flex items-center justify-between text-sm text-[#717182]">
+                <span>{tr("billing.totalHt")}</span>
+                <span>{money(subtotalHT)}</span>
+              </div>
+              {tvaEnabled && (
+                <div className="flex items-center justify-between text-sm text-[#717182]">
+                  <span>{tr("billing.tva")} ({tvaRate}%)</span>
+                  <span>{money(tvaAmount)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-bold text-ink dark:text-white">{tr("billing.totalTtc")}</span>
+                <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">{money(totalLines)}</span>
+              </div>
             </div>
 
             <button

@@ -1057,15 +1057,24 @@ struct InvoiceFormView: View {
     @EnvironmentObject private var theme: CompanyTheme
     @State private var customerName = ""
     @State private var customerEmail = ""
-    @State private var dueDate = ""
+    @State private var hasDueDate = false
+    @State private var dueDate = Date()
     @State private var saveAsDraft = false
-    @State private var lines: [InvoiceLinePayload] = [InvoiceLinePayload(description: "", quantity: 1, unit_price: 0, tax_rate: 18)]
+    @State private var lines: [InvoiceLinePayload] = [InvoiceLinePayload(description: "", quantity: 1, unit_price: 0, tax_rate: 0)]
+    // TVA désactivée par défaut — l'entreprise l'active elle-même, comme à la Caisse.
+    @State private var tvaEnabled = false
+    @State private var tvaRate: Double = 18
     @State private var saving = false
     @State private var errorMsg: String?
 
     var subtotal: Double { lines.reduce(0) { $0 + Double($1.quantity) * $1.unit_price } }
-    var tax: Double { lines.reduce(0) { $0 + Double($1.quantity) * $1.unit_price * $1.tax_rate / 100 } }
+    var tax: Double { tvaEnabled ? subtotal * tvaRate / 100 : 0 }
     var total: Double { subtotal + tax }
+
+    private static let isoDate: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.calendar = Calendar(identifier: .gregorian)
+        return f
+    }()
 
     var body: some View {
         NavigationStack {
@@ -1076,10 +1085,30 @@ struct InvoiceFormView: View {
                         #if os(iOS)
                         .keyboardType(.emailAddress)
                         #endif
-                    TextField("Échéance (YYYY-MM-DD)", text: $dueDate)
+                    Toggle("Date d'échéance", isOn: $hasDueDate.animation())
+                    if hasDueDate {
+                        DatePicker("Échéance", selection: $dueDate, displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                    }
                 }
                 Section {
                     Toggle("Enregistrer comme brouillon", isOn: $saveAsDraft)
+                }
+                Section("TVA") {
+                    Toggle("Appliquer la TVA", isOn: $tvaEnabled.animation())
+                    if tvaEnabled {
+                        HStack {
+                            Text("Taux")
+                            Spacer()
+                            TextField("18", value: $tvaRate, format: .number)
+                                #if os(iOS)
+                                .keyboardType(.decimalPad)
+                                #endif
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                            Text("%").foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 Section("Lignes de facturation") {
                     ForEach(lines.indices, id: \.self) { i in
@@ -1103,28 +1132,22 @@ struct InvoiceFormView: View {
                                         #endif
                                         .frame(maxWidth: .infinity)
                                 }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("TVA %").font(.caption2).foregroundStyle(.secondary)
-                                    TextField("18", value: $lines[i].tax_rate, format: .number)
-                                        #if os(iOS)
-                                        .keyboardType(.decimalPad)
-                                        #endif
-                                        .frame(width: 50)
-                                }
                             }
                         }
                         .padding(.vertical, 4)
                     }
                     .onDelete { lines.remove(atOffsets: $0) }
                     Button {
-                        lines.append(InvoiceLinePayload(description: "", quantity: 1, unit_price: 0, tax_rate: 18))
+                        lines.append(InvoiceLinePayload(description: "", quantity: 1, unit_price: 0, tax_rate: 0))
                     } label: {
                         Label("Ajouter une ligne", systemImage: "plus.circle")
                     }
                 }
                 Section("Récapitulatif") {
                     HStack { Text("Sous-total HT"); Spacer(); Text(fcfa(subtotal)) }
-                    HStack { Text("TVA"); Spacer(); Text(fcfa(tax)) }
+                    if tvaEnabled {
+                        HStack { Text("TVA (\(Int(tvaRate))%)"); Spacer(); Text(fcfa(tax)) }
+                    }
                     HStack { Text("Total TTC").bold(); Spacer(); Text(fcfa(total)).bold().foregroundStyle(theme.primary) }
                 }
                 if let err = errorMsg {
@@ -1149,7 +1172,10 @@ struct InvoiceFormView: View {
 
     private func save() async {
         saving = true; errorMsg = nil
-        let validLines = lines.filter { !$0.description.isEmpty }
+        let rate = tvaEnabled ? tvaRate : 0
+        let validLines = lines
+            .filter { !$0.description.isEmpty }
+            .map { InvoiceLinePayload(description: $0.description, quantity: $0.quantity, unit_price: $0.unit_price, tax_rate: rate) }
         guard !validLines.isEmpty else {
             errorMsg = "Ajoutez au moins une ligne avec une description."
             saving = false; return
@@ -1158,7 +1184,7 @@ struct InvoiceFormView: View {
             customer_name: customerName,
             customer_email: customerEmail.isEmpty ? nil : customerEmail,
             status: saveAsDraft ? "draft" : "sent",
-            due_date: dueDate.isEmpty ? nil : dueDate,
+            due_date: hasDueDate ? Self.isoDate.string(from: dueDate) : nil,
             lines: validLines
         )
         do {

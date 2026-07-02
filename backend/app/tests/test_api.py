@@ -118,9 +118,10 @@ def test_core_product_flow() -> None:
             },
         )
         assert invoice.status_code == 201
-        # Depuis l'ajout de la TVA : 2×25 = 50 HT, TVA 18% = 9, TTC = 59
+        # Pas de TVA par défaut (l'entreprise l'active elle-même à la création,
+        # comme à la Caisse) : 2×25 = 50 HT = 50 TTC.
         assert invoice.json()["subtotal"] == 50
-        assert invoice.json()["total_amount"] == 59
+        assert invoice.json()["total_amount"] == 50
         paid_invoice = client.post(
             f"/api/invoices/{invoice.json()['id']}/pay",
             headers=headers,

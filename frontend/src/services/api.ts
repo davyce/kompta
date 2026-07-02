@@ -404,7 +404,9 @@ export const api = {
   createInvoice: (payload: {
     customer_name: string;
     status: string;
-    lines: Array<{ description: string; quantity: number; unit_price: number }>;
+    lines: Array<{ description: string; quantity: number; unit_price: number; tax_rate?: number }>;
+    due_date?: string;
+    notes?: string;
   }) =>
     request<Invoice>("/invoices", {
       method: "POST",

@@ -405,7 +405,9 @@ class InvoiceLineCreate(BaseModel):
     description: str
     quantity: int = Field(default=1, gt=0)
     unit_price: float = Field(default=0, ge=0)
-    tax_rate: float = Field(default=18.0, ge=0, le=100)  # taux TVA % (CEMAC 18%)
+    # Pas de TVA par défaut : c'est à l'entreprise de l'activer explicitement à
+    # la création (comme à la Caisse), pas au serveur de l'imposer en silence.
+    tax_rate: float = Field(default=0.0, ge=0, le=100)
 
 
 class InvoiceCreate(BaseModel):

@@ -631,6 +631,46 @@ struct ChannelDetailView: View {
     }
 }
 
+/// Palette de couleurs de mention — vives, distinctes, lisibles sur fond clair
+/// ET sombre (contrairement à .primary/.secondary qui s'effacent selon le
+/// thème). Une même personne @mentionnée garde toujours la même couleur,
+/// dérivée d'un hash stable de son nom.
+private let mentionPalette: [Color] = [
+    .blue, .purple, .orange, .pink, .teal, .indigo, .red, .mint, .cyan, .brown,
+]
+
+private func mentionColor(for name: String) -> Color {
+    let hash = name.lowercased().unicodeScalars.reduce(into: 0) { acc, scalar in acc = acc &+ Int(scalar.value) }
+    return mentionPalette[hash % mentionPalette.count]
+}
+
+/// Reconstruit le texte du message en mettant en évidence chaque "@Nom" avec
+/// la couleur propre à cette personne — même heuristique de détection que le
+/// backend (chat_ai_action / extract_mentions) : le token juste après "@",
+/// jusqu'au prochain espace.
+private func styledMessageBody(_ body: String) -> Text {
+    guard let regex = try? NSRegularExpression(pattern: "@[\\wÀ-ÿ]+") else { return Text(body) }
+    let ns = body as NSString
+    let matches = regex.matches(in: body, range: NSRange(location: 0, length: ns.length))
+    guard !matches.isEmpty else { return Text(body) }
+
+    var result = Text("")
+    var cursor = 0
+    for match in matches {
+        let range = match.range
+        if range.location > cursor {
+            result = result + Text(ns.substring(with: NSRange(location: cursor, length: range.location - cursor)))
+        }
+        let mention = ns.substring(with: range)
+        result = result + Text(mention).fontWeight(.bold).foregroundColor(mentionColor(for: mention))
+        cursor = range.location + range.length
+    }
+    if cursor < ns.length {
+        result = result + Text(ns.substring(from: cursor))
+    }
+    return result
+}
+
 private struct ChannelMessageRow: View {
     let msg: ChatMsg
     let isMine: Bool
@@ -646,7 +686,7 @@ private struct ChannelMessageRow: View {
                     if !isMine { Text(msg.author_name).font(.caption2.bold()).foregroundStyle(.secondary) }
                     Text(shortDate(msg.created_at)).font(.caption2).foregroundStyle(.tertiary)
                 }
-                Text(msg.body).font(.subheadline)
+                styledMessageBody(msg.body).font(.subheadline)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(isMine ? theme.primary : Color.secondary.opacity(0.12),
                                 in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -654,7 +694,7 @@ private struct ChannelMessageRow: View {
                 if let action = msg.ai_action, action.detected {
                     Button(action: onCreateDetectedTask) {
                         HStack(spacing: 7) {
-                            Image(systemName: "sparkles")
+                            LimuleMark(size: 20, showAura: false)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Action détectée par Limule").font(.caption2.bold())
                                 Text(action.title ?? msg.ai_suggestion ?? "Créer une tâche")
