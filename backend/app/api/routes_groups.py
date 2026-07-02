@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import (
+    Company,
     GroupAuditLog,
     GroupLeadershipHistory,
     GroupMember,
@@ -105,6 +106,23 @@ class LeadershipChange(BaseModel):
 # ── Helpers permissions & audit ─────────────────────────────────────────────
 def _company_admin(user: User) -> bool:
     return user.role.startswith("admin") or user.role in {"super_admin", "manager_entreprise"}
+
+
+def _platform_company_id(db: Session) -> int:
+    """ID de la société neutre "KOMPTA Platform" utilisée pour les comptes
+    membre_groupe purs (sans entreprise). Évite de rattacher un membre de
+    groupe à l'entreprise réelle de l'admin qui l'a invité, ce qui le ferait
+    apparaître dans les canaux de chat / listes d'employés de cette entreprise."""
+    platform = db.scalar(select(Company).where(Company.name == "KOMPTA Platform"))
+    if not platform:
+        platform = Company(
+            name="KOMPTA Platform", legal_name="KOMPTA Platform",
+            industry="Plateforme", organization_type="SaaS", country="Congo",
+            completion_score=100, teras_score=0,
+        )
+        db.add(platform)
+        db.flush()
+    return platform.id
 
 
 def _get_group(db: Session, group_id: int, user: User) -> OrganizationGroup:
@@ -433,7 +451,11 @@ def provision_member_account(
         account_status="pending_first_login",
         invited_at=datetime.now(timezone.utc),
         is_active=True,
-        company_id=current_user.company_id,
+        # Rattaché à la société neutre "KOMPTA Platform", PAS à l'entreprise de
+        # l'admin qui provisionne le compte — sinon ce membre de groupe
+        # apparaîtrait dans les canaux de chat / listes d'employés de cette
+        # entreprise (fuite de périmètre entre groupes et entreprises).
+        company_id=_platform_company_id(db),
     )
     db.add(new_user)
     db.flush()

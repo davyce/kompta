@@ -2985,7 +2985,14 @@ def channel_detail(
     ).all()
     users = db.scalars(
         select(User)
-        .where(User.company_id == current_user.company_id, User.is_active.is_(True))
+        .where(
+            User.company_id == current_user.company_id,
+            User.is_active.is_(True),
+            # membre_groupe = compte groupe/tontine, jamais un membre réel de
+            # cette entreprise (voir provision_member_account) — l'exclure ici
+            # protège aussi contre les comptes déjà mal rattachés avant le fix.
+            User.role != "membre_groupe",
+        )
         .order_by(User.full_name.asc())
     ).all()
 
