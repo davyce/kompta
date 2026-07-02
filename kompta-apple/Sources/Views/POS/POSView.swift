@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 // MARK: - Payment option model
 
@@ -264,19 +269,23 @@ struct POSView: View {
     }
 
     private var cartBadgeButton: some View {
+        // Le badge doit rester DANS le cadre du bouton — un offset qui déborde
+        // du frame est rogné par les bornes de clipping de la toolbar iOS.
         Button { showCart = true } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "cart.fill")
+                    .frame(width: 26, height: 26, alignment: .bottomLeading)
                 if cartCount > 0 {
                     Text("\(min(cartCount, 99))")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 8, weight: .bold))
                         .padding(3)
-                        .background(theme.primary)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(Color.red)
                         .foregroundStyle(.white)
                         .clipShape(Circle())
-                        .offset(x: 10, y: -10)
                 }
             }
+            .frame(width: 26, height: 26)
         }
     }
 
@@ -779,97 +788,217 @@ struct POSProductCard: View {
 
 // MARK: - Receipt view
 
+/// Reçu de caisse affiché juste après un encaissement — reprend le design du
+/// "Ticket de caisse" web (logo K, en-tête entreprise, sous-total/remise/TTC,
+/// boutons Imprimer / Nouvelle vente) pour une expérience identique.
 struct ReceiptView: View {
     let sale: SaleResponse
     let clientName: String
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var theme: CompanyTheme
+    @State private var preparingPrint = false
+
+    private var subtotal: Double {
+        (sale.items ?? []).reduce(0) { $0 + $1.total }
+    }
+    private var discountAmount: Double { sale.discount_amount ?? 0 }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.green)
-
-                    VStack(spacing: 4) {
-                        Text("Vente réussie !").font(.title2.bold())
-                        if let num = sale.receipt_number {
-                            Text("Reçu n° \(num)").font(.subheadline).foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    // ── En-tête : logo K + nom entreprise ──
+                    VStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(theme.primary)
+                                .frame(width: 52, height: 52)
+                            Text("K").font(.system(size: 26, weight: .black)).foregroundStyle(.white)
                         }
-                        let receiptClient = sale.client_name?.isEmpty == false ? sale.client_name! : clientName
-                        if !receiptClient.isEmpty {
-                            Text("Client : \(receiptClient)").font(.caption).foregroundStyle(.secondary)
-                        }
-                        if let points = sale.loyalty_points_earned, points > 0 {
-                            Text("+\(points) point(s) fidélité").font(.caption.bold()).foregroundStyle(theme.primary)
+                        Text(theme.companyName).font(.title3.bold())
+                        VStack(spacing: 2) {
+                            Text("TICKET DE CAISSE").font(.caption.bold()).foregroundStyle(.secondary)
+                            if let num = sale.receipt_number {
+                                Text(num).font(.subheadline.monospaced())
+                            }
                         }
                     }
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
 
-                    GlassCard(padding: 16, cornerRadius: 16) {
-                        VStack(spacing: 10) {
-                            if let items = sale.items, !items.isEmpty {
-                                ForEach(items, id: \.product_id) { item in
-                                    HStack {
-                                        Text("\(item.quantity)× \(item.name)")
-                                            .font(.subheadline)
-                                            .lineLimit(1)
-                                        Spacer()
-                                        Text(fcfa(item.total))
-                                            .font(.subheadline.weight(.semibold))
-                                    }
-                                }
-                                Divider()
-                            }
+                    dashedDivider
 
-                            HStack {
-                                Text("TOTAL TTC").font(.headline.weight(.heavy))
-                                Spacer()
-                                Text(fcfa(sale.total_amount))
-                                    .font(.title3.bold())
-                                    .foregroundStyle(theme.primary)
-                            }
-
-                            let payLabel = (sale.payment_account_label?.isEmpty == false)
-                                ? sale.payment_account_label!
-                                : (sale.payment_method?.capitalized ?? "")
-                            if !payLabel.isEmpty {
+                    // ── Lignes d'articles ──
+                    VStack(spacing: 8) {
+                        if let items = sale.items, !items.isEmpty {
+                            ForEach(items, id: \.product_id) { item in
                                 HStack {
-                                    Text("Paiement").foregroundStyle(.secondary)
+                                    Text("\(item.quantity)× \(item.name)")
+                                        .font(.subheadline)
+                                        .lineLimit(1)
                                     Spacer()
-                                    Text(payLabel).foregroundStyle(.secondary)
+                                    Text(fcfa(item.total)).font(.subheadline.weight(.semibold))
                                 }
-                                .font(.caption)
                             }
                         }
                     }
-                    .environmentObject(theme)
+                    .padding(.vertical, 14)
 
-                    Text("Transaction enregistrée dans la comptabilité")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                    dashedDivider
+
+                    // ── Totaux ──
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Sous-total").foregroundStyle(.secondary)
+                            Spacer()
+                            Text(fcfa(subtotal)).foregroundStyle(.secondary)
+                        }
+                        .font(.subheadline)
+
+                        if discountAmount > 0 {
+                            HStack {
+                                Text("Remise" + (sale.discount_percent.map { $0 > 0 ? " (\(Int($0))%)" : "" } ?? ""))
+                                Spacer()
+                                Text("-\(fcfa(discountAmount))")
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.red)
+                        }
+
+                        HStack {
+                            Text("TOTAL TTC").font(.headline.weight(.heavy))
+                            Spacer()
+                            Text(fcfa(sale.total_amount))
+                                .font(.title3.bold())
+                                .foregroundStyle(theme.primary)
+                        }
+                        .padding(.top, 4)
+
+                        let payLabel = (sale.payment_account_label?.isEmpty == false)
+                            ? sale.payment_account_label!
+                            : (sale.payment_method?.capitalized ?? "")
+                        if !payLabel.isEmpty {
+                            HStack {
+                                Text("Paiement").foregroundStyle(.secondary)
+                                Spacer()
+                                Text(payLabel).foregroundStyle(.secondary)
+                            }
+                            .font(.caption)
+                        }
+                    }
+                    .padding(.vertical, 14)
+
+                    let receiptClient = sale.client_name?.isEmpty == false ? sale.client_name! : clientName
+                    if !receiptClient.isEmpty || (sale.loyalty_points_earned ?? 0) > 0 {
+                        dashedDivider
+                        VStack(spacing: 4) {
+                            if !receiptClient.isEmpty {
+                                Text("Client : \(receiptClient)").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let points = sale.loyalty_points_earned, points > 0 {
+                                Text("+\(points) point(s) fidélité").font(.caption.bold()).foregroundStyle(theme.primary)
+                            }
+                        }
+                        .padding(.vertical, 10)
+                    }
+
+                    dashedDivider
+
+                    VStack(spacing: 2) {
+                        Text("Merci pour votre achat").font(.subheadline)
+                        Text("Ticket généré par \(theme.companyName)")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 16)
+
+                    // ── Actions ──
+                    HStack(spacing: 10) {
+                        Button {
+                            Task { await preparePrint() }
+                        } label: {
+                            HStack {
+                                if preparingPrint { ProgressView() }
+                                else { Image(systemName: "printer") }
+                                Text("Imprimer")
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: theme.buttonRadius))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(preparingPrint)
+
+                        Button { dismiss() } label: {
+                            HStack {
+                                Image(systemName: "cart.fill")
+                                Text("Nouvelle vente")
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(theme.primary, in: RoundedRectangle(cornerRadius: theme.buttonRadius))
+                            .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 4)
                 }
-                .padding(24)
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(.background)
+                        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
+                )
+                .padding(16)
             }
-            .navigationTitle("Reçu")
+            .navigationTitle("Ticket de caisse")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     DownloadButton(
-                        title: "Partager le ticket",
+                        title: "Télécharger le ticket",
                         fileName: "ticket-\(sale.receipt_number ?? String(sale.id)).pdf",
                         fetch: { try await APIClient.shared.saleReceiptPDF(sale.id) }
                     )
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Nouvelle vente") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
                 }
             }
         }
+    }
+
+    private var dashedDivider: some View {
+        Rectangle()
+            .fill(Color.secondary.opacity(0.3))
+            .frame(height: 1)
+            .overlay(
+                GeometryReader { geo in
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: 0.5))
+                        path.addLine(to: CGPoint(x: geo.size.width, y: 0.5))
+                    }
+                    .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .foregroundStyle(Color.secondary.opacity(0.4))
+                }
+            )
+    }
+
+    private func preparePrint() async {
+        preparingPrint = true
+        if let url = await exportSaleReceiptPDF(saleId: sale.id, receiptNumber: sale.receipt_number ?? "ticket-\(sale.id)") {
+            #if os(macOS)
+            NSWorkspace.shared.open(url)
+            #else
+            let controller = UIPrintInteractionController.shared
+            let info = UIPrintInfo(dictionary: nil)
+            info.outputType = .general
+            info.jobName = sale.receipt_number ?? "Ticket KOMPTA"
+            controller.printInfo = info
+            controller.printingItem = url
+            controller.present(animated: true)
+            #endif
+        }
+        preparingPrint = false
     }
 }
 
