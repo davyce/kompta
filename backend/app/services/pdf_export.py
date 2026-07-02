@@ -32,6 +32,18 @@ def _money(amount: float) -> str:
     return f"{amount:,.0f}".replace(",", " ") + " XAF"
 
 
+_STATUS_LABELS_FR = {
+    "paid": "PAYÉE",
+    "sent": "ENVOYÉE",
+    "draft": "BROUILLON",
+    "overdue": "EN RETARD",
+}
+
+
+def _status_label_fr(status: str) -> str:
+    return _STATUS_LABELS_FR.get(status, status.upper())
+
+
 def _styles():
     base = getSampleStyleSheet()
     return {
@@ -129,7 +141,7 @@ def render_invoice_pdf(invoice, company) -> bytes:
         [[
             Paragraph(f"<b>{invoice.number}</b><br/>"
                       f"{client_lines}<br/>"
-                      f"Statut : <b>{invoice.status.upper()}</b>", s["body"]),
+                      f"Statut : <b>{_status_label_fr(invoice.status)}</b>", s["body"]),
             Paragraph(f"Créé le : {str(invoice.created_at)[:10]}<br/>"
                       f"{'Échéance : ' + str(invoice.due_date)[:10] if invoice.due_date else ''}",
                       s["muted"]),

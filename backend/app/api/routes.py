@@ -3472,6 +3472,7 @@ def export_invoice_html(
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="facture-{invoice.number}.pdf"'},
         )
+    from app.services.pdf_export import _status_label_fr
     lines_html = "".join(
         f"<tr><td>{l.description}</td><td style='text-align:center'>{l.quantity}</td><td style='text-align:right'>{l.unit_price:,.0f} XAF</td><td style='text-align:right'>{l.total:,.0f} XAF</td></tr>"
         for l in invoice.lines
@@ -3499,7 +3500,7 @@ def export_invoice_html(
 <div style="display:flex;justify-content:space-between">
   <div><h2>{invoice.number}</h2>
   <p style="color:#666;margin:4px 0">Client : <strong>{invoice.customer_name}</strong></p>
-  <p style="color:#666;margin:4px 0">Statut : <strong>{invoice.status.upper()}</strong></p></div>
+  <p style="color:#666;margin:4px 0">Statut : <strong>{_status_label_fr(invoice.status)}</strong></p></div>
   <div style="text-align:right;font-size:13px;color:#666">
     <p>Créé le : {str(invoice.created_at)[:10]}</p>
     {"<p>Échéance : " + str(invoice.due_date)[:10] + "</p>" if invoice.due_date else ""}
