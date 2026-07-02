@@ -11,13 +11,23 @@ import Foundation
 //  `fcfa(...)` / `compactFCFA(...)` live in Services/CurrencyManager.swift —
 //  they convert the base-XAF amount into the user's selected display currency.
 
+/// Locale forcée FR — l'app KOMPTA est entièrement en français, mais
+/// `Date.formatted(...)` suit sinon la locale système de l'appareil (ex :
+/// "Thursday, July 2" sur un iPhone réglé en anglais).
+private let frLocale = Locale(identifier: "fr_FR")
+
+/// Date du jour en toutes lettres, en français ("jeudi 2 juillet").
+func todayLabelFR() -> String {
+    Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(frLocale))
+}
+
 /// Decodes an ISO-8601 / `yyyy-MM-dd` string the backend may return.
 func shortDate(_ raw: String?) -> String {
     guard let raw, !raw.isEmpty else { return "—" }
     let iso = ISO8601DateFormatter()
-    if let d = iso.date(from: raw) { return d.formatted(date: .abbreviated, time: .omitted) }
+    if let d = iso.date(from: raw) { return d.formatted(.dateTime.day().month(.abbreviated).year().locale(frLocale)) }
     let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-    if let d = f.date(from: String(raw.prefix(10))) { return d.formatted(date: .abbreviated, time: .omitted) }
+    if let d = f.date(from: String(raw.prefix(10))) { return d.formatted(.dateTime.day().month(.abbreviated).year().locale(frLocale)) }
     return String(raw.prefix(10))
 }
 

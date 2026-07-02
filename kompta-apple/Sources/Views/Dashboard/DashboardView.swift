@@ -65,7 +65,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Bonjour, \(auth.currentUser?.firstName ?? "") 👋")
                         .font(.title2.bold())
-                    Text("\(overview?.company ?? auth.company?.name ?? "KOMPTA") · \(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))")
+                    Text("\(overview?.company ?? auth.company?.name ?? "KOMPTA") · \(todayLabelFR())")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
