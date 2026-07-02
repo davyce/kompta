@@ -66,6 +66,22 @@ def _company_logo(company, width: float = 1.5 * cm, height: float = 1.5 * cm):
         return None
 
 
+_KOMPTA_LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "kompta-logo.png"
+
+
+def _kompta_logo(width: float = 1.1 * cm, height: float = 1.1 * cm):
+    """Logo KOMPTA (plateforme) — toujours présent sur les documents officiels,
+    en plus du logo de l'entreprise émettrice si elle en a fourni un."""
+    if not _KOMPTA_LOGO_PATH.is_file():
+        return None
+    try:
+        image = Image(str(_KOMPTA_LOGO_PATH), width=width, height=height)
+        image.hAlign = "LEFT"
+        return image
+    except Exception:
+        return None
+
+
 def render_invoice_pdf(invoice, company) -> bytes:
     """Build a clean A4 PDF for an invoice. Returns raw bytes."""
     buffer = BytesIO()
@@ -83,10 +99,16 @@ def render_invoice_pdf(invoice, company) -> bytes:
     company_legal = company.legal_name if company and company.legal_name else ""
     company_country = company.country if company and company.country else ""
 
+    # ── Logos : KOMPTA (plateforme, toujours présent) + entreprise émettrice
+    # (si elle en a fourni un) côte à côte, comme sur un vrai document officiel.
+    company_logo = _company_logo(company)
+    kompta_logo = _kompta_logo()
+    logo_cells: list = [c for c in (kompta_logo, company_logo) if c is not None]
     brand: list = []
-    logo = _company_logo(company)
-    if logo:
-        brand.append(logo)
+    if logo_cells:
+        logo_row = Table([logo_cells], colWidths=[1.6 * cm] * len(logo_cells))
+        logo_row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
+        brand.append(logo_row)
         brand.append(Spacer(1, 0.12 * cm))
     brand.append(Paragraph(escape(company_name), s["logo"]))
 
@@ -99,10 +121,14 @@ def render_invoice_pdf(invoice, company) -> bytes:
     story.append(header)
     story.append(Spacer(1, 0.6 * cm))
 
+    client_lines = f"Client : <b>{escape(invoice.customer_name)}</b>"
+    if getattr(invoice, "customer_email", None):
+        client_lines += f"<br/>Email : {escape(invoice.customer_email)}"
+
     meta = Table(
         [[
             Paragraph(f"<b>{invoice.number}</b><br/>"
-                      f"Client : <b>{invoice.customer_name}</b><br/>"
+                      f"{client_lines}<br/>"
                       f"Statut : <b>{invoice.status.upper()}</b>", s["body"]),
             Paragraph(f"Créé le : {str(invoice.created_at)[:10]}<br/>"
                       f"{'Échéance : ' + str(invoice.due_date)[:10] if invoice.due_date else ''}",
@@ -136,6 +162,25 @@ def render_invoice_pdf(invoice, company) -> bytes:
     ]))
     story.append(table)
     story.append(Spacer(1, 0.4 * cm))
+
+    subtotal = getattr(invoice, "subtotal", None)
+    tax_amount = getattr(invoice, "tax_amount", None)
+    if subtotal is not None and tax_amount is not None and tax_amount > 0:
+        totals = Table(
+            [
+                ["Sous-total (HT)", _money(subtotal)],
+                ["TVA", _money(tax_amount)],
+            ],
+            colWidths=[13.5 * cm, 3.5 * cm],
+        )
+        totals.setStyle(TableStyle([
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("TEXTCOLOR", (0, 0), (-1, -1), MUTED),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(totals)
+        story.append(Spacer(1, 0.1 * cm))
     story.append(Paragraph(f"Total TTC : {_money(invoice.total_amount)}", s["total"]))
 
     if getattr(invoice, "status", "") == "paid":
