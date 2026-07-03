@@ -192,11 +192,29 @@ function BulletinCard({
           </div>
           <div className="flex justify-between text-[#717182]">
             <span>{tr("payroll.bulletin.cnss")}</span>
-            <span className="text-rose-500">-{money(slip.deductions)}</span>
+            <span className="text-rose-500">-{money((slip.cnss_employee_cents ?? 0) / 100)}</span>
+          </div>
+          <div className="flex justify-between text-[#717182]">
+            <span>IRPP</span>
+            <span className="text-rose-500">-{money((slip.irpp_cents ?? 0) / 100)}</span>
           </div>
           <div className="flex justify-between font-extrabold text-emerald-700 dark:text-emerald-400 pt-1 border-t border-black/[0.04] dark:border-white/[0.04]">
             <span>{tr("payroll.bulletin.netToPay")}</span>
             <span>{money(slip.net_pay)}</span>
+          </div>
+          <div className="pt-1.5 mt-1 border-t border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-1 text-[11px] text-[#a0a0ab]">
+            <div className="flex justify-between">
+              <span>CNSS patronale (info)</span>
+              <span>{money((slip.cnss_employer_cents ?? 0) / 100)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Allocations familiales (info)</span>
+              <span>{money((slip.family_allowance_cents ?? 0) / 100)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Accidents du travail (info)</span>
+              <span>{money((slip.work_accident_cents ?? 0) / 100)}</span>
+            </div>
           </div>
         </div>
       )}
@@ -338,6 +356,15 @@ export function PayrollPage() {
     try { openBlob(await api.downloadPayslip(id), `bulletin-${id}.pdf`); }
     catch { toast.error(tr("payroll.errors.downloadPdf")); }
   }
+
+  const massPaymentMut = useMutation({
+    mutationFn: async (id: number) => {
+      const blob = await api.massPaymentPayrollRun(id);
+      openBlob(blob, `virement-masse-${currentRun?.period ?? id}.csv`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payrollRuns"] }),
+    onError: () => toast.error(tr("payroll.errors.downloadPdf")),
+  });
 
   /* ── Limule analysis ── */
   async function handleLimuleAnalysis() {
@@ -728,14 +755,14 @@ export function PayrollPage() {
                       {tr("payroll.bulletins.paidProgress", { paid: paidCount, total: currentRun.payslips.length })}
                     </p>
                     <button
-                      onClick={() => {
-                        currentRun.payslips.forEach((s) => {
-                          if (s.payout_status !== "paid") updateSlipMut.mutate({ id: s.id, payload: { payout_status: "paid" } });
-                        });
-                      }}
-                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
+                      onClick={() => massPaymentMut.mutate(currentRun.id)}
+                      disabled={massPaymentMut.isPending}
+                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition disabled:opacity-60"
                     >
-                      <CheckCircle2 size={12} /> {tr("payroll.bulletins.markAllPaid")}
+                      {massPaymentMut.isPending
+                        ? <Loader2 size={12} className="animate-spin" />
+                        : <CheckCircle2 size={12} />}
+                      Générer le virement de masse
                     </button>
                   </div>
                 )}

@@ -49,6 +49,11 @@ export type Company = {
   manager_title?: string;
   bank_name?: string;
   bank_account?: string;
+  // Taux de paie configurables (défauts = anciennes constantes en dur)
+  cnss_employee_rate?: number;
+  cnss_employer_rate?: number;
+  family_allowance_rate?: number;
+  work_accident_rate?: number;
 };
 
 export type Employee = {
@@ -77,6 +82,7 @@ export type Employee = {
   invited_at: string | null;
   activated_at: string | null;
   badge_color: string;
+  cnss_number?: string;
   created_at: string;
 };
 
@@ -266,6 +272,12 @@ export type Payslip = {
   bonus: number;
   overtime_pay: number;
   absence_deduction: number;
+  cnss_employee_cents?: number;
+  cnss_employer_cents?: number;
+  irpp_cents?: number;
+  family_allowance_cents?: number;
+  work_accident_cents?: number;
+  paid_at?: string | null;
 };
 
 export type EmployeePayrollOverride = {

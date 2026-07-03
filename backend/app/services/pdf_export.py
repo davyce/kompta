@@ -559,18 +559,30 @@ def render_payroll_pdf(run, company) -> bytes:
         story.append(Paragraph(f"Référence : {slip.reference}", s["muted"]))
         story.append(Spacer(1, 0.6 * cm))
 
+        cnss_employee = (getattr(slip, "cnss_employee_cents", 0) or 0) / 100
+        irpp = (getattr(slip, "irpp_cents", 0) or 0) / 100
+        cnss_employer = (getattr(slip, "cnss_employer_cents", 0) or 0) / 100
+        family_allowance = (getattr(slip, "family_allowance_cents", 0) or 0) / 100
+        work_accident = (getattr(slip, "work_accident_cents", 0) or 0) / 100
+        net_row_idx = 3
         rows = [
             ["Salaire brut", _money(slip.gross_pay)],
-            ["Cotisations & retenues", f"- {_money(slip.deductions)}"],
+            ["CNSS salarié", f"- {_money(cnss_employee)}"],
+            ["IRPP", f"- {_money(irpp)}"],
             ["Net à payer", _money(slip.net_pay)],
+            ["CNSS patronale (information)", _money(cnss_employer)],
+            ["Allocations familiales (information)", _money(family_allowance)],
+            ["Accidents du travail (information)", _money(work_accident)],
         ]
         table = Table(rows, colWidths=[10 * cm, 7 * cm])
         table.setStyle(TableStyle([
-            ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
-            ("TEXTCOLOR", (0, 2), (-1, 2), TEAL),
+            ("FONTNAME", (0, net_row_idx), (-1, net_row_idx), "Helvetica-Bold"),
+            ("TEXTCOLOR", (0, net_row_idx), (-1, net_row_idx), TEAL),
+            ("TEXTCOLOR", (0, net_row_idx + 1), (-1, -1), MUTED),
             ("FONTSIZE", (0, 0), (-1, -1), 11),
-            ("LINEBELOW", (0, 0), (-1, -2), 0.5, BORDER),
-            ("LINEABOVE", (0, 2), (-1, 2), 1.5, TEAL),
+            ("FONTSIZE", (0, net_row_idx + 1), (-1, -1), 9),
+            ("LINEBELOW", (0, 0), (-1, net_row_idx - 1), 0.5, BORDER),
+            ("LINEABOVE", (0, net_row_idx), (-1, net_row_idx), 1.5, TEAL),
             ("ALIGN", (1, 0), (1, -1), "RIGHT"),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
             ("TOPPADDING", (0, 0), (-1, -1), 10),

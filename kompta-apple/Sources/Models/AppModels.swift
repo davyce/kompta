@@ -365,6 +365,7 @@ struct Employee: Codable, Identifiable {
     let department: String
     let status: String
     var salary: Double = 0
+    var cnss_number: String = ""
 
     var full_name: String { "\(first_name) \(last_name)" }
     var position: String? { job_title }

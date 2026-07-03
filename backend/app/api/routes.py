@@ -3444,18 +3444,32 @@ def _compute_irpp(taxable: float) -> float:
     return round(tax, 2)
 
 
-def _compute_payslip_amounts(gross: float) -> dict[str, float]:
-    """Décompose un brut en cotisations + IRPP + net (au lieu d'un forfait 10 %)."""
-    cnss_employee = round(gross * CNSS_EMPLOYEE_RATE, 2)
+def _compute_payslip_amounts(gross: float, company: "Company | None" = None) -> dict[str, float]:
+    """Décompose un brut en cotisations + IRPP + net (au lieu d'un forfait 10 %).
+
+    Les taux sont configurables par entreprise (Company.cnss_employee_rate, etc.)
+    et retombent sur les anciennes constantes en dur si la société n'a rien configuré,
+    afin de préserver exactement le comportement actuel par défaut.
+    """
+    cnss_employee_rate = getattr(company, "cnss_employee_rate", None) or CNSS_EMPLOYEE_RATE
+    cnss_employer_rate = getattr(company, "cnss_employer_rate", None) or CNSS_EMPLOYER_RATE
+    family_allowance_rate = getattr(company, "family_allowance_rate", None) or 0.0
+    work_accident_rate = getattr(company, "work_accident_rate", None) or 0.0
+
+    cnss_employee = round(gross * cnss_employee_rate, 2)
     taxable = max(gross - cnss_employee, 0.0)
     irpp = _compute_irpp(taxable)
-    cnss_employer = round(gross * CNSS_EMPLOYER_RATE, 2)
+    cnss_employer = round(gross * cnss_employer_rate, 2)
+    family_allowance = round(gross * family_allowance_rate, 2)
+    work_accident = round(gross * work_accident_rate, 2)
     deductions = round(cnss_employee + irpp, 2)
     net = round(gross - deductions, 2)
     return {
         "cnss_employee": cnss_employee,
         "cnss_employer": cnss_employer,
         "irpp": irpp,
+        "family_allowance": family_allowance,
+        "work_accident": work_accident,
         "deductions": deductions,
         "net": net,
     }
@@ -3481,6 +3495,7 @@ def create_payroll_run(
             detail=f"Une paie existe déjà pour la période {payload.period}.",
         )
     employees = db.scalars(select(Employee).where(Employee.company_id == current_user.company_id, Employee.status == "active")).all()
+    company = db.get(Company, current_user.company_id)
     payment_account: PaymentAccount | None = None
     if payload.payment_account_id:
         payment_account = _get_payment_account(db, payload.payment_account_id, current_user)
@@ -3523,7 +3538,7 @@ def create_payroll_run(
                 absence_deduction = round(daily * override.absence_days, 2)
 
         gross = round(base + overtime_pay + bonus - absence_deduction, 2)
-        amounts = _compute_payslip_amounts(gross)   # CNSS salarié + IRPP progressif
+        amounts = _compute_payslip_amounts(gross, company)   # CNSS salarié + IRPP progressif
         deductions = amounts["deductions"]
         net_pay = amounts["net"]
         gross_total += gross
@@ -3555,6 +3570,11 @@ def create_payroll_run(
                 overtime_pay_cents=_accounting.to_cents(overtime_pay),
                 absence_deduction=absence_deduction,
                 absence_deduction_cents=_accounting.to_cents(absence_deduction),
+                cnss_employee_cents=_accounting.to_cents(amounts["cnss_employee"]),
+                cnss_employer_cents=_accounting.to_cents(amounts["cnss_employer"]),
+                irpp_cents=_accounting.to_cents(amounts["irpp"]),
+                family_allowance_cents=_accounting.to_cents(amounts["family_allowance"]),
+                work_accident_cents=_accounting.to_cents(amounts["work_accident"]),
                 reference=payslip_reference(payload.period, employee, index),
                 payout_method=payout_method,
                 payout_destination=payout_destination,
@@ -3733,8 +3753,12 @@ def export_payroll_html(
         </div>
         <table style="width:100%;border-collapse:collapse">
           <tr><td style="padding:6px 0;color:#666">Salaire brut</td><td style="text-align:right;font-weight:600">{s.gross_pay:,.0f} XAF</td></tr>
-          <tr><td style="padding:6px 0;color:#666">Cotisations (10%)</td><td style="text-align:right;color:#e05252">-{s.deductions:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#666">CNSS salarié</td><td style="text-align:right;color:#e05252">-{(s.cnss_employee_cents or 0)/100:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#666">IRPP</td><td style="text-align:right;color:#e05252">-{(s.irpp_cents or 0)/100:,.0f} XAF</td></tr>
           <tr style="border-top:2px solid #0f766e"><td style="padding:8px 0;font-weight:900">Net à payer</td><td style="text-align:right;font-weight:900;color:#0f766e;font-size:16px">{s.net_pay:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#999;font-size:11px">CNSS patronale (info)</td><td style="text-align:right;color:#999;font-size:11px">{(s.cnss_employer_cents or 0)/100:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#999;font-size:11px">Allocations familiales (info)</td><td style="text-align:right;color:#999;font-size:11px">{(s.family_allowance_cents or 0)/100:,.0f} XAF</td></tr>
+          <tr><td style="padding:6px 0;color:#999;font-size:11px">Accidents du travail (info)</td><td style="text-align:right;color:#999;font-size:11px">{(s.work_accident_cents or 0)/100:,.0f} XAF</td></tr>
         </table></div>"""
         for s in run.payslips
     )
@@ -3757,6 +3781,52 @@ def export_payroll_html(
   <br><button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">Imprimer / Enregistrer en PDF</button>
 </div></body></html>"""
     return Response(content=html, media_type="text/html", headers={"Content-Disposition": f'inline; filename="paie-{run.period}.html"'})
+
+
+@router.post("/payroll/runs/{run_id}/mass-payment")
+def mass_payment_payroll_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Génère un fichier de virement de masse (CSV) pour tous les bulletins non payés
+    du cycle, et les marque payés en une seule transaction (pas d'intégration bancaire
+    réelle — simple fichier téléchargeable à importer chez le partenaire mobile money/banque)."""
+    _require_hr(current_user)
+    run = db.scalar(
+        select(PayrollRun)
+        .options(selectinload(PayrollRun.payslips))
+        .where(PayrollRun.id == run_id, PayrollRun.company_id == current_user.company_id)
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Cycle de paie introuvable")
+
+    unpaid = [s for s in run.payslips if s.payout_status != "paid"]
+    if not unpaid:
+        raise HTTPException(status_code=400, detail="Tous les bulletins de ce cycle sont déjà payés.")
+
+    now = datetime.utcnow()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Bénéficiaire", "Moyen de paiement", "Destination", "Montant net (XAF)", "Référence"])
+    for slip in unpaid:
+        w.writerow([
+            slip.employee_name,
+            slip.payout_method or "",
+            slip.payout_destination or "",
+            f"{slip.net_pay:,.0f}".replace(",", " "),
+            slip.reference,
+        ])
+        slip.payout_status = "paid"
+        slip.paid_at = now
+    db.commit()
+
+    content = buf.getvalue().encode("utf-8-sig")
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="virement-masse-{run.period}.csv"'},
+    )
 
 
 @router.patch("/payroll/runs/{run_id}", response_model=PayrollRunRead)

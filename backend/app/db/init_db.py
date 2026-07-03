@@ -77,6 +77,7 @@ def ensure_sqlite_migrations() -> None:
                 "payout_bank_name": "VARCHAR(120) DEFAULT ''",
                 "payout_account_number": "VARCHAR(120) DEFAULT ''",
                 "payout_paypal_email": "VARCHAR(255) DEFAULT ''",
+                "cnss_number": "VARCHAR(60) DEFAULT ''",
             },
         "invoices": {
             "customer_email": "VARCHAR(255)",
@@ -165,6 +166,10 @@ def ensure_sqlite_migrations() -> None:
             "manager_title": "VARCHAR(80) DEFAULT ''",
             "bank_name": "VARCHAR(120) DEFAULT ''",
             "bank_account": "VARCHAR(80) DEFAULT ''",
+            "cnss_employee_rate": "FLOAT DEFAULT 0.04",
+            "cnss_employer_rate": "FLOAT DEFAULT 0.08",
+            "family_allowance_rate": "FLOAT DEFAULT 0.07",
+            "work_accident_rate": "FLOAT DEFAULT 0.02",
         },
         # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
         "products": {
@@ -207,6 +212,12 @@ def ensure_sqlite_migrations() -> None:
             "deductions_cents": "INTEGER DEFAULT 0",
             "net_pay_cents": "INTEGER DEFAULT 0",
             "bonus_cents": "INTEGER DEFAULT 0",
+            "cnss_employee_cents": "INTEGER DEFAULT 0",
+            "cnss_employer_cents": "INTEGER DEFAULT 0",
+            "irpp_cents": "INTEGER DEFAULT 0",
+            "family_allowance_cents": "INTEGER DEFAULT 0",
+            "work_accident_cents": "INTEGER DEFAULT 0",
+            "paid_at": "DATETIME",
         },
         # Moteur comptable — créées par create_all ; enregistrées ici pour ne pas
         # faire planter la logique ALTER sur des bases existantes.

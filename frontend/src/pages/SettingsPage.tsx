@@ -169,6 +169,10 @@ export function SettingsPage() {
     manager_title: "",
     bank_name: "",
     bank_account: "",
+    cnss_employee_rate: 0.04,
+    cnss_employer_rate: 0.08,
+    family_allowance_rate: 0.07,
+    work_accident_rate: 0.02,
   });
   const [myPayoutForm, setMyPayoutForm] = useState({
     payout_method: "mobile_money",
@@ -246,6 +250,10 @@ export function SettingsPage() {
       manager_title: d.manager_title || "",
       bank_name: d.bank_name || "",
       bank_account: d.bank_account || "",
+      cnss_employee_rate: d.cnss_employee_rate ?? 0.04,
+      cnss_employer_rate: d.cnss_employer_rate ?? 0.08,
+      family_allowance_rate: d.family_allowance_rate ?? 0.07,
+      work_accident_rate: d.work_accident_rate ?? 0.02,
     });
   }, [company.data]);
 
@@ -737,6 +745,41 @@ export function SettingsPage() {
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
                           <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
                             className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Taux de paie (CNSS, IRPP, allocations, accidents du travail) ── */}
+                  <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                    <p className="mb-1 text-sm font-black text-[#17211f] dark:text-white">Taux de paie (OHADA / CEMAC)</p>
+                    <p className="mb-3 text-xs text-[#717182]">
+                      Ces taux servent au calcul des bulletins de paie. Par défaut ils reprennent les taux standards
+                      (CNSS salarié 4 %, CNSS patronale 8 %, allocations familiales 7 %, accidents du travail 2 %).
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {[
+                        { label: "CNSS salarié (%)", key: "cnss_employee_rate" as const },
+                        { label: "CNSS patronale (%)", key: "cnss_employer_rate" as const },
+                        { label: "Allocations familiales (%)", key: "family_allowance_rate" as const },
+                        { label: "Accidents du travail (%)", key: "work_accident_rate" as const },
+                      ].map((f) => (
+                        <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.1}
+                            value={Math.round(companyForm[f.key] * 1000) / 10}
+                            onChange={(e) =>
+                              setCompanyForm({
+                                ...companyForm,
+                                [f.key]: Math.max(0, Number(e.target.value) || 0) / 100,
+                              })
+                            }
+                            disabled={isEmployeeSelfService}
+                            className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                          />
                         </label>
                       ))}
                     </div>

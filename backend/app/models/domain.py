@@ -63,6 +63,12 @@ class Company(TimestampMixin, Base):
     bank_account: Mapped[str] = mapped_column(String(80), default="")        # RIB / IBAN
     logo_path: Mapped[str] = mapped_column(String(512), default="")          # chemin disque du logo uploadé
 
+    # ── Taux de paie configurables (défauts = anciennes constantes en dur) ────
+    cnss_employee_rate: Mapped[float] = mapped_column(Float, default=0.04)
+    cnss_employer_rate: Mapped[float] = mapped_column(Float, default=0.08)
+    family_allowance_rate: Mapped[float] = mapped_column(Float, default=0.07)
+    work_accident_rate: Mapped[float] = mapped_column(Float, default=0.02)
+
     users: Mapped[list["User"]] = relationship(back_populates="company")
 
     @property
@@ -179,6 +185,7 @@ class Employee(TimestampMixin, Base):
     payout_account_number: Mapped[str] = mapped_column(String(120), default="")
     payout_paypal_email: Mapped[str] = mapped_column(String(255), default="")
     badge_color: Mapped[str] = mapped_column(String(16), default="#2563eb")
+    cnss_number: Mapped[str] = mapped_column(String(60), default="")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
@@ -619,6 +626,14 @@ class Payslip(TimestampMixin, Base):
     overtime_pay_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     absence_deduction: Mapped[float] = mapped_column(Float, default=0)
     absence_deduction_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    # ── Détail des charges OHADA (les colonnes ci-dessous complètent `deductions`
+    # qui reste l'agrégat conservé pour compat ascendante) ────────────────────
+    cnss_employee_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    cnss_employer_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    irpp_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    family_allowance_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    work_accident_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     payroll_run: Mapped[PayrollRun] = relationship(back_populates="payslips")
 

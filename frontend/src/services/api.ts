@@ -628,6 +628,7 @@ export const api = {
     }),
   exportInvoice: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/invoices/${id}/export?format=${format}`),
   exportPayrollRun: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/payroll/runs/${id}/export?format=${format}`),
+  massPaymentPayrollRun: (id: number) => requestBlob(`/payroll/runs/${id}/mass-payment`, { method: "POST" }),
   terasAlerts: () => request<TerasAlert[]>("/teras/alerts"),
   createTaskFromTeras: (id: number) =>
     request<Task>(`/teras/alerts/${id}/create-task`, {

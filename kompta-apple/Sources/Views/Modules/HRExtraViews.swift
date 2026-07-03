@@ -115,6 +115,20 @@ struct PayrollRunDetailView: View {
                         .tint(.green)
                 }
 
+                if paidCount < run.payslips.count {
+                    DownloadButton(title: "Générer virement de masse", fileName: "virement-masse-\(run.period).csv",
+                                   fetch: {
+                        let data = try await APIClient.shared.massPayment(runId: run.id)
+                        if let runs = try? await APIClient.shared.payrollRuns(), let fresh = runs.first(where: { $0.id == run.id }) {
+                            run = fresh
+                        }
+                        await onChanged()
+                        return data
+                    })
+                    .buttonStyle(.borderedProminent).tint(.green)
+                    .frame(maxWidth: .infinity)
+                }
+
                 GlassCard(padding: 0, cornerRadius: 18) {
                     VStack(spacing: 0) {
                         ForEach(run.payslips) { p in
@@ -231,9 +245,17 @@ struct PayslipDetailView: View {
                             Divider().padding(.leading, 16)
                             row("Salaire brut", fcfa(payslip.gross_pay), bold: true)
                             Divider().padding(.leading, 16)
-                            row("Cotisations & impôts (CNSS, IRPP)", "- " + fcfa(payslip.deductions), tint: .red)
+                            row("CNSS salarié", "- " + fcfa(Double(payslip.cnss_employee_cents ?? 0) / 100), tint: .red)
+                            Divider().padding(.leading, 16)
+                            row("IRPP", "- " + fcfa(Double(payslip.irpp_cents ?? 0) / 100), tint: .red)
                             Divider().padding(.leading, 16)
                             row("Net à payer", fcfa(payslip.net_pay), bold: true, tint: theme.primary)
+                            Divider().padding(.leading, 16)
+                            row("CNSS patronale (info)", fcfa(Double(payslip.cnss_employer_cents ?? 0) / 100), tint: .secondary)
+                            Divider().padding(.leading, 16)
+                            row("Allocations familiales (info)", fcfa(Double(payslip.family_allowance_cents ?? 0) / 100), tint: .secondary)
+                            Divider().padding(.leading, 16)
+                            row("Accidents du travail (info)", fcfa(Double(payslip.work_accident_cents ?? 0) / 100), tint: .secondary)
                         }
                     }
 

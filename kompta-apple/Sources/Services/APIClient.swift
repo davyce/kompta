@@ -85,6 +85,11 @@ actor APIClient {
         return try await perform(try request(path, method: "POST", body: bodyData))
     }
 
+    /// POST with no body, returning raw bytes (e.g. CSV/PDF batch downloads).
+    func postRawData(_ path: String) async throws -> Data {
+        try await perform(try request(path, method: "POST"))
+    }
+
     func post<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T {
         let bodyData = try JSONEncoder().encode(body)
         let data = try await perform(try request(path, method: "POST", body: bodyData))
@@ -501,6 +506,8 @@ actor APIClient {
     func createPayrollRun(_ p: PayrollRunPayload) async throws -> PayrollRun { try await post("/payroll/runs", body: p) }
     /// Downloads an individual employee payslip as PDF bytes.
     func payslipPDF(_ id: Int) async throws -> Data { try await rawData("/payroll/payslips/\(id)/download") }
+    /// Génère le virement de masse (CSV) pour un cycle de paie et marque les bulletins payés.
+    func massPayment(runId: Int) async throws -> Data { try await postRawData("/payroll/runs/\(runId)/mass-payment") }
 
     // MARK: - Téléchargements PDF/CSV (parité web)
     func invoiceExportPDF(_ id: Int) async throws -> Data { try await rawData("/invoices/\(id)/export?format=pdf") }

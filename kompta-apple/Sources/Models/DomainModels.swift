@@ -580,6 +580,12 @@ struct Payslip: Codable, Identifiable, Hashable {
     let payout_status: String
     let bonus: Double
     let overtime_pay: Double
+    var cnss_employee_cents: Int? = nil
+    var cnss_employer_cents: Int? = nil
+    var irpp_cents: Int? = nil
+    var family_allowance_cents: Int? = nil
+    var work_accident_cents: Int? = nil
+    var paid_at: String? = nil
 }
 
 struct PayrollRun: Codable, Identifiable, Hashable {

@@ -106,6 +106,10 @@ class CompanyRead(BaseModel):
     bank_name: str = ""
     bank_account: str = ""
     has_logo: bool = False
+    cnss_employee_rate: float = 0.04
+    cnss_employer_rate: float = 0.08
+    family_allowance_rate: float = 0.07
+    work_accident_rate: float = 0.02
 
 
 class CompanyUpdate(BaseModel):
@@ -136,6 +140,10 @@ class CompanyUpdate(BaseModel):
     manager_title: str | None = None
     bank_name: str | None = None
     bank_account: str | None = None
+    cnss_employee_rate: float | None = None
+    cnss_employer_rate: float | None = None
+    family_allowance_rate: float | None = None
+    work_accident_rate: float | None = None
 
 
 class CustomRoleBrief(BaseModel):
@@ -191,6 +199,7 @@ class EmployeeBase(BaseModel):
     payout_account_number: str = ""
     payout_paypal_email: str = ""
     badge_color: str = "#2563eb"
+    cnss_number: str = ""
 
 
 class EmployeeCreate(EmployeeBase):
@@ -701,6 +710,12 @@ class PayslipRead(BaseModel):
     bonus: float = 0
     overtime_pay: float = 0
     absence_deduction: float = 0
+    cnss_employee_cents: int = 0
+    cnss_employer_cents: int = 0
+    irpp_cents: int = 0
+    family_allowance_cents: int = 0
+    work_accident_cents: int = 0
+    paid_at: datetime | None = None
 
 
 class PayrollRunRead(BaseModel):
