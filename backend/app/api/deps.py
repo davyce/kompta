@@ -6,6 +6,7 @@ from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models import User
+from app.models.domain import Client
 
 
 def _extract_token(authorization: str | None, cookie_token: str | None) -> str | None:
@@ -33,6 +34,10 @@ def get_current_user(
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    # Un token du portail client (scope=client_portal) ne doit jamais être accepté
+    # sur les routes de l'app principale : les deux espaces d'auth sont cloisonnés.
+    if payload.get("scope") == "client_portal":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token portail invalide ici")
     user = db.get(User, int(payload["sub"]))
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
@@ -78,3 +83,27 @@ def company_scope(db: Session, current_user: User, model, order_by=None):
     if order_by is not None:
         statement = statement.order_by(order_by)
     return db.scalars(statement).all()
+
+
+# ── Portail client : auth séparée pour les Client (pas les User de l'app) ────
+# Le token porte un claim "scope": "client_portal" et un "sub" = id du Client.
+# Cloisonnement strict : un token app normal (sans ce scope) est rejeté ici,
+# et get_current_user rejette symétriquement les tokens scope=client_portal.
+
+def get_current_client(
+    authorization: str | None = Header(default=None),
+    portal_cookie: str | None = Cookie(default=None, alias="kompta_portal_session"),
+    db: Session = Depends(get_db),
+) -> Client:
+    token = _extract_token(authorization, portal_cookie)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    payload = decode_access_token(token)
+    if not payload or payload.get("scope") != "client_portal":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired portal token")
+    client = db.get(Client, int(payload["sub"]))
+    if not client or not client.portal_enabled or not client.portal_password_hash:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Accès portail désactivé")
+    if int(payload.get("company_id", -1)) != int(client.company_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
+    return client

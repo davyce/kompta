@@ -138,6 +138,8 @@ def ensure_sqlite_migrations() -> None:
             "loyalty_points":           "INTEGER DEFAULT 0",
             "loyalty_tier":             "VARCHAR(20) DEFAULT 'standard'",
             "global_discount_percent":  "FLOAT DEFAULT 0.0",
+            "portal_password_hash":     "VARCHAR(255)",
+            "portal_enabled":           "BOOLEAN DEFAULT 0",
         },
         "companies": {
             "status": "VARCHAR(40) DEFAULT 'active'",
@@ -186,6 +188,8 @@ def ensure_sqlite_migrations() -> None:
             "approved_at": "DATETIME",
             "rejection_reason": "VARCHAR(500) DEFAULT ''",
             "source_opportunity_id": "INTEGER",
+            "client_id": "INTEGER",
+            "payment_requested_at": "DATETIME",
         },
         "invoice_lines": {
             "tax_rate": "FLOAT DEFAULT 18.0",

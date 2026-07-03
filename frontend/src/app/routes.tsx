@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate, createBrowserRouter, useNavigate, useRouteError } from "react-router-dom";
+import { Navigate, Outlet, createBrowserRouter, useNavigate, useRouteError } from "react-router-dom";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 import { Shell } from "./Shell";
@@ -11,6 +11,21 @@ import { useAuth } from "./AuthContext";
 import { LoginPage } from "../pages/LoginPage";
 import { WorkspaceSelectPage } from "../pages/WorkspaceSelectPage";
 import { RegisterGroupPage } from "../pages/RegisterGroupPage";
+import { PortalAuthProvider } from "../contexts/PortalAuthContext";
+
+// ── Portail client : espace public séparé, auth Client (pas User) ─────────
+const PortalLoginPage     = lazy(() => import("../pages/portal/PortalLoginPage").then(m => ({ default: m.PortalLoginPage })));
+const PortalDashboardPage = lazy(() => import("../pages/portal/PortalDashboardPage").then(m => ({ default: m.PortalDashboardPage })));
+
+function PortalRoot() {
+  return (
+    <PortalAuthProvider>
+      <Suspense fallback={<LoadingFallback messageTk="routes.loadingModule" />}>
+        <Outlet />
+      </Suspense>
+    </PortalAuthProvider>
+  );
+}
 
 // ── Lazy page imports ──────────────────────────────────────────────────────
 const DashboardPage       = lazy(() => import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
@@ -207,6 +222,15 @@ export const router = createBrowserRouter([
   { path: "/privacy",        element: <LazyRoute page={PrivacyPolicyPage} />, errorElement: <RouteErrorElement /> },
   { path: "/terms",          element: <LazyRoute page={TermsPage} />,         errorElement: <RouteErrorElement /> },
   { path: "/register-group", element: <RegisterGroupPage />,  errorElement: <RouteErrorElement /> },
+  {
+    path: "/portal",
+    element: <PortalRoot />,
+    errorElement: <RouteErrorElement />,
+    children: [
+      { index: true,      element: <LazyRoute page={PortalDashboardPage} /> },
+      { path: "login",    element: <LazyRoute page={PortalLoginPage} /> },
+    ],
+  },
   { path: "/workspace",      element: <WorkspaceSelectPage />, errorElement: <RouteErrorElement /> },
   /* Activation accessible à TOUS les rôles authentifiés (entreprise ET membre_groupe) */
   { path: "/activation",     element: <ActivationRoute />,    errorElement: <RouteErrorElement /> },

@@ -617,6 +617,12 @@ function ClientDetailPanel({
   const { t: tr } = useTranslation();
   useCurrency();
 
+  const [portalResult, setPortalResult] = useState<{ temporary_password: string } | null>(null);
+  const activatePortal = useMutation({
+    mutationFn: () => api.setClientPortalPassword(client.id),
+    onSuccess: (res) => setPortalResult({ temporary_password: res.temporary_password }),
+  });
+
   const stats = useQuery<ClientStatsDto>({
     queryKey: ["client-stats", client.id],
     queryFn: () => api.clientStats(client.id),
@@ -706,6 +712,28 @@ function ClientDetailPanel({
                 <Building2 size={14} className="shrink-0 text-[#aaa]" />
                 <span>{client.address}</span>
               </div>
+            )}
+          </div>
+
+          {/* Portail client */}
+          <div className="rounded-xl border border-black/[0.06] bg-[#f7f8fa] p-3 dark:border-white/[0.06] dark:bg-[#14181f]">
+            {portalResult ? (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-emerald-600">{tr("portal.portalAccessGenerated")}</p>
+                <p className="rounded-lg bg-white px-2.5 py-1.5 font-mono text-sm font-bold text-[#17211f] dark:bg-black/20 dark:text-white">
+                  {portalResult.temporary_password}
+                </p>
+                <p className="text-xs text-[#717182]">{tr("portal.portalAccessNote")}</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => activatePortal.mutate()}
+                disabled={!client.email || activatePortal.isPending}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#17211f] px-3 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 dark:bg-white dark:text-[#17211f]"
+              >
+                {activatePortal.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                {client.email ? tr("portal.activatePortalAccess") : tr("portal.portalNoEmail")}
+              </button>
             )}
           </div>
 

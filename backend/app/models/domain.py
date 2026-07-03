@@ -408,6 +408,8 @@ class Invoice(TimestampMixin, Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     rejection_reason: Mapped[str] = mapped_column(String(500), default="")
     source_opportunity_id: Mapped[int | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    payment_requested_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     lines: Mapped[list["InvoiceLine"]] = relationship(cascade="all, delete-orphan", back_populates="invoice")
@@ -827,6 +829,9 @@ class Client(TimestampMixin, Base):
     loyalty_points: Mapped[int] = mapped_column(Integer, default=0)
     loyalty_tier: Mapped[str] = mapped_column(String(20), default="standard")  # standard|silver|gold|vip
     global_discount_percent: Mapped[float] = mapped_column(Float, default=0.0)  # ex: 10.0 = 10%
+    # Portail client : accès web léger, séparé de l'auth User de l'app.
+    portal_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    portal_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
     discounts: Mapped[list["ClientDiscount"]] = relationship(back_populates="client", cascade="all, delete-orphan")
 

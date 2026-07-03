@@ -720,6 +720,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  /* ── Portail client (admin : provisionner l'accès) ── */
+  setClientPortalPassword: (clientId: number) =>
+    request<{ client_id: number; email: string | null; temporary_password: string; portal_enabled: boolean }>(
+      "/portal/auth/set-password",
+      { method: "POST", body: JSON.stringify({ client_id: clientId }) }
+    ),
+
   /* ── Super-Admin (cross-tenant) ── */
   adminOverview: () =>
     request<{
