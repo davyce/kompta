@@ -602,6 +602,9 @@ export function Shell() {
               <p className="text-[9px] font-bold text-white/50 uppercase">TERAS</p>
               <p className="text-sm font-black text-white">{terasScore}</p>
             </div>
+            <button onClick={() => navigate("/workspace")} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title={t("nav.switchWorkspace")}>
+              <Building2 size={17} />
+            </button>
             <button onClick={() => navigate("/help")} className="grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white" title={t("nav.helpCenter")}>
               <HelpCircle size={17} />
             </button>
@@ -624,6 +627,9 @@ export function Shell() {
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500" style={{ width: `${terasScore}%` }} />
               </div>
             </div>
+            <button onClick={() => navigate("/workspace")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white border border-white/10 transition">
+              <Building2 size={16} /> {t("nav.switchWorkspace")}
+            </button>
             <button onClick={() => navigate("/groups")} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-violet-300 hover:bg-violet-500/20 hover:text-violet-200 border border-violet-500/30 transition">
               <Users size={16} /> {t("nav.myGroups")}
             </button>

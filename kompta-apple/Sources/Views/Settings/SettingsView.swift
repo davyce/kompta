@@ -228,6 +228,19 @@ struct SettingsView: View {
                 }
             }
 
+            // Changer d'espace
+            Section {
+                NavigationLink {
+                    WorkspaceSwitcherView()
+                } label: {
+                    Label("Changer d'espace de travail", systemImage: "square.grid.2x2")
+                }
+            } header: {
+                Text("Espaces de travail")
+            } footer: {
+                Text("Accédez à votre entreprise ou à vos groupes & organisations depuis une seule interface.")
+            }
+
             // Danger zone
             Section {
                 Button(role: .destructive) { showLogoutAlert = true } label: {
@@ -287,6 +300,80 @@ struct SettingsView: View {
             auth.company = company
         }
         savingLoyalty = false
+    }
+}
+
+// ============================================================================
+//  Sélecteur d'espace de travail — entreprise ou groupe.
+// ============================================================================
+
+struct WorkspaceSwitcherView: View {
+    @EnvironmentObject private var auth: AuthManager
+    @EnvironmentObject private var theme: CompanyTheme
+    @StateObject private var groupsState = Loadable<[OrgGroup]>()
+
+    var body: some View {
+        List {
+            // Espace entreprise
+            if let company = auth.company {
+                Section("Espace entreprise") {
+                    NavigationLink {
+                        ModuleHubView()
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(company.name).font(.headline)
+                                Text("Tableau de bord & modules ERP")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "building.2.fill")
+                                .foregroundStyle(theme.primary)
+                        }
+                    }
+                }
+            }
+
+            // Groupes & organisations
+            Section("Groupes & organisations") {
+                if groupsState.isLoading {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                } else if let groups = groupsState.value, !groups.isEmpty {
+                    ForEach(groups) { group in
+                        NavigationLink {
+                            GroupHubView(group: group)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(group.name).font(.headline)
+                                    HStack(spacing: 4) {
+                                        Text(group.type.capitalized)
+                                        Text("·").foregroundStyle(.tertiary)
+                                        Text(group.city)
+                                        if let count = group.member_count, count > 0 {
+                                            Text("·").foregroundStyle(.tertiary)
+                                            Label("\(count)", systemImage: "person.2.fill")
+                                                .labelStyle(.titleAndIcon)
+                                        }
+                                    }
+                                    .font(.caption).foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "person.3.fill").foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                } else if groupsState.value != nil {
+                    Text("Aucun groupe rejoint pour l'instant.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Changer d'espace")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .task { await groupsState.load { try await APIClient.shared.groups() } }
     }
 }
 

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight, BarChart3, Copy, Download, FileSpreadsheet,
-  Leaf, LucideIcon, ShieldCheck, Target, Users, X,
+  FileText, Leaf, LucideIcon, ShieldCheck, Target, Users, X,
 } from "lucide-react";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useRef, useState } from "react";
@@ -73,6 +73,7 @@ function MarkdownBlock({ content }: { content: string }) {
 
 import { Panel } from "../components/Panel";
 import { api } from "../services/api";
+import { useToast } from "../components/ToastProvider";
 import { compactMoney, shortDate } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 
@@ -228,7 +229,9 @@ export function ReportsHubPage() {
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api.overview() });
   const payrollRuns = useQuery({ queryKey: ["payrollRuns"], queryFn: () => api.payrollRuns() });
   const [aiState, setAiState] = useState<AiState>(null);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const abortRef = useRef(false);
+  const toast = useToast();
 
   const ctx = buildContext(overview, payrollRuns);
 
@@ -252,6 +255,24 @@ export function ReportsHubPage() {
         if (!abortRef.current) setAiState((prev) => prev ? { ...prev, loading: false, error: err.message } : null);
       },
     );
+  }
+
+  async function exportReportPdf() {
+    if (!aiState?.content) return;
+    setPdfExporting(true);
+    try {
+      const blob = await api.aiContentPdf({ title: aiState.title, content: aiState.content, kind: "report" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `limule-rapport-${aiState.title.toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(tr("reportsHub.pdfError"));
+    } finally {
+      setPdfExporting(false);
+    }
   }
 
   /* Build recent report list from real data */
@@ -374,7 +395,14 @@ export function ReportsHubPage() {
                 )}
                 {aiState.content && (
                   <>
-                    <div className="mb-3 flex justify-end">
+                    <div className="mb-3 flex justify-end gap-2">
+                      <button
+                        onClick={exportReportPdf}
+                        disabled={pdfExporting}
+                        className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300"
+                      >
+                        <FileText size={12} /> {pdfExporting ? tr("reportsHub.pdfExporting") : tr("reportsHub.exportPdf")}
+                      </button>
                       <button
                         onClick={() => navigator.clipboard.writeText(aiState.content)}
                         className="flex items-center gap-1.5 rounded-lg border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold text-[#717182] hover:text-violet-600 dark:bg-white/5 dark:border-white/10"
