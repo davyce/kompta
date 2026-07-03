@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import {
   Bell, BrainCircuit, Building2, Check, CheckCircle2, ChevronRight,
   CreditCard, FileText, Globe, Landmark, Lock, Moon, Palette, Plus, Shield,
-  Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, User, UserCog, Wallet, X, Zap,
+  Save, Search, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Upload, User, UserCog, Wallet, X, Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -286,6 +286,45 @@ export function SettingsPage() {
     },
   });
 
+  /* ── Logo entreprise (image ou PDF, upload direct ou photo caméra sur mobile) ── */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    api.companyLogoBlob().then((blob) => {
+      if (cancelled || !blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setLogoUrl(objectUrl);
+    });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [company.data?.id]);
+
+  const uploadLogo = useMutation({
+    mutationFn: (file: File) => api.uploadCompanyLogo(file),
+    onSuccess: async () => {
+      setLogoError(null);
+      const blob = await api.companyLogoBlob();
+      setLogoUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return blob ? URL.createObjectURL(blob) : null; });
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+    },
+    onError: (err: unknown) => setLogoError(err instanceof Error ? err.message : tr("settingsPage.general.logo.uploadError")),
+  });
+
+  const deleteLogo = useMutation({
+    mutationFn: () => api.deleteCompanyLogo(),
+    onSuccess: () => {
+      setLogoUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+    },
+  });
+
+  function onLogoFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadLogo.mutate(file);
+    e.target.value = "";
+  }
+
   const runTerasAnalysis = useMutation({
     mutationFn: () => api.analyzeTerasCompany(),
     onSuccess: () => {
@@ -496,16 +535,49 @@ export function SettingsPage() {
                   </div>
                   <div className="grid gap-4 xl:grid-cols-[220px_1fr]">
                     <div className="rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-                      <div className="grid h-20 w-20 place-items-center rounded-2xl text-3xl font-black text-white shadow-sm"
-                        style={{ background: companyForm.primary_color || "#059669" }}>
-                        {(companyForm.name || "K")[0]}
-                      </div>
+                      {logoUrl ? (
+                        <img src={logoUrl} alt={tr("settingsPage.general.logo.alt")}
+                          className="h-20 w-20 rounded-2xl border border-black/[0.06] bg-white object-contain shadow-sm dark:border-white/[0.08]" />
+                      ) : (
+                        <div className="grid h-20 w-20 place-items-center rounded-2xl text-3xl font-black text-white shadow-sm"
+                          style={{ background: companyForm.primary_color || "#059669" }}>
+                          {(companyForm.name || "K")[0]}
+                        </div>
+                      )}
                       <p className="mt-3 font-black text-[#17211f] dark:text-white">{companyForm.name || "KOMPTA"}</p>
                       <p className="text-xs text-[#717182]">{companyForm.industry || tr("settingsPage.general.activityFallback")}</p>
                       <div className="mt-3 flex gap-2">
                         <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.primary_color }} />
                         <span className="h-7 w-7 rounded-lg border border-black/10" style={{ background: companyForm.accent_color }} />
                       </div>
+                      {!isEmployeeSelfService && (
+                        <div className="mt-3 space-y-1.5">
+                          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white">
+                            <Upload size={13} />
+                            {uploadLogo.isPending ? tr("common.saving") : tr("settingsPage.general.logo.upload")}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,application/pdf"
+                              capture="environment"
+                              className="hidden"
+                              onChange={onLogoFileChange}
+                              disabled={uploadLogo.isPending}
+                            />
+                          </label>
+                          {logoUrl && (
+                            <button
+                              type="button"
+                              onClick={() => deleteLogo.mutate()}
+                              disabled={deleteLogo.isPending}
+                              className="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                            >
+                              {tr("settingsPage.general.logo.remove")}
+                            </button>
+                          )}
+                          {logoError && <p className="text-[11px] font-semibold text-rose-600">{logoError}</p>}
+                          <p className="text-[10px] text-[#717182]">{tr("settingsPage.general.logo.hint")}</p>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {[

@@ -876,20 +876,42 @@ async def upload_company_logo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Company:
-    """Téléverse (ou remplace) le logo de l'entreprise. Image PNG/JPEG/WebP."""
+    """Téléverse (ou remplace) le logo de l'entreprise. Image PNG/JPEG/WebP, PDF
+    ou photo prise directement depuis l'appareil (même content-type image/*)."""
     _require_admin(current_user)
     company = db.get(Company, current_user.company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
-    allowed = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
-    if (file.content_type or "") not in allowed:
-        raise HTTPException(status_code=400, detail="Format d'image non supporté (PNG, JPEG ou WebP).")
+    content_type = file.content_type or ""
+    # HEIC (photo caméra iPhone par défaut) est converti en JPEG côté client
+    # avant l'upload — reportlab/PIL ne le décodent pas nativement en PDF.
+    allowed_images = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+    if content_type not in allowed_images and content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Format non supporté (PNG, JPEG, WebP ou PDF).")
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Logo trop volumineux (max 5 Mo).")
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Logo trop volumineux (max 8 Mo).")
     logo_dir = Path(get_settings().document_storage_dir).parent / "logos"
     logo_dir.mkdir(parents=True, exist_ok=True)
-    ext = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp"}.get(file.content_type or "", ".png")
+
+    if content_type == "application/pdf":
+        # Un PDF n'est pas directement affichable comme image sur les factures :
+        # on rasterise la première page en PNG haute résolution.
+        try:
+            import fitz  # PyMuPDF
+            pdf = fitz.open(stream=content, filetype="pdf")
+            page = pdf.load_page(0)
+            pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))  # ~216 DPI
+            content = pix.tobytes("png")
+            pdf.close()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Impossible de lire ce PDF comme logo. Essayez une image (PNG/JPEG).")
+        ext = ".png"
+    else:
+        ext = {
+            "image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp",
+        }.get(content_type, ".png")
+
     # Supprime l'ancien logo s'il existe.
     if company.logo_path:
         Path(company.logo_path).unlink(missing_ok=True)

@@ -1,5 +1,35 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(iOS)
+import UIKit
+
+/// Pont UIKit minimal pour ouvrir l'appareil photo natif (PhotosPicker ne le
+/// permet pas — seulement la photothèque). Utilisé pour le logo entreprise.
+struct CameraCaptureView: UIViewControllerRepresentable {
+    let onCapture: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onCapture: (UIImage?) -> Void
+        init(onCapture: @escaping (UIImage?) -> Void) { self.onCapture = onCapture }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            onCapture(info[.originalImage] as? UIImage)
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onCapture(nil)
+        }
+    }
+}
+#endif
 
 // ============================================================================
 //  Enterprise parity views — native counterparts for web routes that were
@@ -59,6 +89,10 @@ struct CompanyProfileView: View {
     @EnvironmentObject private var theme: CompanyTheme
     @StateObject private var state = Loadable<KomptaCompany>()
     @State private var showLogoPicker = false
+    @State private var showLogoSourceMenu = false
+    #if os(iOS)
+    @State private var showCamera = false
+    #endif
     @State private var logoData: Data?
     @State private var uploadingLogo = false
     @State private var logoError: String?
@@ -86,15 +120,33 @@ struct CompanyProfileView: View {
         .navigationTitle("Entreprise")
         .task { await load() }
         .refreshable { await load() }
-        .fileImporter(isPresented: $showLogoPicker, allowedContentTypes: [.png, .jpeg, .image]) { result in
+        .confirmationDialog("Logo de l'entreprise", isPresented: $showLogoSourceMenu, titleVisibility: .visible) {
+            #if os(iOS)
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button("Prendre une photo") { showCamera = true }
+            }
+            #endif
+            Button("Choisir un fichier (image ou PDF)") { showLogoPicker = true }
+            Button("Annuler", role: .cancel) {}
+        }
+        .fileImporter(isPresented: $showLogoPicker, allowedContentTypes: [.png, .jpeg, .image, .pdf]) { result in
             Task { await handleLogoPick(result) }
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraCaptureView { image in
+                showCamera = false
+                if let image { Task { await handleCameraCapture(image) } }
+            }
+            .ignoresSafeArea()
+        }
+        #endif
     }
 
     private func header(_ company: KomptaCompany) -> some View {
         GlassCard(padding: 18, cornerRadius: 18) {
             HStack(spacing: 16) {
-                Button { showLogoPicker = true } label: {
+                Button { showLogoSourceMenu = true } label: {
                     ZStack(alignment: .bottomTrailing) {
                         Group {
                             if let logoData, let img = uiImage(logoData) {
@@ -162,7 +214,13 @@ struct CompanyProfileView: View {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? Data(contentsOf: url) else { logoError = "Lecture du fichier impossible"; return }
         let ext = url.pathExtension.lowercased()
-        let mime = ext == "png" ? "image/png" : (ext == "webp" ? "image/webp" : "image/jpeg")
+        let mime: String
+        switch ext {
+        case "png": mime = "image/png"
+        case "webp": mime = "image/webp"
+        case "pdf": mime = "application/pdf"
+        default: mime = "image/jpeg"
+        }
         uploadingLogo = true
         do {
             let updated = try await APIClient.shared.uploadCompanyLogo(data, fileName: url.lastPathComponent, mime: mime)
@@ -173,6 +231,26 @@ struct CompanyProfileView: View {
         }
         uploadingLogo = false
     }
+
+    #if os(iOS)
+    private func handleCameraCapture(_ image: UIImage) async {
+        logoError = nil
+        // La caméra peut renvoyer du HEIC en interne — on force un JPEG standard,
+        // seul format garanti décodable par PIL/reportlab côté backend.
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            logoError = "Impossible de traiter la photo"; return
+        }
+        uploadingLogo = true
+        do {
+            let updated = try await APIClient.shared.uploadCompanyLogo(data, fileName: "logo.jpg", mime: "image/jpeg")
+            auth.company = updated
+            logoData = data
+        } catch {
+            logoError = (error as? LocalizedError)?.errorDescription ?? "Échec de l'envoi du logo"
+        }
+        uploadingLogo = false
+    }
+    #endif
 
     private func legalCard(_ company: KomptaCompany) -> some View {
         GlassCard(padding: 16, cornerRadius: 18) {

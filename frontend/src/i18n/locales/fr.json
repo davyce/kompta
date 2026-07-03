@@ -3356,6 +3356,13 @@
       "identityTitle": "Identité & branding entreprise",
       "identityDesc": "Ces informations alimentent les factures, contrats, exports et écrans KOMPTA.",
       "activityFallback": "Activité",
+      "logo": {
+        "alt": "Logo de l'entreprise",
+        "upload": "Changer le logo",
+        "remove": "Supprimer le logo",
+        "hint": "PNG, JPEG, WebP ou PDF — max 8 Mo",
+        "uploadError": "Échec de l'envoi du logo"
+      },
       "cashThresholdHint": "Limule t'alerte quand ta trésorerie passe sous ce montant. Mets 0 pour désactiver l'alerte.",
       "legalTitle": "⚖️ Mentions légales & fiscales",
       "legalDesc": "Ces informations attestent que l'entreprise est immatriculée et en règle. Elles apparaissent sur les factures et contrats.",

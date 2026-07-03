@@ -3356,6 +3356,13 @@
       "identityTitle": "Company identity & branding",
       "identityDesc": "This information feeds invoices, contracts, exports, and KOMPTA screens.",
       "activityFallback": "Activity",
+      "logo": {
+        "alt": "Company logo",
+        "upload": "Change logo",
+        "remove": "Remove logo",
+        "hint": "PNG, JPEG, WebP or PDF — max 8 MB",
+        "uploadError": "Failed to upload logo"
+      },
       "cashThresholdHint": "Limule alerts you when cash drops below this amount. Set 0 to disable the alert.",
       "legalTitle": "⚖️ Legal & tax details",
       "legalDesc": "This information shows that the company is registered and compliant. It appears on invoices and contracts.",

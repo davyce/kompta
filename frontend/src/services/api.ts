@@ -247,6 +247,11 @@ export const api = {
     form.append("file", file);
     return request<Company>("/company/logo", { method: "POST", body: form });
   },
+  deleteCompanyLogo: () => request<Company>("/company/logo", { method: "DELETE" }),
+  companyLogoBlob: async (): Promise<Blob | null> => {
+    try { return await requestBlob("/company/logo"); }
+    catch { return null; }
+  },
   resetWorkspace: () => request<{ status: string; message: string }>("/workspace/reset", { method: "POST" }),
   paymentAccounts: () => request<PaymentAccount[]>("/payment-accounts"),
   createPaymentAccount: (payload: Partial<PaymentAccount>) =>
