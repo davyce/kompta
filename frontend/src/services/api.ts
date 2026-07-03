@@ -422,7 +422,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
-  deleteInvoice: (id: number) => request<void>(`/invoices/${id}`, { method: "DELETE" }),
+  deleteInvoice: (id: number, reason: string) =>
+    request<void>(`/invoices/${id}`, { method: "DELETE", body: JSON.stringify({ reason }) }),
   payInvoice: (id: number, payload: { payment_method: string; payment_account_id?: number | null }) =>
     request<Invoice>(`/invoices/${id}/pay`, {
       method: "POST",
@@ -1281,7 +1282,7 @@ export const api = {
   analyticsKpis: () => request<AnalyticsKpisDto>("/analytics/kpis"),
 
   /* ── Admin Broadcast ──────────────────────────────────────────────── */
-  adminBroadcast: (payload: { title: string; message: string; type: string; target_company_id?: number }) =>
+  adminBroadcast: (payload: { title: string; message: string; type: string; target_company_id?: number; target_company_ids?: number[] }) =>
     request<{ status: string; user_count: number; broadcast_id?: number }>("/admin/broadcast", {
       method: "POST",
       body: JSON.stringify(payload),

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -29,6 +29,7 @@ from app.db.session import SessionLocal, get_db
 from app.models import (
     AccessAuditLog,
     AIGeneration,
+    AuditLog,
     BankTransaction,
     ChatChannel,
     Client,
@@ -2386,24 +2387,59 @@ def update_invoice(
     return invoice
 
 
+class InvoiceDeleteRequest(BaseModel):
+    # Obligatoire : trace la raison de la suppression, y compris sur une
+    # facture payée (correction d'erreur) — voir AuditLog ci-dessous.
+    reason: str = Field(min_length=3, max_length=500)
+
+
 @router.delete("/invoices/{invoice_id}", status_code=204)
 def delete_invoice(
     invoice_id: int,
+    payload: InvoiceDeleteRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    """Supprime une facture — réservé au DG/PDG (admin_entreprise), pour
-    corriger une erreur de saisie. Une facture payée ne peut pas être
-    supprimée (intégrité comptable) : émettre un avoir à la place."""
+    """Supprime une facture — réservé au DG/PDG (admin_entreprise). Un motif
+    est obligatoire et la facture complète (lignes incluses) est archivée
+    dans le journal d'audit avant suppression, pour retrouver la version
+    précédente si besoin — y compris pour une facture déjà payée (correction
+    d'erreur), désormais autorisée."""
     _require_company_owner(current_user)
-    invoice = db.get(Invoice, invoice_id)
-    if not invoice or invoice.company_id != current_user.company_id:
+    invoice = db.scalar(
+        select(Invoice)
+        .options(selectinload(Invoice.lines))
+        .where(Invoice.id == invoice_id, Invoice.company_id == current_user.company_id)
+    )
+    if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    if invoice.status == "paid":
-        raise HTTPException(
-            status_code=409,
-            detail="Facture payée : suppression impossible. Émettez un avoir pour corriger.",
-        )
+
+    snapshot = {
+        "number": invoice.number,
+        "customer_name": invoice.customer_name,
+        "customer_email": invoice.customer_email,
+        "status": invoice.status,
+        "subtotal": invoice.subtotal,
+        "tax_amount": invoice.tax_amount,
+        "total_amount": invoice.total_amount,
+        "due_date": str(invoice.due_date) if invoice.due_date else None,
+        "paid_at": str(invoice.paid_at) if invoice.paid_at else None,
+        "payment_method": invoice.payment_method,
+        "created_at": str(invoice.created_at),
+        "lines": [
+            {"description": l.description, "quantity": l.quantity, "unit_price": l.unit_price, "tax_rate": l.tax_rate, "total": l.total}
+            for l in invoice.lines
+        ],
+    }
+    db.add(AuditLog(
+        user_id=current_user.id,
+        user_name=current_user.full_name,
+        action="delete",
+        resource_type="invoice",
+        resource_id=invoice.id,
+        details=json.dumps({"reason": payload.reason, "invoice_snapshot": snapshot}, ensure_ascii=False),
+        company_id=current_user.company_id,
+    ))
     db.delete(invoice)
     db.commit()
     return Response(status_code=204)
@@ -3206,10 +3242,12 @@ def quick_task_from_message(
 
     # Audit
     db.add(AuditLog(
-        actor=current_user.full_name,
-        action="task.created_from_chat",
-        employee=action.get("assignee") or "",
-        details=f"Tâche '{task.title}' créée depuis message #{message_id} (confiance {action.get('confidence', 0):.0%})",
+        user_id=current_user.id,
+        user_name=current_user.full_name,
+        action="create",
+        resource_type="task",
+        resource_id=task.id,
+        details=f"Tâche '{task.title}' créée depuis message #{message_id} (confiance {action.get('confidence', 0):.0%}, assigné à {action.get('assignee') or '—'})",
         company_id=current_user.company_id,
     ))
     db.commit()

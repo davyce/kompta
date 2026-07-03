@@ -226,6 +226,9 @@ struct BroadcastPayload: Encodable {
     var message: String
     var type: String = "info"
     var target: String = "all"
+    /// Sélection multiple d'entreprises ("équipes") — prime sur `target` côté
+    /// backend quand fournie et non vide.
+    var target_company_ids: [Int]? = nil
 }
 
 struct BroadcastResult: Codable {

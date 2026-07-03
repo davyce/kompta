@@ -66,7 +66,7 @@ export function BillingPage() {
   const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { confirm } = useConfirm();
+  const { confirmWithReason } = useConfirm();
   // Suppression/rectification de facture réservée au DG/PDG (admin_entreprise) —
   // évite qu'un employé corrige ou efface une facture par erreur.
   const canManageInvoices = user?.role === "admin_entreprise" || user?.role === "super_admin";
@@ -140,7 +140,7 @@ export function BillingPage() {
   });
 
   const deleteInvoice = useMutation({
-    mutationFn: (id: number) => api.deleteInvoice(id),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => api.deleteInvoice(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
@@ -163,13 +163,16 @@ export function BillingPage() {
   }
 
   async function handleDeleteInvoice(id: number, number: string) {
-    const ok = await confirm({
+    // Un motif est obligatoire (tracé dans le journal d'audit avec la
+    // facture complète — voir Réglages > Journal audit).
+    const { confirmed, reason } = await confirmWithReason({
       title: tr("billing.deleteConfirmTitle"),
       message: tr("billing.deleteConfirmMessage", { number }),
       confirmLabel: tr("billing.delete"),
+      reasonLabel: tr("billing.deleteReasonLabel"),
       danger: true,
     });
-    if (ok) deleteInvoice.mutate(id);
+    if (confirmed && reason?.trim()) deleteInvoice.mutate({ id, reason: reason.trim() });
   }
 
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -464,23 +467,25 @@ export function BillingPage() {
                       </div>
                     )}
                     {r.kind === "invoice" && r.status !== "paid" && canManageInvoices && (
-                      <>
-                        <button
-                          onClick={() => startEdit(r)}
-                          title={tr("billing.edit")}
-                          className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteInvoice(r.id, r.number)}
-                          disabled={deleteInvoice.isPending}
-                          title={tr("billing.delete")}
-                          className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </>
+                      <button
+                        onClick={() => startEdit(r)}
+                        title={tr("billing.edit")}
+                        className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {/* Suppression autorisée même sur une facture payée (correction
+                        d'erreur) — motif obligatoire, tracé dans le journal d'audit. */}
+                    {r.kind === "invoice" && canManageInvoices && (
+                      <button
+                        onClick={() => handleDeleteInvoice(r.id, r.number)}
+                        disabled={deleteInvoice.isPending}
+                        title={tr("billing.delete")}
+                        className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     )}
                   </div>
                   {editingId === r.id && (

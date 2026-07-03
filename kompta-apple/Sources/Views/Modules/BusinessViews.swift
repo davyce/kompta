@@ -819,16 +819,21 @@ struct InvoiceDetailView: View {
     @State private var relancing = false
     @State private var showEdit = false
     @State private var showDeleteConfirm = false
+    @State private var deleteReason = ""
     @State private var deleting = false
     @State private var deleteError: String?
 
     // Rectification/suppression réservées au DG/PDG (voir _require_company_owner
-    // côté backend) — une facture payée reste, elle, définitivement immuable.
-    private var canManage: Bool {
-        guard invoice.status != "paid" else { return false }
+    // côté backend).
+    private var isCompanyOwner: Bool {
         let role = auth.currentUser?.role ?? ""
         return role == "admin_entreprise" || role == "super_admin"
     }
+    // Modifier reste bloqué sur une facture payée (immuabilité comptable côté
+    // backend) ; supprimer est, lui, autorisé même payée — motif obligatoire,
+    // tracé dans le journal d'audit avec la facture complète.
+    private var canEdit: Bool { isCompanyOwner && invoice.status != "paid" }
+    private var canDelete: Bool { isCompanyOwner }
 
     var body: some View {
         ScrollView {
@@ -916,11 +921,15 @@ struct InvoiceDetailView: View {
                 }
                 .disabled(exporting)
             }
-            if canManage {
+            if canEdit || canDelete {
                 ToolbarItem(placement: .secondaryAction) {
                     Menu {
-                        Button { showEdit = true } label: { Label("Modifier", systemImage: "pencil") }
-                        Button(role: .destructive) { showDeleteConfirm = true } label: { Label("Supprimer", systemImage: "trash") }
+                        if canEdit {
+                            Button { showEdit = true } label: { Label("Modifier", systemImage: "pencil") }
+                        }
+                        if canDelete {
+                            Button(role: .destructive) { deleteReason = ""; showDeleteConfirm = true } label: { Label("Supprimer", systemImage: "trash") }
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -931,10 +940,12 @@ struct InvoiceDetailView: View {
             InvoiceEditView(invoice: invoice, onSaved: onChanged)
         }
         .alert("Supprimer cette facture ?", isPresented: $showDeleteConfirm) {
+            TextField("Motif de la suppression", text: $deleteReason)
             Button("Annuler", role: .cancel) {}
             Button("Supprimer", role: .destructive) { Task { await deleteInvoice() } }
+                .disabled(deleteReason.trimmingCharacters(in: .whitespaces).count < 3)
         } message: {
-            Text("La facture \(invoice.number) sera définitivement supprimée. Cette action est irréversible.")
+            Text("La facture \(invoice.number) sera définitivement supprimée. Motif obligatoire, conservé dans le journal d'audit avec la facture complète — action irréversible.")
         }
         .alert("Erreur", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
             Button("OK", role: .cancel) {}
@@ -944,9 +955,11 @@ struct InvoiceDetailView: View {
     }
 
     private func deleteInvoice() async {
+        let reason = deleteReason.trimmingCharacters(in: .whitespaces)
+        guard reason.count >= 3 else { return }
         deleting = true
         do {
-            try await APIClient.shared.deleteInvoice(invoice.id)
+            try await APIClient.shared.deleteInvoice(invoice.id, reason: reason)
             await onChanged()
             dismiss()
         } catch {

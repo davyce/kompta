@@ -358,7 +358,12 @@ actor APIClient {
     func relanceInvoice(_ id: Int) async throws { try await action("/invoices/\(id)/relance") }
     /// Réservé au DG/PDG côté backend (403 sinon) — voir _require_company_owner.
     func updateInvoice(_ id: Int, _ p: InvoiceUpdatePayload) async throws -> Invoice { try await patch("/invoices/\(id)", body: p) }
-    func deleteInvoice(_ id: Int) async throws { try await delete("/invoices/\(id)") }
+    /// Motif obligatoire — tracé dans le journal d'audit avec la facture
+    /// complète (voir _require_company_owner / AuditLog côté backend).
+    /// Autorisé même sur une facture payée (correction d'erreur).
+    func deleteInvoice(_ id: Int, reason: String) async throws {
+        try await send("/invoices/\(id)", method: "DELETE", body: InvoiceDeleteRequest(reason: reason))
+    }
 
     // MARK: - Inventory
 

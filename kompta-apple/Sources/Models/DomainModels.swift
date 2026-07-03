@@ -168,6 +168,10 @@ struct InvoiceUpdatePayload: Encodable {
     var notes: String?
 }
 
+struct InvoiceDeleteRequest: Encodable {
+    var reason: String
+}
+
 struct InvoicePaymentPayload: Encodable {
     var payment_method: String = "cash"
     var payment_account_id: Int?

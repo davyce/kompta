@@ -66,7 +66,11 @@ export function AdminBroadcastPage() {
   const [message, setMessage] = useState("");
   const [type, setType] = useState<BroadcastType>("info");
   const [targetAll, setTargetAll] = useState(true);
-  const [targetCompanyId, setTargetCompanyId] = useState<number | null>(null);
+  // Sélection multiple d'entreprises ("équipes") — remplace l'ancien
+  // sélecteur mono-entreprise, on peut désormais viser plusieurs clients d'un
+  // coup sans repasser par "toutes les entreprises".
+  const [targetCompanyIds, setTargetCompanyIds] = useState<number[]>([]);
+  const [companySearch, setCompanySearch] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>(() => loadBroadcasts());
 
@@ -78,7 +82,7 @@ export function AdminBroadcastPage() {
         title,
         message,
         type,
-        target_company_id: targetAll ? undefined : targetCompanyId ?? undefined,
+        target_company_ids: targetAll ? undefined : targetCompanyIds,
       }),
     onSuccess: (data) => {
       const record: BroadcastRecord = {
@@ -88,7 +92,9 @@ export function AdminBroadcastPage() {
         type,
         target: targetAll
           ? tr("admin.broadcast.allCompanies")
-          : companies.data?.find((c) => c.id === targetCompanyId)?.name ?? tr("admin.broadcast.companyNumber", { id: targetCompanyId }),
+          : targetCompanyIds
+              .map((id) => companies.data?.find((c) => c.id === id)?.name ?? tr("admin.broadcast.companyNumber", { id }))
+              .join(", "),
         sentAt: new Date().toISOString(),
         userCount: data.user_count ?? 0,
       };
@@ -106,9 +112,19 @@ export function AdminBroadcastPage() {
   const typeStyle = TYPE_STYLES[type];
   const TypeIcon = typeStyle.icon;
 
+  const filteredCompanies = (companies.data ?? []).filter((c) =>
+    c.name.toLowerCase().includes(companySearch.toLowerCase())
+  );
+
+  function toggleCompany(id: number) {
+    setTargetCompanyIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
   const targetLabel = targetAll
     ? tr("admin.broadcast.allCompanies")
-    : companies.data?.find((c) => c.id === targetCompanyId)?.name ?? tr("admin.broadcast.selectCompany");
+    : targetCompanyIds.length === 0
+      ? tr("admin.broadcast.selectCompany")
+      : tr("admin.broadcast.companiesSelected", { count: targetCompanyIds.length });
 
   return (
     <div className="space-y-6">
@@ -207,16 +223,43 @@ export function AdminBroadcastPage() {
                 </button>
               </div>
               {!targetAll && (
-                <select
-                  value={targetCompanyId ?? ""}
-                  onChange={(e) => setTargetCompanyId(Number(e.target.value) || null)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white"
-                >
-                  <option value="">{tr("admin.broadcast.selectCompany")}</option>
-                  {(companies.data ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950">
+                  <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-white/10">
+                    <input
+                      value={companySearch}
+                      onChange={(e) => setCompanySearch(e.target.value)}
+                      placeholder={tr("admin.broadcast.searchCompany")}
+                      className="w-full bg-transparent text-sm text-slate-700 outline-none dark:text-white"
+                    />
+                    {targetCompanyIds.length > 0 && (
+                      <button
+                        onClick={() => setTargetCompanyIds([])}
+                        className="shrink-0 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-300"
+                      >
+                        {tr("admin.broadcast.clearSelection")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-56 overflow-y-auto p-2">
+                    {filteredCompanies.length === 0 && (
+                      <p className="px-2 py-3 text-center text-xs text-slate-400 dark:text-white/40">{tr("admin.broadcast.noCompanyMatch")}</p>
+                    )}
+                    {filteredCompanies.map((c) => {
+                      const checked = targetCompanyIds.includes(c.id);
+                      return (
+                        <label
+                          key={c.id}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold ${
+                            checked ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-white" : "text-slate-700 hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/5"
+                          }`}
+                        >
+                          <input type="checkbox" checked={checked} onChange={() => toggleCompany(c.id)} className="h-4 w-4 accent-indigo-600" />
+                          {c.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -233,7 +276,7 @@ export function AdminBroadcastPage() {
             </div>
           )}
           <button
-            disabled={!title.trim() || !message.trim() || (!targetAll && !targetCompanyId) || sendBroadcast.isPending}
+            disabled={!title.trim() || !message.trim() || (!targetAll && targetCompanyIds.length === 0) || sendBroadcast.isPending}
             onClick={() => sendBroadcast.mutate()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
           >

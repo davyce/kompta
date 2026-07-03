@@ -882,6 +882,15 @@ struct AdminBroadcastView: View {
     @State private var sending = false
     @State private var result: BroadcastResult?
     @State private var showConfirm = false
+    @StateObject private var companiesState = Loadable<[AdminCompanyRow]>()
+    @State private var selectedCompanyIds: Set<Int> = []
+    @State private var companySearch = ""
+
+    private var filteredCompanies: [AdminCompanyRow] {
+        guard let all = companiesState.value else { return [] }
+        guard !companySearch.isEmpty else { return all }
+        return all.filter { $0.name.localizedCaseInsensitiveContains(companySearch) }
+    }
 
     var body: some View {
         Form {
@@ -896,12 +905,40 @@ struct AdminBroadcastView: View {
                 }
                 Picker("Cible", selection: $target) {
                     Text("Toutes les entreprises").tag("all")
-                    Text("Admins seulement").tag("admins")
+                    Text("Équipes sélectionnées").tag("companies")
+                }
+                .onChange(of: target) { _, newValue in
+                    if newValue == "companies" { Task { await loadCompanies() } }
+                }
+            }
+            if target == "companies" {
+                Section("Entreprises (\(selectedCompanyIds.count) sélectionnée(s))") {
+                    TextField("Rechercher…", text: $companySearch)
+                    if companiesState.isLoading {
+                        ProgressView()
+                    } else {
+                        ForEach(filteredCompanies) { company in
+                            Button {
+                                if selectedCompanyIds.contains(company.id) { selectedCompanyIds.remove(company.id) }
+                                else { selectedCompanyIds.insert(company.id) }
+                            } label: {
+                                HStack {
+                                    Text(company.name).foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedCompanyIds.contains(company.id) {
+                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.indigo)
+                                    } else {
+                                        Image(systemName: "circle").foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Section {
                 KomptaButton(label: "Envoyer la diffusion", icon: "megaphone.fill", isLoading: sending) { showConfirm = true }
-                    .disabled(title.isEmpty || message.isEmpty)
+                    .disabled(title.isEmpty || message.isEmpty || (target == "companies" && selectedCompanyIds.isEmpty))
             }
             if let r = result {
                 Section("Résultat") {
@@ -914,15 +951,23 @@ struct AdminBroadcastView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .confirmationDialog("Envoyer cette diffusion à toute la plateforme ?", isPresented: $showConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Envoyer cette diffusion ?", isPresented: $showConfirm, titleVisibility: .visible) {
             Button("Envoyer", role: .destructive) { Task { await send() } }
             Button("Annuler", role: .cancel) { }
         }
     }
 
+    private func loadCompanies() async {
+        await companiesState.load { try await APIClient.shared.adminCompanies() }
+    }
+
     private func send() async {
         sending = true
-        do { result = try await APIClient.shared.adminBroadcast(BroadcastPayload(title: title, message: message, type: type, target: target)) }
+        let payload = BroadcastPayload(
+            title: title, message: message, type: type, target: target,
+            target_company_ids: target == "companies" ? Array(selectedCompanyIds) : nil
+        )
+        do { result = try await APIClient.shared.adminBroadcast(payload) }
         catch { }
         sending = false
     }

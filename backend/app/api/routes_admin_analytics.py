@@ -282,6 +282,9 @@ class BroadcastPayload(BaseModel):
     # Le frontend envoie historiquement `target_company_id` ; on l'accepte aussi
     # et il prime sur `target` quand il est fourni (corrige la sélection ignorée).
     target_company_id: int | None = None
+    # Sélection multiple d'entreprises ("équipes") — prime sur les deux champs
+    # ci-dessus quand fournie et non vide.
+    target_company_ids: list[int] | None = None
 
 
 @router.post("/admin/broadcast")
@@ -293,14 +296,28 @@ def broadcast_notification(
 ):
     _require_super_admin(current_user)
 
-    # Cible : `target_company_id` (frontend) prime, sinon on lit `target`.
+    # Cible : `target_company_ids` (multi-sélection) prime, puis
+    # `target_company_id` (legacy single-select), puis `target`.
     target = payload.target
-    if payload.target_company_id is not None:
+    if payload.target_company_ids:
+        target = "company_ids:" + ",".join(str(cid) for cid in payload.target_company_ids)
+    elif payload.target_company_id is not None:
         target = f"company_id:{payload.target_company_id}"
 
     # Déterminer les entreprises ciblées
     if target == "all":
         target_company_ids = list(db.scalars(select(Company.id)).all())
+    elif target.startswith("company_ids:"):
+        try:
+            ids = [int(x) for x in target.split(":", 1)[1].split(",") if x]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format target invalide.")
+        if not ids:
+            raise HTTPException(status_code=400, detail="Sélectionnez au moins une entreprise.")
+        found = list(db.scalars(select(Company.id).where(Company.id.in_(ids))).all())
+        if not found:
+            raise HTTPException(status_code=404, detail="Aucune des entreprises sélectionnées n'existe.")
+        target_company_ids = found
     elif target.startswith("company_id:"):
         try:
             cid = int(target.split(":")[1])
