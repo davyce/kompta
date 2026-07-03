@@ -3621,18 +3621,19 @@ def reports_overview(
     tx_rows = db.scalars(
         select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
     ).all()
-    tx_credits = sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_rows)
-    tx_debits  = sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_rows)
+    from app.services.currency import convert_to_xaf as _to_xaf
+    tx_credits = sum(_to_xaf(r.credit if r.credit is not None else max(r.amount, 0), r.currency, current_user.company_id, db) for r in tx_rows)
+    tx_debits  = sum(_to_xaf(r.debit  if r.debit  is not None else max(-r.amount, 0), r.currency, current_user.company_id, db) for r in tx_rows)
     tx_balance = round(tx_credits - tx_debits, 2)
     # Transactions from invoices only (source_type = "facture")
     tx_invoice_rows = [r for r in tx_rows if r.source_type == "facture"]
-    tx_invoice_total = round(sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_invoice_rows), 2)
+    tx_invoice_total = round(sum(_to_xaf(r.credit if r.credit is not None else max(r.amount, 0), r.currency, current_user.company_id, db) for r in tx_invoice_rows), 2)
     # Monthly average of last 3 months (for treasury prediction)
     from datetime import date as _date, timedelta as _td
     cutoff = (_date.today() - _td(days=90)).isoformat()
     tx_recent = [r for r in tx_rows if r.date >= cutoff]
-    tx_monthly_in  = round(sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_recent) / 3, 2)
-    tx_monthly_out = round(sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_recent) / 3, 2)
+    tx_monthly_in  = round(sum(_to_xaf(r.credit if r.credit is not None else max(r.amount, 0), r.currency, current_user.company_id, db) for r in tx_recent) / 3, 2)
+    tx_monthly_out = round(sum(_to_xaf(r.debit  if r.debit  is not None else max(-r.amount, 0), r.currency, current_user.company_id, db) for r in tx_recent) / 3, 2)
 
     return {
         "company": company.name if company else "KOMPTA",

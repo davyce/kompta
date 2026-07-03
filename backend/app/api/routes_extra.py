@@ -39,6 +39,7 @@ from app.models import (
     CompanyModule,
     DailyNote,
     Employee,
+    ExchangeRate,
     Invoice,
     LimuleInteraction,
     Meeting,
@@ -1428,6 +1429,71 @@ def update_preferences(
     db.commit()
     db.refresh(pref)
     return pref
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAUX DE CHANGE (EUR/USD → XAF)
+# ═══════════════════════════════════════════════════════════════════════════
+
+from app.services.currency import DEFAULT_RATES as _DEFAULT_RATES, get_effective_rate as _get_effective_rate
+
+
+@router.get("/settings/exchange-rates")
+def list_exchange_rates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    result = []
+    for quote_currency in _DEFAULT_RATES:
+        override = db.scalars(
+            select(ExchangeRate).where(
+                ExchangeRate.company_id == current_user.company_id,
+                ExchangeRate.quote_currency == quote_currency,
+            )
+        ).first()
+        result.append({
+            "quote_currency": quote_currency,
+            "base_currency": "XAF",
+            "rate": _get_effective_rate(quote_currency, current_user.company_id, db),
+            "is_override": override is not None,
+        })
+    return result
+
+
+@router.patch("/settings/exchange-rates/{quote_currency}")
+def update_exchange_rate(
+    quote_currency: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.role not in {"admin_entreprise", "manager_entreprise", "super_admin"}:
+        raise HTTPException(status_code=403, detail="Accès refusé : administrateur requis.")
+    quote_currency = quote_currency.upper()
+    if quote_currency not in _DEFAULT_RATES:
+        raise HTTPException(400, f"Devise non supportée : {quote_currency}")
+    rate = payload.get("rate")
+    if not isinstance(rate, (int, float)) or rate <= 0:
+        raise HTTPException(400, "Taux invalide")
+    override = db.scalars(
+        select(ExchangeRate).where(
+            ExchangeRate.company_id == current_user.company_id,
+            ExchangeRate.quote_currency == quote_currency,
+        )
+    ).first()
+    if override:
+        override.rate = float(rate)
+    else:
+        override = ExchangeRate(
+            company_id=current_user.company_id,
+            base_currency="XAF",
+            quote_currency=quote_currency,
+            rate=float(rate),
+        )
+        db.add(override)
+    db.commit()
+    db.refresh(override)
+    return {"quote_currency": override.quote_currency, "base_currency": "XAF", "rate": override.rate, "is_override": True}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

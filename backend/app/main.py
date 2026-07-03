@@ -99,6 +99,14 @@ async def lifespan(app: FastAPI):
         logger.info("Plans d'abonnement : OK")
     except Exception:
         logger.exception("Seed plans d'abonnement échoué")
+    # Taux de change par défaut (EUR/USD → XAF), idempotent.
+    try:
+        from app.db.init_db import seed_default_exchange_rates
+        with SessionLocal() as db:
+            seed_default_exchange_rates(db)
+        logger.info("Taux de change par défaut : OK")
+    except Exception:
+        logger.exception("Seed taux de change échoué")
     # Données de DÉMO (société fictive) : jamais automatiques.
     # Activer explicitement avec SEED_DEMO=true dans un environnement local isolé.
     if _should_seed_demo():

@@ -119,6 +119,12 @@ export function SettingsPage() {
   const [tab, setTab] = useState<Tab>(initialTab);
   const isEmployeeSelfService = user?.role === "employe";
 
+  const exchangeRates = useQuery({ queryKey: ["exchangeRates"], queryFn: api.exchangeRates });
+  const updateExchangeRateMutation = useMutation({
+    mutationFn: ({ currency, rate }: { currency: string; rate: number }) => api.updateExchangeRate(currency, rate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exchangeRates"] }),
+  });
+
   const company = useQuery({ queryKey: ["company"], queryFn: api.company });
   const modulesQ = useQuery({ queryKey: ["modules"], queryFn: api.modules });
   const prefs = useQuery({ queryKey: ["preferences"], queryFn: api.preferences });
@@ -788,6 +794,38 @@ export function SettingsPage() {
                   {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">{tr("settingsPage.general.companySaved")}</p>}
                   {updateCompany.error && <p className="mt-3 text-xs font-bold text-red-600">{updateCompany.error.message}</p>}
                 </form>
+
+                {/* ── Taux de change (EUR/USD → XAF) ── */}
+                <div className="mt-4 rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                  <p className="mb-1 text-sm font-black text-[#17211f] dark:text-white">Taux de change (vers XAF)</p>
+                  <p className="mb-3 text-xs text-[#717182]">
+                    Utilisés pour convertir automatiquement les transactions/factures saisies en EUR ou USD
+                    vers XAF dans les totaux et rapports. L'EUR est fixé par le traité CEMAC (655,96), l'USD est indicatif.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {(exchangeRates.data ?? []).map((r) => (
+                      <label key={r.quote_currency} className="block text-xs font-bold uppercase text-[#717182]">
+                        1 {r.quote_currency} = ? XAF {r.is_override && <span className="normal-case text-emerald-600">(personnalisé)</span>}
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          defaultValue={r.rate}
+                          disabled={isEmployeeSelfService}
+                          onBlur={(e) => {
+                            const value = Number(e.target.value);
+                            if (value > 0 && value !== r.rate) {
+                              updateExchangeRateMutation.mutate({ currency: r.quote_currency, rate: value });
+                            }
+                          }}
+                          className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {updateExchangeRateMutation.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">Taux mis à jour.</p>}
+                  {updateExchangeRateMutation.error && <p className="mt-3 text-xs font-bold text-red-600">{(updateExchangeRateMutation.error as Error).message}</p>}
+                </div>
                 <SettingRow icon={Palette} label={tr("settingsPage.general.displayTheme")} description={theme === "dark" ? tr("settingsPage.general.darkEnabled") : tr("settingsPage.general.lightEnabled")}>
                   <button onClick={toggleTheme} className="flex items-center gap-2 rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
                     {theme === "dark" ? <><Sun size={15}/> {tr("settingsPage.general.lightMode")}</> : <><Moon size={15}/> {tr("settingsPage.general.darkMode")}</>}

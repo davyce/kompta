@@ -30,6 +30,7 @@ from pydantic import BaseModel
 from app.api.deps import get_current_user, get_db
 from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount
 from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate
+from app.services.currency import convert_to_xaf
 
 router = APIRouter(tags=["transactions"])
 
@@ -196,13 +197,17 @@ def transaction_stats(
     rows = db.scalars(
         select(BankTransaction).where(BankTransaction.company_id == current_user.company_id)
     ).all()
-    total_credits = sum(r.credit or max(r.amount, 0) for r in rows)
-    total_debits  = sum(r.debit  or max(-r.amount, 0) for r in rows)
+    total_credits = sum(
+        convert_to_xaf(r.credit or max(r.amount, 0), r.currency, current_user.company_id, db) for r in rows
+    )
+    total_debits = sum(
+        convert_to_xaf(r.debit or max(-r.amount, 0), r.currency, current_user.company_id, db) for r in rows
+    )
     balance       = total_credits - total_debits
     by_category: dict[str, float] = {}
     for r in rows:
         cat = r.category or "divers"
-        by_category[cat] = by_category.get(cat, 0) + abs(r.amount)
+        by_category[cat] = by_category.get(cat, 0) + convert_to_xaf(abs(r.amount), r.currency, current_user.company_id, db)
     return {
         "count":          len(rows),
         "total_credits":  round(total_credits, 2),

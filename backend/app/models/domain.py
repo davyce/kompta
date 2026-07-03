@@ -931,6 +931,21 @@ class UserPreference(TimestampMixin, Base):
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
+class ExchangeRate(TimestampMixin, Base):
+    """Taux de change vers XAF (devise de reporting de base).
+
+    company_id NULL = taux par défaut plateforme (fallback), sinon override par entreprise.
+    rate = nombre d'unités XAF pour 1 unité de quote_currency.
+    """
+    __tablename__ = "exchange_rates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+    base_currency: Mapped[str] = mapped_column(String(5), default="XAF")
+    quote_currency: Mapped[str] = mapped_column(String(5))  # EUR | USD
+    rate: Mapped[float] = mapped_column(Float, default=1.0)
+
+
 class LegislationDocument(TimestampMixin, Base):
     """Documents législatifs uploadés par l'admin pour enrichir Limule."""
     __tablename__ = "legislation_documents"

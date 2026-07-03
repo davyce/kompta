@@ -1041,6 +1041,13 @@ export const api = {
       method: "PATCH", body: JSON.stringify(payload), skipUnauthorizedLogout: true,
     }),
 
+  /* ── Taux de change ────────────────────────────────────────── */
+  exchangeRates: () => request<{ quote_currency: string; base_currency: string; rate: number; is_override: boolean }[]>("/settings/exchange-rates"),
+  updateExchangeRate: (currency: string, rate: number) =>
+    request<{ quote_currency: string; base_currency: string; rate: number; is_override: boolean }>(`/settings/exchange-rates/${currency}`, {
+      method: "PATCH", body: JSON.stringify({ rate }),
+    }),
+
   /* ── Accounting aggregates ────────────────────────────────── */
   cashflow: (period = "month") =>
     request<CashFlowDto[]>(`/accounting/cashflow?period=${period}`),

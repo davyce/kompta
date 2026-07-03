@@ -14,6 +14,7 @@ from app.models import (
     DailyNote,
     DeclarationRecord,
     Employee,
+    ExchangeRate,
     Invoice,
     InvoiceLine,
     LimuleInteraction,
@@ -333,6 +334,22 @@ def ensure_sqlite_migrations() -> None:
             "(SELECT COUNT(*) FROM sales WHERE sales.company_id = companies.id) "
             "WHERE sale_seq = 0 AND EXISTS (SELECT 1 FROM sales WHERE sales.company_id = companies.id)"
         ))
+
+
+def seed_default_exchange_rates(db: Session) -> None:
+    """Garantit des taux de change plateforme par défaut (company_id NULL) si absents."""
+    from app.services.currency import DEFAULT_RATES
+
+    for quote_currency, rate in DEFAULT_RATES.items():
+        existing = db.scalar(
+            select(ExchangeRate).where(
+                ExchangeRate.company_id.is_(None),
+                ExchangeRate.quote_currency == quote_currency,
+            )
+        )
+        if not existing:
+            db.add(ExchangeRate(company_id=None, base_currency="XAF", quote_currency=quote_currency, rate=rate))
+    db.commit()
 
 
 def seed_platform_admin(db: Session) -> None:
