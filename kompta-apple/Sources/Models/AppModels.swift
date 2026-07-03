@@ -502,3 +502,26 @@ struct LimuleChatRequest: Encodable {
 struct LimuleChatResponse: Decodable {
     let answer: String
 }
+
+// MARK: - Limule report generation (parité web ReportsHubPage)
+
+struct AIGeneratePayload: Encodable {
+    var kind: String
+    var title: String
+    var prompt: String
+    var context: String = ""
+}
+
+struct AIGenerationResult: Decodable {
+    let id: Int
+    let kind: String
+    let title: String
+    let content: String
+}
+
+struct AIContentPdfPayload: Encodable {
+    var title: String
+    var content: String
+    var prompt: String = ""
+    var kind: String = "report"
+}

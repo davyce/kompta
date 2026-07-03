@@ -79,6 +79,12 @@ actor APIClient {
         try await perform(try request(path))
     }
 
+    /// POST with an encodable body, returning raw bytes (e.g. PDF downloads).
+    func postRawData<B: Encodable>(_ path: String, body: B) async throws -> Data {
+        let bodyData = try JSONEncoder().encode(body)
+        return try await perform(try request(path, method: "POST", body: bodyData))
+    }
+
     func post<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T {
         let bodyData = try JSONEncoder().encode(body)
         let data = try await perform(try request(path, method: "POST", body: bodyData))
@@ -485,6 +491,16 @@ actor APIClient {
     func declarationPDF(_ id: Int) async throws -> Data { try await rawData("/declarations/\(id)/pdf") }
     func employeeContractPDF(_ id: Int) async throws -> Data { try await rawData("/employees/\(id)/contract") }
     func investmentAnalysisPDF(_ id: Int) async throws -> Data { try await rawData("/investments/\(id)/analysis/pdf") }
+
+    // MARK: - Limule : génération IA + export PDF (parité rapports web)
+
+    func aiGenerate(_ p: AIGeneratePayload) async throws -> AIGenerationResult {
+        try await post("/ai/generate", body: p)
+    }
+
+    func aiContentPdf(_ p: AIContentPdfPayload) async throws -> Data {
+        try await postRawData("/ai/content/pdf", body: p)
+    }
 
     // MARK: - Meetings
 

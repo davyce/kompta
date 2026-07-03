@@ -492,12 +492,46 @@ struct ReportsHubNativeView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                Section {
+                    Text("Touchez l'icône Limule pour générer une explication IA détaillée, téléchargeable en PDF avec le logo KOMPTA.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Rapports") {
-                    ReportNavRow(title: "Rapport financier", subtitle: "Cashflow, grand livre et SYSCOHADA", icon: "chart.bar.xaxis", color: theme.primary, destination: AccountingFinanceNativeView())
-                    ReportNavRow(title: "Rapport TERAS", subtitle: "Risques, maturité et recommandations", icon: KomptaBrand.limuleIcon, color: .red, destination: ReportsTerasNativeView())
-                    ReportNavRow(title: "Analytique", subtitle: "CA, recouvrement, marge et clients", icon: "chart.line.uptrend.xyaxis", color: .blue, destination: CompanyAnalyticsNativeView())
-                    ReportNavRow(title: "Rapport RH", subtitle: "Effectifs et dernier run de paie", icon: "person.2.fill", color: .orange, destination: HRView())
-                    ReportNavRow(title: "Audit entreprise", subtitle: "Traçabilité opérationnelle", icon: "doc.text.magnifyingglass", color: .purple, destination: CompanyAuditLogsView())
+                    ReportNavRow(
+                        title: "Rapport financier", subtitle: "Cashflow, grand livre et SYSCOHADA",
+                        icon: "chart.bar.xaxis", color: theme.primary, destination: AccountingFinanceNativeView(),
+                        limule: ("report", {
+                            "Génère un rapport financier mensuel complet en français. Données disponibles : Trésorerie=\(fcfa(overview?.treasuryBalance ?? 0)), Chiffre d'affaires=\(fcfa(overview?.invoicesTotal ?? 0)), Nombre de transactions=\(overview?.txCount ?? 0). Inclure analyse P&L, ratios de liquidité, recommandations opérationnelles."
+                        })
+                    )
+                    ReportNavRow(
+                        title: "Rapport TERAS", subtitle: "Risques, maturité et recommandations",
+                        icon: KomptaBrand.limuleIcon, color: .red, destination: ReportsTerasNativeView(),
+                        limule: ("declaration", {
+                            "Génère un rapport de conformité TERAS détaillé en français. Score actuel : \(overview?.terasScore ?? 0)/100. Analyser les risques de conformité OHADA/CEMAC, identifier les actions correctives prioritaires, proposer un plan d'amélioration du score."
+                        })
+                    )
+                    ReportNavRow(
+                        title: "Analytique", subtitle: "CA, recouvrement, marge et clients",
+                        icon: "chart.line.uptrend.xyaxis", color: .blue, destination: CompanyAnalyticsNativeView(),
+                        limule: ("report", {
+                            "Génère une synthèse analytique en français. Chiffre d'affaires=\(fcfa(overview?.invoicesTotal ?? 0)), Factures payées=\(fcfa(overview?.invoicesPaid ?? 0)), Factures en attente=\(fcfa(overview?.invoicesPending ?? 0)). Inclure analyse du recouvrement, de la marge estimée et des tendances clients, avec recommandations."
+                        })
+                    )
+                    ReportNavRow(
+                        title: "Rapport RH", subtitle: "Effectifs et dernier run de paie",
+                        icon: "person.2.fill", color: .orange, destination: HRView(),
+                        limule: ("report", {
+                            "Génère un rapport RH synthétique en français. Effectif=\(overview?.employees ?? 0) employés. Dernier cycle de paie : \(payrollRuns.first?.period ?? "non lancé"), \(payrollRuns.first?.payslips.count ?? 0) bulletins. Inclure analyse des effectifs, recommandations sur la politique RH, gestion des risques liés au personnel."
+                        })
+                    )
+                    ReportNavRow(
+                        title: "Audit entreprise", subtitle: "Traçabilité opérationnelle",
+                        icon: "doc.text.magnifyingglass", color: .purple, destination: CompanyAuditLogsView(),
+                        limule: ("report", {
+                            "Génère un rapport d'audit synthétique en français sur la traçabilité opérationnelle de l'entreprise. Contexte : \(overview?.txCount ?? 0) transactions enregistrées, score TERAS=\(overview?.terasScore ?? 0)/100. Inclure une analyse des points de contrôle interne, des anomalies potentielles et des recommandations de gouvernance."
+                        })
+                    )
                 }
             }
         }
@@ -525,17 +559,123 @@ private struct ReportNavRow<Destination: View>: View {
     let icon: String
     let color: Color
     let destination: Destination
+    /// (kind, prompt) — si fourni, affiche le bouton "Générer avec Limule".
+    var limule: (kind: String, prompt: () -> String)? = nil
+
+    @State private var showLimule = false
 
     var body: some View {
-        NavigationLink { destination } label: {
-            HStack(spacing: 12) {
-                BrandedIcon(name: icon, tint: color, size: 20).frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.subheadline.bold())
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: 8) {
+            NavigationLink { destination } label: {
+                HStack(spacing: 12) {
+                    BrandedIcon(name: icon, tint: color, size: 20).frame(width: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).font(.subheadline.bold())
+                        Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if let limule {
+                Spacer(minLength: 4)
+                Button { showLimule = true } label: {
+                    BrandedIcon(name: KomptaBrand.limuleIcon, tint: .purple, size: 20)
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showLimule) {
+                    LimuleReportSheet(title: title, kind: limule.kind, prompt: limule.prompt())
                 }
             }
         }
+    }
+}
+
+// ============================================================================
+//  Génération de rapport IA (Limule) + export PDF — parité web ReportsHubPage.
+// ============================================================================
+
+struct LimuleReportSheet: View {
+    let title: String
+    let kind: String
+    let prompt: String
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var content: String = ""
+    @State private var loading = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 10) {
+                        BrandedIcon(name: KomptaBrand.limuleIcon, tint: .purple, size: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Limule · Rapport IA").font(.caption.bold()).foregroundStyle(.purple)
+                            Text(title).font(.headline)
+                        }
+                        Spacer()
+                    }
+
+                    if loading {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Limule génère votre rapport…").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 20)
+                        .frame(maxWidth: .infinity)
+                    } else if let error {
+                        VStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.title2)
+                            Text(error).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Button("Réessayer") { Task { await generate() } }
+                        }
+                        .padding(.vertical, 20)
+                        .frame(maxWidth: .infinity)
+                    } else if !content.isEmpty {
+                        Text(content)
+                            .font(.subheadline)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        DownloadButton(
+                            title: "Exporter en PDF",
+                            fileName: "limule-\(title.lowercased().replacingOccurrences(of: " ", with: "-")).pdf",
+                            fetch: {
+                                try await APIClient.shared.aiContentPdf(
+                                    AIContentPdfPayload(title: title, content: content, prompt: prompt, kind: kind)
+                                )
+                            }
+                        )
+                        .buttonStyle(.borderedProminent)
+                        .tint(.purple)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Rapport IA")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
+        }
+        .task { await generate() }
+    }
+
+    private func generate() async {
+        loading = true; error = nil
+        do {
+            let result = try await APIClient.shared.aiGenerate(
+                AIGeneratePayload(kind: kind, title: title, prompt: prompt, context: "reports")
+            )
+            content = result.content
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        loading = false
     }
 }
 
