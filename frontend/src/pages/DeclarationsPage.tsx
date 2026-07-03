@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList,
   Download, FileSearch, FileText, RefreshCcw, ShieldCheck,
-  Eye, X, TrendingUp,
+  Eye, X, TrendingUp, Building2, Scale, Landmark, CalendarClock,
 } from "lucide-react";
 
 import { Panel } from "../components/Panel";
@@ -15,28 +15,8 @@ import i18n from "../i18n";
 import { api } from "../services/api";
 import type { DeclarationRecord } from "../types/domain";
 
-/* ── Types de déclaration ─────────────────────────────────────────── */
+/* ── Types de déclaration (OHADA/CEMAC complet) ───────────────────── */
 const DECLARATION_TYPES = [
-  {
-    key: "fiscale",
-    labelTk: "declarations.types.fiscale.label",
-    shortTk: "declarations.types.fiscale.short",
-    descriptionTk: "declarations.types.fiscale.description",
-    icon: ClipboardList,
-    color: "text-sky-600",
-    bg: "bg-sky-50 dark:bg-sky-500/10",
-    border: "border-sky-200 dark:border-sky-500/30",
-  },
-  {
-    key: "sociale",
-    labelTk: "declarations.types.sociale.label",
-    shortTk: "declarations.types.sociale.short",
-    descriptionTk: "declarations.types.sociale.description",
-    icon: ShieldCheck,
-    color: "text-emerald-600",
-    bg: "bg-emerald-50 dark:bg-emerald-500/10",
-    border: "border-emerald-200 dark:border-emerald-500/30",
-  },
   {
     key: "tva",
     labelTk: "declarations.types.tva.label",
@@ -58,25 +38,97 @@ const DECLARATION_TYPES = [
     border: "border-amber-200 dark:border-amber-500/30",
   },
   {
+    key: "irpp",
+    labelTk: "declarations.types.irpp.label",
+    shortTk: "declarations.types.irpp.short",
+    descriptionTk: "declarations.types.irpp.description",
+    icon: ClipboardList,
+    color: "text-sky-600",
+    bg: "bg-sky-50 dark:bg-sky-500/10",
+    border: "border-sky-200 dark:border-sky-500/30",
+  },
+  {
+    key: "cnss",
+    labelTk: "declarations.types.cnss.label",
+    shortTk: "declarations.types.cnss.short",
+    descriptionTk: "declarations.types.cnss.description",
+    icon: ShieldCheck,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    border: "border-emerald-200 dark:border-emerald-500/30",
+  },
+  {
+    key: "dsf",
+    labelTk: "declarations.types.dsf.label",
+    shortTk: "declarations.types.dsf.short",
+    descriptionTk: "declarations.types.dsf.description",
+    icon: Landmark,
+    color: "text-indigo-600",
+    bg: "bg-indigo-50 dark:bg-indigo-500/10",
+    border: "border-indigo-200 dark:border-indigo-500/30",
+  },
+  {
+    key: "patente",
+    labelTk: "declarations.types.patente.label",
+    shortTk: "declarations.types.patente.short",
+    descriptionTk: "declarations.types.patente.description",
+    icon: Building2,
+    color: "text-teal-600",
+    bg: "bg-teal-50 dark:bg-teal-500/10",
+    border: "border-teal-200 dark:border-teal-500/30",
+  },
+  {
+    key: "sociale",
+    labelTk: "declarations.types.sociale.label",
+    shortTk: "declarations.types.sociale.short",
+    descriptionTk: "declarations.types.sociale.description",
+    icon: Scale,
+    color: "text-rose-600",
+    bg: "bg-rose-50 dark:bg-rose-500/10",
+    border: "border-rose-200 dark:border-rose-500/30",
+  },
+  {
+    key: "fiscale",
+    labelTk: "declarations.types.fiscale.label",
+    shortTk: "declarations.types.fiscale.short",
+    descriptionTk: "declarations.types.fiscale.description",
+    icon: FileSearch,
+    color: "text-stone-600",
+    bg: "bg-stone-50 dark:bg-stone-500/10",
+    border: "border-stone-200 dark:border-stone-500/30",
+  },
+  {
     key: "bailleur",
     labelTk: "declarations.types.bailleur.label",
     shortTk: "declarations.types.bailleur.short",
     descriptionTk: "declarations.types.bailleur.description",
     icon: FileSearch,
-    color: "text-rose-600",
-    bg: "bg-rose-50 dark:bg-rose-500/10",
-    border: "border-rose-200 dark:border-rose-500/30",
+    color: "text-orange-600",
+    bg: "bg-orange-50 dark:bg-orange-500/10",
+    border: "border-orange-200 dark:border-orange-500/30",
   },
   {
     key: "statistique",
     labelTk: "declarations.types.statistique.label",
     shortTk: "declarations.types.statistique.short",
     descriptionTk: "declarations.types.statistique.description",
-    icon: FileSearch,
-    color: "text-stone-600",
-    bg: "bg-stone-50 dark:bg-stone-500/10",
-    border: "border-stone-200 dark:border-stone-500/30",
+    icon: ClipboardList,
+    color: "text-slate-600",
+    bg: "bg-slate-50 dark:bg-slate-500/10",
+    border: "border-slate-200 dark:border-slate-500/30",
   },
+];
+
+/* ── Obligations CEMAC/OHADA (calendrier de référence) ────────────── */
+const CEMAC_OBLIGATIONS = [
+  { label: "TVA mensuelle", deadline: "15 du mois M+1", type: "TVA", freq: "Mensuelle", risk: "high" as const },
+  { label: "IS — Acomptes provisionnel (1/4)", deadline: "31 mars, 30 juin, 30 sept", type: "IS", freq: "Trimestrielle", risk: "high" as const },
+  { label: "IS — Solde annuel", deadline: "31 mars N+1", type: "IS", freq: "Annuelle", risk: "high" as const },
+  { label: "IRPP (retenue à la source salaires)", deadline: "15 du mois M+1", type: "IRPP", freq: "Mensuelle", risk: "high" as const },
+  { label: "CNSS — cotisations patronales & salariales", deadline: "15 du mois M+1", type: "CNSS", freq: "Mensuelle", risk: "medium" as const },
+  { label: "DSF — Déclaration Statistique & Fiscale", deadline: "30 avril N+1", type: "DSF", freq: "Annuelle", risk: "high" as const },
+  { label: "Patente — déclaration professionnelle", deadline: "31 janvier", type: "Patente", freq: "Annuelle", risk: "medium" as const },
+  { label: "Droits d'enregistrement (contrats/actes)", deadline: "1 mois après signature", type: "Enregistrement", freq: "Ponctuelle", risk: "medium" as const },
 ];
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
@@ -250,8 +302,16 @@ export function DeclarationsPage() {
   const declarations = useQuery({ queryKey: ["declarations"], queryFn: api.declarations });
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().toLocaleString(i18n.language, { month: "long" });
-  const [period, setPeriod] = useState(`${currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1)} ${currentYear}`);
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+  const [periodMonth, setPeriodMonth] = useState(`${currentYear}-${currentMonth}`);
+  const [periodCustom, setPeriodCustom] = useState("");
+  // Période utilisée dans les appels API : "Mars 2026" ou texte libre DSF/Patente
+  const period = periodCustom.trim() || (() => {
+    const [y, m] = periodMonth.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleDateString(i18n.language, { month: "long", year: "numeric" })
+      .replace(/^(.)/, c => c.toUpperCase());
+  })();
   const [selectedType, setSelectedType] = useState("fiscale");
   const [viewRecord, setViewRecord] = useState<DeclarationRecord | null>(null);
 
@@ -396,15 +456,27 @@ export function DeclarationsPage() {
             </div>
 
             {/* Période */}
-            <div className="mb-4">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[#717182] mb-1">{tr("declarations.form.period")}</label>
-              <input
-                type="text"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                placeholder={tr("declarations.form.periodPlaceholder")}
-                className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] dark:text-white bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
-              />
+            <div className="mb-4 space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("declarations.form.period")}</label>
+              <div className="flex gap-2">
+                <input
+                  type="month"
+                  value={periodMonth}
+                  onChange={e => { setPeriodMonth(e.target.value); setPeriodCustom(""); }}
+                  className="flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] dark:text-white bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+              {/* Champ libre pour DSF, Patente (périodes annuelles) */}
+              {["dsf", "patente", "statistique", "bailleur"].includes(selectedType) && (
+                <input
+                  type="text"
+                  value={periodCustom}
+                  onChange={e => setPeriodCustom(e.target.value)}
+                  placeholder={selectedType === "dsf" ? "Ex: Exercice 2025" : "Ex: Année 2025"}
+                  className="w-full rounded-lg border border-indigo-200 dark:border-indigo-500/30 dark:bg-[#252931] dark:text-white bg-indigo-50/50 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              )}
+              <p className="text-[11px] text-[#717182]">Période retenue : <strong>{period}</strong></p>
             </div>
 
             {/* Actions */}
@@ -626,6 +698,44 @@ export function DeclarationsPage() {
           </div>
         )}
       </Panel>
+
+      {/* Obligations CEMAC/OHADA */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 dark:border-indigo-500/20 dark:bg-indigo-500/5 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white">
+            <CalendarClock size={20} />
+          </span>
+          <div>
+            <h2 className="font-black text-[#17211f] dark:text-white">Obligations fiscales CEMAC / OHADA</h2>
+            <p className="text-xs text-[#717182]">Calendrier de référence — vérifiez les dates exactes auprès de la DGI de votre pays</p>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {CEMAC_OBLIGATIONS.map((ob) => (
+            <div
+              key={ob.label}
+              className={`rounded-xl border bg-white dark:bg-[#1e2229] p-3 ${
+                ob.risk === "high"
+                  ? "border-red-100 dark:border-red-500/20"
+                  : "border-black/[0.06] dark:border-white/[0.06]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <p className="text-xs font-bold text-[#17211f] dark:text-white leading-snug">{ob.label}</p>
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                  ob.risk === "high"
+                    ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                }`}>
+                  {ob.type}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">{ob.deadline}</p>
+              <p className="mt-0.5 text-[10px] text-[#717182]">{ob.freq}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Scores TERAS + Analyses */}
       <div className="grid gap-5 xl:grid-cols-2">

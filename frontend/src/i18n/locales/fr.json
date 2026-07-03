@@ -1847,6 +1847,26 @@
         "short": "IS",
         "description": "Déclaration IS annuelle, acomptes provisionnels"
       },
+      "irpp": {
+        "label": "IRPP — Impôt sur le Revenu des Personnes Physiques",
+        "short": "IRPP",
+        "description": "Retenues à la source sur salaires, déclaration annuelle"
+      },
+      "cnss": {
+        "label": "CNSS — Caisse Nationale de Sécurité Sociale",
+        "short": "CNSS",
+        "description": "Cotisations patronales et salariales (maladie, retraite, accidents)"
+      },
+      "dsf": {
+        "label": "DSF — Déclaration Statistique et Fiscale",
+        "short": "DSF",
+        "description": "Déclaration annuelle obligatoire dans la zone CEMAC (bilan, compte de résultat)"
+      },
+      "patente": {
+        "label": "Patente — Droit de licence professionnelle",
+        "short": "Patente",
+        "description": "Taxe professionnelle annuelle selon le chiffre d'affaires"
+      },
       "bailleur": {
         "label": "Rapport bailleur",
         "short": "Bailleur",

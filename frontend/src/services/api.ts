@@ -1010,6 +1010,8 @@ export const api = {
   /* ── Reports revenue series ───────────────────────────────── */
   revenueSeries: (period = "month") =>
     request<RevenueSeriesDto[]>(`/reports/revenue-series?period=${period}`),
+  revenueSeriesByYear: (year: number) =>
+    request<RevenueSeriesDto[]>(`/reports/revenue-series?year=${year}`),
 
   /* ── Password reset ───────────────────────────────────────── */
   requestPasswordReset: (identifier: string) =>

@@ -1634,6 +1634,7 @@ def accounting_syscemac(
 @router.get("/reports/revenue-series", response_model=list[RevenueSeriesPoint])
 def revenue_series(
     period: str = "annee",
+    year: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[RevenueSeriesPoint]:
@@ -1642,6 +1643,7 @@ def revenue_series(
     - mois      → 1 mois (4 semaines glissantes, regroupées par semaine)
     - trimestre → 3 derniers mois
     - annee     → 12 derniers mois  (défaut)
+    Si year est fourni, retourne les 12 mois de cette année calendaire exacte.
     """
     invoices_all = db.scalars(
         select(Invoice).where(Invoice.company_id == current_user.company_id)
@@ -1658,6 +1660,34 @@ def revenue_series(
 
     today = date.today()
     months_fr = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+
+    # Mode année calendaire spécifique (N ou N-1)
+    if year is not None:
+        points: list[RevenueSeriesPoint] = []
+        for m in range(1, 13):
+            label = months_fr[m - 1]
+            month_str = f"{year:04d}-{m:02d}"
+            rev = sum(
+                inv.total_amount or 0
+                for inv in invoices_all
+                if inv.created_at.year == year and inv.created_at.month == m
+            )
+            rev += sum(
+                s.total_amount or 0
+                for s in sales_all
+                if s.created_at.year == year and s.created_at.month == m
+            )
+            tx_month = [r for r in tx_all if r.date.startswith(month_str)]
+            tx_in  = sum(r.credit if r.credit is not None else max(r.amount, 0) for r in tx_month)
+            tx_out = sum(r.debit  if r.debit  is not None else max(-r.amount, 0) for r in tx_month)
+            total_rev = rev + tx_in
+            cost = sum(
+                p.net_total or 0
+                for p in payrolls_all
+                if p.created_at.year == year and p.created_at.month == m
+            ) + tx_out
+            points.append(RevenueSeriesPoint(label=label, revenue=float(total_rev), margin=float(max(total_rev - cost, 0))))
+        return points
 
     # Nombre de mois à afficher selon le paramètre
     nb_months = {"mois": 1, "trimestre": 3, "annee": 12}.get(period, 12)

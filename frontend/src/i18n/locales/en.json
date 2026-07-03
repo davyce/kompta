@@ -1847,6 +1847,26 @@
         "short": "CIT",
         "description": "Annual corporate tax filing and provisional instalments"
       },
+      "irpp": {
+        "label": "IRPP — Personal Income Tax",
+        "short": "IRPP",
+        "description": "Withholding tax on salaries, annual return"
+      },
+      "cnss": {
+        "label": "CNSS — National Social Security Fund",
+        "short": "CNSS",
+        "description": "Employer and employee contributions (health, retirement, accidents)"
+      },
+      "dsf": {
+        "label": "DSF — Statistical and Tax Declaration",
+        "short": "DSF",
+        "description": "Annual mandatory declaration in the CEMAC zone (balance sheet, income statement)"
+      },
+      "patente": {
+        "label": "Patente — Professional License Tax",
+        "short": "Patente",
+        "description": "Annual professional tax based on turnover"
+      },
       "bailleur": {
         "label": "Donor report",
         "short": "Donor",
