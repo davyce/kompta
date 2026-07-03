@@ -79,6 +79,45 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    /// Crée une nouvelle entreprise pour l'utilisateur courant puis bascule
+    /// immédiatement dessus (nouvelle session).
+    func createCompany(_ payload: CompanyCreatePayload) async throws {
+        state = .loading
+        do {
+            let token = try await api.createCompany(payload)
+            await api.setToken(token.access_token)
+            async let user    = api.me()
+            async let company = api.company()
+            (currentUser, self.company) = try await (user, company)
+            state = .authenticated
+        } catch {
+            state = .authenticated
+            throw error
+        }
+    }
+
+    /// Liste toutes les entreprises rattachées au même email.
+    func myCompanies() async throws -> [CompanyMembership] {
+        try await api.myCompanies()
+    }
+
+    /// Bascule la session active vers une autre entreprise rattachée au même email
+    /// (repasse par `.loading` pour forcer la reconstruction de la racine de nav).
+    func switchCompany(_ companyId: Int) async throws {
+        state = .loading
+        do {
+            let token = try await api.switchCompany(companyId)
+            await api.setToken(token.access_token)
+            async let user    = api.me()
+            async let company = api.company()
+            (currentUser, self.company) = try await (user, company)
+            state = .authenticated
+        } catch {
+            state = .authenticated
+            throw error
+        }
+    }
+
     /// Re-fetch the current user (after a self-profile edit, role change, etc.).
     func refreshUser() async {
         if let user = try? await api.me() { currentUser = user }

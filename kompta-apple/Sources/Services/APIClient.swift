@@ -199,6 +199,24 @@ actor APIClient {
         try await post("/auth/register-company", body: payload)
     }
 
+    /// Ajoute une nouvelle entreprise à l'utilisateur courant (multi-entreprise) et
+    /// retourne un jeton pour y basculer immédiatement.
+    func createCompany(_ payload: CompanyCreatePayload) async throws -> LoginResponse {
+        try await post("/auth/companies", body: payload)
+    }
+
+    /// Liste toutes les entreprises (comptes) rattachées au même email que
+    /// l'utilisateur courant.
+    func myCompanies() async throws -> [CompanyMembership] {
+        try await get("/auth/my-companies")
+    }
+
+    /// Bascule vers une autre entreprise rattachée au même email : retourne un
+    /// nouveau jeton pour le compte sœur de cette entreprise.
+    func switchCompany(_ companyId: Int) async throws -> LoginResponse {
+        try await actionDecoded("/auth/switch-company/\(companyId)")
+    }
+
     func requestPasswordReset(identifier: String) async throws -> PasswordResetRequestResponse {
         try await post("/auth/request-reset", body: PasswordResetRequestPayload(identifier: identifier))
     }

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { ApiError, api, clearToken, getToken, setToken, setUnauthorizedCallback } from "../services/api";
-import type { CompanyRegistrationPayload, LoginResponse } from "../services/api";
+import type { CompanyCreatePayload, CompanyRegistrationPayload, LoginResponse } from "../services/api";
 import type { User } from "../types/domain";
 
 function getTokenExpiry(token: string): number | null {
@@ -27,6 +27,8 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<LoginResponse>;
   loginWithGoogle: (credential: string) => Promise<LoginResponse>;
   registerCompany: (payload: CompanyRegistrationPayload) => Promise<LoginResponse>;
+  createCompany: (payload: CompanyCreatePayload) => Promise<LoginResponse>;
+  switchCompany: (companyId: number) => Promise<LoginResponse>;
   logout: () => void;
   setUser: (user: User | null) => void;
 };
@@ -125,6 +127,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       registerCompany: async (payload: CompanyRegistrationPayload) => {
         const response = await api.registerCompany(payload);
+        setToken(response.access_token);
+        updateToken(response.access_token);
+        setUser(response.user);
+        return response;
+      },
+      createCompany: async (payload: CompanyCreatePayload) => {
+        const response = await api.createCompany(payload);
+        setToken(response.access_token);
+        updateToken(response.access_token);
+        setUser(response.user);
+        return response;
+      },
+      switchCompany: async (companyId: number) => {
+        const response = await api.switchCompany(companyId);
         setToken(response.access_token);
         updateToken(response.access_token);
         setUser(response.user);

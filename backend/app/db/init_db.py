@@ -261,6 +261,14 @@ def ensure_sqlite_migrations() -> None:
                 if column not in existing:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
 
+        # ── users.email n'est plus UNIQUE (multi-entreprise : plusieurs lignes
+        # User peuvent partager un même email, une par entreprise) ────────────
+        existing_indexes = {idx["name"]: idx for idx in inspector.get_indexes("users")} if "users" in table_names else {}
+        email_index = existing_indexes.get("ix_users_email")
+        if email_index and email_index.get("unique"):
+            connection.execute(text("DROP INDEX IF EXISTS ix_users_email"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_email ON users(email)"))
+
         # ── Backfill des colonnes _cents depuis les Float existants ────────────
         # Convertit les montants Float actuels en centimes entiers pour les
         # enregistrements qui n'ont pas encore été créés avec le nouveau code.

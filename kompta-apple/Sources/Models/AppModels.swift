@@ -30,6 +30,24 @@ struct CompanyRegistrationPayload: Encodable {
     var accept_disclaimer: Bool = false
 }
 
+/// Création d'une nouvelle entreprise par un utilisateur déjà authentifié
+/// (multi-entreprise : voir /auth/companies côté backend).
+struct CompanyCreatePayload: Encodable {
+    var company_name: String
+    var legal_name: String = ""
+    var industry: String = "Services"
+    var organization_type: String = "PME"
+    var country: String = "Congo"
+}
+
+struct CompanyMembership: Decodable, Identifiable {
+    var company_id: Int
+    var company_name: String
+    var user_id: Int
+    var role: String
+    var id: Int { company_id }
+}
+
 struct PasswordResetRequestPayload: Encodable {
     var identifier: String
 }

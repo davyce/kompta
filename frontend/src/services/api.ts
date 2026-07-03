@@ -68,6 +68,21 @@ export type LoginResponse = {
   must_change_password: boolean;
 };
 
+export type CompanyCreatePayload = {
+  company_name: string;
+  legal_name?: string;
+  industry?: string;
+  organization_type?: string;
+  country?: string;
+};
+
+export type CompanyMembership = {
+  company_id: number;
+  company_name: string;
+  user_id: number;
+  role: string;
+};
+
 export type CompanyRegistrationPayload = {
   company_name: string;
   legal_name: string;
@@ -224,6 +239,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  createCompany: (payload: CompanyCreatePayload) =>
+    request<LoginResponse>("/auth/companies", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  myCompanies: () => request<CompanyMembership[]>("/auth/my-companies"),
+  switchCompany: (companyId: number) =>
+    request<LoginResponse>(`/auth/switch-company/${companyId}`, { method: "POST" }),
   registerGroup: (payload: {
     full_name: string; email: string; phone?: string; password: string;
     group_name: string; group_type?: string; group_description?: string;

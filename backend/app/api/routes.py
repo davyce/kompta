@@ -81,6 +81,8 @@ from app.schemas import (
     AccountInfoRead,
     AccountStatusUpdate,
     CompanyRegistrationRequest,
+    CompanyCreateRequest,
+    CompanyMembershipRead,
     GroupRegistrationRequest,
     EmployeeCreate,
     EmployeeCreateWithAccount,
@@ -683,6 +685,93 @@ def register_company(payload: CompanyRegistrationRequest, response: Response, db
     token = create_access_token(str(admin.id), {"role": admin.role, "company_id": admin.company_id, "ver": admin.token_version})
     set_auth_cookie(response, token)
     return TokenResponse(access_token=token, user=UserRead.model_validate(admin), must_change_password=False)
+
+
+@router.post("/auth/companies", response_model=TokenResponse, status_code=201)
+def create_additional_company(
+    payload: CompanyCreateRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TokenResponse:
+    """Ajoute une nouvelle entreprise pour un utilisateur déjà authentifié
+    (multi-entreprise : crée une ligne User dédiée, même email/mot de passe,
+    rattachée à la nouvelle entreprise) et retourne un jeton pour y basculer."""
+    company = Company(
+        name=payload.company_name.strip(),
+        legal_name=payload.legal_name.strip() or payload.company_name.strip(),
+        industry=payload.industry.strip() or "Services",
+        organization_type=payload.organization_type.strip() or "PME",
+        country=payload.country.strip() or "Congo",
+        completion_score=35,
+        teras_score=0,
+    )
+    db.add(company)
+    db.flush()
+
+    admin = User(
+        email=current_user.email,
+        phone=current_user.phone,
+        full_name=current_user.full_name,
+        role="admin",
+        department="Direction générale",
+        branch="Siège",
+        password_hash=current_user.password_hash,
+        company_id=company.id,
+        account_status="active",
+        is_active=True,
+        must_change_password=False,
+    )
+    db.add(admin)
+    db.flush()
+    db.add(ChatChannel(name="general", topic="Canal de depart de votre entreprise", company_id=company.id))
+    ensure_default_modules(db, company.id)
+    from app.services.subscriptions import start_trial
+    start_trial(db, company.id)
+    db.commit()
+    db.refresh(admin)
+
+    token = create_access_token(str(admin.id), {"role": admin.role, "company_id": admin.company_id, "ver": admin.token_version})
+    set_auth_cookie(response, token)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(admin), must_change_password=False)
+
+
+@router.get("/auth/my-companies", response_model=list[CompanyMembershipRead])
+def list_my_companies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[CompanyMembershipRead]:
+    """Liste toutes les entreprises (lignes User) rattachées au même email que
+    l'utilisateur courant, y compris l'entreprise active."""
+    siblings = db.scalars(select(User).where(func.lower(User.email) == current_user.email.strip().lower())).all()
+    result: list[CompanyMembershipRead] = []
+    for sibling in siblings:
+        company = db.get(Company, sibling.company_id)
+        if not company:
+            continue
+        result.append(CompanyMembershipRead(
+            company_id=company.id,
+            company_name=company.name,
+            user_id=sibling.id,
+            role=sibling.role,
+        ))
+    return result
+
+
+@router.post("/auth/switch-company/{company_id}", response_model=TokenResponse)
+def switch_company(company_id: int, response: Response, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> TokenResponse:
+    """Bascule vers une autre entreprise rattachée au même email : retrouve la
+    ligne User sœur pour cette entreprise et émet un nouveau jeton pour elle."""
+    target = db.scalar(
+        select(User).where(
+            func.lower(User.email) == current_user.email.strip().lower(),
+            User.company_id == company_id,
+        )
+    )
+    if not target:
+        raise HTTPException(status_code=403, detail="Aucune entreprise correspondante pour cet utilisateur.")
+    if target.account_status in {"suspended", "disabled", "archived"} or not target.is_active:
+        raise HTTPException(status_code=403, detail="Compte suspendu ou desactive pour cette entreprise.")
+    token = create_access_token(str(target.id), {"role": target.role, "company_id": target.company_id, "ver": target.token_version})
+    set_auth_cookie(response, token)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(target), must_change_password=target.must_change_password)
 
 
 @router.post("/auth/register-group", response_model=TokenResponse, status_code=201)

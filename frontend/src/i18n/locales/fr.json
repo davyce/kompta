@@ -4420,7 +4420,15 @@
     "typeCoop": "Coopérative",
     "typeFamily": "Groupe familial",
     "typeFriends": "Groupe d'amis",
-    "typeSavings": "Épargne"
+    "typeSavings": "Épargne",
+    "createCompany": "Créer une nouvelle entreprise",
+    "createCompanyCta": "+ Créer une nouvelle entreprise",
+    "createCompanyError": "Impossible de créer l'entreprise. Réessayez.",
+    "companyName": "Nom de l'entreprise",
+    "legalName": "Raison sociale",
+    "industry": "Secteur",
+    "organizationType": "Type d'organisation",
+    "country": "Pays"
   },
   "company": {
     "eyebrow": "Entreprise et gouvernance",

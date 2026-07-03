@@ -311,25 +311,48 @@ struct WorkspaceSwitcherView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var theme: CompanyTheme
     @StateObject private var groupsState = Loadable<[OrgGroup]>()
+    @State private var companies: [CompanyMembership] = []
+    @State private var companiesLoading = false
+    @State private var switchingCompanyId: Int?
+    @State private var showCreateSheet = false
 
     var body: some View {
         List {
-            // Espace entreprise
-            if let company = auth.company {
-                Section("Espace entreprise") {
-                    NavigationLink {
-                        ModuleHubView()
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(company.name).font(.headline)
-                                Text("Tableau de bord & modules ERP")
-                                    .font(.caption).foregroundStyle(.secondary)
+            // Espaces entreprise — toutes les entreprises rattachées au même email.
+            Section("Espace entreprise") {
+                if companiesLoading {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                } else {
+                    ForEach(companies) { membership in
+                        Button {
+                            switchTo(membership)
+                        } label: {
+                            HStack {
+                                Label {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(membership.company_name).font(.headline)
+                                        Text(membership.company_id == auth.company?.id ? "Entreprise active" : "Basculer sur cette entreprise")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                } icon: {
+                                    Image(systemName: "building.2.fill")
+                                        .foregroundStyle(theme.primary)
+                                }
+                                Spacer()
+                                if switchingCompanyId == membership.company_id {
+                                    ProgressView()
+                                } else if membership.company_id == auth.company?.id {
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                }
                             }
-                        } icon: {
-                            Image(systemName: "building.2.fill")
-                                .foregroundStyle(theme.primary)
                         }
+                        .disabled(switchingCompanyId != nil)
+                        .buttonStyle(.plain)
+                    }
+                    Button {
+                        showCreateSheet = true
+                    } label: {
+                        Label("Créer une nouvelle entreprise", systemImage: "plus.circle.fill")
                     }
                 }
             }
@@ -373,7 +396,103 @@ struct WorkspaceSwitcherView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task { await groupsState.load { try await APIClient.shared.groups() } }
+        .task {
+            await groupsState.load { try await APIClient.shared.groups() }
+            await loadCompanies()
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            CreateCompanySheet { payload in
+                try await auth.createCompany(payload)
+                await loadCompanies()
+            }
+        }
+    }
+
+    private func loadCompanies() async {
+        companiesLoading = true
+        companies = (try? await auth.myCompanies()) ?? []
+        companiesLoading = false
+    }
+
+    private func switchTo(_ membership: CompanyMembership) {
+        guard membership.company_id != auth.company?.id else { return }
+        switchingCompanyId = membership.company_id
+        Task {
+            try? await auth.switchCompany(membership.company_id)
+            switchingCompanyId = nil
+        }
+    }
+}
+
+// ============================================================================
+//  Formulaire de création d'une nouvelle entreprise (multi-entreprise).
+// ============================================================================
+
+struct CreateCompanySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var onCreate: (CompanyCreatePayload) async throws -> Void
+
+    @State private var companyName = ""
+    @State private var legalName = ""
+    @State private var industry = "Services"
+    @State private var organizationType = "PME"
+    @State private var country = "Congo"
+    @State private var creating = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Entreprise") {
+                    TextField("Nom de l'entreprise", text: $companyName)
+                    TextField("Raison sociale", text: $legalName)
+                    TextField("Secteur", text: $industry)
+                    TextField("Type d'organisation", text: $organizationType)
+                    TextField("Pays", text: $country)
+                }
+                if let errorMessage {
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                }
+            }
+            .navigationTitle("Nouvelle entreprise")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if creating {
+                        ProgressView()
+                    } else {
+                        Button("Créer") { create() }
+                            .disabled(companyName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private func create() {
+        creating = true
+        errorMessage = nil
+        Task {
+            do {
+                try await onCreate(CompanyCreatePayload(
+                    company_name: companyName.trimmingCharacters(in: .whitespaces),
+                    legal_name: legalName,
+                    industry: industry,
+                    organization_type: organizationType,
+                    country: country
+                ))
+                creating = false
+                dismiss()
+            } catch {
+                creating = false
+                errorMessage = "Impossible de créer l'entreprise. Réessayez."
+            }
+        }
     }
 }
 

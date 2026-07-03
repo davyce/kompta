@@ -74,7 +74,9 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # Non-unique : un même email peut être rattaché à plusieurs entreprises
+    # (une ligne User par entreprise, même email/mot de passe) — voir /auth/companies.
+    email: Mapped[str] = mapped_column(String(255), unique=False, index=True)
     phone: Mapped[str] = mapped_column(String(40), default="")
     full_name: Mapped[str] = mapped_column(String(160))
     role: Mapped[str] = mapped_column(String(80), default="admin")

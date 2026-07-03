@@ -33,6 +33,23 @@ class CompanyRegistrationRequest(BaseModel):
     accept_disclaimer: bool = False
 
 
+class CompanyCreateRequest(BaseModel):
+    """Création d'une nouvelle entreprise par un utilisateur déjà authentifié
+    (multi-entreprise : une ligne User dédiée est créée, même email/mot de passe)."""
+    company_name: str = Field(min_length=2, max_length=160)
+    legal_name: str = ""
+    industry: str = "Services"
+    organization_type: str = "PME"
+    country: str = "Congo"
+
+
+class CompanyMembershipRead(BaseModel):
+    company_id: int
+    company_name: str
+    user_id: int
+    role: str
+
+
 class GroupRegistrationRequest(BaseModel):
     """Inscription groupe : crée un compte utilisateur + un groupe en une seule étape."""
     # Compte utilisateur

@@ -4420,7 +4420,15 @@
     "typeCoop": "Cooperative",
     "typeFamily": "Family group",
     "typeFriends": "Friends group",
-    "typeSavings": "Savings"
+    "typeSavings": "Savings",
+    "createCompany": "Create a new company",
+    "createCompanyCta": "+ Create a new company",
+    "createCompanyError": "Could not create the company. Please try again.",
+    "companyName": "Company name",
+    "legalName": "Legal name",
+    "industry": "Industry",
+    "organizationType": "Organization type",
+    "country": "Country"
   },
   "company": {
     "eyebrow": "Company & governance",

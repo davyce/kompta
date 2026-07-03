@@ -1,18 +1,26 @@
-import { Building2, ChevronRight, Loader2, Plus, Users2 } from "lucide-react";
+import { Building2, ChevronRight, Loader2, Plus, Users2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
+import type { CompanyCreatePayload } from "../services/api";
 import { initials } from "../utils/format";
 import { LimuleIcon } from "../components/LimuleAvatar";
 
 export function WorkspaceSelectPage() {
   const { t: tr } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, switchCompany, createCompany } = useAuth();
   const navigate = useNavigate();
-  const [entering, setEntering] = useState<"company" | "group" | null>(null);
+  const [entering, setEntering] = useState<"company" | "group" | number | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [form, setForm] = useState<CompanyCreatePayload>({
+    company_name: "", legal_name: "", industry: "Services", organization_type: "PME", country: "Congo",
+  });
 
   const { data: groups = [], isLoading: groupsLoading } = useQuery({
     queryKey: ["groups"],
@@ -21,6 +29,37 @@ export function WorkspaceSelectPage() {
     // (évite le 401 sur /workspace avant que le token soit disponible)
     enabled: !!user,
   });
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["my-companies"],
+    queryFn: api.myCompanies,
+    enabled: !!user && user.role !== "membre_groupe",
+  });
+
+  async function handleSwitchCompany(companyId: number) {
+    setEntering(companyId);
+    try {
+      await switchCompany(companyId);
+      navigate("/");
+    } catch {
+      setEntering(null);
+    }
+  }
+
+  async function handleCreateCompany(e: FormEvent) {
+    e.preventDefault();
+    if (!form.company_name.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await createCompany(form);
+      navigate("/");
+    } catch {
+      setCreateError(tr("workspace.createCompanyError"));
+    } finally {
+      setCreating(false);
+    }
+  }
 
   // Si super_admin → directement admin
   useEffect(() => {
@@ -35,11 +74,6 @@ export function WorkspaceSelectPage() {
   }, [user, groups, groupsLoading, navigate]);
 
   const isGroupOnly = user?.role === "membre_groupe";
-
-  function enterCompany() {
-    setEntering("company");
-    navigate("/");
-  }
 
   function enterGroup(groupId?: number) {
     setEntering("group");
@@ -96,32 +130,43 @@ export function WorkspaceSelectPage() {
         {/* Cards espaces */}
         <div className="w-full max-w-lg space-y-3">
 
-          {/* Espace Entreprise — masqué pour les membres de groupe sans accès entreprise */}
-          {!isGroupOnly && (
-          <button
-            onClick={enterCompany}
-            disabled={entering !== null}
-            className="group w-full flex items-center gap-4 rounded-2xl border border-emerald-100 bg-white px-5 py-5 text-left shadow-sm shadow-emerald-500/10 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/15 transition-all disabled:opacity-60 dark:border-[#1f2937] dark:bg-[#111827] dark:hover:border-emerald-500/50"
-          >
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm shadow-emerald-600/25">
-              <Building2 size={24} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-base font-black text-[#17211f] dark:text-white">{tr("workspace.companySpace")}</p>
-                <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{tr("workspace.pro")}</span>
+          {/* Espaces Entreprise — masqués pour les membres de groupe sans accès entreprise */}
+          {!isGroupOnly && (companies.length > 0 ? companies : (user ? [{ company_id: user.company_id, company_name: user.branch || tr("workspace.companySpace"), user_id: user.id, role: user.role }] : [])).map((c) => (
+            <button
+              key={c.company_id}
+              onClick={() => handleSwitchCompany(c.company_id)}
+              disabled={entering !== null}
+              className="group w-full flex items-center gap-4 rounded-2xl border border-emerald-100 bg-white px-5 py-5 text-left shadow-sm shadow-emerald-500/10 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/15 transition-all disabled:opacity-60 dark:border-[#1f2937] dark:bg-[#111827] dark:hover:border-emerald-500/50"
+            >
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm shadow-emerald-600/25">
+                <Building2 size={24} />
               </div>
-              <p className="text-sm text-[#717182] mt-0.5">{tr("workspace.companyDesc")}</p>
-              {user?.branch && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">{user.branch}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-black text-[#17211f] dark:text-white truncate">{c.company_name}</p>
+                  {c.company_id === user?.company_id && (
+                    <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{tr("workspace.pro")}</span>
+                  )}
+                </div>
+                <p className="text-sm text-[#717182] mt-0.5">{tr("workspace.companyDesc")}</p>
+              </div>
+              {entering === c.company_id ? (
+                <Loader2 size={18} className="shrink-0 text-emerald-500 animate-spin" />
+              ) : (
+                <ChevronRight size={18} className="shrink-0 text-emerald-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all dark:text-[#c4c4cf] dark:group-hover:text-emerald-500" />
               )}
-            </div>
-            {entering === "company" ? (
-              <Loader2 size={18} className="shrink-0 text-emerald-500 animate-spin" />
-            ) : (
-              <ChevronRight size={18} className="shrink-0 text-emerald-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all dark:text-[#c4c4cf] dark:group-hover:text-emerald-500" />
-            )}
-          </button>
+            </button>
+          ))}
+
+          {!isGroupOnly && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              disabled={entering !== null}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-4 text-sm font-semibold text-emerald-800 hover:border-emerald-500 hover:bg-emerald-50 transition dark:border-emerald-700/40 dark:bg-transparent dark:text-emerald-500 dark:hover:border-emerald-500/60"
+            >
+              <Plus size={16} />
+              {tr("workspace.createCompanyCta")}
+            </button>
           )}
 
           {/* Groupes existants */}
@@ -177,6 +222,77 @@ export function WorkspaceSelectPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal création d'entreprise */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-[#111827]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-[#17211f] dark:text-white">{tr("workspace.createCompany")}</h2>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="rounded-lg p-1.5 text-[#717182] hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateCompany} className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#717182]">{tr("workspace.companyName")}</label>
+                <input
+                  required
+                  value={form.company_name}
+                  onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
+                  className="w-full rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-[#0d1117] dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#717182]">{tr("workspace.legalName")}</label>
+                <input
+                  value={form.legal_name}
+                  onChange={(e) => setForm((f) => ({ ...f, legal_name: e.target.value }))}
+                  className="w-full rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-[#0d1117] dark:text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[#717182]">{tr("workspace.industry")}</label>
+                  <input
+                    value={form.industry}
+                    onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
+                    className="w-full rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-[#0d1117] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[#717182]">{tr("workspace.organizationType")}</label>
+                  <input
+                    value={form.organization_type}
+                    onChange={(e) => setForm((f) => ({ ...f, organization_type: e.target.value }))}
+                    className="w-full rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-[#0d1117] dark:text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#717182]">{tr("workspace.country")}</label>
+                <input
+                  value={form.country}
+                  onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                  className="w-full rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-[#0d1117] dark:text-white"
+                />
+              </div>
+              {createError && <p className="text-xs font-semibold text-red-500">{createError}</p>}
+              <button
+                type="submit"
+                disabled={creating}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/25 disabled:opacity-60"
+              >
+                {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {tr("workspace.createCompanyCta")}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
