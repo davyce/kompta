@@ -423,6 +423,9 @@ struct AppNotification: Identifiable {
     let moduleId: String // for deep-link
     var isRead: Bool
 
+    /// Stable key across refreshes — used to persist the read/unread state.
+    var signature: String { "\(moduleId):\(title):\(subtitle)" }
+
     init(id: UUID = UUID(), title: String, subtitle: String, icon: String, tint: String, moduleId: String) {
         self.id = id; self.title = title; self.subtitle = subtitle
         self.icon = icon; self.tint = tint; self.moduleId = moduleId; self.isRead = false

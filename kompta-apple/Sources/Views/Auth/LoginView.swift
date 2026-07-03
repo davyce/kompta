@@ -172,6 +172,7 @@ struct LoginView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.defaultAction)
             .disabled(!canSubmit || isLoading)
             .opacity(isLoading ? 0.72 : 1)
 

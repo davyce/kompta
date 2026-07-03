@@ -22,7 +22,15 @@ struct GroupsListView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(g.name).font(.subheadline.bold())
-                                Text("\(g.type.capitalized) · \(g.city)").font(.caption).foregroundStyle(.secondary)
+                                HStack(spacing: 6) {
+                                    Text("\(g.type.capitalized) · \(g.city)").font(.caption).foregroundStyle(.secondary)
+                                    if let count = g.member_count, count > 0 {
+                                        Text("·").font(.caption).foregroundStyle(.secondary)
+                                        Label("\(count)", systemImage: "person.2.fill")
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
                             Spacer()
                             StatusPill(text: g.status, colorName: g.status == "active" ? "green" : "gray")

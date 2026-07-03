@@ -104,14 +104,18 @@ struct AppShell: View {
 
     // MARK: - iOS: TabView
 
+    @State private var selectedTab: String = "dashboard"
+
     private var iOSShell: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack { DashboardView() }
                 .tabItem { Label("Tableau de bord", systemImage: "chart.bar.fill") }
+                .tag("dashboard")
 
             if RolePermissions.canAccess(user: auth.currentUser, moduleId: "pos") {
                 NavigationStack { POSView() }
                     .tabItem { Label("Caisse", systemImage: "cart.fill") }
+                    .tag("pos")
             }
 
             NavigationStack { LimuleChatView() }
@@ -128,14 +132,23 @@ struct AppShell: View {
                             .frame(width: 22, height: 22)
                     }
                 }
+                .tag("limule")
 
             NavigationStack { ModuleHubView() }
                 .tabItem { Label("Modules", systemImage: "square.grid.2x2.fill") }
+                .tag("modules")
 
             NavigationStack { SettingsView() }
                 .tabItem { Label("Réglages", systemImage: "gearshape.fill") }
+                .tag("settings")
         }
         .tint(theme.primary)
+        .onReceive(NotificationCenter.default.publisher(for: .komptaNavigate)) { note in
+            if let moduleId = note.object as? String {
+                let tab = moduleId == "settings" ? "settings" : "modules"
+                selectedTab = tab
+            }
+        }
     }
 
     // MARK: - macOS: NavigationSplitView + sidebar
@@ -262,6 +275,10 @@ struct UpgradeRequiredView: View {
 //  MARK: - Notification center (aggregated activity feed)
 // ============================================================================
 
+extension Notification.Name {
+    static let komptaNavigate = Notification.Name("komptaNavigate")
+}
+
 @MainActor
 final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
@@ -269,13 +286,26 @@ final class NotificationManager: ObservableObject {
     @Published private(set) var items: [AppNotification] = []
     @Published private(set) var isLoading = false
 
+    private static let readKey = "kompta_read_notif_sigs"
+    private var persistedReadSigs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.readKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Self.readKey) }
+    }
+
     var unreadCount: Int { items.filter { !$0.isRead }.count }
 
     func markRead(_ id: UUID) {
-        if let i = items.firstIndex(where: { $0.id == id }) { items[i].isRead = true }
+        if let i = items.firstIndex(where: { $0.id == id }) {
+            items[i].isRead = true
+            var sigs = persistedReadSigs; sigs.insert(items[i].signature); persistedReadSigs = sigs
+        }
     }
 
-    func markAllRead() { for i in items.indices { items[i].isRead = true } }
+    func markAllRead() {
+        var sigs = persistedReadSigs
+        for i in items.indices { items[i].isRead = true; sigs.insert(items[i].signature) }
+        persistedReadSigs = sigs
+    }
 
     func refresh() async {
         guard !isLoading else { return }
@@ -341,6 +371,12 @@ final class NotificationManager: ObservableObject {
             }
         }
 
+        // Restore persisted read state — prevents notifications from "coming back"
+        // after every refresh by keying off a deterministic signature.
+        let readSigs = persistedReadSigs
+        for i in collected.indices {
+            if readSigs.contains(collected[i].signature) { collected[i].isRead = true }
+        }
         items = collected
         isLoading = false
     }
@@ -363,7 +399,11 @@ struct NotificationsView: View {
                         ForEach(manager.items) { notif in
                             NotificationRow(notif: notif)
                                 .listRowBackground(notif.isRead ? Color.clear : theme.primary.opacity(0.05))
-                                .onTapGesture { manager.markRead(notif.id) }
+                                .onTapGesture {
+                                    manager.markRead(notif.id)
+                                    dismiss()
+                                    NotificationCenter.default.post(name: .komptaNavigate, object: notif.moduleId)
+                                }
                         }
                     }
                     #if os(iOS)
@@ -407,7 +447,10 @@ private struct NotificationRow: View {
                 Text(notif.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer()
-            if !notif.isRead { Circle().fill(.blue).frame(width: 8, height: 8) }
+            HStack(spacing: 6) {
+                if !notif.isRead { Circle().fill(.blue).frame(width: 8, height: 8) }
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 4)
     }

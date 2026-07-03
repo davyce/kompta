@@ -241,7 +241,46 @@ def list_groups(db: Session = Depends(get_db), current_user: User = Depends(get_
             OrganizationGroup.is_active == True,  # noqa: E712
         ).order_by(OrganizationGroup.created_at.desc())
     ).all()
-    return [_serialize_group(g) for g in groups]
+
+    if not groups:
+        return []
+
+    group_ids = [g.id for g in groups]
+
+    # member counts (single query)
+    count_rows = db.execute(
+        select(GroupMember.group_id, func.count(GroupMember.id).label("cnt"))
+        .where(GroupMember.group_id.in_(group_ids))
+        .group_by(GroupMember.group_id)
+    ).all()
+    member_counts = {r.group_id: r.cnt for r in count_rows}
+
+    # current user roles per group (single query)
+    role_rows = db.execute(
+        select(GroupMemberRole.group_id, GroupRole.name)
+        .join(GroupRole, GroupRole.id == GroupMemberRole.role_id)
+        .where(
+            GroupMemberRole.group_id.in_(group_ids),
+            GroupMemberRole.member_id.in_(
+                select(GroupMember.id).where(
+                    GroupMember.group_id.in_(group_ids),
+                    GroupMember.user_id == current_user.id,
+                )
+            ),
+        )
+    ).all()
+    my_roles: dict[int, list[str]] = {}
+    for r in role_rows:
+        my_roles.setdefault(r.group_id, []).append(r.name)
+
+    result = []
+    for g in groups:
+        d = _serialize_group(g)
+        d["member_count"] = member_counts.get(g.id, 0)
+        d["my_roles"] = sorted(my_roles.get(g.id, []))
+        d["can_manage"] = _can_manage(db, g, current_user)
+        result.append(d)
+    return result
 
 
 @router.get("/portfolio/summary")

@@ -195,7 +195,7 @@ export function AssistantsPage() {
   const hasContent = streamedDraft.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 overflow-x-hidden">
 
       {/* En-tête */}
       <div>
@@ -206,7 +206,7 @@ export function AssistantsPage() {
         </p>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr] [&>*]:min-w-0">
 
         {/* ── Modèles ── */}
         <Panel title={tr("assistants.templatesPanel.title")}>
@@ -419,7 +419,7 @@ export function AssistantsPage() {
       </div>
 
       {/* ── Mes dernières questions Limule (Q&A persistées) ── */}
-      <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[0.38fr_1fr] [&>*]:min-w-0">
         <Panel
           title={tr("assistants.qa.title")}
           action={

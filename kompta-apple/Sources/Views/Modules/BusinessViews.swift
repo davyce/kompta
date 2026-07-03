@@ -939,13 +939,13 @@ struct InvoiceDetailView: View {
         .sheet(isPresented: $showEdit) {
             InvoiceEditView(invoice: invoice, onSaved: onChanged)
         }
-        .alert("Supprimer cette facture ?", isPresented: $showDeleteConfirm) {
-            TextField("Motif de la suppression", text: $deleteReason)
-            Button("Annuler", role: .cancel) {}
-            Button("Supprimer", role: .destructive) { Task { await deleteInvoice() } }
-                .disabled(deleteReason.trimmingCharacters(in: .whitespaces).count < 3)
-        } message: {
-            Text("La facture \(invoice.number) sera définitivement supprimée. Motif obligatoire, conservé dans le journal d'audit avec la facture complète — action irréversible.")
+        .sheet(isPresented: $showDeleteConfirm) {
+            InvoiceDeleteSheet(
+                invoiceNumber: invoice.number,
+                reason: $deleteReason,
+                isDeleting: deleting,
+                error: deleteError
+            ) { Task { await deleteInvoice() } }
         }
         .alert("Erreur", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
             Button("OK", role: .cancel) {}
@@ -960,10 +960,12 @@ struct InvoiceDetailView: View {
         deleting = true
         do {
             try await APIClient.shared.deleteInvoice(invoice.id, reason: reason)
+            showDeleteConfirm = false
             await onChanged()
             dismiss()
         } catch {
             deleteError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            showDeleteConfirm = false
         }
         deleting = false
     }
@@ -1747,6 +1749,61 @@ struct TransactionEditSheet: View {
         do { _ = try await APIClient.shared.updateTransaction(txn.id, payload); await onSaved(); dismiss() }
         catch { }
         saving = false
+    }
+}
+
+// MARK: - Invoice delete confirmation sheet
+
+/// Replaces the `.alert` + `TextField` pattern for deletion — alert-bound TextFields
+/// have a known race condition where `@State` isn't updated before the action fires.
+struct InvoiceDeleteSheet: View {
+    let invoiceNumber: String
+    @Binding var reason: String
+    let isDeleting: Bool
+    let error: String?
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+
+    private var canDelete: Bool { reason.trimmingCharacters(in: .whitespaces).count >= 3 }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("La facture **\(invoiceNumber)** sera définitivement supprimée. Cette action est irréversible, mais la facture sera conservée dans le journal d'audit.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Motif obligatoire") {
+                    TextField("Ex : doublon, erreur de saisie…", text: $reason, axis: .vertical)
+                        .lineLimit(2...5)
+                        .focused($focused)
+                }
+                if let err = error {
+                    Section { Text(err).font(.caption).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Supprimer la facture")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }.disabled(isDeleting)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .destructive) {
+                        onConfirm()
+                    } label: {
+                        if isDeleting { ProgressView().controlSize(.small) }
+                        else { Text("Supprimer").foregroundStyle(.red) }
+                    }
+                    .disabled(!canDelete || isDeleting)
+                }
+            }
+            .onAppear { focused = true }
+        }
     }
 }
 
