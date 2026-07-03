@@ -178,6 +178,9 @@ struct AppShell: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .onReceive(NotificationCenter.default.publisher(for: .komptaNavigate)) { note in
+            if let moduleId = note.object as? String { selection = moduleId }
+        }
     }
 
     @ViewBuilder
