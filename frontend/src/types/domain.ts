@@ -187,6 +187,34 @@ export type Invoice = {
   last_relance_at?: string;
 };
 
+export type Opportunity = {
+  id: number;
+  company_id: number;
+  client_id: number | null;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
+  title: string;
+  stage: string;
+  estimated_amount_cents: number;
+  probability_percent: number;
+  expected_close_date: string | null;
+  notes: string;
+  assigned_to_user_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PipelineStageSummary = {
+  stage: string;
+  count: number;
+  total_estimated_amount_cents: number;
+};
+
+export type PipelineSummary = {
+  stages: PipelineStageSummary[];
+};
+
 export type Task = {
   id: number;
   title: string;

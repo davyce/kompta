@@ -1256,3 +1256,71 @@ class BankTransactionRead(BaseModel):
     reconciled_with_id: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# CRM léger — pipeline d'opportunités
+# ─────────────────────────────────────────────────────────────────────────
+
+class OpportunityCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    client_id: int | None = None
+    contact_name: str = ""
+    contact_phone: str = ""
+    contact_email: str = ""
+    stage: str = "nouveau"
+    estimated_amount_cents: int = Field(default=0, ge=0)
+    probability_percent: int = Field(default=20, ge=0, le=100)
+    expected_close_date: date | None = None
+    notes: str = ""
+    assigned_to_user_id: int | None = None
+
+
+class OpportunityUpdate(BaseModel):
+    title: str | None = None
+    client_id: int | None = None
+    contact_name: str | None = None
+    contact_phone: str | None = None
+    contact_email: str | None = None
+    stage: str | None = None
+    estimated_amount_cents: int | None = None
+    probability_percent: int | None = None
+    expected_close_date: date | None = None
+    notes: str | None = None
+    assigned_to_user_id: int | None = None
+
+
+class OpportunityRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    company_id: int
+    client_id: int | None
+    contact_name: str
+    contact_phone: str
+    contact_email: str
+    title: str
+    stage: str
+    estimated_amount_cents: int
+    probability_percent: int
+    expected_close_date: date | None
+    notes: str
+    assigned_to_user_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineStageSummary(BaseModel):
+    stage: str
+    count: int
+    total_estimated_amount_cents: int
+
+
+class PipelineSummaryRead(BaseModel):
+    stages: list[PipelineStageSummary]
+
+
+class ConvertOpportunityResult(BaseModel):
+    invoice_id: int
+    invoice_number: str
+    client_id: int

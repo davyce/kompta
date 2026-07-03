@@ -3247,6 +3247,7 @@
       "/transactions": "Transactions",
       "/bank-reconciliation": "Bank reconciliation",
       "/clients": "Clients",
+      "/crm": "CRM",
       "/pos": "POS / Register",
       "/inventory": "Inventory",
       "/projects": "Projects & boards",
@@ -3292,6 +3293,7 @@
       "/bank-reconciliation": "Bank statement reconciliation",
       "/billing": "Clients & collections",
       "/clients": "CRM & Clients",
+      "/crm": "Sales pipeline",
       "/pos": "Register & checkout",
       "/inventory": "Multi-site stock",
       "/projects": "Boards & budgets",
@@ -4577,6 +4579,33 @@
     "empty": "No lines. Import a statement to start reconciling.",
     "noImportYet": "No statement imported for this account yet.",
     "noCandidate": "—"
+  },
+  "crm": {
+    "title": "Lightweight CRM",
+    "subtitle": "Track your prospects from first contact all the way to the invoice.",
+    "newOpportunity": "New opportunity",
+    "empty": "No opportunities",
+    "convertToInvoice": "Convert to invoice",
+    "convertSuccess": "Invoice created: {{number}}",
+    "convertError": "Conversion error: {{msg}}",
+    "stages": {
+      "nouveau": "New",
+      "qualifie": "Qualified",
+      "proposition": "Proposal",
+      "negociation": "Negotiation",
+      "gagne": "Won",
+      "perdu": "Lost"
+    },
+    "form": {
+      "title": "Opportunity title",
+      "contactName": "Contact name",
+      "contactPhone": "Phone",
+      "contactEmail": "Email",
+      "estimatedAmount": "Estimated amount",
+      "probability": "Probability (%)",
+      "expectedCloseDate": "Expected close date",
+      "submit": "Create opportunity"
+    }
   },
   "budget": {
     "periodMonthly": "Monthly",

@@ -13,6 +13,8 @@ import type {
   InventoryMovement,
   Invoice,
   Message,
+  Opportunity,
+  PipelineSummary,
   OrganizationGroup,
   GroupMember,
   GroupRole,
@@ -1236,6 +1238,33 @@ export const api = {
     request<ClientDto>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteClient: (id: number) =>
     request<void>(`/clients/${id}`, { method: "DELETE" }),
+
+  /* ── CRM léger — pipeline d'opportunités ─────────────────────── */
+  crmOpportunities: (params?: { stage?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.stage) qs.set("stage", params.stage);
+    const q = qs.toString();
+    return request<Opportunity[]>(`/crm/opportunities${q ? `?${q}` : ""}`);
+  },
+  createOpportunity: (payload: {
+    title: string;
+    client_id?: number | null;
+    contact_name?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    stage?: string;
+    estimated_amount_cents?: number;
+    probability_percent?: number;
+    expected_close_date?: string | null;
+    notes?: string;
+  }) => request<Opportunity>("/crm/opportunities", { method: "POST", body: JSON.stringify(payload) }),
+  updateOpportunity: (id: number, payload: Partial<Opportunity>) =>
+    request<Opportunity>(`/crm/opportunities/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteOpportunity: (id: number) =>
+    request<void>(`/crm/opportunities/${id}`, { method: "DELETE" }),
+  crmPipelineSummary: () => request<PipelineSummary>("/crm/pipeline/summary"),
+  convertOpportunityToInvoice: (id: number) =>
+    request<{ invoice_id: number; invoice_number: string; client_id: number }>(`/crm/opportunities/${id}/convert-to-invoice`, { method: "POST" }),
 
   /* ── Transactions ─────────────────────────────────────────── */
   transactions: (params?: { category?: string; source_type?: string; date_from?: string; date_to?: string }) => {

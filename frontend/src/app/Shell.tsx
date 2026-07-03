@@ -34,6 +34,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Boxes,
+  Target,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -105,10 +106,10 @@ function LimuleStatus() {
 const ROLE_ROUTES: Record<string, string[]> = {
   super_admin: ["*"],   // accès complet (mais redirigé vers /admin via AuthContext)
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/kanban", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/audit", "/settings", "/safe-mode", "/help"],
-  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/crm", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/kanban", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/audit", "/settings", "/safe-mode", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/clients", "/crm", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
-  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/crm", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   employe: ["/", "/work", "/kanban", "/chat", "/calendar", "/meetings", "/notes", "/settings", "/help"],
   // Membre de groupe/organisation : interface légère orientée collaboration & suivi
@@ -125,7 +126,7 @@ const UNIVERSAL_PATHS = new Set<string>([
 // Chemin → clé de permission du catalogue de rôles. Absent ⇒ universel.
 const PATH_PERMISSION: Record<string, string> = {
   "/company": "company", "/employees": "hr", "/documents": "documents",
-  "/payroll": "payroll", "/billing": "billing", "/clients": "clients",
+  "/payroll": "payroll", "/billing": "billing", "/clients": "clients", "/crm": "clients",
   "/pos": "pos", "/inventory": "inventory", "/work": "tasks", "/kanban": "tasks",
   "/reports": "reports", "/analytics": "analytics", "/fiscal": "fiscal",
   "/reports-teras": "teras", "/teras": "teras", "/declarations": "declarations",
@@ -197,6 +198,7 @@ const navSections: NavSection[] = [
     sectionKey: "Commerce",
     items: [
       { to: "/clients", icon: UserCheck },
+      { to: "/crm", icon: Target },
       { to: "/pos", icon: ShoppingCart },
       { to: "/inventory", icon: Boxes },
     ],
@@ -265,6 +267,7 @@ const routeLabels: Record<string, { sectionKey: string; titleTk: string }> = {
   "/bank-reconciliation": { sectionKey: "Finance", titleTk: "nav.titles./bank-reconciliation" },
   "/billing": { sectionKey: "Facturation", titleTk: "nav.titles./billing" },
   "/clients": { sectionKey: "Commerce", titleTk: "nav.titles./clients" },
+  "/crm": { sectionKey: "Commerce", titleTk: "nav.titles./crm" },
   "/pos": { sectionKey: "POS / Caisse", titleTk: "nav.titles./pos" },
   "/inventory": { sectionKey: "Inventaire", titleTk: "nav.titles./inventory" },
   "/projects": { sectionKey: "Projets", titleTk: "nav.titles./projects" },

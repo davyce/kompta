@@ -407,6 +407,7 @@ class Invoice(TimestampMixin, Base):
     approved_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     rejection_reason: Mapped[str] = mapped_column(String(500), default="")
+    source_opportunity_id: Mapped[int | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     lines: Mapped[list["InvoiceLine"]] = relationship(cascade="all, delete-orphan", back_populates="invoice")
@@ -1493,3 +1494,28 @@ class CompanySubscription(TimestampMixin, Base):
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
     last_payment_id: Mapped[int | None] = mapped_column(ForeignKey("payment_transactions.id"), nullable=True)
     applied_promo_code: Mapped[str] = mapped_column(String(40), default="")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CRM LÉGER — pipeline d'opportunités (prospects → devis → facture)
+# ══════════════════════════════════════════════════════════════════════════════
+class Opportunity(TimestampMixin, Base):
+    """Entrée de pipeline commercial : un prospect/lead suivi jusqu'à conversion
+    en facture. Peut référencer un Client existant ou capturer un contact
+    inline (nom/téléphone/email) avant qu'il ne devienne un Client."""
+    __tablename__ = "opportunities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    contact_name: Mapped[str] = mapped_column(String(160), default="")
+    contact_phone: Mapped[str] = mapped_column(String(40), default="")
+    contact_email: Mapped[str] = mapped_column(String(160), default="")
+    title: Mapped[str] = mapped_column(String(200))
+    # nouveau | qualifie | proposition | negociation | gagne | perdu
+    stage: Mapped[str] = mapped_column(String(20), default="nouveau", index=True)
+    estimated_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    probability_percent: Mapped[int] = mapped_column(Integer, default=20)
+    expected_close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    assigned_to_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)

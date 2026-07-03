@@ -185,6 +185,7 @@ def ensure_sqlite_migrations() -> None:
             "approved_by_user_id": "INTEGER",
             "approved_at": "DATETIME",
             "rejection_reason": "VARCHAR(500) DEFAULT ''",
+            "source_opportunity_id": "INTEGER",
         },
         "invoice_lines": {
             "tax_rate": "FLOAT DEFAULT 18.0",

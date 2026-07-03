@@ -3247,6 +3247,7 @@
       "/transactions": "Transactions",
       "/bank-reconciliation": "Réconciliation bancaire",
       "/clients": "Clients",
+      "/crm": "CRM",
       "/pos": "POS / Caisse",
       "/inventory": "Inventaire",
       "/projects": "Projets & boards",
@@ -3292,6 +3293,7 @@
       "/bank-reconciliation": "Rapprochement des relevés bancaires",
       "/billing": "Clients et encaissements",
       "/clients": "CRM & Clients",
+      "/crm": "Pipeline commercial",
       "/pos": "Caisse et encaissement",
       "/inventory": "Stock multi-sites",
       "/projects": "Boards et budgets",
@@ -4577,6 +4579,33 @@
     "empty": "Aucune ligne. Importez un relevé pour démarrer la réconciliation.",
     "noImportYet": "Aucun relevé importé pour ce compte.",
     "noCandidate": "—"
+  },
+  "crm": {
+    "title": "CRM léger",
+    "subtitle": "Suivez vos prospects du premier contact jusqu'à la facture.",
+    "newOpportunity": "Nouvelle opportunité",
+    "empty": "Aucune opportunité",
+    "convertToInvoice": "Convertir en facture",
+    "convertSuccess": "Facture créée : {{number}}",
+    "convertError": "Erreur lors de la conversion : {{msg}}",
+    "stages": {
+      "nouveau": "Nouveau",
+      "qualifie": "Qualifié",
+      "proposition": "Proposition",
+      "negociation": "Négociation",
+      "gagne": "Gagné",
+      "perdu": "Perdu"
+    },
+    "form": {
+      "title": "Titre de l'opportunité",
+      "contactName": "Nom du contact",
+      "contactPhone": "Téléphone",
+      "contactEmail": "Email",
+      "estimatedAmount": "Montant estimé",
+      "probability": "Probabilité (%)",
+      "expectedCloseDate": "Date de clôture prévue",
+      "submit": "Créer l'opportunité"
+    }
   },
   "budget": {
     "periodMonthly": "Mensuel",

@@ -11,6 +11,7 @@ from app.api.routes_roles import router as roles_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_budget import router as budget_router
 from app.api.routes_clients import router as clients_router
+from app.api.routes_crm import router as crm_router
 from app.api.routes_extra import router as extra_router
 from app.api.routes_features import router as features_router
 from app.api.routes_fiscal import router as fiscal_router
@@ -466,6 +467,7 @@ app.include_router(roles_router, prefix=settings.api_prefix)
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(budget_router, prefix=settings.api_prefix)
 app.include_router(clients_router, prefix=settings.api_prefix)
+app.include_router(crm_router, prefix=settings.api_prefix)
 app.include_router(extra_router, prefix=settings.api_prefix)
 app.include_router(features_router, prefix=settings.api_prefix)
 app.include_router(fiscal_router, prefix=settings.api_prefix)
