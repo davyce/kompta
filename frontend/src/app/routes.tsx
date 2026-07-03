@@ -20,6 +20,7 @@ const BillingPage         = lazy(() => import("../pages/BillingPage").then(m => 
 const InventoryPage       = lazy(() => import("../pages/InventoryPage").then(m => ({ default: m.InventoryPage })));
 const PosPage             = lazy(() => import("../pages/PosPage").then(m => ({ default: m.PosPage })));
 const TransactionsPage    = lazy(() => import("../pages/TransactionsPage").then(m => ({ default: m.TransactionsPage })));
+const BankReconciliationPage = lazy(() => import("../pages/BankReconciliationPage").then(m => ({ default: m.BankReconciliationPage })));
 const SettingsPage        = lazy(() => import("../pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const AccountingFinancePage = lazy(() => import("../pages/AccountingFinancePage").then(m => ({ default: m.AccountingFinancePage })));
 const DocumentsPage       = lazy(() => import("../pages/DocumentsPage").then(m => ({ default: m.DocumentsPage })));
@@ -292,6 +293,7 @@ export const router = createBrowserRouter([
       { path: "investments",           element: <LazyRoute page={InvestmentsPage} /> },
       { path: "budget",                element: <LazyRoute page={BudgetPage} /> },
       { path: "transactions",          element: <LazyRoute page={TransactionsPage} /> },
+      { path: "bank-reconciliation",   element: <LazyRoute page={BankReconciliationPage} /> },
       { path: "legislation",           element: <LazyRoute page={LegislationPage} /> },
       { path: "audit",                 element: <LazyRoute page={AuditLogsPage} /> },
       { path: "analytics",             element: <LazyRoute page={AnalyticsPage} /> },

@@ -14,6 +14,7 @@ import {
   ClipboardList,
   FileText,
   FolderArchive,
+  GitCompareArrows,
   HandCoins,
   HelpCircle,
   Landmark,
@@ -104,8 +105,8 @@ function LimuleStatus() {
 const ROLE_ROUTES: Record<string, string[]> = {
   super_admin: ["*"],   // accès complet (mais redirigé vers /admin via AuthContext)
   admin_entreprise: ["*"],
-  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/kanban", "/investments", "/budget", "/transactions", "/audit", "/settings", "/safe-mode", "/help"],
-  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
+  manager_entreprise: ["/", "/company", "/employees", "/documents", "/payroll", "/billing", "/clients", "/pos", "/inventory", "/chat", "/work", "/calendar", "/meetings", "/notes", "/reports", "/analytics", "/fiscal", "/reports-teras", "/assistants", "/declarations", "/legislation", "/accounting", "/projects", "/kanban", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/audit", "/settings", "/safe-mode", "/help"],
+  comptable: ["/", "/accounting", "/billing", "/clients", "/reports", "/analytics", "/fiscal", "/reports-teras", "/declarations", "/legislation", "/assistants", "/documents", "/investments", "/budget", "/transactions", "/bank-reconciliation", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   rh_entreprise: ["/", "/employees", "/documents", "/payroll", "/reports", "/assistants", "/declarations", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   responsable_pos: ["/", "/pos", "/inventory", "/billing", "/clients", "/work", "/reports", "/transactions", "/chat", "/calendar", "/meetings", "/notes", "/help"],
   caissier_pos: ["/", "/pos", "/inventory", "/chat", "/calendar", "/meetings", "/notes", "/help"],
@@ -130,6 +131,7 @@ const PATH_PERMISSION: Record<string, string> = {
   "/reports-teras": "teras", "/teras": "teras", "/declarations": "declarations",
   "/legislation": "legislation", "/accounting": "accounting", "/projects": "projects",
   "/investments": "investments", "/budget": "budget", "/transactions": "transactions",
+  "/bank-reconciliation": "transactions",
   "/audit": "audit",
 };
 
@@ -188,6 +190,7 @@ const navSections: NavSection[] = [
       { to: "/billing", icon: ReceiptText },
       { to: "/budget", icon: PiggyBank },
       { to: "/transactions", icon: Landmark },
+      { to: "/bank-reconciliation", icon: GitCompareArrows },
     ],
   },
   {
@@ -259,6 +262,7 @@ const routeLabels: Record<string, { sectionKey: string; titleTk: string }> = {
   "/accounting": { sectionKey: "Comptabilité", titleTk: "nav.titles./accounting" },
   "/budget": { sectionKey: "Finance", titleTk: "nav.titles./budget" },
   "/transactions": { sectionKey: "Finance", titleTk: "nav.titles./transactions" },
+  "/bank-reconciliation": { sectionKey: "Finance", titleTk: "nav.titles./bank-reconciliation" },
   "/billing": { sectionKey: "Facturation", titleTk: "nav.titles./billing" },
   "/clients": { sectionKey: "Commerce", titleTk: "nav.titles./clients" },
   "/pos": { sectionKey: "POS / Caisse", titleTk: "nav.titles./pos" },
