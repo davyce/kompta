@@ -126,3 +126,7 @@ backend/storage/documents/*
 backend/storage/products/*
 !backend/storage/products/.gitkeep
 infra/.tunnel-token
+
+# ── Tauri desktop app (Windows/Linux) ───────────────────
+kompta-desktop/src-tauri/target/
+kompta-desktop/node_modules/

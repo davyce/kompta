@@ -1,0 +1,24 @@
+{
+  "name": "kompta-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "KOMPTA — Application de bureau (Windows / Linux)",
+  "type": "module",
+  "scripts": {
+    "dev":   "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api":                      "^2",
+    "@tauri-apps/plugin-notification":      "^2",
+    "@tauri-apps/plugin-shell":             "^2",
+    "@tauri-apps/plugin-dialog":            "^2",
+    "@tauri-apps/plugin-fs":                "^2",
+    "@tauri-apps/plugin-http":              "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
