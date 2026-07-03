@@ -25,8 +25,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
 from app.api.deps import get_current_user, get_db
-from app.models import BankTransaction
+from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount
 from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate
 
 router = APIRouter(tags=["transactions"])
@@ -374,3 +376,389 @@ def delete_transaction(
         raise HTTPException(404, "Transaction introuvable")
     db.delete(txn)
     db.commit()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# RÉCONCILIATION BANCAIRE
+# ═══════════════════════════════════════════════════════════════════
+
+def _get_payment_account_scoped(db: Session, account_id: int, current_user: Any) -> PaymentAccount:
+    account = db.get(PaymentAccount, account_id)
+    if not account or account.company_id != current_user.company_id:
+        raise HTTPException(404, "Compte de paiement introuvable")
+    return account
+
+
+def _get_import_scoped(db: Session, import_id: int, current_user: Any) -> BankStatementImport:
+    imp = db.get(BankStatementImport, import_id)
+    if not imp or imp.company_id != current_user.company_id:
+        raise HTTPException(404, "Import introuvable")
+    return imp
+
+
+def _parse_amount(raw: str) -> float | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    s = s.replace(" ", "").replace(" ", "")
+    # Format FR : "1.234,56" ou "1234,56" -> point décimal = virgule
+    if "," in s and "." in s:
+        # Le dernier séparateur rencontré est le séparateur décimal
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _parse_date(raw: str) -> str | None:
+    if not raw:
+        return None
+    s = str(raw).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+def _sniff_rows(content: bytes) -> list[list[str]]:
+    """Parse défensif d'un CSV : gère ; ou , comme délimiteur, encodage utf-8/latin-1."""
+    text_data = None
+    for enc in ("utf-8-sig", "utf-8", "latin-1"):
+        try:
+            text_data = content.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text_data is None:
+        text_data = content.decode("utf-8", errors="ignore")
+
+    sample = text_data[:4096]
+    # Les relevés FR utilisent ';' comme séparateur et ',' comme décimale des
+    # montants -> on privilégie toujours ';' s'il est présent, pour éviter que
+    # csv.Sniffer() ne confonde la virgule décimale avec un délimiteur.
+    if ";" in sample:
+        delimiter = ";"
+    elif "\t" in sample:
+        delimiter = "\t"
+    else:
+        delimiter = ","
+
+    reader = csv.reader(io.StringIO(text_data), delimiter=delimiter)
+    return [row for row in reader if row and any(cell.strip() for cell in row)]
+
+
+def _extract_statement_rows(content: bytes) -> list[dict]:
+    """
+    Best-effort : supporte un CSV 3 colonnes (date, libellé, montant), tolère un
+    en-tête, colonnes dans un ordre différent, et formats FR (DD/MM/YYYY, virgule).
+    """
+    rows = _sniff_rows(content)
+    parsed: list[dict] = []
+    for row in rows:
+        cells = [c.strip() for c in row]
+        if len(cells) < 2:
+            continue
+        # Cherche la cellule date, la cellule montant, le reste = libellé
+        date_val = None
+        amount_val = None
+        date_idx = None
+        amount_idx = None
+        for idx, cell in enumerate(cells):
+            if date_val is None:
+                d = _parse_date(cell)
+                if d:
+                    date_val = d
+                    date_idx = idx
+                    continue
+            if amount_val is None:
+                a = _parse_amount(cell)
+                if a is not None and cell.replace(".", "").replace(",", "").replace("-", "").replace(" ", "").isdigit() is False:
+                    # cellule contient des chiffres + séparateurs seulement -> a déjà été calculé par _parse_amount
+                    pass
+                if a is not None:
+                    amount_val = a
+                    amount_idx = idx
+
+        if date_val is None or amount_val is None:
+            continue  # ligne d'en-tête ou illisible -> ignorée
+
+        label_cells = [
+            c for i, c in enumerate(cells)
+            if i != date_idx and i != amount_idx and c
+        ]
+        label = " ".join(label_cells).strip() or "—"
+
+        parsed.append({"date": date_val, "label": label[:400], "amount": amount_val})
+    return parsed
+
+
+def _run_matching(db: Session, imp: BankStatementImport) -> None:
+    """Fait correspondre les lignes 'unmatched' de cet import à des BankTransaction existantes."""
+    lines = db.scalars(
+        select(BankStatementLine)
+        .where(BankStatementLine.import_id == imp.id, BankStatementLine.match_status == "unmatched")
+    ).all()
+    if not lines:
+        return
+
+    already_matched_ids = {
+        r for (r,) in db.execute(
+            select(BankStatementLine.matched_transaction_id)
+            .where(BankStatementLine.matched_transaction_id.is_not(None))
+        ).all()
+    }
+
+    candidates = db.scalars(
+        select(BankTransaction).where(BankTransaction.company_id == imp.company_id)
+    ).all()
+
+    for line in lines:
+        line_date = datetime.strptime(line.date, "%Y-%m-%d")
+        best_exact = None
+        best_suggested = None
+        best_suggested_delta = None
+        for txn in candidates:
+            if txn.id in already_matched_ids:
+                continue
+            txn_cents = round((txn.amount or 0) * 100)
+            if txn_cents != line.amount_cents:
+                continue
+            try:
+                txn_date = datetime.strptime(txn.date, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                continue
+            delta = abs((txn_date - line_date).days)
+            if delta > 3:
+                continue
+            if delta == 0:
+                best_exact = txn
+                break
+            if best_suggested_delta is None or delta < best_suggested_delta:
+                best_suggested = txn
+                best_suggested_delta = delta
+
+        if best_exact is not None:
+            line.match_status = "matched"
+            line.matched_transaction_id = best_exact.id
+            already_matched_ids.add(best_exact.id)
+        elif best_suggested is not None:
+            line.match_status = "suggested"
+            line.candidate_transaction_id = best_suggested.id
+        # sinon reste "unmatched"
+
+    db.flush()
+    imp.matched_count = db.scalar(
+        select(func.count()).select_from(BankStatementLine)
+        .where(BankStatementLine.import_id == imp.id, BankStatementLine.match_status == "matched")
+    ) or 0
+    imp.suggested_count = db.scalar(
+        select(func.count()).select_from(BankStatementLine)
+        .where(BankStatementLine.import_id == imp.id, BankStatementLine.match_status == "suggested")
+    ) or 0
+    imp.unmatched_count = db.scalar(
+        select(func.count()).select_from(BankStatementLine)
+        .where(BankStatementLine.import_id == imp.id, BankStatementLine.match_status == "unmatched")
+    ) or 0
+    imp.status = "done"
+
+
+def _line_to_dict(line: BankStatementLine, db: Session) -> dict:
+    d = {
+        "id": line.id,
+        "import_id": line.import_id,
+        "date": line.date,
+        "label": line.label,
+        "amount": round(line.amount_cents / 100, 2),
+        "raw_reference": line.raw_reference,
+        "match_status": line.match_status,
+        "matched_transaction_id": line.matched_transaction_id,
+        "candidate_transaction_id": line.candidate_transaction_id,
+        "matched_transaction": None,
+        "candidate_transaction": None,
+    }
+    if line.matched_transaction_id:
+        t = db.get(BankTransaction, line.matched_transaction_id)
+        if t:
+            d["matched_transaction"] = {"id": t.id, "date": t.date, "label": t.label, "amount": t.amount}
+    if line.candidate_transaction_id:
+        t = db.get(BankTransaction, line.candidate_transaction_id)
+        if t:
+            d["candidate_transaction"] = {"id": t.id, "date": t.date, "label": t.label, "amount": t.amount}
+    return d
+
+
+@router.post("/treasury/accounts/{account_id}/statements/import")
+async def import_bank_statement(
+    account_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Importe un relevé bancaire (CSV) pour un compte de paiement et lance le rapprochement auto."""
+    account = _get_payment_account_scoped(db, account_id, current_user)
+    content = await file.read()
+    filename = file.filename or "releve.csv"
+
+    rows = _extract_statement_rows(content)
+    if not rows:
+        raise HTTPException(422, "Impossible d'extraire des lignes de ce fichier. Vérifiez le format (date; libellé; montant).")
+
+    imp = BankStatementImport(
+        company_id=current_user.company_id,
+        payment_account_id=account.id,
+        filename=filename[:300],
+        status="processing",
+        line_count=len(rows),
+    )
+    db.add(imp)
+    db.flush()
+
+    for row in rows:
+        line = BankStatementLine(
+            import_id=imp.id,
+            date=row["date"],
+            label=row["label"],
+            amount_cents=round(row["amount"] * 100),
+            match_status="unmatched",
+        )
+        db.add(line)
+    db.flush()
+
+    _run_matching(db, imp)
+    db.commit()
+    db.refresh(imp)
+
+    lines = db.scalars(
+        select(BankStatementLine).where(BankStatementLine.import_id == imp.id).order_by(BankStatementLine.date)
+    ).all()
+
+    return {
+        "import_id": imp.id,
+        "filename": imp.filename,
+        "status": imp.status,
+        "line_count": imp.line_count,
+        "matched_count": imp.matched_count,
+        "suggested_count": imp.suggested_count,
+        "unmatched_count": imp.unmatched_count,
+        "lines": [_line_to_dict(l, db) for l in lines],
+    }
+
+
+@router.post("/treasury/statements/{import_id}/match")
+def rerun_matching(
+    import_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    imp = _get_import_scoped(db, import_id, current_user)
+    _run_matching(db, imp)
+    db.commit()
+    db.refresh(imp)
+    return {"import_id": imp.id, "matched_count": imp.matched_count, "suggested_count": imp.suggested_count, "unmatched_count": imp.unmatched_count}
+
+
+@router.get("/treasury/statements/{import_id}")
+def get_bank_statement_import(
+    import_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    imp = _get_import_scoped(db, import_id, current_user)
+    lines = db.scalars(
+        select(BankStatementLine).where(BankStatementLine.import_id == imp.id).order_by(BankStatementLine.date)
+    ).all()
+    return {
+        "import_id": imp.id,
+        "filename": imp.filename,
+        "payment_account_id": imp.payment_account_id,
+        "status": imp.status,
+        "line_count": imp.line_count,
+        "matched_count": imp.matched_count,
+        "suggested_count": imp.suggested_count,
+        "unmatched_count": imp.unmatched_count,
+        "imported_at": imp.imported_at,
+        "lines": [_line_to_dict(l, db) for l in lines],
+    }
+
+
+class ConfirmLinePayload(BaseModel):
+    transaction_id: int
+
+
+def _get_line_scoped(db: Session, line_id: int, current_user: Any) -> tuple[BankStatementLine, BankStatementImport]:
+    line = db.get(BankStatementLine, line_id)
+    if not line:
+        raise HTTPException(404, "Ligne introuvable")
+    imp = db.get(BankStatementImport, line.import_id)
+    if not imp or imp.company_id != current_user.company_id:
+        raise HTTPException(404, "Ligne introuvable")
+    return line, imp
+
+
+@router.post("/treasury/statements/lines/{line_id}/confirm")
+def confirm_statement_line(
+    line_id: int,
+    payload: ConfirmLinePayload,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    line, imp = _get_line_scoped(db, line_id, current_user)
+    txn = db.get(BankTransaction, payload.transaction_id)
+    if not txn or txn.company_id != current_user.company_id:
+        raise HTTPException(404, "Transaction introuvable")
+    line.matched_transaction_id = txn.id
+    line.match_status = "matched"
+    db.commit()
+    db.refresh(line)
+    return _line_to_dict(line, db)
+
+
+@router.post("/treasury/statements/lines/{line_id}/create-transaction")
+def create_transaction_from_line(
+    line_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    line, imp = _get_line_scoped(db, line_id, current_user)
+    txn = BankTransaction(
+        company_id=imp.company_id,
+        payment_account_id=imp.payment_account_id,
+        date=line.date,
+        label=line.label,
+        amount=round(line.amount_cents / 100, 2),
+        debit=abs(round(line.amount_cents / 100, 2)) if line.amount_cents < 0 else None,
+        credit=round(line.amount_cents / 100, 2) if line.amount_cents > 0 else None,
+        currency="XAF",
+        source_type="releve_bancaire",
+        status="reconciled",
+    )
+    db.add(txn)
+    db.flush()
+    line.matched_transaction_id = txn.id
+    line.match_status = "matched"
+    db.commit()
+    db.refresh(line)
+    return _line_to_dict(line, db)
+
+
+@router.post("/treasury/statements/lines/{line_id}/ignore")
+def ignore_statement_line(
+    line_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    line, imp = _get_line_scoped(db, line_id, current_user)
+    line.match_status = "ignored"
+    db.commit()
+    db.refresh(line)
+    return _line_to_dict(line, db)

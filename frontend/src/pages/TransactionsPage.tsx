@@ -85,6 +85,166 @@ function KpiCard({ label, value, sub, icon: Icon, tone }: {
   );
 }
 
+// ── Bank Reconciliation Modal ───────────────────────────────────────────────────
+function BankReconciliationModal({ onClose }: { onClose: () => void }) {
+  const { t: tr } = useTranslation();
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [accountId, setAccountId] = useState<number | "">("");
+  const [importId, setImportId] = useState<number | null>(null);
+  const [busyLine, setBusyLine] = useState<number | null>(null);
+  const [error, setError] = useState("");
+
+  const accountsQuery = useQuery({ queryKey: ["payment-accounts"], queryFn: api.paymentAccounts });
+
+  const importData = useQuery({
+    queryKey: ["bank-statement-import", importId],
+    queryFn: () => api.getBankStatementImport(importId as number),
+    enabled: importId != null,
+  });
+
+  const importMut = useMutation({
+    mutationFn: (file: File) => api.importBankStatement(accountId as number, file),
+    onSuccess: (res) => { setImportId(res.import_id); setError(""); },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  async function act(lineId: number, fn: () => Promise<any>) {
+    setBusyLine(lineId);
+    try {
+      await fn();
+      await importData.refetch();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusyLine(null);
+    }
+  }
+
+  const lines: any[] = importData.data?.lines ?? [];
+  const statusStyle: Record<string, string> = {
+    matched: "border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30",
+    suggested: "border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30",
+    unmatched: "border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30",
+    ignored: "border-black/[0.08] bg-black/[0.02] opacity-60 dark:border-white/[0.08]",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#1a1d24] p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-[#17211f] dark:text-white">{tr("bankReconciliation.title", "Réconciliation bancaire")}</h2>
+          <button onClick={onClose} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white"><X size={18} /></button>
+        </div>
+
+        {!importId && (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-[#17211f] dark:text-white">
+              {tr("bankReconciliation.selectAccount", "Compte bancaire")}
+            </label>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value ? Number(e.target.value) : "")}
+              className="w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
+            >
+              <option value="">{tr("bankReconciliation.chooseAccount", "Choisir un compte…")}</option>
+              {(accountsQuery.data ?? []).map((a: any) => (
+                <option key={a.id} value={a.id}>{a.label}</option>
+              ))}
+            </select>
+            <button
+              disabled={!accountId || importMut.isPending}
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.12] px-4 py-8 text-sm font-semibold text-[#717182] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50 dark:border-white/[0.12] transition"
+            >
+              {importMut.isPending ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+              {tr("bankReconciliation.uploadCsv", "Importer un relevé bancaire (CSV)")}
+            </button>
+            <input
+              ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) importMut.mutate(f); e.target.value = ""; }}
+            />
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {importId && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-[#717182]">
+              <span>{importData.data?.filename}</span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                {tr("bankReconciliation.matched", "Rapprochées")}: {importData.data?.matched_count ?? 0}
+              </span>
+              <span className="rounded-full bg-amber-100 dark:bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                {tr("bankReconciliation.suggested", "Suggérées")}: {importData.data?.suggested_count ?? 0}
+              </span>
+              <span className="rounded-full bg-red-100 dark:bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                {tr("bankReconciliation.unmatched", "Non rapprochées")}: {importData.data?.unmatched_count ?? 0}
+              </span>
+              <button onClick={() => setImportId(null)} className="ml-auto text-xs font-semibold text-emerald-600 hover:underline">
+                {tr("bankReconciliation.newImport", "Nouvel import")}
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {lines.map((line) => (
+                <div key={line.id} className={`rounded-xl border px-3 py-2 ${statusStyle[line.match_status] ?? ""}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{line.label}</p>
+                      <p className="text-xs text-[#717182]">{shortDate(line.date)} · {money(line.amount)}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {busyLine === line.id ? (
+                        <Loader2 size={14} className="animate-spin text-[#717182]" />
+                      ) : line.match_status === "suggested" && line.candidate_transaction ? (
+                        <button
+                          onClick={() => act(line.id, () => api.confirmStatementLine(line.id, line.candidate_transaction.id))}
+                          className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          {tr("bankReconciliation.confirm", "Confirmer")}
+                        </button>
+                      ) : line.match_status === "unmatched" ? (
+                        <>
+                          <button
+                            onClick={() => act(line.id, () => api.createTransactionFromLine(line.id))}
+                            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                          >
+                            {tr("bankReconciliation.createTxn", "Créer transaction")}
+                          </button>
+                          <button
+                            onClick={() => act(line.id, () => api.ignoreStatementLine(line.id))}
+                            className="rounded-lg border border-black/[0.08] px-2.5 py-1 text-xs font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08]"
+                          >
+                            {tr("bankReconciliation.ignore", "Ignorer")}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs font-semibold capitalize text-[#717182]">{line.match_status}</span>
+                      )}
+                    </div>
+                  </div>
+                  {line.match_status === "suggested" && line.candidate_transaction && (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      {tr("bankReconciliation.candidate", "Candidat")}: {line.candidate_transaction.label} · {money(line.candidate_transaction.amount)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Import Drop Zone ───────────────────────────────────────────────────────────
 function ImportDropZone({ onImport }: { onImport: (file: File) => void }) {
   const { t: tr } = useTranslation();
@@ -361,6 +521,7 @@ export function TransactionsPage() {
   const [dateTo, setDateTo] = useState("");
   const [editTxn, setEditTxn] = useState<BankTransactionDto | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [showReconciliation, setShowReconciliation] = useState(false);
   const [importState, setImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [importMsg, setImportMsg] = useState("");
   const [importCount, setImportCount] = useState(0);
@@ -512,11 +673,16 @@ export function TransactionsPage() {
           <button onClick={handleExportExcel} disabled={(txQuery.data?.length ?? 0) === 0} className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:opacity-50 transition">
             <FileSpreadsheet size={15} /> {tr("transactions.exportExcel")}
           </button>
+          <button onClick={() => setShowReconciliation(true)} className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition">
+            <Landmark size={15} /> {tr("bankReconciliation.title", "Réconciliation bancaire")}
+          </button>
           <button onClick={() => setShowNew(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
             <Plus size={15} /> {tr("transactions.newBtn")}
           </button>
         </div>
       </div>
+
+      {showReconciliation && <BankReconciliationModal onClose={() => setShowReconciliation(false)} />}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

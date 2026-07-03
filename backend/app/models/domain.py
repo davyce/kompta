@@ -882,6 +882,37 @@ class BankTransaction(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(40), default="confirmed")  # "confirmed"|"pending"|"reconciled"
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_line: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reconciled_with_id: Mapped[int | None] = mapped_column(ForeignKey("bank_transactions.id"), nullable=True)
+    payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
+
+
+class BankStatementImport(TimestampMixin, Base):
+    __tablename__ = "bank_statement_imports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    payment_account_id: Mapped[int] = mapped_column(ForeignKey("payment_accounts.id"))
+    filename: Mapped[str] = mapped_column(String(300), default="")
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(20), default="processing")  # processing|done|error
+    line_count: Mapped[int] = mapped_column(Integer, default=0)
+    matched_count: Mapped[int] = mapped_column(Integer, default=0)
+    suggested_count: Mapped[int] = mapped_column(Integer, default=0)
+    unmatched_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class BankStatementLine(TimestampMixin, Base):
+    __tablename__ = "bank_statement_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    import_id: Mapped[int] = mapped_column(ForeignKey("bank_statement_imports.id"))
+    date: Mapped[str] = mapped_column(String(20))  # YYYY-MM-DD
+    label: Mapped[str] = mapped_column(String(400), default="")
+    amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    raw_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    matched_transaction_id: Mapped[int | None] = mapped_column(ForeignKey("bank_transactions.id"), nullable=True)
+    candidate_transaction_id: Mapped[int | None] = mapped_column(ForeignKey("bank_transactions.id"), nullable=True)
+    match_status: Mapped[str] = mapped_column(String(20), default="unmatched")  # matched|suggested|unmatched|ignored
 
 
 class UserPreference(TimestampMixin, Base):

@@ -1253,5 +1253,6 @@ class BankTransactionRead(BaseModel):
     status: str
     notes: str | None
     raw_line: str | None
+    reconciled_with_id: int | None = None
     created_at: datetime
     updated_at: datetime

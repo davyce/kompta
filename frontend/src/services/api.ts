@@ -276,6 +276,23 @@ export const api = {
     catch { return null; }
   },
   resetWorkspace: () => request<{ status: string; message: string }>("/workspace/reset", { method: "POST" }),
+  importBankStatement: (accountId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<any>(`/treasury/accounts/${accountId}/statements/import`, { method: "POST", body: form });
+  },
+  rerunStatementMatch: (importId: number) =>
+    request<any>(`/treasury/statements/${importId}/match`, { method: "POST" }),
+  getBankStatementImport: (importId: number) => request<any>(`/treasury/statements/${importId}`),
+  confirmStatementLine: (lineId: number, transactionId: number) =>
+    request<any>(`/treasury/statements/lines/${lineId}/confirm`, {
+      method: "POST",
+      body: JSON.stringify({ transaction_id: transactionId }),
+    }),
+  createTransactionFromLine: (lineId: number) =>
+    request<any>(`/treasury/statements/lines/${lineId}/create-transaction`, { method: "POST" }),
+  ignoreStatementLine: (lineId: number) =>
+    request<any>(`/treasury/statements/lines/${lineId}/ignore`, { method: "POST" }),
   paymentAccounts: () => request<PaymentAccount[]>("/payment-accounts"),
   createPaymentAccount: (payload: Partial<PaymentAccount>) =>
     request<PaymentAccount>("/payment-accounts", {

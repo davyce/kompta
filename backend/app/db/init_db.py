@@ -127,8 +127,9 @@ def ensure_sqlite_migrations() -> None:
         "teras_analysis_jobs": {},
         "teras_score_snapshots": {},
         "teras_sync_events": {},
-        # bank_transactions : created fresh by create_all — no ALTER needed
-        "bank_transactions": {},
+        "bank_transactions": {
+            "reconciled_with_id": "INTEGER",
+        },
         "declaration_records": {
             "generated_text": "TEXT DEFAULT ''",
         },
@@ -264,6 +265,16 @@ def ensure_sqlite_migrations() -> None:
         },
         "promotions": {},
         "company_subscriptions": {},
+        # Réconciliation bancaire : lien BankTransaction <-> PaymentAccount
+        # + nouvelles tables bank_statement_imports / bank_statement_lines
+        # (create_all crée les tables, on enregistre juste ici pour éviter
+        # tout crash de la boucle ALTER sur bases existantes)
+        "bank_transactions": {
+            "payment_account_id": "INTEGER",
+            "reconciled_with_id": "INTEGER",  # champ pré-existant du modèle jamais migré
+        },
+        "bank_statement_imports": {},
+        "bank_statement_lines": {},
     }
     with engine.begin() as connection:
         for table, columns in additions.items():
