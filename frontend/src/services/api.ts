@@ -422,6 +422,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  deleteInvoice: (id: number) => request<void>(`/invoices/${id}`, { method: "DELETE" }),
   payInvoice: (id: number, payload: { payment_method: string; payment_account_id?: number | null }) =>
     request<Invoice>(`/invoices/${id}/pay`, {
       method: "POST",

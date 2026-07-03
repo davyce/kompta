@@ -165,8 +165,11 @@ export type Invoice = {
   id: number;
   number: string;
   customer_name: string;
+  customer_email?: string | null;
   status: string;
   total_amount: number;
+  subtotal?: number;
+  tax_amount?: number;
   due_date: string | null;
   payment_method: string;
   payment_account_id: number | null;

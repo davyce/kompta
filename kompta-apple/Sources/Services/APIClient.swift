@@ -356,6 +356,9 @@ actor APIClient {
     }
     func createStaff(_ p: StaffCreatePayload) async throws -> StaffCreatedResult { try await post("/admin/staff", body: p) }
     func relanceInvoice(_ id: Int) async throws { try await action("/invoices/\(id)/relance") }
+    /// Réservé au DG/PDG côté backend (403 sinon) — voir _require_company_owner.
+    func updateInvoice(_ id: Int, _ p: InvoiceUpdatePayload) async throws -> Invoice { try await patch("/invoices/\(id)", body: p) }
+    func deleteInvoice(_ id: Int) async throws { try await delete("/invoices/\(id)") }
 
     // MARK: - Inventory
 

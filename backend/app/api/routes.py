@@ -188,6 +188,17 @@ def _require_admin(current_user: User) -> None:
         )
 
 
+def _require_company_owner(current_user: User) -> None:
+    """Exige le rôle admin_entreprise (DG/PDG) — plus strict que _require_admin
+    (qui autorise aussi manager_entreprise). Réservé aux opérations sensibles
+    de correction/suppression de documents officiels (factures)."""
+    if current_user.role not in {"admin_entreprise", "super_admin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès refusé : seul l'administrateur de l'entreprise (DG/PDG) peut effectuer cette action.",
+        )
+
+
 def _login_lookup_conditions(identifier: str):
     """Construit la condition SQL pour trouver un user par email OU téléphone.
 
@@ -2341,6 +2352,7 @@ def update_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Invoice:
+    _require_company_owner(current_user)
     invoice = db.get(Invoice, invoice_id)
     if not invoice or invoice.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -2372,6 +2384,29 @@ def update_invoice(
     db.commit()
     db.refresh(invoice)
     return invoice
+
+
+@router.delete("/invoices/{invoice_id}", status_code=204)
+def delete_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Supprime une facture — réservé au DG/PDG (admin_entreprise), pour
+    corriger une erreur de saisie. Une facture payée ne peut pas être
+    supprimée (intégrité comptable) : émettre un avoir à la place."""
+    _require_company_owner(current_user)
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice or invoice.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == "paid":
+        raise HTTPException(
+            status_code=409,
+            detail="Facture payée : suppression impossible. Émettez un avoir pour corriger.",
+        )
+    db.delete(invoice)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/invoices/{invoice_id}/credit-note", response_model=InvoiceRead, status_code=201)

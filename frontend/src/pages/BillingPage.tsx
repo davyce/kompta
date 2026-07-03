@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, CheckCircle2, CreditCard, Download, FileSpreadsheet, FilePlus2, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Download, FileSpreadsheet, FilePlus2, Pencil, Plus, Search, Trash2, TrendingUp, Clock, AlertCircle, ReceiptText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 import { TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
@@ -10,6 +10,8 @@ import { api } from "../services/api";
 import { money, shortDate, compactMoney, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { exportTableToExcel } from "../utils/export";
+import { useAuth } from "../app/AuthContext";
+import { useConfirm } from "../components/ConfirmProvider";
 
 type InvoiceLine = { description: string; quantity: number; unit_price: number };
 type StatusFilter = "all" | "sent" | "paid" | "draft" | "overdue";
@@ -63,6 +65,11 @@ function KpiCard({ label, value, hint, icon: Icon, tone = "emerald" }: {
 export function BillingPage() {
   const { t: tr } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { confirm } = useConfirm();
+  // Suppression/rectification de facture réservée au DG/PDG (admin_entreprise) —
+  // évite qu'un employé corrige ou efface une facture par erreur.
+  const canManageInvoices = user?.role === "admin_entreprise" || user?.role === "super_admin";
   useCurrency();
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: api.invoices });
   const posSales = useQuery({ queryKey: ["posSales"], queryFn: () => api.posSales(200) });
@@ -131,6 +138,39 @@ export function BillingPage() {
       setTimeout(() => setRelanceToast(null), 4000);
     },
   });
+
+  const deleteInvoice = useMutation({
+    mutationFn: (id: number) => api.deleteInvoice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["overview"] });
+    },
+  });
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ customer_name: "", customer_email: "", due_date: "" });
+  const updateInvoiceMut = useMutation({
+    mutationFn: (id: number) => api.updateInvoice(id, editForm),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setEditingId(null);
+    },
+  });
+  function startEdit(row: BillingRow) {
+    const inv = (invoices.data ?? []).find((i) => i.id === row.id);
+    setEditForm({ customer_name: inv?.customer_name ?? "", customer_email: inv?.customer_email ?? "", due_date: inv?.due_date ?? "" });
+    setEditingId(row.id);
+  }
+
+  async function handleDeleteInvoice(id: number, number: string) {
+    const ok = await confirm({
+      title: tr("billing.deleteConfirmTitle"),
+      message: tr("billing.deleteConfirmMessage", { number }),
+      confirmLabel: tr("billing.delete"),
+      danger: true,
+    });
+    if (ok) deleteInvoice.mutate(id);
+  }
 
   const [exportingId, setExportingId] = useState<string | null>(null);
   async function exportInvoice(id: number, number: string) {
@@ -423,7 +463,66 @@ export function BillingPage() {
                         </button>
                       </div>
                     )}
+                    {r.kind === "invoice" && r.status !== "paid" && canManageInvoices && (
+                      <>
+                        <button
+                          onClick={() => startEdit(r)}
+                          title={tr("billing.edit")}
+                          className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteInvoice(r.id, r.number)}
+                          disabled={deleteInvoice.isPending}
+                          title={tr("billing.delete")}
+                          className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
                   </div>
+                  {editingId === r.id && (
+                    <div className="mt-2 w-full basis-full space-y-2 rounded-lg border border-black/[0.06] bg-stone-50 p-3 dark:border-white/10 dark:bg-white/5">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <input
+                          value={editForm.customer_name}
+                          onChange={(e) => setEditForm((f) => ({ ...f, customer_name: e.target.value }))}
+                          placeholder={tr("billing.clientPlaceholder")}
+                          className="rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
+                        />
+                        <input
+                          type="email"
+                          value={editForm.customer_email}
+                          onChange={(e) => setEditForm((f) => ({ ...f, customer_email: e.target.value }))}
+                          placeholder="email@client.com"
+                          className="rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
+                        />
+                        <input
+                          type="date"
+                          value={editForm.due_date}
+                          onChange={(e) => setEditForm((f) => ({ ...f, due_date: e.target.value }))}
+                          className="rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500 dark:bg-white/5 dark:border-white/10 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateInvoiceMut.mutate(r.id)}
+                          disabled={updateInvoiceMut.isPending}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {tr("common.save")}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="rounded-lg border border-black/[0.06] px-3 py-1.5 text-xs font-bold text-[#717182] hover:bg-stone-100 dark:border-white/10"
+                        >
+                          {tr("common.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

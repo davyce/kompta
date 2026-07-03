@@ -159,6 +159,15 @@ struct InvoicePayload: Encodable {
     var lines: [InvoiceLinePayload]
 }
 
+/// Rectification de facture (DG/PDG uniquement) — mêmes champs autorisés que
+/// le PATCH backend (customer_name/email/due_date/notes), tous optionnels.
+struct InvoiceUpdatePayload: Encodable {
+    var customer_name: String?
+    var customer_email: String?
+    var due_date: String?
+    var notes: String?
+}
+
 struct InvoicePaymentPayload: Encodable {
     var payment_method: String = "cash"
     var payment_account_id: Int?

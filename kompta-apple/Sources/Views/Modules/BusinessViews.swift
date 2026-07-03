@@ -811,11 +811,24 @@ struct InvoiceDetailView: View {
     let invoice: Invoice
     let onChanged: () async -> Void
     @EnvironmentObject private var theme: CompanyTheme
+    @EnvironmentObject private var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
     @State private var paying = false
     @State private var exporting = false
     @State private var exportURL: URL?
     @State private var relancing = false
+    @State private var showEdit = false
+    @State private var showDeleteConfirm = false
+    @State private var deleting = false
+    @State private var deleteError: String?
+
+    // Rectification/suppression réservées au DG/PDG (voir _require_company_owner
+    // côté backend) — une facture payée reste, elle, définitivement immuable.
+    private var canManage: Bool {
+        guard invoice.status != "paid" else { return false }
+        let role = auth.currentUser?.role ?? ""
+        return role == "admin_entreprise" || role == "super_admin"
+    }
 
     var body: some View {
         ScrollView {
@@ -903,7 +916,43 @@ struct InvoiceDetailView: View {
                 }
                 .disabled(exporting)
             }
+            if canManage {
+                ToolbarItem(placement: .secondaryAction) {
+                    Menu {
+                        Button { showEdit = true } label: { Label("Modifier", systemImage: "pencil") }
+                        Button(role: .destructive) { showDeleteConfirm = true } label: { Label("Supprimer", systemImage: "trash") }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
         }
+        .sheet(isPresented: $showEdit) {
+            InvoiceEditView(invoice: invoice, onSaved: onChanged)
+        }
+        .alert("Supprimer cette facture ?", isPresented: $showDeleteConfirm) {
+            Button("Annuler", role: .cancel) {}
+            Button("Supprimer", role: .destructive) { Task { await deleteInvoice() } }
+        } message: {
+            Text("La facture \(invoice.number) sera définitivement supprimée. Cette action est irréversible.")
+        }
+        .alert("Erreur", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError ?? "")
+        }
+    }
+
+    private func deleteInvoice() async {
+        deleting = true
+        do {
+            try await APIClient.shared.deleteInvoice(invoice.id)
+            await onChanged()
+            dismiss()
+        } catch {
+            deleteError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        deleting = false
     }
 
     private func exportInvoice() async {
@@ -950,6 +999,91 @@ struct InvoiceDetailView: View {
             dismiss()
         } catch { }
         paying = false
+    }
+}
+
+/// Rectification d'une facture (DG/PDG uniquement) — champs client + échéance,
+/// mêmes limites que le backend (impossible sur une facture déjà payée).
+struct InvoiceEditView: View {
+    let invoice: Invoice
+    let onSaved: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var customerName: String
+    @State private var customerEmail: String
+    @State private var hasDueDate: Bool
+    @State private var dueDate: Date
+    @State private var saving = false
+    @State private var errorMsg: String?
+
+    init(invoice: Invoice, onSaved: @escaping () async -> Void) {
+        self.invoice = invoice
+        self.onSaved = onSaved
+        _customerName = State(initialValue: invoice.customer_name)
+        _customerEmail = State(initialValue: invoice.customer_email ?? "")
+        if let due = invoice.due_date, let parsed = Self.isoDate.date(from: due) {
+            _hasDueDate = State(initialValue: true)
+            _dueDate = State(initialValue: parsed)
+        } else {
+            _hasDueDate = State(initialValue: false)
+            _dueDate = State(initialValue: Date())
+        }
+    }
+
+    private static let isoDate: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.calendar = Calendar(identifier: .gregorian)
+        return f
+    }()
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Client") {
+                    TextField("Nom du client", text: $customerName)
+                    TextField("E-mail (optionnel)", text: $customerEmail)
+                        #if os(iOS)
+                        .keyboardType(.emailAddress)
+                        #endif
+                    Toggle("Date d'échéance", isOn: $hasDueDate.animation())
+                    if hasDueDate {
+                        DatePicker("Échéance", selection: $dueDate, displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                    }
+                }
+                if let errorMsg {
+                    Section { Text(errorMsg).foregroundStyle(.red).font(.caption) }
+                }
+            }
+            .navigationTitle("Modifier la facture")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Enregistrer") { Task { await save() } }
+                        .disabled(customerName.isEmpty || saving)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        saving = true; errorMsg = nil
+        let payload = InvoiceUpdatePayload(
+            customer_name: customerName,
+            customer_email: customerEmail.isEmpty ? nil : customerEmail,
+            due_date: hasDueDate ? Self.isoDate.string(from: dueDate) : nil
+        )
+        do {
+            _ = try await APIClient.shared.updateInvoice(invoice.id, payload)
+            await onSaved()
+            dismiss()
+        } catch {
+            errorMsg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        saving = false
     }
 }
 
