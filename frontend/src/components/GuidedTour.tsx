@@ -338,21 +338,23 @@ export function GuidedTour() {
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-white/10">
             <div className="h-full rounded-full bg-emerald-600 transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-3 flex items-center justify-between">
-            <button onClick={finish} className="text-xs font-semibold text-[#717182] hover:text-[#17211f] dark:hover:text-white">
-              {tr("components.guidedTour.skip")}
-            </button>
-            <div className="flex items-center gap-2">
-              {idx > 0 && (
-                <button onClick={prev} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
-                  {tr("components.guidedTour.previous")}
-                </button>
-              )}
-              <button onClick={next} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700">
-                {isLast ? tr("components.guidedTour.finish") : tr("components.guidedTour.next")}
-                <ArrowRight size={15} />
+        </div>
+        {/* Pied — toujours visible (shrink-0), jamais masqué par le scroll du corps.
+            Garantit une échappatoire "Passer" atteignable en 1 tap dès l'étape 1. */}
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-black/[0.06] px-5 py-3 dark:border-white/10">
+          <button onClick={finish} className="text-xs font-semibold text-[#717182] hover:text-[#17211f] dark:hover:text-white">
+            {tr("components.guidedTour.skip")}
+          </button>
+          <div className="flex items-center gap-2">
+            {idx > 0 && (
+              <button onClick={prev} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
+                {tr("components.guidedTour.previous")}
               </button>
-            </div>
+            )}
+            <button onClick={next} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700">
+              {isLast ? tr("components.guidedTour.finish") : tr("components.guidedTour.next")}
+              <ArrowRight size={15} />
+            </button>
           </div>
         </div>
       </div>

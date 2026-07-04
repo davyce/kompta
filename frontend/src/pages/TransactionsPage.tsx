@@ -654,7 +654,7 @@ export function TransactionsPage() {
   const uniqueSources = [...new Set((txQuery.data ?? []).map((t) => t.source_type))];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -720,7 +720,7 @@ export function TransactionsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative w-full flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aaa]" />
           <input
             className="w-full rounded-lg border border-black/[0.08] bg-white py-2 pl-9 pr-3 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
@@ -729,24 +729,24 @@ export function TransactionsPage() {
           />
         </div>
         <select
-          className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
+          className="min-w-0 max-w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
         >
           <option value="">{tr("transactions.allCategories")}</option>
           {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{tr(c.tk)}</option>)}
         </select>
         <select
-          className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
+          className="min-w-0 max-w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}
         >
           <option value="">{tr("transactions.allSources")}</option>
           {uniqueSources.map((s) => <option key={s} value={s}>{srcLabel(s, tr)}</option>)}
         </select>
-        <div className="flex items-center gap-1.5 text-sm text-[#717182]">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 text-sm text-[#717182]">
           <span>{tr("transactions.from")}</span>
-          <input type="date" className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <input type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <span>{tr("transactions.to")}</span>
-          <input type="date" className="rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <input type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
         {(search || categoryFilter || sourceFilter || dateFrom || dateTo) && (
           <button

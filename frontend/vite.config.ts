@@ -68,7 +68,7 @@ export default defineConfig({
     ],
   },
   build: {
-    // vendor-export (xlsx + jsPDF) est chargé dynamiquement (await import) uniquement
+    // vendor-export (exceljs + jsPDF) est chargé dynamiquement (await import) uniquement
     // au clic sur un bouton d'export — jamais au chargement initial. La limite est
     // relevée pour ne pas polluer le build output avec un faux avertissement.
     chunkSizeWarningLimit: 1100,
@@ -76,7 +76,7 @@ export default defineConfig({
       output: {
         // Code-splitting manuel pour les grosses librairies (Vite 8 / Rolldown: fonction)
         manualChunks: (id: string) => {
-          if (id.includes("node_modules/xlsx") || id.includes("node_modules/jspdf") || id.includes("node_modules/html2canvas")) return "vendor-export";
+          if (id.includes("node_modules/exceljs") || id.includes("node_modules/jspdf") || id.includes("node_modules/html2canvas")) return "vendor-export";
           if (id.includes("node_modules/recharts") || id.includes("node_modules/react-is")) return "vendor-charts";
           if (id.includes("node_modules/lucide-react")) return "vendor-ui";
           if (id.includes("node_modules/@tanstack")) return "vendor-query";

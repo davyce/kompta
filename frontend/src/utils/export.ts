@@ -1,17 +1,34 @@
-// Imports dynamiques : jspdf / xlsx pèsent ~700 kB combinés. En les chargeant
-// uniquement au moment où l'utilisateur clique sur "Exporter", on évite de
-// gonfler le bundle initial (chunk vendor-export devient lazy).
+// Imports dynamiques : jspdf / exceljs pèsent plusieurs centaines de kB combinés.
+// En les chargeant uniquement au moment où l'utilisateur clique sur "Exporter",
+// on évite de gonfler le bundle initial (chunk vendor-export reste lazy).
 import i18n from "../i18n";
+
+/**
+ * Déclenche le téléchargement d'un classeur ExcelJS dans le navigateur.
+ */
+async function downloadWorkbook(workbook: import("exceljs").Workbook, filename: string): Promise<void> {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 
 /**
  * Export an array of objects to a .xlsx file download.
  */
 export async function exportToExcel(data: Record<string, unknown>[], filename: string): Promise<void> {
-  const XLSX = await import("xlsx");
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data");
-  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Data");
+  if (data.length > 0) {
+    sheet.columns = Object.keys(data[0]).map((key) => ({ header: key, key }));
+    data.forEach((row) => sheet.addRow(row));
+  }
+  await downloadWorkbook(workbook, filename);
 }
 
 /**
@@ -68,10 +85,10 @@ export async function exportTableToExcel(
   rows: (string | number)[][],
   filename: string
 ): Promise<void> {
-  const XLSX = await import("xlsx");
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Export");
-  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Export");
+  sheet.addRow(headers);
+  rows.forEach((row) => sheet.addRow(row));
+  await downloadWorkbook(workbook, filename);
 }

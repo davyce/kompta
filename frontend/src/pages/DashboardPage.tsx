@@ -1002,7 +1002,7 @@ export function DashboardPage() {
                       <span className="text-xs text-[#717182]">{r.p}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-[#717182]">{r.c} M {currencyLabel()}</td>
+                  <td className="px-5 py-3.5 text-[#717182]">{r.c}</td>
                   <td className="px-5 py-3.5">
                     <span className={`font-semibold ${r.t.startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
                       {r.t}
