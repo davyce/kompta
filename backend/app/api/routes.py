@@ -3670,32 +3670,37 @@ def reports_overview(
     avg_net_pay, payslip_count = (avg_payroll_row or (None, 0))
     avg_payroll_per_employee = round(float(avg_net_pay), 2) if avg_net_pay and payslip_count else None
 
+    kpis = {
+        "employees": employees,
+        "products": len(products),
+        "invoices_total":       round(invoices_total, 2),
+        "invoices_paid":        round(invoices_paid, 2),
+        "invoices_pending":     round(invoices_pending, 2),
+        "invoices_paid_count":  invoices_paid_count,
+        "sales_total":          round(sales_total, 2),
+        "open_tasks":           open_tasks,
+        "teras_score":          company.teras_score if company else 0,
+        # Real bank data from BankTransaction
+        "tx_count":             len(tx_rows),
+        "tx_credits":           round(tx_credits, 2),
+        "tx_debits":            round(tx_debits, 2),
+        "tx_balance":           tx_balance,
+        "tx_monthly_in":        tx_monthly_in,
+        "tx_monthly_out":       tx_monthly_out,
+        "tx_invoice_total":     tx_invoice_total,
+    }
+    # Réel, jamais fabriqué — mais la clé n'est ajoutée QUE si une valeur existe :
+    # les clients natifs (iOS/Mac) décodent `kpis` en [String: Double] strict, et
+    # une valeur JSON `null` dans ce dictionnaire fait échouer tout le décodage
+    # ("The data couldn't be read because it is missing").
+    if avg_payroll_per_employee is not None:
+        kpis["avg_payroll_per_employee"] = avg_payroll_per_employee
+
     return {
         "company": company.name if company else "KOMPTA",
         "branch": branch,
         "branches": branches,
-        "kpis": {
-            "employees": employees,
-            "products": len(products),
-            "invoices_total":       round(invoices_total, 2),
-            "invoices_paid":        round(invoices_paid, 2),
-            "invoices_pending":     round(invoices_pending, 2),
-            "invoices_paid_count":  invoices_paid_count,
-            "sales_total":          round(sales_total, 2),
-            "open_tasks":           open_tasks,
-            "teras_score":          company.teras_score if company else 0,
-            # Real bank data from BankTransaction
-            "tx_count":             len(tx_rows),
-            "tx_credits":           round(tx_credits, 2),
-            "tx_debits":            round(tx_debits, 2),
-            "tx_balance":           tx_balance,
-            "tx_monthly_in":        tx_monthly_in,
-            "tx_monthly_out":       tx_monthly_out,
-            "tx_invoice_total":     tx_invoice_total,
-            # Real average net pay per employee, computed from actual Payslip
-            # history (null if the company has no payslips yet).
-            "avg_payroll_per_employee": avg_payroll_per_employee,
-        },
+        "kpis": kpis,
         "low_stock": [{"id": item.id, "name": item.name, "stock_quantity": item.stock_quantity} for item in low_stock],
         "compliance": compliance_snapshot(),
     }
