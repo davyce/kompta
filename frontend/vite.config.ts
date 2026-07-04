@@ -76,11 +76,23 @@ export default defineConfig({
       output: {
         // Code-splitting manuel pour les grosses librairies (Vite 8 / Rolldown: fonction)
         manualChunks: (id: string) => {
+          // React + son runtime DOIVENT être dans le même chunk et se charger
+          // en premier — `react` (createContext, hooks) et `react-dom`/`scheduler`
+          // sont mutuellement dépendants. Les séparer (ou laisser `react` nu se
+          // faire assigner ailleurs par défaut) crée un cycle de chargement où
+          // un autre chunk appelle `React.createContext` avant que `react` soit
+          // initialisé → "Cannot read properties of undefined (reading
+          // 'createContext')", page blanche en production.
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom") ||
+            id.includes("node_modules/scheduler") ||
+            id.includes("node_modules/react-router")
+          ) return "vendor-react";
           if (id.includes("node_modules/exceljs") || id.includes("node_modules/jspdf") || id.includes("node_modules/html2canvas")) return "vendor-export";
           if (id.includes("node_modules/recharts") || id.includes("node_modules/react-is")) return "vendor-charts";
           if (id.includes("node_modules/lucide-react")) return "vendor-ui";
           if (id.includes("node_modules/@tanstack")) return "vendor-query";
-          if (id.includes("node_modules/react-dom") || id.includes("node_modules/react-router")) return "vendor-react";
         },
       },
     },
