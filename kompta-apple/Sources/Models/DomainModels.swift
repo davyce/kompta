@@ -242,6 +242,13 @@ struct BankTransactionPayload: Encodable {
     var notes: String?
 }
 
+struct CashDepositPayload: Encodable {
+    var payment_account_id: Int?
+    var amount: Double
+    var date: String
+    var label: String?
+}
+
 struct TransactionStats: Codable {
     let count: Int
     let total_credits: Double

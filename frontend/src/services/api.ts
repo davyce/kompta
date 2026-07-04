@@ -1309,6 +1309,8 @@ export const api = {
     request<BankTransactionDto>(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteTransaction: (id: number) =>
     request<void>(`/transactions/${id}`, { method: "DELETE" }),
+  createCashDeposit: (payload: CashDepositCreateDto) =>
+    request<BankTransactionDto>("/transactions/cash-deposit", { method: "POST", body: JSON.stringify(payload) }),
   importTransactions: (file: File, sourceType?: string): Promise<TransactionImportResult> => {
     const form = new FormData();
     form.append("file", file);
@@ -2184,6 +2186,13 @@ export type BankTransactionCreateDto = {
 };
 
 export type BankTransactionUpdateDto = Partial<BankTransactionCreateDto>;
+
+export type CashDepositCreateDto = {
+  payment_account_id?: number | null;
+  amount: number;
+  date: string;
+  label?: string;
+};
 
 export type TransactionImportResult = {
   imported: number;

@@ -414,6 +414,7 @@ actor APIClient {
     func createTransaction(_ p: BankTransactionPayload) async throws -> BankTransaction { try await post("/transactions", body: p) }
     func updateTransaction(_ id: Int, _ p: BankTransactionPayload) async throws -> BankTransaction { try await put("/transactions/\(id)", body: p) }
     func deleteTransaction(_ id: Int) async throws { try await delete("/transactions/\(id)") }
+    func createCashDeposit(_ p: CashDepositPayload) async throws -> BankTransaction { try await post("/transactions/cash-deposit", body: p) }
 
     // MARK: - Budget
 

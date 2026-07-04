@@ -1367,6 +1367,7 @@ private let txCategories: [(key: String, label: String)] = [
     ("transferts_internes", "Transferts internes"),
     ("emprunts_remboursements", "Emprunts"),
     ("tresorerie", "Trésorerie"),
+    ("depot_tresorerie", "Dépôt de trésorerie"),
     ("divers_entrees", "Divers entrées"),
     ("divers_sorties", "Divers sorties"),
     ("divers", "Divers"),
@@ -1437,6 +1438,7 @@ struct TransactionsView: View {
     @StateObject private var txns = Loadable<[BankTransaction]>()
     @StateObject private var statsState = Loadable<TransactionStats>()
     @State private var showNew = false
+    @State private var showCashDeposit = false
     @State private var editTxn: BankTransaction?
     @State private var typeFilter = "all"
     @State private var search = ""
@@ -1562,6 +1564,9 @@ struct TransactionsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
             ToolbarItem(placement: .secondaryAction) {
+                Button { showCashDeposit = true } label: { Label("Dépôt de trésorerie", systemImage: "tray.and.arrow.down") }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 // Transcription IA : accepte PDF, Excel, CSV, image (relevé banque/MoMo)
                 // → Limule extrait les transactions et les ajoute au flux.
                 CsvImportButton(
@@ -1576,6 +1581,7 @@ struct TransactionsView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showNew) { TransactionFormView { await load() } }
+        .sheet(isPresented: $showCashDeposit) { CashDepositFormView { await load() } }
         .sheet(item: $editTxn) { t in TransactionEditSheet(txn: t) { await load() } }
     }
 
@@ -1669,6 +1675,78 @@ struct TransactionFormView: View {
             category: category, counterpart: counterpart.isEmpty ? nil : counterpart)
         do { _ = try await APIClient.shared.createTransaction(payload); await onSaved(); dismiss() }
         catch { }
+        saving = false
+    }
+}
+
+struct CashDepositFormView: View {
+    let onSaved: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var accountsState = Loadable<[PaymentAccount]>()
+    @State private var amount = ""
+    @State private var accountId: Int?
+    @State private var date = Date()
+    @State private var note = ""
+    @State private var saving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Espèces déposées depuis votre coffre, ajoutées à votre trésorerie suivie.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Dépôt") {
+                    TextField("Montant *", text: $amount)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    Picker("Compte", selection: $accountId) {
+                        Text("Espèces (caisse)").tag(Int?.none)
+                        ForEach(accountsState.value ?? []) { acc in
+                            Text(acc.label).tag(Int?.some(acc.id))
+                        }
+                    }
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    TextField("Note (optionnel)", text: $note)
+                }
+                if let errorMessage {
+                    Section { Text(errorMessage).foregroundStyle(.red).font(.footnote) }
+                }
+            }
+            .navigationTitle("Dépôt de trésorerie")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Déposer") { Task { await save() } }
+                        .disabled((Double(amount) ?? 0) <= 0 || saving)
+                }
+            }
+            .task { await accountsState.load { try await APIClient.shared.paymentAccounts() } }
+        }
+    }
+
+    private func save() async {
+        saving = true
+        errorMessage = nil
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let payload = CashDepositPayload(
+            payment_account_id: accountId,
+            amount: Double(amount) ?? 0,
+            date: f.string(from: date),
+            label: note.isEmpty ? nil : note)
+        do {
+            _ = try await APIClient.shared.createCashDeposit(payload)
+            await onSaved()
+            dismiss()
+        } catch {
+            errorMessage = "Le dépôt n'a pas pu être enregistré. Réessayez."
+        }
         saving = false
     }
 }

@@ -28,8 +28,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user, get_db
-from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount
-from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate
+from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount, Company
+from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate, CashDepositCreate
+from app.services import accounting as _accounting
 from app.services.currency import convert_to_xaf
 
 router = APIRouter(tags=["transactions"])
@@ -254,6 +255,87 @@ def create_transaction(
 ) -> BankTransaction:
     txn = BankTransaction(**payload.model_dump(), company_id=current_user.company_id)
     db.add(txn)
+    db.commit()
+    db.refresh(txn)
+    return txn
+
+
+@router.post("/transactions/cash-deposit", response_model=BankTransactionRead, status_code=201)
+def create_cash_deposit(
+    payload: CashDepositCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> BankTransaction:
+    """Dépôt de trésorerie : enregistre l'ajout d'espèces (issues du coffre par ex.)
+    dans la trésorerie suivie. Repostable à volonté (chaque dépôt est un mouvement
+    distinct), contrairement au solde d'ouverture qui est unique par compte.
+
+    Poste une écriture équilibrée : Dr compte de trésorerie / Cr 101 Capital.
+    Atomique : si l'écriture comptable échoue, la transaction bancaire est annulée
+    (cf. pattern ACC-01 dans create_sale).
+    """
+    payment_account: PaymentAccount | None = None
+    currency = "XAF"
+    account_code = "571"  # Caisse espèces par défaut
+    account_label = "Espèces (caisse)"
+    if payload.payment_account_id is not None:
+        payment_account = db.scalar(
+            select(PaymentAccount).where(
+                PaymentAccount.id == payload.payment_account_id,
+                PaymentAccount.company_id == current_user.company_id,
+            )
+        )
+        if not payment_account:
+            raise HTTPException(status_code=404, detail="Compte de paiement introuvable")
+        currency = payment_account.currency or "XAF"
+        account_code = _accounting.treasury_account_code(payment_account.provider)
+        account_label = payment_account.label or account_label
+
+    label = payload.label.strip() if payload.label else f"Dépôt de trésorerie ({account_label})"
+
+    txn = BankTransaction(
+        company_id=current_user.company_id,
+        payment_account_id=payload.payment_account_id,
+        date=payload.date,
+        label=label,
+        amount=payload.amount,
+        debit=None,
+        credit=payload.amount,
+        currency=currency,
+        category="depot_tresorerie",
+        source_type="depot_tresorerie",
+        status="confirmed",
+    )
+    db.add(txn)
+    db.flush()
+
+    company = db.get(Company, current_user.company_id)
+    amount_xaf = convert_to_xaf(payload.amount, currency, current_user.company_id, db)
+    amount_cents = _accounting.to_cents(amount_xaf)
+    try:
+        if amount_cents > 0:
+            lines = [
+                {"code": account_code, "debit": amount_cents, "credit": 0, "label": label},
+                {"code": "101", "debit": 0, "credit": amount_cents, "label": "Capital — dépôt de trésorerie"},
+            ]
+            _accounting.post_entry(
+                db,
+                company_id=current_user.company_id,
+                label=label,
+                lines=lines,
+                source_type="cash_deposit",
+                source_id=txn.id,
+                entry_date=datetime.strptime(payload.date, "%Y-%m-%d").date(),
+                currency="XAF",
+                user_id=current_user.id,
+            )
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Le dépôt de trésorerie n'a pas pu être enregistré (échec de l'écriture comptable). Réessayez.",
+        )
+
     db.commit()
     db.refresh(txn)
     return txn

@@ -1258,6 +1258,13 @@ class BankTransactionRead(BaseModel):
     updated_at: datetime
 
 
+class CashDepositCreate(BaseModel):
+    payment_account_id: int | None = None
+    amount: float = Field(gt=0)
+    date: str
+    label: str = ""
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # CRM léger — pipeline d'opportunités
 # ─────────────────────────────────────────────────────────────────────────

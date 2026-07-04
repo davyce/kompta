@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 
 import { api } from "../services/api";
-import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdateDto } from "../services/api";
+import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdateDto, CashDepositCreateDto } from "../services/api";
+import type { PaymentAccount } from "../types/domain";
 import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { LimuleIcon } from "../components/LimuleAvatar";
@@ -31,6 +32,7 @@ const CATEGORIES: { key: string; tk: string; color: string }[] = [
   { key: "transferts_internes",     tk: "transactions.catTransfertsInternes", color: "#64748b" },
   { key: "emprunts_remboursements", tk: "transactions.catEmprunts",           color: "#92400e" },
   { key: "tresorerie",              tk: "transactions.catTresorerie",         color: "#0369a1" },
+  { key: "depot_tresorerie",        tk: "transactions.catDepotTresorerie",    color: "#0d9488" },
   { key: "divers_entrees",          tk: "transactions.catDiversEntrees",     color: "#16a34a" },
   { key: "divers_sorties",          tk: "transactions.catDiversSorties",     color: "#b91c1c" },
 ];
@@ -492,6 +494,64 @@ function NewTransactionModal({ onClose, onSave, saving }: {
   );
 }
 
+function CashDepositModal({ accounts, onClose, onSave, saving }: {
+  accounts: PaymentAccount[];
+  onClose: () => void;
+  onSave: (payload: CashDepositCreateDto) => void;
+  saving: boolean;
+}) {
+  const { t: tr } = useTranslation();
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ amount: "", accountId: "", date: today, label: "" });
+  function field<K extends keyof typeof form>(k: K, v: string) { setForm((f) => ({ ...f, [k]: v })); }
+  const amountValue = parseFloat(form.amount);
+  const canSubmit = form.amount !== "" && !Number.isNaN(amountValue) && amountValue > 0 && !!form.date;
+  function submit() {
+    if (!canSubmit) return;
+    onSave({
+      payment_account_id: form.accountId ? Number(form.accountId) : null,
+      amount: amountValue,
+      date: form.date,
+      label: form.label || undefined,
+    });
+  }
+  const inputCls = "w-full rounded-lg border border-black/[0.08] bg-[#f7f8fa] px-3 py-2 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#14181f] dark:text-white";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.cashDeposit.title")}</h3>
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-[#717182]">{tr("transactions.cashDeposit.description")}</p>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.cashDeposit.amount")}</label>
+            <input type="number" step="0.01" min="0" className={inputCls} value={form.amount} onChange={(e) => field("amount", e.target.value)} placeholder="0" />
+          </div>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.cashDeposit.account")}</label>
+            <select className={inputCls} value={form.accountId} onChange={(e) => field("accountId", e.target.value)}>
+              <option value="">{tr("transactions.cashDeposit.cashOption")}</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </div>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.dateReq")}</label>
+            <input type="date" className={inputCls} value={form.date} onChange={(e) => field("date", e.target.value)} />
+          </div>
+          <div><label className="block text-xs font-semibold text-[#717182] mb-1">{tr("transactions.cashDeposit.note")}</label>
+            <input className={inputCls} value={form.label} onChange={(e) => field("label", e.target.value)} placeholder={tr("transactions.cashDeposit.notePlaceholder")} />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-black/[0.06] dark:border-white/[0.06] px-6 py-4">
+          <button onClick={onClose} className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-[#717182] hover:bg-black/[0.04]">{tr("common.cancel")}</button>
+          <button onClick={submit} disabled={saving || !canSubmit} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+            {saving ? tr("transactions.creating") : tr("transactions.cashDeposit.submit")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Multi-currency amount formatter ───────────────────────────────────────────
 function formatTxAmount(amount: number, txCurrency: string): string {
   const activeCurr = getActiveCurrency();
@@ -521,6 +581,7 @@ export function TransactionsPage() {
   const [dateTo, setDateTo] = useState("");
   const [editTxn, setEditTxn] = useState<BankTransactionDto | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [showCashDeposit, setShowCashDeposit] = useState(false);
   const [showReconciliation, setShowReconciliation] = useState(false);
   const [importState, setImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [importMsg, setImportMsg] = useState("");
@@ -537,11 +598,24 @@ export function TransactionsPage() {
     queryKey: ["transactionStats"],
     queryFn: api.transactionStats,
   });
+  const paymentAccountsQuery = useQuery({
+    queryKey: ["payment-accounts"],
+    queryFn: api.paymentAccounts,
+  });
 
   // ── Mutations
   const createMut = useMutation({
     mutationFn: api.createTransaction,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); queryClient.invalidateQueries({ queryKey: ["transactionStats"] }); setShowNew(false); },
+  });
+  const cashDepositMut = useMutation({
+    mutationFn: api.createCashDeposit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactionStats"] });
+      queryClient.invalidateQueries({ queryKey: ["accountingBalance"] });
+      setShowCashDeposit(false);
+    },
   });
   const updateMut = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: BankTransactionUpdateDto }) => api.updateTransaction(id, payload),
@@ -676,6 +750,9 @@ export function TransactionsPage() {
           <button onClick={() => setShowReconciliation(true)} className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition">
             <Landmark size={15} /> {tr("bankReconciliation.title", "Réconciliation bancaire")}
           </button>
+          <button onClick={() => setShowCashDeposit(true)} className="flex items-center gap-2 rounded-lg border border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10 px-3 py-2 text-sm font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-500/20 transition">
+            <Landmark size={15} /> {tr("transactions.cashDeposit.button")}
+          </button>
           <button onClick={() => setShowNew(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
             <Plus size={15} /> {tr("transactions.newBtn")}
           </button>
@@ -683,6 +760,14 @@ export function TransactionsPage() {
       </div>
 
       {showReconciliation && <BankReconciliationModal onClose={() => setShowReconciliation(false)} />}
+      {showCashDeposit && (
+        <CashDepositModal
+          accounts={paymentAccountsQuery.data ?? []}
+          onClose={() => setShowCashDeposit(false)}
+          onSave={(payload) => cashDepositMut.mutate(payload)}
+          saving={cashDepositMut.isPending}
+        />
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
