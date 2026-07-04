@@ -137,6 +137,15 @@ def convert_opportunity_to_invoice(
     if opportunity.stage != "gagne":
         raise HTTPException(422, "Seule une opportunité 'gagnée' peut être convertie en facture")
 
+    existing_invoice = db.scalar(
+        select(Invoice).where(
+            Invoice.source_opportunity_id == opportunity.id,
+            Invoice.company_id == current_user.company_id,
+        )
+    )
+    if existing_invoice is not None:
+        raise HTTPException(409, "Cette opportunité a déjà été convertie en facture.")
+
     client = None
     if opportunity.client_id is not None:
         client = db.get(Client, opportunity.client_id)

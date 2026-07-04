@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import CompanyPaymentMethod, PaymentTransaction, User
+from app.models import CompanyPaymentMethod, Invoice, PaymentTransaction, Sale, User
 from app.services import payments as pay
 
 router = APIRouter(tags=["payments"])
@@ -392,6 +392,41 @@ def _method_has_required_fields(m: CompanyPaymentMethod) -> bool:
     return False
 
 
+_PAYMENT_MANAGER_ROLES = {"super_admin", "admin_entreprise", "manager_entreprise"}
+
+
+def _assert_can_manage_payment_methods(user: User) -> None:
+    """PAY-01 : seuls les rôles d'administration peuvent modifier les
+    coordonnées d'encaissement (un caissier ne doit jamais le pouvoir)."""
+    if user.role in _PAYMENT_MANAGER_ROLES:
+        return
+    if user.custom_role and "payments.manage" in (user.permissions or []):
+        return
+    raise HTTPException(403, "Vous n'avez pas la permission de gérer les moyens d'encaissement.")
+
+
+def _assert_valid_payment_source(db: Session, company_id: int, sale_id: int | None, invoice_id: int | None, amount_cents: int) -> None:
+    """PAY-02 : un encaissement `succeeded` doit obligatoirement référencer
+    une vente ou une facture existante de la même entreprise (pas de paiement
+    orphelin), et son montant ne doit pas dépasser le solde dû."""
+    if not sale_id and not invoice_id:
+        raise HTTPException(400, "Un encaissement doit référencer une vente ou une facture (sale_id/invoice_id requis).")
+    if sale_id and invoice_id:
+        raise HTTPException(400, "Un encaissement ne peut référencer qu'une seule pièce source.")
+    if sale_id:
+        sale = db.scalar(select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id))
+        if sale is None:
+            raise HTTPException(404, "Vente introuvable.")
+        if amount_cents > (sale.total_amount_cents or round(sale.total_amount * 100)):
+            raise HTTPException(400, "Le montant dépasse le total de la vente.")
+    if invoice_id:
+        invoice = db.scalar(select(Invoice).where(Invoice.id == invoice_id, Invoice.company_id == company_id))
+        if invoice is None:
+            raise HTTPException(404, "Facture introuvable.")
+        if amount_cents > (invoice.total_amount_cents or round(invoice.total_amount * 100)):
+            raise HTTPException(400, "Le montant dépasse le total de la facture.")
+
+
 def company_can_collect(db: Session, company_id: int) -> bool:
     """True si l'entreprise a au moins une méthode activée ET vérifiée."""
     methods = db.scalars(
@@ -422,6 +457,7 @@ def upsert_payment_method(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    _assert_can_manage_payment_methods(current_user)
     if payload.provider not in _VALID_PROVIDERS:
         raise HTTPException(400, "Méthode d'encaissement inconnue.")
     if payload.provider == "card_stripe" and not get_settings().stripe_enabled:
@@ -469,6 +505,7 @@ def delete_payment_method(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
+    _assert_can_manage_payment_methods(current_user)
     m = db.scalar(
         select(CompanyPaymentMethod).where(
             CompanyPaymentMethod.id == method_id,
@@ -597,6 +634,7 @@ def record_direct_payment(
         raise HTTPException(404, "Méthode d'encaissement introuvable.")
     if not (m.enabled and m.verified):
         raise HTTPException(400, "Cette méthode d'encaissement n'est pas activée/vérifiée.")
+    _assert_valid_payment_source(db, current_user.company_id, payload.sale_id, payload.invoice_id, payload.amount_cents)
     _reject_if_already_paid(db, current_user.company_id, payload.sale_id, payload.invoice_id)
 
     ref = pay.new_reference()

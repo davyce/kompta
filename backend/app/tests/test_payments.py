@@ -454,11 +454,32 @@ def test_collection_methods_lifecycle() -> None:
 def test_record_direct_payment_requires_verified_method() -> None:
     with TestClient(app) as client:
         h = _auth(client)
+        suffix = uuid4().hex[:8]
+        # Un encaissement direct doit obligatoirement référencer une pièce
+        # source réelle (PAY-02) : on crée une vente POS à encaisser.
+        product = client.post("/api/products", headers=h, json={
+            "name": f"Produit comptoir {suffix}", "sku": f"CPT-{suffix}", "category": "Tests",
+            "price": 2500, "stock_quantity": 5,
+        })
+        assert product.status_code == 201
+        sale = client.post("/api/pos/sales", headers=h, json={
+            "payment_method": "cash",
+            "items": [{"product_id": product.json()["id"], "quantity": 1}],
+        })
+        assert sale.status_code == 201, sale.text
+
         # méthode espèces vérifiée
         m = client.post("/api/payments/methods", headers=h, json={"provider": "cash", "enabled": True}).json()
-        r = client.post("/api/payments/record", headers=h, json={"method_id": m["id"], "amount_cents": 250000, "currency": "XAF", "description": "Vente comptoir"})
+        r = client.post("/api/payments/record", headers=h, json={
+            "method_id": m["id"], "amount_cents": 250000, "currency": "XAF",
+            "sale_id": sale.json()["id"], "description": "Vente comptoir",
+        })
         assert r.status_code == 200, r.text
         assert r.json()["status"] == "succeeded" and r.json()["provider"] == "cash"
 
         # méthode inexistante → 404
-        assert client.post("/api/payments/record", headers=h, json={"method_id": 999999, "amount_cents": 1000}).status_code == 404
+        assert client.post("/api/payments/record", headers=h, json={"method_id": 999999, "amount_cents": 1000, "sale_id": sale.json()["id"]}).status_code == 404
+
+        # paiement direct sans pièce source (ni sale_id ni invoice_id) → 400 (PAY-02)
+        m2 = client.post("/api/payments/methods", headers=h, json={"provider": "cash", "enabled": True}).json()
+        assert client.post("/api/payments/record", headers=h, json={"method_id": m2["id"], "amount_cents": 1000}).status_code == 400

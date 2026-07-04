@@ -100,6 +100,8 @@ def set_portal_password(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SetPortalPasswordResponse:
+    if current_user.role not in {"super_admin", "admin_entreprise", "manager_entreprise"} and "portal.manage" not in (current_user.permissions or []):
+        raise HTTPException(status_code=403, detail="Vous n'avez pas la permission de gérer l'accès portail des clients.")
     client = db.get(Client, payload.client_id)
     if not client or client.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Client introuvable")

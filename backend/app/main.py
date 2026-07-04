@@ -309,10 +309,11 @@ def _required_permission(path: str) -> str | None:
         return amap.get(seg[1])
     cmap = {
         "invoices": "billing", "clients": "clients", "products": "inventory", "inventory": "inventory",
-        "transactions": "transactions", "budget": "budget", "investments": "investments",
+        "transactions": "transactions", "treasury": "transactions", "budget": "budget", "investments": "investments",
         "accounting": "accounting", "employees": "hr", "payroll": "payroll", "pos": "pos",
         "teras": "teras", "declarations": "declarations", "legislation": "legislation",
         "fiscal": "fiscal", "documents": "documents", "tasks": "tasks",
+        "crm": "crm", "roles": "company", "payments": "company",
     }
     return cmap.get(r)
 
@@ -322,6 +323,11 @@ async def custom_role_enforcement(request: Request, call_next):
     path = request.url.path
     if not path.startswith(settings.api_prefix) or f"{settings.api_prefix}/auth" in path:
         return await call_next(request)
+
+    # Étape 1 : décodage du jeton — fail-open ici est sûr, car un jeton
+    # absent/invalide sera de toute façon rejeté par la dépendance
+    # `get_current_user` de la route elle-même (401).
+    payload = None
     try:
         from app.core.security import decode_access_token as _dec
         token: str | None = None
@@ -331,27 +337,43 @@ async def custom_role_enforcement(request: Request, call_next):
         if not token:
             token = request.cookies.get(settings.auth_cookie_name)
         payload = _dec(token) if token else None
-        if payload and payload.get("sub"):
-            from app.models import CustomRole as _Role, User as _User
+    except Exception:
+        payload = None
+
+    if payload and payload.get("sub"):
+        # Étape 2 : contrôle de permission — DOIT échouer fermé (fail-closed).
+        # Toute erreur ici bloque la requête plutôt que de la laisser passer,
+        # car un custom_role_id existant signifie un utilisateur à privilèges
+        # restreints : un bug d'enforcement ne doit jamais s'ouvrir sur un accès complet.
+        from fastapi.responses import JSONResponse
+        from app.models import CustomRole as _Role, User as _User
+        try:
             with SessionLocal() as _db:
                 _u = _db.get(_User, int(payload["sub"]))
                 if _u and _u.custom_role_id:
                     role = _db.get(_Role, _u.custom_role_id)
-                    if role:
-                        import json as _json
-                        try:
-                            perms = set(_json.loads(role.permissions or "[]"))
-                        except Exception:
-                            perms = set()
-                        req_perm = _required_permission(path)
-                        if req_perm and req_perm not in perms:
-                            from fastapi.responses import JSONResponse
-                            return JSONResponse(
-                                status_code=403,
-                                content={"detail": "Accès non autorisé par votre rôle.", "code": "role_forbidden"},
-                            )
-    except Exception:
-        pass  # ne jamais bloquer sur une erreur d'enforcement
+                    if not role:
+                        return JSONResponse(
+                            status_code=403,
+                            content={"detail": "Rôle introuvable.", "code": "role_forbidden"},
+                        )
+                    import json as _json
+                    try:
+                        perms = set(_json.loads(role.permissions or "[]"))
+                    except Exception:
+                        perms = set()
+                    req_perm = _required_permission(path)
+                    if req_perm and req_perm not in perms:
+                        return JSONResponse(
+                            status_code=403,
+                            content={"detail": "Accès non autorisé par votre rôle.", "code": "role_forbidden"},
+                        )
+        except Exception:
+            logger.exception("custom_role_enforcement: échec du contrôle de permission — accès refusé (fail-closed)")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Contrôle d'accès indisponible.", "code": "role_forbidden"},
+            )
     return await call_next(request)
 
 

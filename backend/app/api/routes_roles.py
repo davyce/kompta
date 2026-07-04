@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import CustomRole, User
+from app.models import CustomRole, GroupMember, User
 
 router = APIRouter(tags=["roles"])
 
@@ -47,6 +47,8 @@ PERMISSION_CATALOG: list[dict] = [
     {"key": "documents", "label": "Documents", "scopes": ["company"]},
     {"key": "tasks", "label": "Tâches", "scopes": ["company"]},
     {"key": "projects", "label": "Projets", "scopes": ["company"]},
+    {"key": "crm", "label": "CRM / Pipeline commercial", "scopes": ["company"]},
+    {"key": "portal", "label": "Portail client", "scopes": ["company"]},
     {"key": "company", "label": "Profil entreprise", "scopes": ["company"]},
     {"key": "audit", "label": "Audit entreprise", "scopes": ["company"]},
     # Admin (staff plateforme)
@@ -109,6 +111,26 @@ def _can_manage_roles(user: User, scope: str) -> bool:
     return user.role in {"super_admin", "admin_entreprise", "manager_entreprise"}
 
 
+def _assert_same_tenant(db: Session, user: User, role: CustomRole) -> None:
+    """Empêche l'accès/la modification inter-entreprises d'un rôle personnalisé (IDOR)."""
+    if user.role == "super_admin":
+        return
+    if role.scope == "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    if role.scope == "group":
+        if role.group_id is None or not db.scalar(
+            select(GroupMember.id).where(
+                GroupMember.group_id == role.group_id,
+                GroupMember.user_id == user.id,
+            )
+        ):
+            raise HTTPException(status_code=403, detail="Rôle hors de votre groupe")
+        return
+    # scope == "company"
+    if role.company_id != user.company_id:
+        raise HTTPException(status_code=403, detail="Rôle hors de votre entreprise")
+
+
 @router.get("/roles/permissions")
 def list_permissions(scope: str | None = None) -> list[dict]:
     if scope:
@@ -159,6 +181,7 @@ def update_role(role_id: int, payload: RolePayload, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Rôle introuvable")
     if not _can_manage_roles(current_user, role.scope):
         raise HTTPException(status_code=403, detail="Accès refusé")
+    _assert_same_tenant(db, current_user, role)
     role.name = payload.name.strip()
     role.description = payload.description.strip()
     role.permissions = json.dumps(payload.permissions)
@@ -175,6 +198,7 @@ def delete_role(role_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Rôle introuvable")
     if not _can_manage_roles(current_user, role.scope):
         raise HTTPException(status_code=403, detail="Accès refusé")
+    _assert_same_tenant(db, current_user, role)
     # détacher les utilisateurs
     for u in db.scalars(select(User).where(User.custom_role_id == role_id)).all():
         u.custom_role_id = None
@@ -226,6 +250,7 @@ def assign_role(user_id: int, payload: AssignRolePayload, db: Session = Depends(
         role = db.get(CustomRole, payload.custom_role_id)
         if not role:
             raise HTTPException(status_code=404, detail="Rôle introuvable")
+        _assert_same_tenant(db, current_user, role)
     user.custom_role_id = payload.custom_role_id
     db.commit()
     return {"user_id": user_id, "custom_role_id": payload.custom_role_id}
