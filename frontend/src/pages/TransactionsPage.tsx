@@ -740,7 +740,7 @@ export function TransactionsPage() {
             {tr("transactions.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={handleExport} className="flex items-center gap-2 rounded-lg border border-black/[0.08] px-3 py-2 text-sm font-semibold text-[#717182] hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04] transition">
             <Download size={15} /> {tr("transactions.exportCsv")}
           </button>
