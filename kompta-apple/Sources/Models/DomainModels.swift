@@ -423,6 +423,24 @@ struct PaymentAccountPayload: Encodable {
     var use_for_payroll: Bool = false
 }
 
+// MARK: - Opening balance (solde d'ouverture)
+
+struct OpeningBalance: Codable, Identifiable, Hashable {
+    let id: Int
+    let payment_account_id: Int?
+    let amount: Double
+    let currency: String
+    let date: String
+    let label: String
+}
+
+struct OpeningBalancePayload: Encodable {
+    var payment_account_id: Int?
+    var amount: Double
+    var entry_date: String?
+    var label: String?
+}
+
 // MARK: - Tasks / Work / Kanban
 
 struct KTask: Codable, Identifiable, Hashable {

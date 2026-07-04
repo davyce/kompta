@@ -3632,6 +3632,18 @@
         "instructions": "Ex: verify the receipt before validation..."
       }
     },
+    "openingBalance": {
+      "title": "Opening balance",
+      "subtitle": "Enter the cash and account balances you already have when you start using KOMPTA, so bookkeeping starts from the right amount instead of zero. Editable at any time.",
+      "cash": "Cash register",
+      "current": "Current",
+      "none": "No opening balance set",
+      "add": "Add",
+      "amount": "Amount",
+      "date": "Date",
+      "label": "Label",
+      "defaultLabel": "Opening balance"
+    },
     "subscription": {
       "title": "KOMPTA subscription",
       "subtitle": "Choose your plan and pay by card, Mobile Money, or Zola."

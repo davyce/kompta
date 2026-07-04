@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Account, Company, JournalEntry, User
+from app.models import Account, BankTransaction, Company, JournalEntry, PaymentAccount, User
 from app.services import accounting as acc
+from app.services.currency import convert_to_xaf
 from app.services.readiness import build_ohada_readiness
 
 router = APIRouter(prefix="/accounting", tags=["accounting"])
@@ -50,6 +51,13 @@ class ManualEntry(BaseModel):
     label: str
     entry_date: date | None = None
     lines: list[ManualLine]
+
+
+class OpeningBalanceUpdate(BaseModel):
+    payment_account_id: int | None = None  # None = caisse espèces
+    amount: float = Field(ge=0)
+    entry_date: date | None = None
+    label: str = ""
 
 
 # ── Mode ────────────────────────────────────────────────────────────────────
@@ -202,3 +210,153 @@ def reverse_entry(
     origin.reversed_entry_id = reversal.id
     db.commit()
     return {"id": reversal.id, "reference": reversal.reference, "reverses": origin.reference}
+
+
+# ── Solde d'ouverture (trésorerie de départ) ────────────────────────────────
+def _opening_balance_account_code(payment_account: PaymentAccount | None) -> str:
+    if payment_account is None:
+        return "571"  # Caisse espèces
+    return acc.treasury_account_code(payment_account.provider)
+
+
+def _serialize_opening_balance(txn: BankTransaction) -> dict:
+    return {
+        "id": txn.id,
+        "payment_account_id": txn.payment_account_id,
+        "amount": txn.amount,
+        "currency": txn.currency,
+        "date": txn.date,
+        "label": txn.label,
+    }
+
+
+@router.get("/opening-balance")
+def list_opening_balances(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Liste des soldes d'ouverture déjà saisis pour la société (un par compte, None = caisse)."""
+    rows = db.scalars(
+        select(BankTransaction).where(
+            BankTransaction.company_id == current_user.company_id,
+            BankTransaction.source_type == "solde_ouverture",
+        )
+    ).all()
+    return [_serialize_opening_balance(r) for r in rows]
+
+
+@router.post("/opening-balance", status_code=201)
+def set_opening_balance(
+    payload: OpeningBalanceUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Crée ou met à jour le solde d'ouverture d'un compte (ou de la caisse si payment_account_id=None).
+
+    Poste une écriture comptable équilibrée : Dr compte de trésorerie / Cr 101 Capital
+    (contre-passation de l'ancienne écriture si un solde d'ouverture existait déjà pour ce compte).
+    """
+    if not _can_manage_accounting(current_user):
+        raise HTTPException(status_code=403, detail="Permission comptable insuffisante")
+
+    company = db.get(Company, current_user.company_id)
+
+    payment_account: PaymentAccount | None = None
+    currency = "XAF"
+    if payload.payment_account_id is not None:
+        payment_account = db.scalar(
+            select(PaymentAccount).where(
+                PaymentAccount.id == payload.payment_account_id,
+                PaymentAccount.company_id == current_user.company_id,
+            )
+        )
+        if not payment_account:
+            raise HTTPException(status_code=404, detail="Compte de paiement introuvable")
+        currency = payment_account.currency or "XAF"
+
+    entry_date = payload.entry_date or date.today()
+    label = payload.label or "Solde d'ouverture"
+    account_code = _opening_balance_account_code(payment_account)
+
+    existing = db.scalar(
+        select(BankTransaction).where(
+            BankTransaction.company_id == current_user.company_id,
+            BankTransaction.source_type == "solde_ouverture",
+            BankTransaction.payment_account_id == payload.payment_account_id,
+        )
+    )
+
+    # Si un solde d'ouverture existait déjà, on contre-passe son écriture comptable
+    # avant de poster la nouvelle (pour ne jamais fausser le grand livre par doublon).
+    if existing is not None:
+        old_entry = db.scalar(
+            select(JournalEntry).where(
+                JournalEntry.company_id == current_user.company_id,
+                JournalEntry.source_type == "solde_ouverture",
+                JournalEntry.source_id == existing.id,
+                JournalEntry.reversed_entry_id.is_(None),
+            )
+        )
+        if old_entry:
+            reversal_lines = [
+                {"code": l.account_code, "debit": l.credit_cents, "credit": l.debit_cents, "label": f"Extourne {old_entry.reference}"}
+                for l in old_entry.lines
+            ]
+            reversal = acc.post_entry(
+                db,
+                company_id=current_user.company_id,
+                label=f"Contre-passation solde d'ouverture ({old_entry.reference})",
+                lines=reversal_lines,
+                source_type="reversal",
+                source_id=old_entry.id,
+                entry_date=entry_date,
+                user_id=current_user.id,
+            )
+            old_entry.reversed_entry_id = reversal.id
+
+        existing.amount = payload.amount
+        existing.debit = None
+        existing.credit = payload.amount
+        existing.date = entry_date.isoformat()
+        existing.label = label
+        existing.currency = currency
+        txn = existing
+    else:
+        txn = BankTransaction(
+            company_id=current_user.company_id,
+            payment_account_id=payload.payment_account_id,
+            date=entry_date.isoformat(),
+            label=label,
+            amount=payload.amount,
+            debit=None,
+            credit=payload.amount,
+            currency=currency,
+            category="tresorerie",
+            source_type="solde_ouverture",
+            status="confirmed",
+        )
+        db.add(txn)
+        db.flush()
+
+    amount_xaf = convert_to_xaf(payload.amount, currency, current_user.company_id, db)
+    amount_cents = acc.to_cents(amount_xaf)
+    if amount_cents > 0:
+        lines = [
+            {"code": account_code, "debit": amount_cents, "credit": 0, "label": label},
+            {"code": "101", "debit": 0, "credit": amount_cents, "label": "Capital — solde d'ouverture"},
+        ]
+        acc.post_entry(
+            db,
+            company_id=current_user.company_id,
+            label=label,
+            lines=lines,
+            source_type="solde_ouverture",
+            source_id=txn.id,
+            entry_date=entry_date,
+            currency="XAF",
+            user_id=current_user.id,
+        )
+
+    db.commit()
+    db.refresh(txn)
+    return _serialize_opening_balance(txn)

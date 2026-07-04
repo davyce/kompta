@@ -3632,6 +3632,18 @@
         "instructions": "Ex : vérifier le reçu avant validation..."
       }
     },
+    "openingBalance": {
+      "title": "Solde d'ouverture",
+      "subtitle": "Renseignez la trésorerie déjà présente (caisse et comptes) au moment où vous démarrez KOMPTA, pour partir du bon montant plutôt que de zéro. Modifiable à tout moment.",
+      "cash": "Caisse (espèces)",
+      "current": "Actuel",
+      "none": "Aucun solde d'ouverture saisi",
+      "add": "Ajouter",
+      "amount": "Montant",
+      "date": "Date",
+      "label": "Libellé",
+      "defaultLabel": "Solde d'ouverture"
+    },
     "subscription": {
       "title": "Abonnement KOMPTA",
       "subtitle": "Choisissez votre formule et payez par carte, Mobile Money ou Zola."

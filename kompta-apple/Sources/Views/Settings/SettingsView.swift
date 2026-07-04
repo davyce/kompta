@@ -117,10 +117,15 @@ struct SettingsView: View {
                     } label: {
                         Label("Encaissement", systemImage: "creditcard.and.123")
                     }
+                    NavigationLink {
+                        OpeningBalanceView()
+                    } label: {
+                        Label("Solde d'ouverture", systemImage: "wallet.pass")
+                    }
                 } header: {
                     Text("Paiements")
                 } footer: {
-                    Text("Méthodes par lesquelles vos clients vous paient (MoMo, espèces, virement, carte).")
+                    Text("Méthodes par lesquelles vos clients vous paient (MoMo, espèces, virement, carte) et trésorerie de départ.")
                 }
             }
 

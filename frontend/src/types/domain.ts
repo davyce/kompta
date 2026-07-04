@@ -350,6 +350,22 @@ export type PaymentAccount = {
   created_at: string;
 };
 
+export type OpeningBalanceDto = {
+  id: number;
+  payment_account_id: number | null;
+  amount: number;
+  currency: string;
+  date: string;
+  label: string;
+};
+
+export type OpeningBalancePayload = {
+  payment_account_id: number | null;
+  amount: number;
+  entry_date?: string;
+  label?: string;
+};
+
 export type TerasAlert = {
   id: number;
   title: string;

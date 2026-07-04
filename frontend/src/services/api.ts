@@ -35,6 +35,8 @@ import type {
   GroupFinanceDashboard,
   GroupCalendarEvent,
   PaymentAccount,
+  OpeningBalanceDto,
+  OpeningBalancePayload,
   Payslip,
   PayrollRun,
   Product,
@@ -1072,6 +1074,14 @@ export const api = {
   expenses: () => request<ExpenseDto[]>("/accounting/expenses"),
   syscemac: () => request<SyscemacDto[]>("/accounting/syscemac-status"),
   accountingOhadaReadiness: () => request<ReadinessReportDto>("/accounting/ohada-readiness"),
+
+  /* ── Solde d'ouverture (trésorerie de départ) ─────────────── */
+  getOpeningBalances: () => request<OpeningBalanceDto[]>("/accounting/opening-balance"),
+  setOpeningBalance: (payload: OpeningBalancePayload) =>
+    request<OpeningBalanceDto>("/accounting/opening-balance", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   /* ── Reports revenue series ───────────────────────────────── */
   revenueSeries: (period = "month") =>

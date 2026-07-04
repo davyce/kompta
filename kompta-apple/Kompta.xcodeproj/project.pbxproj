@@ -38,6 +38,7 @@
 		5C81A14C0B020F97A7380BE8 /* DownloadButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868253779BC26B47B67C3BB2 /* DownloadButton.swift */; };
 		5D5CC616727156DA86FC2348 /* FinanceCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68C74D092585F0B42F595 /* FinanceCharts.swift */; };
 		62A11CB0F80F61DC4708A3A4 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27610E5929BD66FE3262DA7D /* GlassComponents.swift */; };
+		62F376CD3EEF9D632C5F0A5A /* OpeningBalanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4ED7FCDB17440493F2A160 /* OpeningBalanceView.swift */; };
 		65ABD80D7C152A72DB2E4F71 /* CsvImportButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B812E385DF64BCF395BD879 /* CsvImportButton.swift */; };
 		66EE91DFA0E7EC16A5BF9249 /* limule-avatar-40.png in Resources */ = {isa = PBXBuildFile; fileRef = B665A2C05922DA21F70C8953 /* limule-avatar-40.png */; };
 		67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660A64A755B0A823DC7B4079 /* BusinessViews.swift */; };
@@ -92,6 +93,7 @@
 		D9A76CCD98DDECCD57C248F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
 		DBA190C6E3B8D0AC62EDA501 /* SecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */; };
 		E6A47228E0B8F20127E6B362 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
+		E874D21BD5F4FFAEE9CB84BF /* OpeningBalanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4ED7FCDB17440493F2A160 /* OpeningBalanceView.swift */; };
 		EA8C06FAFB8C286B8C8A1889 /* SecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */; };
 		ED6E7E66FAC0FBBCBD79BCCD /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2BBD1BF4C470CADC7F83E1 /* AppModels.swift */; };
 		EF435CEBDF925053AB31D202 /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */; };
@@ -144,6 +146,7 @@
 		B229F26743F6401F25679836 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		B665A2C05922DA21F70C8953 /* limule-avatar-40.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "limule-avatar-40.png"; sourceTree = "<group>"; };
 		BA9AB050A928D42ABCE3C91A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		BC4ED7FCDB17440493F2A160 /* OpeningBalanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpeningBalanceView.swift; sourceTree = "<group>"; };
 		BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityView.swift; sourceTree = "<group>"; };
 		CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementsManager.swift; sourceTree = "<group>"; };
@@ -355,6 +358,7 @@
 			isa = PBXGroup;
 			children = (
 				A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */,
+				BC4ED7FCDB17440493F2A160 /* OpeningBalanceView.swift */,
 				CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */,
 				39F612F06D2735D2A6A4A02E /* SettingsView.swift */,
 			);
@@ -513,6 +517,7 @@
 				FEEDBB9988A519C6C1FA4B52 /* LimuleDocumentChatView.swift in Sources */,
 				7D8F3CE37151828D140D39C1 /* LoginView.swift in Sources */,
 				68F6D13D45ADEBDB61C26DBF /* ModuleHub.swift in Sources */,
+				62F376CD3EEF9D632C5F0A5A /* OpeningBalanceView.swift in Sources */,
 				7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */,
 				BB462B1371FC2680A6747AF9 /* POSView.swift in Sources */,
 				B0CB3DA128A97F405395C5AC /* RolesView.swift in Sources */,
@@ -565,6 +570,7 @@
 				50E2CDCCA83B680DB017DEF1 /* LimuleDocumentChatView.swift in Sources */,
 				4754E0806F54669A590B2EB3 /* LoginView.swift in Sources */,
 				29102CF06555F6CDA242F95B /* ModuleHub.swift in Sources */,
+				E874D21BD5F4FFAEE9CB84BF /* OpeningBalanceView.swift in Sources */,
 				81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */,
 				7880938DFF872F614648FF2C /* POSView.swift in Sources */,
 				75439F2759679EAC1B4D4429 /* RolesView.swift in Sources */,

@@ -467,6 +467,11 @@ actor APIClient {
     func createPaymentAccount(_ p: PaymentAccountPayload) async throws -> PaymentAccount { try await post("/payment-accounts", body: p) }
     func deletePaymentAccount(_ id: Int) async throws { try await delete("/payment-accounts/\(id)") }
 
+    // MARK: - Opening balance (solde d'ouverture)
+
+    func openingBalances() async throws -> [OpeningBalance] { try await get("/accounting/opening-balance") }
+    func setOpeningBalance(_ p: OpeningBalancePayload) async throws -> OpeningBalance { try await post("/accounting/opening-balance", body: p) }
+
     // MARK: - Tasks / Work / Kanban
 
     func tasks() async throws -> [KTask] { try await get("/tasks") }

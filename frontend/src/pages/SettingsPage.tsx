@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
 import { SubscriptionPanel } from "../components/SubscriptionPanel";
 import { CollectionMethodsPanel } from "../components/CollectionMethodsPanel";
+import { OpeningBalancePanel } from "../components/OpeningBalancePanel";
 import { RolesSettings } from "../components/settings/RolesSettings";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../app/AuthContext";
@@ -1256,6 +1257,11 @@ export function SettingsPage() {
                   </div>
                 </form>
               </div>
+              )}
+              {!isEmployeeSelfService && (
+                <div className="border-t border-black/[0.05] p-6 dark:border-white/[0.05]">
+                  <OpeningBalancePanel paymentAccounts={paymentAccounts.data ?? []} />
+                </div>
               )}
             </div>
           )}
