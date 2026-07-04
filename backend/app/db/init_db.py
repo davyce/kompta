@@ -80,12 +80,30 @@ def ensure_sqlite_migrations() -> None:
                 "payout_paypal_email": "VARCHAR(255) DEFAULT ''",
                 "cnss_number": "VARCHAR(60) DEFAULT ''",
             },
+        # NB : chaque table ne doit apparaître qu'UNE SEULE FOIS comme clé de
+        # premier niveau dans ce dict. Un littéral Python dict silencieusement
+        # écrase les clés dupliquées (la dernière occurrence gagne) — si une
+        # table est redéclarée plus bas, les colonnes de la première occurrence
+        # sont perdues sans erreur ni avertissement (cf. audit DB-01, colonnes
+        # invoices/invoice_lines/sales/bank_transactions silencieusement omises
+        # sur les bases existantes). Si vous devez ajouter des colonnes à une
+        # table déjà présente ici, ajoutez-les à SON entrée existante.
         "invoices": {
             "customer_email": "VARCHAR(255)",
             "currency": "VARCHAR(10) DEFAULT 'XAF'",
             "subtotal": "FLOAT DEFAULT 0",
             "tax_amount": "FLOAT DEFAULT 0",
             "payment_method": "VARCHAR(80) DEFAULT ''",
+            "subtotal_cents": "INTEGER DEFAULT 0",
+            "tax_amount_cents": "INTEGER DEFAULT 0",
+            "total_amount_cents": "INTEGER DEFAULT 0",
+            "approval_status": "VARCHAR(20) DEFAULT 'not_required'",
+            "approved_by_user_id": "INTEGER",
+            "approved_at": "DATETIME",
+            "rejection_reason": "VARCHAR(500) DEFAULT ''",
+            "source_opportunity_id": "INTEGER",
+            "client_id": "INTEGER",
+            "payment_requested_at": "DATETIME",
         },
         "invoice_lines": {
             "tax_rate": "FLOAT DEFAULT 18.0",
@@ -94,10 +112,17 @@ def ensure_sqlite_migrations() -> None:
             "paid_at": "DATETIME",
             "last_relance_at": "DATETIME",
             "relance_count": "INTEGER DEFAULT 0",
+            "unit_price_cents": "INTEGER DEFAULT 0",
+            "total_cents": "INTEGER DEFAULT 0",
         },
         "sales": {
             "payment_account_id": "INTEGER",
             "payment_account_label": "VARCHAR(160) DEFAULT ''",
+            "total_amount_cents": "INTEGER DEFAULT 0",
+            "client_id": "INTEGER",
+            "client_name": "VARCHAR(160) DEFAULT ''",
+            "loyalty_points_earned": "INTEGER DEFAULT 0",
+            "session_id": "INTEGER",
         },
         "payroll_runs": {
             "payment_account_id": "INTEGER",
@@ -132,6 +157,7 @@ def ensure_sqlite_migrations() -> None:
         "teras_sync_events": {},
         "bank_transactions": {
             "reconciled_with_id": "INTEGER",
+            "payment_account_id": "INTEGER",
         },
         "declaration_records": {
             "generated_text": "TEXT DEFAULT ''",
@@ -180,31 +206,6 @@ def ensure_sqlite_migrations() -> None:
         # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
         "products": {
             "price_cents": "INTEGER DEFAULT 0",
-        },
-        "invoices": {
-            "subtotal_cents": "INTEGER DEFAULT 0",
-            "tax_amount_cents": "INTEGER DEFAULT 0",
-            "total_amount_cents": "INTEGER DEFAULT 0",
-            "approval_status": "VARCHAR(20) DEFAULT 'not_required'",
-            "approved_by_user_id": "INTEGER",
-            "approved_at": "DATETIME",
-            "rejection_reason": "VARCHAR(500) DEFAULT ''",
-            "source_opportunity_id": "INTEGER",
-            "client_id": "INTEGER",
-            "payment_requested_at": "DATETIME",
-        },
-        "invoice_lines": {
-            "tax_rate": "FLOAT DEFAULT 18.0",
-            "unit_price_cents": "INTEGER DEFAULT 0",
-            "total_cents": "INTEGER DEFAULT 0",
-        },
-        "sales": {
-            "payment_account_id": "INTEGER",
-            "payment_account_label": "VARCHAR(160) DEFAULT ''",
-            "total_amount_cents": "INTEGER DEFAULT 0",
-            "client_id": "INTEGER",
-            "client_name": "VARCHAR(160) DEFAULT ''",
-            "loyalty_points_earned": "INTEGER DEFAULT 0",
         },
         "sale_items": {
             "unit_price_cents": "INTEGER DEFAULT 0",
@@ -275,14 +276,22 @@ def ensure_sqlite_migrations() -> None:
         "company_subscriptions": {},
         # Réconciliation bancaire : lien BankTransaction <-> PaymentAccount
         # + nouvelles tables bank_statement_imports / bank_statement_lines
-        # (create_all crée les tables, on enregistre juste ici pour éviter
-        # tout crash de la boucle ALTER sur bases existantes)
-        "bank_transactions": {
-            "payment_account_id": "INTEGER",
-            "reconciled_with_id": "INTEGER",  # champ pré-existant du modèle jamais migré
-        },
+        # (create_all crée les tables ; colonnes bank_transactions fusionnées
+        # dans l'entrée unique "bank_transactions" plus haut — voir DB-01)
         "bank_statement_imports": {},
         "bank_statement_lines": {},
+        # Traçabilité réelle de la consommation de jetons IA (remplace l'estimation
+        # forfaitaire côté frontend par des compteurs mesurés auprès du fournisseur LLM).
+        "limule_interactions": {
+            "prompt_tokens": "INTEGER",
+            "completion_tokens": "INTEGER",
+            "tokens_used": "INTEGER",
+        },
+        "ai_generations": {
+            "prompt_tokens": "INTEGER",
+            "completion_tokens": "INTEGER",
+            "tokens_used": "INTEGER",
+        },
     }
     with engine.begin() as connection:
         for table, columns in additions.items():

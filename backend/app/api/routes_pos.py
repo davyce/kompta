@@ -88,9 +88,11 @@ def get_current_session_balance(
     if not session:
         raise HTTPException(status_code=404, detail="Aucune session de caisse ouverte")
 
+    # Rattachement exact par session_id (FK) plutôt que par plage de dates :
+    # évite le double-comptage entre sessions/caissiers concurrents (cf. POS-01).
     cash_sales_query = select(func.coalesce(func.sum(Sale.total_amount_cents), 0)).where(
         Sale.company_id == current_user.company_id,
-        Sale.created_at >= session.opened_at,
+        Sale.session_id == session.id,
         Sale.payment_method == "cash",
     )
     cash_sales_cents = int(db.execute(cash_sales_query).scalar() or 0)
@@ -151,10 +153,11 @@ def close_pos_session(
     if session.status == "closed":
         raise HTTPException(status_code=400, detail="Session déjà fermée")
 
-    # Calculer le total des ventes depuis l'ouverture de la session
+    # Rattachement exact par session_id (FK) plutôt que par plage de dates :
+    # évite le double-comptage entre sessions/caissiers concurrents (cf. POS-01).
     sales_query = select(func.count(Sale.id), func.coalesce(func.sum(Sale.total_amount), 0)).where(
         Sale.company_id == current_user.company_id,
-        Sale.created_at >= session.opened_at,
+        Sale.session_id == session.id,
     )
     sales_count, total_amount = db.execute(sales_query).one()
 

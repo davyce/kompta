@@ -51,6 +51,7 @@ from app.models import (
     PaymentTransaction,
     PayrollRun,
     Payslip,
+    PosSession,
     Product,
     ProductImage,
     Sale,
@@ -2123,6 +2124,16 @@ def create_sale(
         if not selected_client or selected_client.company_id != current_user.company_id:
             raise HTTPException(status_code=404, detail="Client introuvable dans votre fichier clients")
 
+    # Rattacher la vente à la session de caisse actuellement ouverte par ce
+    # caissier, si elle existe (sinon session_id reste null — cf. audit POS-01).
+    _open_session = db.scalars(
+        select(PosSession).where(
+            PosSession.company_id == current_user.company_id,
+            PosSession.opened_by_user_id == current_user.id,
+            PosSession.status == "open",
+        )
+    ).first()
+
     sale = Sale(
         receipt_number=_next_receipt_number(db, current_user.company_id),
         payment_method=payment_method,
@@ -2131,6 +2142,7 @@ def create_sale(
         client_id=selected_client.id if selected_client else None,
         client_name=selected_client.name if selected_client else "",
         company_id=current_user.company_id,
+        session_id=_open_session.id if _open_session else None,
     )
     total = 0.0
     db.add(sale)
@@ -2278,14 +2290,25 @@ def create_sale(
     )
     db.add(pos_txn)
     # ── Écriture comptable automatique (partie double) ──
+    # La vente et son écriture comptable doivent être atomiques : si l'écriture
+    # comptable échoue, la vente ENTIÈRE (stock décrémenté, sale, sale_items,
+    # transaction bancaire) doit être annulée plutôt que validée silencieusement
+    # sans comptabilisation (cf. audit ACC-01). Aucun `db.commit()` n'a eu lieu
+    # avant ce point : une exception ici fait annuler toute la transaction en
+    # cours (rollback implicite au `db.close()` de get_db si on ne commit pas).
+    company = company or db.get(Company, current_user.company_id)
     try:
-        company = company or db.get(Company, current_user.company_id)
         _accounting.record_sale(
             db, company, sale_id=sale.id, total=total,
             payment_method=payment_method, tax_amount=0.0, user_id=current_user.id,
         )
-    except Exception:  # une vente ne doit jamais échouer à cause de la compta
-        logging.getLogger("kompta").exception("Échec écriture comptable vente #%s", sale.id)
+    except Exception:
+        logging.getLogger("kompta").exception("Échec écriture comptable vente #%s — vente annulée", sale.id)
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="La vente n'a pas pu être enregistrée (échec de l'écriture comptable). Réessayez.",
+        )
     db.commit()
     db.refresh(sale)
     return {
@@ -3635,6 +3658,18 @@ def reports_overview(
     tx_monthly_in  = round(sum(_to_xaf(r.credit if r.credit is not None else max(r.amount, 0), r.currency, current_user.company_id, db) for r in tx_recent) / 3, 2)
     tx_monthly_out = round(sum(_to_xaf(r.debit  if r.debit  is not None else max(-r.amount, 0), r.currency, current_user.company_id, db) for r in tx_recent) / 3, 2)
 
+    # ── Real average payroll per employee (from actual Payslip.net_pay history),
+    # replaces the hardcoded 775 000 XAF/employee estimate previously used in the
+    # AI cash-flow prediction prompt. Null when the company has no payslip history.
+    avg_payroll_row = db.execute(
+        select(func.avg(Payslip.net_pay), func.count())
+        .select_from(Payslip)
+        .join(PayrollRun, Payslip.payroll_run_id == PayrollRun.id)
+        .where(PayrollRun.company_id == current_user.company_id)
+    ).first()
+    avg_net_pay, payslip_count = (avg_payroll_row or (None, 0))
+    avg_payroll_per_employee = round(float(avg_net_pay), 2) if avg_net_pay and payslip_count else None
+
     return {
         "company": company.name if company else "KOMPTA",
         "branch": branch,
@@ -3657,6 +3692,9 @@ def reports_overview(
             "tx_monthly_in":        tx_monthly_in,
             "tx_monthly_out":       tx_monthly_out,
             "tx_invoice_total":     tx_invoice_total,
+            # Real average net pay per employee, computed from actual Payslip
+            # history (null if the company has no payslips yet).
+            "avg_payroll_per_employee": avg_payroll_per_employee,
         },
         "low_stock": [{"id": item.id, "name": item.name, "stock_quantity": item.stock_quantity} for item in low_stock],
         "compliance": compliance_snapshot(),

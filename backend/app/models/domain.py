@@ -446,6 +446,10 @@ class Sale(TimestampMixin, Base):
     client_name: Mapped[str] = mapped_column(String(160), default="")
     loyalty_points_earned: Mapped[int] = mapped_column(Integer, default=0)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    # Session de caisse POS active au moment de la vente (nullable : une vente
+    # peut être créée hors session formelle). Permet un rattachement exact
+    # session <-> ventes au lieu de l'heuristique par plage de dates (cf. POS-01).
+    session_id: Mapped[int | None] = mapped_column(ForeignKey("pos_sessions.id"), nullable=True)
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan", back_populates="sale")
 
@@ -747,6 +751,11 @@ class AIGeneration(TimestampMixin, Base):
     content: Mapped[str] = mapped_column(Text, default="")
     model: Mapped[str] = mapped_column(String(60), default="limule")
     teras_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Compteurs réels de tokens renvoyés par le fournisseur LLM (DeepSeek/OpenAI),
+    # quand disponibles. Null si non mesuré (fallback local, provider sans usage, etc.).
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
@@ -768,6 +777,10 @@ class LimuleInteraction(TimestampMixin, Base):
     training_tags: Mapped[str] = mapped_column(Text, default="[]")
     rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     feedback: Mapped[str] = mapped_column(Text, default="")
+    # Compteurs réels de tokens renvoyés par le fournisseur LLM, quand disponibles.
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
