@@ -225,6 +225,24 @@ def record_group_expense(db: Session, company: Company, *, expense_id: int, amou
                       source_type="group_expense", source_id=expense_id, currency=company_currency(company), user_id=user_id)
 
 
+def record_payroll_payment(db: Session, company: Company, *, run_id: int,
+                           amounts_by_method: dict[str, int], user_id: int | None = None) -> JournalEntry | None:
+    """Virement de masse de paie : Dr Charges de personnel (66) / Cr Trésorerie
+    (une ligne de crédit par moyen de paiement utilisé, ex. caisse/banque/mobile money).
+    `amounts_by_method` : {payout_method: montant_cents}, déjà net_pay agrégé par moyen."""
+    total_c = sum(amounts_by_method.values())
+    if total_c <= 0:
+        return None
+    lines = [{"code": "66", "debit": total_c, "credit": 0, "label": "Charges de personnel — virement de masse"}]
+    for method, amount_c in amounts_by_method.items():
+        if amount_c <= 0:
+            continue
+        tre = treasury_account_code(method)
+        lines.append({"code": tre, "debit": 0, "credit": amount_c, "label": f"Paie versée ({method or 'espèces'})"})
+    return post_entry(db, company_id=company.id, label=f"Virement de masse — cycle de paie #{run_id}", lines=lines,
+                      source_type="payroll_payment", source_id=run_id, currency=company_currency(company), user_id=user_id)
+
+
 def company_currency(company: Company) -> str:
     return getattr(company, "currency", None) or "XAF"
 

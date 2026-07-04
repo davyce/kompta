@@ -3848,6 +3848,7 @@ def mass_payment_payroll_run(
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Bénéficiaire", "Moyen de paiement", "Destination", "Montant net (XAF)", "Référence"])
+    amounts_by_method: dict[str, int] = {}
     for slip in unpaid:
         w.writerow([
             slip.employee_name,
@@ -3858,6 +3859,19 @@ def mass_payment_payroll_run(
         ])
         slip.payout_status = "paid"
         slip.paid_at = now
+        method = slip.payout_method or "cash"
+        amounts_by_method[method] = amounts_by_method.get(method, 0) + (
+            slip.net_pay_cents or _accounting.to_cents(slip.net_pay)
+        )
+
+    company = db.get(Company, current_user.company_id)
+    try:
+        _accounting.record_payroll_payment(
+            db, company, run_id=run.id, amounts_by_method=amounts_by_method, user_id=current_user.id,
+        )
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Échec de l'écriture comptable du virement de masse — aucun bulletin n'a été marqué payé.")
     db.commit()
 
     content = buf.getvalue().encode("utf-8-sig")
