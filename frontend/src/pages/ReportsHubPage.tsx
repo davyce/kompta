@@ -4,73 +4,12 @@ import {
   FileText, Leaf, LucideIcon, ShieldCheck, Target, Users, X,
 } from "lucide-react";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
+import { MarkdownBlock } from "../components/MarkdownBlock";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useNavigate } from "react-router-dom";
 import i18n from "../i18n";
-
-/* ── Léger renderer Markdown → JSX (sans dépendance externe) ─────── */
-function MarkdownBlock({ content }: { content: string }) {
-  const lines = content.split("\n");
-  const nodes: React.ReactNode[] = [];
-  let listItems: string[] = [];
-
-  function flushList() {
-    if (!listItems.length) return;
-    nodes.push(
-      <ul key={`ul-${nodes.length}`} className="my-2 space-y-1 pl-4">
-        {listItems.map((item, i) => (
-          <li key={i} className="flex gap-2 text-sm leading-6 text-[#17211f] dark:text-white/85">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
-            <span>{inlineRender(item)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-    listItems = [];
-  }
-
-  function inlineRender(text: string): React.ReactNode {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((part, i) =>
-      part.startsWith("**") && part.endsWith("**")
-        ? <strong key={i} className="font-bold text-[#17211f] dark:text-white">{part.slice(2, -2)}</strong>
-        : <span key={i}>{part}</span>
-    );
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith("### ")) {
-      flushList();
-      nodes.push(<h3 key={i} className="mt-4 mb-1 text-base font-black text-[#17211f] dark:text-white">{line.slice(4)}</h3>);
-    } else if (line.startsWith("## ")) {
-      flushList();
-      nodes.push(<h2 key={i} className="mt-5 mb-1 text-lg font-black text-violet-700 dark:text-violet-300">{line.slice(3)}</h2>);
-    } else if (line.startsWith("# ")) {
-      flushList();
-      nodes.push(<h1 key={i} className="mt-4 mb-2 text-xl font-black text-[#17211f] dark:text-white">{line.slice(2)}</h1>);
-    } else if (/^[-*•]\s/.test(line)) {
-      listItems.push(line.replace(/^[-*•]\s/, ""));
-    } else if (/^\d+\.\s/.test(line)) {
-      listItems.push(line.replace(/^\d+\.\s/, ""));
-    } else if (line.trim() === "") {
-      flushList();
-      if (nodes.length > 0) nodes.push(<div key={`sp-${i}`} className="h-2" />);
-    } else {
-      flushList();
-      nodes.push(
-        <p key={i} className="text-sm leading-7 text-[#17211f] dark:text-white/85">
-          {inlineRender(line)}
-        </p>
-      );
-    }
-  }
-  flushList();
-  return <div className="space-y-0.5">{nodes}</div>;
-}
-
 import { Panel } from "../components/Panel";
 import { api } from "../services/api";
 import { useToast } from "../components/ToastProvider";

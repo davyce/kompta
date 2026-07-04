@@ -632,8 +632,7 @@ struct LimuleReportSheet: View {
                         .padding(.vertical, 20)
                         .frame(maxWidth: .infinity)
                     } else if !content.isEmpty {
-                        Text(content)
-                            .font(.subheadline)
+                        MarkdownText(content, accent: .purple)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
 

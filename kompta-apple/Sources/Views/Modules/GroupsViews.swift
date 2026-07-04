@@ -1408,7 +1408,7 @@ struct GroupAIAssistantView: View {
                     }
                 }
                 if let analysis {
-                    GlassCard { Text(analysis).font(.callout) }
+                    GlassCard { MarkdownText(analysis, accent: .purple) }
                 }
             }
             .padding()

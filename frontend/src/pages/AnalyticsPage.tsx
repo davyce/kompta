@@ -15,6 +15,7 @@ import { api } from "../services/api";
 import { exportToPDF } from "../utils/export";
 import { useToast } from "../components/ToastProvider";
 import { LimuleAvatar } from "../components/LimuleAvatar";
+import { MarkdownBlock } from "../components/MarkdownBlock";
 import i18n from "../i18n";
 
 const PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#0ea5e9", "#8b5cf6", "#ec4899", "#14b8a6", "#ef4444"];
@@ -45,23 +46,6 @@ function KpiCard({ title, value, sub, delta, icon: Icon, color }: {
           <Icon size={20} className="text-white" />
         </div>
       </div>
-    </div>
-  );
-}
-
-/* Bloc markdown léger pour la prévision Limule */
-function MarkdownBlock({ content }: { content: string }) {
-  const lines = content.split("\n");
-  return (
-    <div className="space-y-1 text-sm leading-7 text-[#17211f] dark:text-white/90">
-      {lines.map((line, i) => {
-        if (line.startsWith("## ")) return <p key={i} className="mt-3 font-black text-base">{line.slice(3)}</p>;
-        if (line.startsWith("# "))  return <p key={i} className="mt-3 font-black text-lg">{line.slice(2)}</p>;
-        if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="font-bold">{line.slice(2, -2)}</p>;
-        if (line.startsWith("- ") || line.startsWith("• ")) return <p key={i} className="ml-3">• {line.slice(2)}</p>;
-        if (!line.trim()) return <div key={i} className="h-2" />;
-        return <p key={i}>{line}</p>;
-      })}
     </div>
   );
 }

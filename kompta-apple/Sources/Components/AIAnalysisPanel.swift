@@ -9,49 +9,16 @@ import SwiftUI
 // ============================================================================
 
 /// Lightweight renderer for the `**bold**` / `# heading` markdown the Limule
-/// endpoints emit. Splits on newlines; emphasised lines become accent headings.
+/// endpoints emit. Thin wrapper over `MarkdownText` (see
+/// `Components/MarkdownText.swift`) kept for API compatibility with existing
+/// call sites across the app.
 struct AIMarkdownText: View {
     let text: String
     var accent: Color = .green
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                if line.isEmpty {
-                    Spacer().frame(height: 4)
-                } else if line.isHeading {
-                    Text(line.clean)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(accent)
-                        .padding(.top, 4)
-                } else {
-                    Text(line.clean)
-                        .font(.callout)
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        MarkdownText(text, accent: accent, bodySpacing: 6)
     }
-
-    private struct Line { let raw: String; var isEmpty: Bool { raw.trimmingCharacters(in: .whitespaces).isEmpty }
-        var isHeading: Bool {
-            let t = raw.trimmingCharacters(in: .whitespaces)
-            return t.hasPrefix("#") || (t.hasPrefix("**") && t.hasSuffix("**") && t.count > 4)
-        }
-        var clean: String {
-            var s = raw.replacingOccurrences(of: "**", with: "")
-               .replacingOccurrences(of: "### ", with: "")
-               .replacingOccurrences(of: "## ", with: "")
-               .replacingOccurrences(of: "# ", with: "")
-               .replacingOccurrences(of: "- ", with: "•  ")
-            // Strip simple _italic_ underscores that markdown leaves around words.
-            s = s.replacingOccurrences(of: "_", with: "")
-            return s
-        }
-    }
-    private var lines: [Line] { text.components(separatedBy: "\n").map(Line.init) }
 }
 
 /// Turns a Teras `result_snapshot` (a JSON string) into readable markdown-ish
