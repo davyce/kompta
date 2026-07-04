@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
   AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Camera, Check, FileDown, Filter,
-  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X, FileText, Loader2,
+  MapPin, Plus, Printer, QrCode, RefreshCcw, Search, Trash2, Upload, X, FileText, Loader2, Wand2,
 } from "lucide-react";
 
 import { api } from "../services/api";
@@ -109,6 +109,14 @@ function AlertsTab({ lowStock, onRestock, restocking }: {
 }
 
 const EMPTY_FORM = { name: "", sku: "", category: "Général", price: 0, stock_quantity: 0, reorder_level: 5 };
+
+/** Génère un SKU à partir du nom/catégorie saisis : CAT-NOM-#### (alphanum). */
+function generateSku(name: string, category: string): string {
+  const cat = category.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+  const nm = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+  const suffix = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return [cat, nm, suffix].filter(Boolean).join("-");
+}
 type EditableProductForm = Omit<typeof EMPTY_FORM, "sku"> & { brand: string; variant: string };
 type ImagePreview = { file: File; url: string };
 
@@ -141,6 +149,10 @@ export function InventoryPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [createError, setCreateError] = useState("");
+  // Tant que l'utilisateur n'a pas modifié le SKU manuellement, on le régénère
+  // quand le nom/la catégorie changent (Congo : la saisie manuelle de SKU est
+  // une friction inutile, cf. pattern déjà utilisé côté iOS/Mac).
+  const [lastAutoSku, setLastAutoSku] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState("");
   const [scanResult, setScanResult] = useState<Product | null>(null);
@@ -822,22 +834,61 @@ export function InventoryPage() {
               ))}
             </div>
           </div>
-          {[
-            { label: tr("inventory.fieldName"), key: "name", placeholder: tr("inventory.phName") },
-            { label: tr("inventory.fieldSku"), key: "sku", placeholder: tr("inventory.phSku") },
-            { label: tr("inventory.fieldCategory"), key: "category", placeholder: tr("inventory.phCategory") },
-          ].map((f) => (
-            <label key={f.key} className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{f.label}</span>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldName")}</span>
+            <input
+              value={form.name}
+              onChange={(e) => {
+                const name = e.target.value;
+                setForm((v) => {
+                  const shouldAuto = v.sku === "" || v.sku === lastAutoSku;
+                  const sku = shouldAuto ? generateSku(name, v.category) : v.sku;
+                  if (shouldAuto) setLastAutoSku(sku);
+                  return { ...v, name, sku };
+                });
+              }}
+              placeholder={tr("inventory.phName")}
+              required
+              className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldSku")}</span>
+            <div className="mt-1 flex gap-1.5">
               <input
-                value={(form as Record<string, unknown>)[f.key] as string}
-                onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                required={f.key === "name" || f.key === "sku"}
-                className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                value={form.sku}
+                onChange={(e) => setForm((v) => ({ ...v, sku: e.target.value }))}
+                placeholder={tr("inventory.phSku")}
+                required
+                className="w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm font-mono outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
-            </label>
-          ))}
+              <button
+                type="button"
+                title={tr("inventory.regenerateSku", "Régénérer le SKU")}
+                onClick={() => setForm((v) => { const s = generateSku(v.name, v.category); setLastAutoSku(s); return { ...v, sku: s }; })}
+                className="shrink-0 rounded-lg border border-black/[0.08] px-3 text-[#717182] hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/5"
+              >
+                <Wand2 size={14} />
+              </button>
+            </div>
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#717182]">{tr("inventory.fieldCategory")}</span>
+            <input
+              value={form.category}
+              onChange={(e) => {
+                const category = e.target.value;
+                setForm((v) => {
+                  const shouldAuto = v.sku === "" || v.sku === lastAutoSku;
+                  const sku = shouldAuto ? generateSku(v.name, category) : v.sku;
+                  if (shouldAuto) setLastAutoSku(sku);
+                  return { ...v, category, sku };
+                });
+              }}
+              placeholder={tr("inventory.phCategory")}
+              className="mt-1 w-full rounded-lg border border-black/[0.08] bg-[#f8f8fc] px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+          </label>
           {[
             { label: tr("inventory.fieldPrice", { cur: currencyLabel() }), key: "price" },
             { label: tr("inventory.fieldStockQty"), key: "stock_quantity" },
