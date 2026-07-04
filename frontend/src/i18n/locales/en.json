@@ -4973,6 +4973,9 @@
     "productAdded": "\"{{name}}\" added to cart",
     "productNotFound": "Product not found — SKU shown in search",
     "offlineQueued": "Sale of {{amount}} queued offline.",
+    "cashBalance": "Cash balance",
+    "expectedCash": "Expected cash",
+    "expectedCashHint": "Expected till balance (opening float + cash sales since opening)",
     "cartEmpty": "The cart is empty.",
     "exportError": "Error during CSV export",
     "methodCash": "Cash",
@@ -5184,7 +5187,8 @@
     "autoRestock": "Automatic restock",
     "importErrors": ", {{count}} error(s)",
     "importDone": "{{count}} product(s) imported",
-    "productHash": "Product #{{id}}"
+    "productHash": "Product #{{id}}",
+    "regenerateSku": "Regenerate SKU"
   },
   "auth": {
     "tagline": "Powered by Limule · Smart ERP",

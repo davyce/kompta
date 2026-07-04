@@ -446,6 +446,15 @@ export const api = {
     ),
   posSales: (limit = 50) => request<SaleRecord[]>(`/pos/sales?limit=${limit}`),
   posReceiptPdf: (saleId: number) => requestBlob(`/pos/sales/${saleId}/receipt`),
+  posSessionBalance: () =>
+    request<{
+      session_id: number;
+      opening_balance_cents: number;
+      cash_sales_cents: number;
+      expected_cash_cents: number;
+      opened_at: string;
+      opened_by: string;
+    }>("/pos/sessions/current/balance"),
   inventoryMovements: () => request<InventoryMovement[]>("/inventory/movements"),
   invoices: () => request<Invoice[]>("/invoices"),
   createInvoice: (payload: {

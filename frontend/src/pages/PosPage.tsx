@@ -225,6 +225,12 @@ export function PosPage() {
     queryFn: () => api.posSales(50),
     enabled: historyOpen,
   });
+  const cashBalance = useQuery({
+    queryKey: ["posSessionBalance"],
+    queryFn: api.posSessionBalance,
+    refetchInterval: 20000,
+    retry: false,
+  });
 
   /* ── Recherche + catégorie ── */
   const [search,   setSearch]   = useState("");
@@ -370,6 +376,7 @@ export function PosPage() {
       if (synced > 0) {
         queryClient.invalidateQueries({ queryKey: ["products"] });
         queryClient.invalidateQueries({ queryKey: ["posSales"] });
+        queryClient.invalidateQueries({ queryKey: ["posSessionBalance"] });
       }
     } finally { setSyncing(false); }
   }, [queryClient]);
@@ -429,6 +436,7 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["overview"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
+      queryClient.invalidateQueries({ queryKey: ["posSessionBalance"] });
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : tr("pos.cashError");
@@ -642,6 +650,15 @@ export function PosPage() {
 
         {/* Barre export CSV */}
         <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-[#f8f8fc] px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.02]">
+          {cashBalance.data && (
+            <div
+              title={tr("pos.expectedCashHint", { defaultValue: "Solde théorique de la caisse (fonds de départ + ventes en espèces depuis l'ouverture)" })}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+            >
+              <Wallet size={12} />
+              {tr("pos.cashBalance", { defaultValue: "Solde caisse" })} : {money(cashBalance.data.expected_cash_cents / 100)}
+            </div>
+          )}
           <Download size={13} className="shrink-0 text-[#717182]" />
           <span className="text-xs font-semibold text-[#717182]">{tr("pos.exportSales")}</span>
           <input

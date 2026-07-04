@@ -295,6 +295,17 @@ struct SaleHistoryItem: Decodable, Identifiable, Hashable {
     let items: [SaleHistoryLine]
 }
 
+struct PosSessionBalance: Decodable {
+    let session_id: Int
+    let opening_balance_cents: Int
+    let cash_sales_cents: Int
+    let expected_cash_cents: Int
+    let opened_at: String
+    let opened_by: String
+
+    var expectedCash: Double { Double(expected_cash_cents) / 100 }
+}
+
 struct CartItem: Identifiable {
     let id = UUID()
     let product: Product

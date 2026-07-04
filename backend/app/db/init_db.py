@@ -123,7 +123,9 @@ def ensure_sqlite_migrations() -> None:
         },
         "audit_logs": {},
         "fiscal_deadlines": {},
-        "pos_sessions": {},
+        "pos_sessions": {
+            "opening_balance_cents": "INTEGER DEFAULT 0",
+        },
         "employability_checks": {},
         "teras_analysis_jobs": {},
         "teras_score_snapshots": {},

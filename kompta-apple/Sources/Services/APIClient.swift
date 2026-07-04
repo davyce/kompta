@@ -272,6 +272,14 @@ actor APIClient {
     }
     func posSales(limit: Int = 50) async throws -> [SaleHistoryItem] { try await get("/pos/sales?limit=\(limit)") }
     func saleReceiptPDF(_ id: Int) async throws -> Data { try await rawData("/pos/sales/\(id)/receipt") }
+    /// Returns the current open cash-register session balance, or nil if no session is open.
+    func posSessionBalance() async throws -> PosSessionBalance? {
+        do {
+            return try await get("/pos/sessions/current/balance")
+        } catch APIError.notFound {
+            return nil
+        }
+    }
 
     // MARK: - Employees
 

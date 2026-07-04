@@ -1016,6 +1016,7 @@ class PosSession(TimestampMixin, Base):
     total_amount: Mapped[float] = mapped_column(Float, default=0)
     status: Mapped[str] = mapped_column(String(40), default="open")  # open|closed
     notes: Mapped[str] = mapped_column(Text, default="")
+    opening_balance_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 

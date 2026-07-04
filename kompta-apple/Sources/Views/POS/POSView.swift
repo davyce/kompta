@@ -95,6 +95,7 @@ struct POSView: View {
     @State private var isSaving         = false
     @State private var errorMsg:        String?
     @State private var showHistory      = false
+    @State private var cashBalance:     PosSessionBalance?
 
     // MARK: Computed
 
@@ -154,6 +155,7 @@ struct POSView: View {
         .navigationTitle("Caisse")
         .toolbar {
             #if os(iOS)
+            ToolbarItem(placement: .navigationBarLeading) { cashBalanceBadge }
             ToolbarItem(placement: .navigationBarTrailing) { cartBadgeButton }
             #endif
             ToolbarItem(placement: .secondaryAction) {
@@ -191,6 +193,7 @@ struct POSView: View {
         }
         .navigationTitle("Point de vente")
         .toolbar {
+            ToolbarItem(placement: .navigation) { cashBalanceBadge }
             ToolbarItem(placement: .primaryAction) {
                 Button { showHistory = true } label: { Label("Historique des ventes", systemImage: "clock.arrow.circlepath") }
             }
@@ -266,6 +269,20 @@ struct POSView: View {
                 ? "Ajoutez des produits dans l'inventaire"
                 : "Aucun résultat pour « \(search) »")
         )
+    }
+
+    @ViewBuilder
+    private var cashBalanceBadge: some View {
+        if let balance = cashBalance {
+            HStack(spacing: 4) {
+                Image(systemName: "banknote").font(.caption)
+                Text(fcfa(balance.expectedCash)).font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color.green.opacity(0.15), in: Capsule())
+            .foregroundStyle(.green)
+            .help("Solde théorique de la caisse (fonds de départ + ventes en espèces depuis l'ouverture)")
+        }
     }
 
     private var cartBadgeButton: some View {
@@ -669,6 +686,7 @@ struct POSView: View {
             clientDiscounts = []
             showCart = false
             showReceipt = true
+            await loadCashBalance()
         } catch {
             errorMsg = error.localizedDescription
         }
@@ -690,6 +708,11 @@ struct POSView: View {
             paymentAccountId = def.id
         }
         isLoading = false
+        await loadCashBalance()
+    }
+
+    private func loadCashBalance() async {
+        cashBalance = try? await APIClient.shared.posSessionBalance()
     }
 
     private func selectClient(_ id: Int?) async {

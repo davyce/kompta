@@ -4973,6 +4973,9 @@
     "productAdded": "\"{{name}}\" ajouté au panier",
     "productNotFound": "Produit non trouvé — SKU affiché dans la recherche",
     "offlineQueued": "Vente de {{amount}} mise en file hors-ligne.",
+    "cashBalance": "Solde caisse",
+    "expectedCash": "Solde théorique",
+    "expectedCashHint": "Solde théorique de la caisse (fonds de départ + ventes en espèces depuis l'ouverture)",
     "cartEmpty": "Le panier est vide.",
     "exportError": "Erreur lors de l'export CSV",
     "methodCash": "Espèces",
@@ -5184,7 +5187,8 @@
     "autoRestock": "Réapprovisionnement automatique",
     "importErrors": ", {{count}} erreur(s)",
     "importDone": "{{count}} produit(s) importé(s)",
-    "productHash": "Produit #{{id}}"
+    "productHash": "Produit #{{id}}",
+    "regenerateSku": "Régénérer le SKU"
   },
   "auth": {
     "tagline": "Propulsé par Limule · ERP intelligent",

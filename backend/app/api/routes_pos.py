@@ -28,6 +28,7 @@ router = APIRouter(tags=["pos"])
 
 class PosSessionCreate(BaseModel):
     notes: str = ""
+    opening_balance_cents: int = 0
 
 
 class PosSessionRead(BaseModel):
@@ -40,11 +41,21 @@ class PosSessionRead(BaseModel):
     total_amount: float
     status: str
     notes: str
+    opening_balance_cents: int
     company_id: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PosSessionBalance(BaseModel):
+    session_id: int
+    opening_balance_cents: int
+    cash_sales_cents: int
+    expected_cash_cents: int
+    opened_at: datetime
+    opened_by: str
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -60,6 +71,38 @@ def list_pos_sessions(
         .order_by(PosSession.opened_at.desc())
     )
     return db.scalars(stmt).all()
+
+
+@router.get("/pos/sessions/current/balance", response_model=PosSessionBalance)
+def get_current_session_balance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PosSessionBalance:
+    session = db.scalars(
+        select(PosSession).where(
+            PosSession.company_id == current_user.company_id,
+            PosSession.opened_by_user_id == current_user.id,
+            PosSession.status == "open",
+        )
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Aucune session de caisse ouverte")
+
+    cash_sales_query = select(func.coalesce(func.sum(Sale.total_amount_cents), 0)).where(
+        Sale.company_id == current_user.company_id,
+        Sale.created_at >= session.opened_at,
+        Sale.payment_method == "cash",
+    )
+    cash_sales_cents = int(db.execute(cash_sales_query).scalar() or 0)
+
+    return PosSessionBalance(
+        session_id=session.id,
+        opening_balance_cents=session.opening_balance_cents,
+        cash_sales_cents=cash_sales_cents,
+        expected_cash_cents=session.opening_balance_cents + cash_sales_cents,
+        opened_at=session.opened_at,
+        opened_by=session.opened_by,
+    )
 
 
 @router.post("/pos/sessions", response_model=PosSessionRead, status_code=201)
@@ -88,6 +131,7 @@ def open_pos_session(
         opened_by_user_id=current_user.id,
         status="open",
         notes=payload.notes,
+        opening_balance_cents=payload.opening_balance_cents,
     )
     db.add(session)
     db.commit()
