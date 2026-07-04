@@ -24,6 +24,7 @@ services:
       - MOMO_API_USER=${MOMO_API_USER:-}
       - MOMO_API_KEY=${MOMO_API_KEY:-}
       - MOMO_TARGET_ENVIRONMENT=${MOMO_TARGET_ENVIRONMENT:-sandbox}
+      - MOMO_CALLBACK_HOST=${MOMO_CALLBACK_HOST:-}
       - MOMO_CALLBACK_SECRET=${MOMO_CALLBACK_SECRET:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
@@ -32,6 +33,16 @@ services:
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@kompta.app}
       - SMTP_FROM_NAME=${SMTP_FROM_NAME:-KOMPTA}
       - SEED_DEMO=${SEED_DEMO:-false}
+      # Cookie de session : domaine partagé kompta0.com/www.kompta0.com + flag
+      # Secure (HTTPS uniquement) — oubliés dans le passthrough d'origine, ce
+      # qui empêchait AUTH_COOKIE_DOMAIN de .env.production d'atteindre le
+      # conteneur malgré une config correcte côté fichier.
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-}
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      # Sentry (no-op si DSN vide — cf. app/core/monitoring.py)
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
     volumes:
       - kompta_storage:/app/storage
     ports:
