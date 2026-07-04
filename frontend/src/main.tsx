@@ -12,7 +12,10 @@ import "./i18n";
 import { ToastProvider } from "./components/ToastProvider";
 import { ConfirmProvider } from "./components/ConfirmProvider";
 import { router } from "./app/routes";
+import { initSentry } from "./monitoring";
 import "./styles/index.css";
+
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {

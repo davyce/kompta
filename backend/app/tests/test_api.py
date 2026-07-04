@@ -248,7 +248,7 @@ def test_assistant_endpoints_are_wired(monkeypatch) -> None:
             "provider": "deepseek-test",
         }
 
-    async def fake_limule(messages, max_tokens=1200, temperature=0.35):
+    async def fake_limule(messages, max_tokens=1200, temperature=0.35, usage_out=None):
         limule_messages.append(messages)
         return "Diagnostic rapide\n\nDonnées utilisées: contexte KOMPTA de test.\n\nActions recommandées: valider les éléments."
 
@@ -605,7 +605,7 @@ def test_teras_analysis_layer_and_ai_router_flow() -> None:
 
 
 def test_super_admin_console_and_ticket_flow(monkeypatch) -> None:
-    async def fake_limule(messages, max_tokens=1200, temperature=0.35):
+    async def fake_limule(messages, max_tokens=1200, temperature=0.35, usage_out=None):
         return "Diagnostic rapide\n\nDonnées utilisées: contexte TERAS de test.\n\nActions recommandées: suivre les tickets."
 
     monkeypatch.setattr("app.services.limule._call_llm", fake_limule)

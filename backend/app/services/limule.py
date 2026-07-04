@@ -295,6 +295,7 @@ async def _call_llm(
     messages: list[dict[str, str]],
     max_tokens: int = 1200,
     temperature: float = 0.5,
+    usage_out: dict[str, int] | None = None,
 ) -> str | None:
     settings = get_settings()
     provider = settings.ai_provider
@@ -307,6 +308,7 @@ async def _call_llm(
             base_url="https://api.openai.com",
             api_key=settings.openai_api_key,
             model=settings.ai_model or "gpt-4o-mini",
+            usage_out=usage_out,
         )
     else:  # deepseek (défaut)
         return await _call_openai_compatible(
@@ -314,6 +316,7 @@ async def _call_llm(
             base_url=settings.deepseek_base_url,
             api_key=settings.deepseek_api_key,
             model=settings.ai_model or settings.deepseek_model,
+            usage_out=usage_out,
         )
 
 
@@ -324,6 +327,7 @@ async def _call_openai_compatible(
     base_url: str,
     api_key: str,
     model: str,
+    usage_out: dict[str, int] | None = None,
 ) -> str | None:
     if not api_key:
         return None
@@ -350,6 +354,15 @@ async def _call_openai_compatible(
             data = response.json()
     except Exception:
         return None
+
+    # Capture des vrais compteurs de tokens renvoyés par le fournisseur (DeepSeek/OpenAI
+    # renvoient tous deux un objet "usage" compatible avec les specs OpenAI).
+    if usage_out is not None:
+        usage = data.get("usage") or {}
+        if isinstance(usage, dict):
+            usage_out["prompt_tokens"] = int(usage.get("prompt_tokens") or 0)
+            usage_out["completion_tokens"] = int(usage.get("completion_tokens") or 0)
+            usage_out["total_tokens"] = int(usage.get("total_tokens") or 0)
 
     choices = data.get("choices") or []
     if not choices:
@@ -392,6 +405,7 @@ async def _stream_llm(
     messages: list[dict[str, str]],
     max_tokens: int = 1200,
     temperature: float = 0.5,
+    usage_out: dict[str, int] | None = None,
 ) -> AsyncGenerator[str, None]:
     settings = get_settings()
     provider = settings.ai_provider
@@ -412,7 +426,7 @@ async def _stream_llm(
         model = settings.ai_model or default_model
 
         async for chunk in _stream_openai_compatible(
-            messages, max_tokens, temperature, base_url, api_key, model
+            messages, max_tokens, temperature, base_url, api_key, model, usage_out=usage_out
         ):
             yield chunk
 
@@ -424,6 +438,7 @@ async def _stream_openai_compatible(
     base_url: str,
     api_key: str,
     model: str,
+    usage_out: dict[str, int] | None = None,
 ) -> AsyncGenerator[str, None]:
     if not api_key:
         return
@@ -435,6 +450,9 @@ async def _stream_openai_compatible(
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": True,
+        # Demande au fournisseur (DeepSeek/OpenAI, API compatible) d'inclure un
+        # dernier chunk "usage" avec les vrais compteurs de tokens consommés.
+        "stream_options": {"include_usage": True},
     }
     try:
         async with httpx.AsyncClient(timeout=90.0) as client:
@@ -456,11 +474,22 @@ async def _stream_openai_compatible(
                         return
                     try:
                         parsed = json.loads(data)
-                        delta = parsed["choices"][0]["delta"].get("content", "")
-                        if delta:
-                            yield delta
-                    except (json.JSONDecodeError, KeyError, IndexError):
+                    except json.JSONDecodeError:
                         continue
+                    usage = parsed.get("usage")
+                    if usage_out is not None and isinstance(usage, dict):
+                        usage_out["prompt_tokens"] = int(usage.get("prompt_tokens") or 0)
+                        usage_out["completion_tokens"] = int(usage.get("completion_tokens") or 0)
+                        usage_out["total_tokens"] = int(usage.get("total_tokens") or 0)
+                    choices = parsed.get("choices") or []
+                    if not choices:
+                        continue
+                    try:
+                        delta = choices[0]["delta"].get("content", "")
+                    except (KeyError, IndexError):
+                        continue
+                    if delta:
+                        yield delta
     except Exception:
         return
 
@@ -525,11 +554,14 @@ async def limule_generate(
     temperature: float = 0.35,
     conversation_history: list[dict] | None = None,
     company_currency: str | None = None,
+    usage_out: dict[str, int] | None = None,
 ) -> tuple[str, dict[str, str]]:
     """
     Génère du contenu via le vrai LLM avec résolution des variables dynamiques.
     conversation_history : échanges précédents [{role, content}] pour le multi-tour.
     company_currency : devise de l'entreprise (EUR, USD, XAF…) — injectée dans le system prompt.
+    usage_out : dict optionnel rempli avec les vrais compteurs de tokens (prompt_tokens,
+        completion_tokens, total_tokens) renvoyés par le fournisseur LLM, si disponibles.
 
     Returns:
         (content, resolved_vars)
@@ -601,7 +633,9 @@ async def limule_generate(
         {"role": "user", "content": user_msg},
     ]
 
-    content = await _call_llm(messages=messages, max_tokens=max_tokens, temperature=temperature)
+    content = await _call_llm(
+        messages=messages, max_tokens=max_tokens, temperature=temperature, usage_out=usage_out
+    )
 
     if not content:
         # Zéro simulacre : en production/staging, on NE renvoie PAS de réponse
@@ -639,11 +673,14 @@ async def limule_stream(
     temperature: float = 0.35,
     conversation_history: list[dict] | None = None,
     company_currency: str | None = None,
+    usage_out: dict[str, int] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Version streaming de limule_generate.
     conversation_history : échanges précédents pour le multi-tour.
     company_currency : devise de l'entreprise — injectée dans le system prompt.
+    usage_out : dict optionnel rempli avec les vrais compteurs de tokens si le
+        fournisseur les renvoie dans le flux SSE (stream_options.include_usage).
     Yield les chunks de texte au fur et à mesure qu'ils arrivent du LLM.
     Si le LLM est indisponible, yield le fallback en un seul bloc.
     """
@@ -713,7 +750,7 @@ async def limule_stream(
     ]
 
     got_any = False
-    async for chunk in _stream_llm(messages, max_tokens, temperature):
+    async for chunk in _stream_llm(messages, max_tokens, temperature, usage_out=usage_out):
         got_any = True
         yield chunk
 

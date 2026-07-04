@@ -126,16 +126,19 @@ export function AdminLimulePage() {
   // ── History
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
 
-  // ── Simulated daily metrics (could be real with a dedicated endpoint)
   const todayRequests = insights.data?.last_7_days
     ? Math.round(insights.data.last_7_days / 7)
     : "–";
   const avgLatency = health.data?.latency_ms != null ? `${health.data.latency_ms}ms` : "–";
-  // Explicit estimate: token metering is not instrumented by the LLM provider.
-  // The UI shows an indicative bound (about 420 tokens/request), not an exact metric.
-  const tokensConsumed = insights.data?.total_interactions
-    ? `≈ ${(insights.data.total_interactions * 420).toLocaleString(i18n.language)}`
-    : "–";
+  // Real measured token usage from the LLM provider's API response (persisted per
+  // interaction in limule_interactions.tokens_used). Shows "–" if no interaction has
+  // real usage data yet (e.g. fresh DB, or provider that doesn't return usage).
+  const tokensMeasured = insights.data?.tokens_measured ?? 0;
+  const avgTokensPerInteraction = insights.data?.avg_tokens_per_interaction ?? null;
+  const totalTokensConsumed =
+    tokensMeasured > 0
+      ? (insights.data?.total_tokens ?? 0).toLocaleString(i18n.language)
+      : "–";
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -240,7 +243,16 @@ export function AdminLimulePage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metric icon={BrainCircuit} label={tr("admin.limule.metrics.requestsToday")} value={todayRequests} hint={tr("admin.limule.metrics.estimated7d")} />
         <Metric icon={Clock} label={tr("admin.limule.metrics.avgLatency")} value={avgLatency} hint={tr("admin.limule.metrics.fromHealth")} />
-        <Metric icon={Tags} label={tr("admin.limule.metrics.tokensEstimate")} value={tokensConsumed} hint={tr("admin.limule.metrics.tokensHint")} />
+        <Metric
+          icon={Tags}
+          label={tr("admin.limule.metrics.tokensReal")}
+          value={totalTokensConsumed}
+          hint={
+            avgTokensPerInteraction != null
+              ? tr("admin.limule.metrics.tokensHintReal", { avg: avgTokensPerInteraction, count: tokensMeasured })
+              : tr("admin.limule.metrics.tokensHintNoData")
+          }
+        />
         <Metric icon={Activity} label={tr("admin.limule.metrics.totalInteractions")} value={data?.total_interactions ?? "…"} hint={tr("admin.limule.metrics.last7Days", { count: data?.last_7_days ?? 0 })} />
       </div>
 

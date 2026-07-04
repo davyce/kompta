@@ -603,6 +603,7 @@ async def limule_chat(
     }
     _max_tokens = 3500 if intent in _HEAVY_INTENTS else 2200
 
+    usage: dict[str, int] = {}
     content, _ = await limule_generate(
         kind=intent,
         prompt=prompt,
@@ -614,6 +615,7 @@ async def limule_chat(
         max_tokens=_max_tokens,
         temperature=0.3 if intent in _HEAVY_INTENTS else 0.4,
         conversation_history=conversation_history,
+        usage_out=usage,
     )
 
     tags = training_tags(prompt, context, intent)
@@ -630,6 +632,9 @@ async def limule_chat(
         context_sources=json.dumps(context["sources"], ensure_ascii=False),
         detected_signals=json.dumps(context["signals"], ensure_ascii=False),
         training_tags=json.dumps(tags, ensure_ascii=False),
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        tokens_used=usage.get("total_tokens"),
         user_id=current_user.id,
         company_id=current_user.company_id,
     )
@@ -642,6 +647,9 @@ async def limule_chat(
             content=content,
             model=interaction.model,
             teras_used=any(tag == "teras" or tag.startswith("severity:") for tag in tags),
+            prompt_tokens=usage.get("prompt_tokens"),
+            completion_tokens=usage.get("completion_tokens"),
+            tokens_used=usage.get("total_tokens"),
             user_id=current_user.id,
             company_id=current_user.company_id,
         )
@@ -711,6 +719,7 @@ async def limule_chat_stream(
 
     async def event_stream():
         full_content = ""
+        usage: dict[str, int] = {}
         try:
             async for chunk in limule_stream(
                 kind=intent,
@@ -723,6 +732,7 @@ async def limule_chat_stream(
                 max_tokens=_max_tokens,
                 temperature=0.3 if intent in _HEAVY_INTENTS else 0.4,
                 conversation_history=conversation_history,
+                usage_out=usage,
             ):
                 full_content += chunk
                 yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
@@ -744,6 +754,9 @@ async def limule_chat_stream(
                 context_sources=json.dumps(context["sources"], ensure_ascii=False),
                 detected_signals=json.dumps(context["signals"], ensure_ascii=False),
                 training_tags=json.dumps(tags, ensure_ascii=False),
+                prompt_tokens=usage.get("prompt_tokens"),
+                completion_tokens=usage.get("completion_tokens"),
+                tokens_used=usage.get("total_tokens"),
                 user_id=current_user.id,
                 company_id=current_user.company_id,
             )
@@ -755,6 +768,9 @@ async def limule_chat_stream(
                 content=full_content,
                 model=interaction.model,
                 teras_used=any(t == "teras" or t.startswith("severity:") for t in tags),
+                prompt_tokens=usage.get("prompt_tokens"),
+                completion_tokens=usage.get("completion_tokens"),
+                tokens_used=usage.get("total_tokens"),
                 user_id=current_user.id,
                 company_id=current_user.company_id,
             ))
@@ -845,6 +861,18 @@ def admin_limule_insights(
         select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.rating.is_not(None))
     ) or 0
     avg_rating = db.scalar(select(func.avg(LimuleInteraction.rating)).where(LimuleInteraction.rating.is_not(None))) or 0
+    # Consommation réelle de tokens (mesurée depuis la réponse du fournisseur LLM,
+    # PAS une estimation forfaitaire). Peut être partielle si l'historique est ancien
+    # (colonnes ajoutées après coup) ou si le fournisseur ne renvoie pas d'usage.
+    tokens_measured = db.scalar(
+        select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.tokens_used.is_not(None))
+    ) or 0
+    avg_tokens = db.scalar(
+        select(func.avg(LimuleInteraction.tokens_used)).where(LimuleInteraction.tokens_used.is_not(None))
+    )
+    total_tokens = db.scalar(
+        select(func.coalesce(func.sum(LimuleInteraction.tokens_used), 0))
+    ) or 0
     by_module_rows = db.execute(
         select(LimuleInteraction.module_key, func.count())
         .group_by(LimuleInteraction.module_key)
@@ -867,6 +895,12 @@ def admin_limule_insights(
         "training_ready": int(db.scalar(
             select(func.count()).select_from(LimuleInteraction).where(LimuleInteraction.rating >= 4)
         ) or 0),
+        # Tokens : données réelles mesurées depuis les réponses du fournisseur LLM.
+        # tokens_measured = nb d'interactions pour lesquelles on a un compteur réel ;
+        # avg_tokens_per_interaction est null si aucune donnée mesurée n'existe encore.
+        "tokens_measured": int(tokens_measured),
+        "avg_tokens_per_interaction": round(float(avg_tokens), 1) if avg_tokens else None,
+        "total_tokens": int(total_tokens),
         "by_module": [{"module": module, "count": int(count)} for module, count in by_module_rows],
         "by_intent": [{"intent": intent, "count": int(count)} for intent, count in by_intent_rows],
         "recent": [
@@ -977,6 +1011,7 @@ async def admin_limule_chat(
             ],
         },
     }
+    usage: dict[str, int] = {}
     content, _ = await limule_generate(
         kind="platform_admin",
         prompt=prompt,
@@ -987,6 +1022,7 @@ async def admin_limule_chat(
         user=current_user,
         max_tokens=1400,
         temperature=0.25,
+        usage_out=usage,
     )
 
     settings = get_settings()
@@ -1002,6 +1038,9 @@ async def admin_limule_chat(
         context_sources=json.dumps(structured_context["sources"], ensure_ascii=False),
         detected_signals=json.dumps(structured_context["signals"], ensure_ascii=False),
         training_tags=json.dumps(["superadmin", "platform", "grand_sage"], ensure_ascii=False),
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        tokens_used=usage.get("total_tokens"),
         user_id=current_user.id,
         company_id=current_user.company_id,
     )

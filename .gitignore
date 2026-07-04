@@ -21,6 +21,8 @@ backend/kompta.db
 *.db.bak*
 *.db.backup*
 *.db-backup*
+/backups/
+backend/backups/
 
 # ── Env de production backend (contient des secrets réels) ──
 backend/.env.production

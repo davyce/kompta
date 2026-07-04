@@ -34,10 +34,12 @@ from app.api.routes_groups_g5 import router as groups_g5_router
 import os
 
 from app.core.config import get_settings
+from app.core.monitoring import init_sentry
 from app.db.init_db import create_tables, seed_demo_data
 from app.db.session import SessionLocal
 
 settings = get_settings()
+init_sentry()
 
 # ── Logging structuré ──────────────────────────────────────────────────────
 _LOG_LEVEL = logging.DEBUG if settings.environment.strip().lower() in {"local", "dev", "development"} else logging.INFO

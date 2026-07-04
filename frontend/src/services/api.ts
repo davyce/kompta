@@ -1927,6 +1927,9 @@ export type AdminLimuleInsights = {
   rated: number;
   avg_rating: number;
   training_ready: number;
+  tokens_measured: number;
+  avg_tokens_per_interaction: number | null;
+  total_tokens: number;
   by_module: Array<{ module: string; count: number }>;
   by_intent: Array<{ intent: string; count: number }>;
   recent: Array<{

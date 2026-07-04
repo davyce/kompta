@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     smtp_from_name: str = "KOMPTA"
     smtp_tls: bool = True
 
+    # ── Observabilité : Sentry (optionnel, no-op si non configuré) ────────────
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.1
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property

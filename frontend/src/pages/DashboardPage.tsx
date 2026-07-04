@@ -225,7 +225,11 @@ export function DashboardPage() {
     const invoicePending = data?.kpis.invoices_pending ?? 0;
     const salesTotal    = data?.kpis.sales_total    ?? 0;
     const employeeCount = data?.kpis.employees      ?? 0;
-    const estimatedPayroll = employeeCount * 775_000;
+    // Real average net pay per employee from actual Payslip history (backend-computed).
+    // If the company has no payslip history yet, we don't fabricate a payroll figure —
+    // the prompt explicitly tells the model the data is unavailable.
+    const avgPayroll = data?.kpis.avg_payroll_per_employee ?? null;
+    const estimatedPayroll = avgPayroll != null ? employeeCount * avgPayroll : null;
     const txBal = data?.kpis.tx_balance ?? 0;
     await api.aiGenerateStream(
       {
@@ -238,7 +242,7 @@ export function DashboardPage() {
           salesTotal: compactMoney(salesTotal),
           treasuryBalance: compactMoney(txBal),
           employeeCount,
-          estimatedPayroll: compactMoney(estimatedPayroll),
+          estimatedPayroll: estimatedPayroll != null ? compactMoney(estimatedPayroll) : tr("dashboard.payrollDataUnavailable"),
         }),
         context: "dashboard_cashflow",
       },
@@ -369,7 +373,13 @@ export function DashboardPage() {
   const invoicesTotal   = data?.kpis.invoices_total   ?? 0;
   const treasury   = Math.round((txCount > 0 ? txBalance : (data?.kpis.sales_total ?? 0)) / divisor);
   const revenue    = Math.round(invoicesPaid / divisor);
-  const payroll    = Math.round(((data?.kpis.employees ?? 0) * 775_000) / divisor);
+  // Real average net pay per employee (from actual Payslip history), computed
+  // backend-side. null when the company has no payslip history yet — no fabricated number.
+  const avgPayrollPerEmployee = data?.kpis.avg_payroll_per_employee ?? null;
+  const hasPayrollData = avgPayrollPerEmployee != null;
+  const payroll    = hasPayrollData
+    ? Math.round(((data?.kpis.employees ?? 0) * avgPayrollPerEmployee) / divisor)
+    : 0;
   const terasScore = data?.kpis.teras_score ?? 0;
   const terasDelta = terasScore > 0 ? terasScore - 83 : 0;
 
