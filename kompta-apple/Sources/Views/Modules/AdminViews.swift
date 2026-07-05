@@ -1584,9 +1584,17 @@ struct AdminSubscriptionsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(row.company_name).font(.subheadline.bold())
+                                    HStack(spacing: 6) {
+                                        Text(row.company_name).font(.subheadline.bold())
+                                        if row.admin_granted {
+                                            Text("🎁 offert").font(.caption2).foregroundStyle(.orange)
+                                        }
+                                    }
                                     Text("\(row.plan_code ?? "—") · \(shortDate(row.current_period_end))")
                                         .font(.caption).foregroundStyle(.secondary)
+                                    if row.admin_granted && !row.admin_granted_note.isEmpty {
+                                        Text(row.admin_granted_note).font(.caption2).foregroundStyle(.secondary)
+                                    }
                                 }
                                 Spacer()
                                 StatusPill(text: row.company_status, colorName: row.company_status == "active" ? "green" : "red")
@@ -1806,6 +1814,8 @@ struct AdminGrantFormView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var planCode = ""
     @State private var days = 365
+    @State private var unlimited = false
+    @State private var note = ""
     @State private var plans: [SubscriptionPlan] = []
     @State private var saving = false
 
@@ -1827,10 +1837,14 @@ struct AdminGrantFormView: View {
                             }
                         }
                     }
-                    Picker("Durée", selection: $days) {
-                        ForEach(presets, id: \.days) { Text($0.label).tag($0.days) }
+                    Toggle("Illimité (offert / partenariat)", isOn: $unlimited)
+                    if !unlimited {
+                        Picker("Durée", selection: $days) {
+                            ForEach(presets, id: \.days) { Text($0.label).tag($0.days) }
+                        }
+                        Stepper("\(days) jour(s)", value: $days, in: 1...3650, step: 30)
                     }
-                    Stepper("\(days) jour(s)", value: $days, in: 1...3650, step: 30)
+                    TextField("Note (optionnel)", text: $note)
                 }
             }
             .task { plans = (try? await APIClient.shared.adminPlans()) ?? [] }
@@ -1850,7 +1864,10 @@ struct AdminGrantFormView: View {
     private func save() async {
         saving = true
         do {
-            _ = try await APIClient.shared.adminGrantSubscription(row.company_id, GrantRequestPayload(plan_code: planCode, days: days))
+            _ = try await APIClient.shared.adminGrantSubscription(
+                row.company_id,
+                GrantRequestPayload(plan_code: planCode, days: days, unlimited: unlimited, note: note)
+            )
             await onSaved(); dismiss()
         } catch { }
         saving = false

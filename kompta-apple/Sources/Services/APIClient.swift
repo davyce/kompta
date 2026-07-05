@@ -872,6 +872,13 @@ actor APIClient {
 
     func myEntitlements() async throws -> Entitlements { try await get("/subscription/entitlements") }
 
+    /// Active un forfait via l'endpoint de checkout générique. Utilisé pour le
+    /// forfait Standard (gratuit) : `price_cents == 0` déclenche une activation
+    /// immédiate côté backend sans passer par un prestataire de paiement.
+    func subscriptionCheckout(planCode: String, method: String = "card") async throws -> SubscriptionCheckoutResult {
+        try await post("/subscription/checkout", body: SubscriptionCheckoutPayload(plan_code: planCode, method: method))
+    }
+
     /// Envoie une transaction StoreKit 2 signée (JWS) au backend pour
     /// vérification + activation/prolongation de l'abonnement de l'entreprise.
     func verifyApplePurchase(signedTransaction: String, planCode: String = "") async throws -> AppleVerifyResult {

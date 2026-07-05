@@ -536,6 +536,21 @@ struct Entitlements: Codable {
     let locked: Bool
 }
 
+// MARK: - Subscription checkout (ex: activation du forfait Standard gratuit)
+
+struct SubscriptionCheckoutPayload: Encodable {
+    let plan_code: String
+    let method: String
+    let promo_code: String = ""
+    let payer_phone: String = ""
+}
+
+struct SubscriptionCheckoutResult: Codable {
+    let status: String
+    let free: Bool?
+    let current_period_end: String?
+}
+
 // Méthode d'encaissement déclarée par l'entreprise (CEMAC).
 struct CollectionMethod: Codable, Identifiable, Hashable {
     let id: Int
@@ -660,6 +675,8 @@ struct CompanySubscriptionRow: Codable, Identifiable, Hashable {
     let status: String?
     let plan_code: String?
     let current_period_end: String?
+    var admin_granted: Bool = false
+    var admin_granted_note: String = ""
 }
 
 struct SuspendResult: Codable {
@@ -670,10 +687,14 @@ struct SuspendResult: Codable {
 struct GrantRequestPayload: Encodable {
     var plan_code: String
     var days: Int = 30
+    var unlimited: Bool = false
+    var note: String = ""
 }
 
 struct GrantResult: Codable {
     let company_id: Int
     let status: String
     let current_period_end: String?
+    var admin_granted: Bool = false
+    var unlimited: Bool = false
 }

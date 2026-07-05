@@ -9,10 +9,23 @@
 import SwiftUI
 import StoreKit
 
+/// Nom affiché d'un plan à partir de son code interne backend.
+/// Garde en cohérence avec `DEFAULT_PLANS` dans
+/// `backend/app/services/subscriptions.py` (Standard/Musala/Mokonzi).
+func subscriptionPlanDisplayName(_ code: String) -> String {
+    switch code {
+    case "starter": return "Standard"
+    case "pro": return "Musala"
+    case "business": return "Mokonzi"
+    default: return code.capitalized
+    }
+}
+
 struct SubscriptionPurchaseView: View {
     @EnvironmentObject private var ent: EntitlementsManager
     @StateObject private var store = StoreKitManager.shared
     @State private var purchasingProductID: String?
+    @State private var isActivatingStandard = false
     @State private var errorMessage: String?
     @State private var successMessage: String?
 
@@ -23,21 +36,22 @@ struct SubscriptionPurchaseView: View {
                     HStack {
                         Text("Offre actuelle")
                         Spacer()
-                        Text(e.plan_code.isEmpty ? (e.trialing ? "Essai gratuit" : "Aucune") : e.plan_code.capitalized)
+                        Text(e.plan_code.isEmpty ? (e.trialing ? "Essai gratuit" : "Aucune") : subscriptionPlanDisplayName(e.plan_code))
                             .foregroundStyle(.secondary)
                     }
                     if e.trialing {
-                        Text("Essai gratuit : \(e.trial_days_left) jour(s) restant(s).")
+                        Text("Essai Mokonzi offert : \(e.trial_days_left) jour(s) restant(s), puis retour automatique en Standard.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
 
             Section {
+                standardRow
                 if store.isLoadingProducts {
                     HStack { Spacer(); ProgressView(); Spacer() }
                 } else if store.products.isEmpty {
-                    Text("Aucune offre disponible pour le moment.")
+                    Text("Aucune offre payante disponible pour le moment.")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(store.products, id: \.id) { product in
@@ -47,7 +61,7 @@ struct SubscriptionPurchaseView: View {
             } header: {
                 Text("Offres disponibles")
             } footer: {
-                Text("L'achat est traité par l'App Store (Apple) — votre carte bancaire liée à votre identifiant Apple sera débitée, pas votre entreprise directement.")
+                Text("L'achat est traité par l'App Store (Apple) — votre carte bancaire liée à votre identifiant Apple sera débitée, pas votre entreprise directement. Le forfait Standard est gratuit et s'active immédiatement.")
             }
 
             Section {
@@ -70,6 +84,30 @@ struct SubscriptionPurchaseView: View {
         .task {
             await store.loadProducts()
         }
+    }
+
+    @ViewBuilder
+    private var standardRow: some View {
+        let isCurrent = ent.entitlements?.plan_code == "starter" && ent.entitlements?.trialing != true
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Standard").font(.body.weight(.semibold))
+                Text("Gratuit — POS/Caisse, facturation TVA, 2 utilisateurs.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if isCurrent {
+                Text("Actuel").font(.footnote).foregroundStyle(.secondary)
+            } else if isActivatingStandard {
+                ProgressView()
+            } else {
+                Button("Gratuit") {
+                    Task { await activateStandard() }
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -99,7 +137,22 @@ struct SubscriptionPurchaseView: View {
         defer { purchasingProductID = nil }
         do {
             let result = try await store.purchase(product)
-            successMessage = "Abonnement activé (offre « \(result.plan_code) »)."
+            successMessage = "Abonnement activé (offre « \(subscriptionPlanDisplayName(result.plan_code)) »)."
+            await ent.load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func activateStandard() async {
+        errorMessage = nil
+        successMessage = nil
+        isActivatingStandard = true
+        defer { isActivatingStandard = false }
+        do {
+            _ = try await APIClient.shared.subscriptionCheckout(planCode: "starter", method: "card")
+            successMessage = "Offre Standard activée."
+            await ent.load()
         } catch {
             errorMessage = error.localizedDescription
         }
