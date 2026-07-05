@@ -129,7 +129,9 @@
       "estimated": "estimated"
     },
     "errorBoundary": {
-      "title": "An error occurred."
+      "title": "An error occurred.",
+      "message": "Something went wrong. You can retry or reload the page.",
+      "reload": "Reload the page"
     },
     "googleSignIn": {
       "or": "or",
@@ -264,7 +266,10 @@
           "title": "Help & support",
           "body": "Find tutorials, FAQ and reach support in one click anytime."
         }
-      }
+      },
+      "discoverTitle": "Discover KOMPTA",
+      "discoverBody": "Take a full tour of the key modules (sales, invoices, inventory, payroll) in a few minutes.",
+      "discoverCta": "Take the full tour"
     },
     "momo": {
       "title": "Mobile Money payment",
@@ -5415,6 +5420,36 @@
     },
     "confirmDelete": {
       "title": "Delete this task?"
+    }
+  },
+  "moduleHints": {
+    "dashboard": {
+      "title": "Your dashboard",
+      "body": "Track revenue, cash flow and alerts at a glance. Use the period filters at the top to change the view."
+    },
+    "pos": {
+      "title": "Point of Sale",
+      "body": "Scan or search for a product, add it to the cart, then check out with cash, card or mobile money."
+    },
+    "billing": {
+      "title": "Billing",
+      "body": "Create quotes and invoices in a few clicks. Limule computes taxes and tracks payments automatically."
+    },
+    "transactions": {
+      "title": "Transactions",
+      "body": "Import your bank statements or add transactions manually — Limule categorizes them automatically."
+    },
+    "employees": {
+      "title": "Employees",
+      "body": "Manage employee records, contracts and access. You can also run payroll from here."
+    },
+    "inventory": {
+      "title": "Inventory",
+      "body": "Add your products, track quantities and get alerted when stock runs low."
+    },
+    "bankReconciliation": {
+      "title": "Bank reconciliation",
+      "body": "Match your bank transactions with your accounting entries to keep your cash position accurate."
     }
   }
 }

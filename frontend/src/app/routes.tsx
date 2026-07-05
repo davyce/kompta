@@ -4,6 +4,7 @@ import { Navigate, Outlet, createBrowserRouter, useNavigate, useRouteError } fro
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 import { Shell } from "./Shell";
+import { RouteErrorBoundary } from "../components/ErrorBoundary";
 // AdminShell lazy-loadé : non inclus dans le bundle principal pour les utilisateurs
 // non-admin (la grande majorité). Chargé uniquement sur les routes /admin/*.
 const AdminShell = lazy(() => import("../admin/AdminShell").then(m => ({ default: m.AdminShell })));
@@ -140,9 +141,11 @@ function LoadingFallback({ messageTk, height = "h-dvh", tone = "emerald" }: { me
 
 function LazyRoute({ page: Page }: { page: React.ComponentType }) {
   return (
-    <Suspense fallback={<LoadingFallback messageTk="routes.loadingModule" height="h-64" />}>
-      <Page />
-    </Suspense>
+    <RouteErrorBoundary>
+      <Suspense fallback={<LoadingFallback messageTk="routes.loadingModule" height="h-64" />}>
+        <Page />
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }
 

@@ -549,7 +549,7 @@ struct DashboardView: View {
         } catch let urlErr as URLError where urlErr.code == .cancelled {
             // Idem (annulation réseau via pull-to-refresh).
         } catch {
-            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            self.error = Loadable<Any>.friendlyMessage(for: error)
         }
         isLoading = false
     }

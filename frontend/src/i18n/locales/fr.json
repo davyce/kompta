@@ -129,7 +129,9 @@
       "estimated": "estimé"
     },
     "errorBoundary": {
-      "title": "Une erreur est survenue."
+      "title": "Une erreur est survenue.",
+      "message": "Quelque chose s'est mal passé. Vous pouvez réessayer ou recharger la page.",
+      "reload": "Recharger la page"
     },
     "googleSignIn": {
       "or": "ou",
@@ -264,7 +266,10 @@
           "title": "Aide & support",
           "body": "Retrouvez tutoriels, FAQ et contactez le support en un clic à tout moment."
         }
-      }
+      },
+      "discoverTitle": "Découvrir KOMPTA",
+      "discoverBody": "Faites un tour complet des modules clés (ventes, factures, stock, paie) en quelques minutes.",
+      "discoverCta": "Faire le tour complet"
     },
     "momo": {
       "title": "Paiement Mobile Money",
@@ -5415,6 +5420,36 @@
     },
     "confirmDelete": {
       "title": "Supprimer cette tâche ?"
+    }
+  },
+  "moduleHints": {
+    "dashboard": {
+      "title": "Votre tableau de bord",
+      "body": "Suivez chiffre d’affaires, trésorerie et alertes en un coup d’œil. Utilisez les filtres de période en haut pour changer la vue."
+    },
+    "pos": {
+      "title": "Caisse (POS)",
+      "body": "Scannez ou recherchez un produit, ajoutez-le au panier, puis encaissez en espèces, carte ou Mobile Money."
+    },
+    "billing": {
+      "title": "Facturation",
+      "body": "Créez devis et factures en quelques clics. Limule calcule les taxes et suit les paiements automatiquement."
+    },
+    "transactions": {
+      "title": "Transactions",
+      "body": "Importez vos relevés bancaires ou ajoutez des transactions manuellement — Limule les catégorise automatiquement."
+    },
+    "employees": {
+      "title": "Employés",
+      "body": "Gérez vos fiches employés, contrats et accès. Depuis ici, vous pouvez aussi lancer la paie."
+    },
+    "inventory": {
+      "title": "Stock",
+      "body": "Ajoutez vos produits, suivez les quantités et recevez une alerte quand le stock est bas."
+    },
+    "bankReconciliation": {
+      "title": "Réconciliation bancaire",
+      "body": "Rapprochez vos transactions bancaires avec vos écritures comptables pour garder une trésorerie fiable."
     }
   }
 }

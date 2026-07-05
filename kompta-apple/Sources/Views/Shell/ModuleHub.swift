@@ -309,8 +309,24 @@ final class Loadable<T>: ObservableObject {
         guard !isLoading else { return }
         isLoading = true; error = nil
         do { value = try await op() }
-        catch { self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
+        catch { self.error = Loadable.friendlyMessage(for: error) }
         isLoading = false
+    }
+
+    /// Turns a raw thrown error into a message safe to show end users.
+    /// `DecodingError` in particular carries Foundation's cryptic default text
+    /// ("The data couldn't be read because it is missing.") which isn't
+    /// actionable for a non-technical user — so it's replaced with a friendly
+    /// French message while the technical detail is still logged for debugging
+    /// (visible in the Xcode console / device logs).
+    static func friendlyMessage(for error: Error) -> String {
+        if let decodingError = error as? DecodingError {
+            #if DEBUG
+            print("[Loadable] DecodingError: \(decodingError)")
+            #endif
+            return "Un problème est survenu lors du chargement des données. Contactez le support si le problème persiste."
+        }
+        return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 }
 
