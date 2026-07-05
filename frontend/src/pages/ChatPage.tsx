@@ -5,7 +5,7 @@ import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useS
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft, Hash, Paperclip, Plus, Search,
-  Send, Sparkles, X, Info,
+  Send, Sparkles, X, Info, Lock,
   CheckSquare, Loader2, Zap, Calendar, User, FileText, CreditCard, Bell, Users2,
 } from "lucide-react";
 
@@ -164,7 +164,8 @@ export function ChatPage() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
   const [showChannelCreate, setShowChannelCreate] = useState(false);
-  const [channelForm, setChannelForm] = useState({ name: "", topic: "" });
+  const [channelForm, setChannelForm] = useState<{ name: string; topic: string; member_user_ids: number[] }>({ name: "", topic: "", member_user_ids: [] });
+  const isCompanyAdmin = Boolean(user && ["admin_entreprise", "manager_entreprise", "super_admin"].includes(user.role));
   const [taskComposer, setTaskComposer] = useState({
     open: false,
     title: "",
@@ -189,6 +190,11 @@ export function ChatPage() {
 
   const channels = useQuery({ queryKey: ["channels"], queryFn: api.channels });
   const employees = useQuery({ queryKey: ["employees"], queryFn: api.employees });
+  const companyUsers = useQuery({
+    queryKey: ["chatCompanyUsers"],
+    queryFn: api.chatCompanyUsers,
+    enabled: isCompanyAdmin && showChannelCreate,
+  });
   const mentionSuggestions = useMemo(() => {
     if (mentionQuery === null) return [];
     const q = mentionQuery.toLowerCase();
@@ -236,7 +242,7 @@ export function ChatPage() {
       queryClient.invalidateQueries({ queryKey: ["channels"] });
       setActiveChannelId(channel.id);
       setShowChannelCreate(false);
-      setChannelForm({ name: "", topic: "" });
+      setChannelForm({ name: "", topic: "", member_user_ids: [] });
       setShowSidebar(false);
     },
   });
@@ -459,13 +465,15 @@ export function ChatPage() {
           <div>
             <div className="flex items-center justify-between px-2 py-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("chat.channels.title")}</span>
-              <button
-                onClick={() => setShowChannelCreate(true)}
-                className="grid h-5 w-5 place-items-center rounded text-[#717182] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
-                aria-label={tr("chat.channels.create")}
-              >
-                <Plus size={12} />
-              </button>
+              {isCompanyAdmin && (
+                <button
+                  onClick={() => setShowChannelCreate(true)}
+                  className="grid h-5 w-5 place-items-center rounded text-[#717182] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+                  aria-label={tr("chat.channels.create")}
+                >
+                  <Plus size={12} />
+                </button>
+              )}
             </div>
             {channels.data?.map((c) => {
               const unread = 0; // badges calculés côté backend (pas encore exposés)
@@ -481,6 +489,7 @@ export function ChatPage() {
                 >
                   <Hash size={14} className={c.id === activeChannelId ? "text-violet-500" : "text-[#717182]"} />
                   <span className="flex-1 truncate">{c.name}</span>
+                  {c.is_restricted && <Lock size={11} className="text-[#717182]" />}
                   {unread > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
                       {unread}
@@ -925,6 +934,35 @@ export function ChatPage() {
                 className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm font-semibold text-[#17211f] outline-none transition focus:border-violet-500 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
               />
             </label>
+            <div className="mt-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-[#717182]">
+                {tr("chat.createChannel.members", { defaultValue: "Membres (laisser vide = canal ouvert à tous)" })}
+              </p>
+              <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-black/[0.08] dark:border-white/[0.08] p-2 space-y-1">
+                {(companyUsers.data ?? []).map((u) => {
+                  const checked = channelForm.member_user_ids.includes(u.id);
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-[#17211f] dark:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setChannelForm((current) => ({
+                          ...current,
+                          member_user_ids: checked
+                            ? current.member_user_ids.filter((id) => id !== u.id)
+                            : [...current.member_user_ids, u.id],
+                        }))}
+                      />
+                      <span className="truncate">{u.full_name}</span>
+                      <span className="ml-auto text-xs text-[#717182]">{u.role}</span>
+                    </label>
+                  );
+                })}
+                {!companyUsers.data?.length && (
+                  <p className="px-2 py-2 text-xs text-[#717182]">{tr("chat.createChannel.noUsers", { defaultValue: "Aucun utilisateur trouvé" })}</p>
+                )}
+              </div>
+            </div>
             {createChannel.error && <p className="mt-3 text-sm font-semibold text-rose-600">{createChannel.error.message}</p>}
             <button
               type="submit"

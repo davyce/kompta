@@ -506,8 +506,11 @@ actor APIClient {
     // MARK: - Chat
 
     func chatChannels() async throws -> [ChatChannel] { try await get("/chat/channels") }
-    func createChannel(name: String, topic: String) async throws -> ChatChannel {
-        try await post("/chat/channels", body: ChannelPayload(name: name, topic: topic))
+    /// Utilisateurs de l'entreprise pour le sélecteur de membres d'un canal
+    /// restreint — réservé aux admins qui créent/gèrent des canaux.
+    func chatCompanyUsers() async throws -> [CompanyUserRow] { try await get("/chat/company-users") }
+    func createChannel(name: String, topic: String, memberUserIds: [Int] = []) async throws -> ChatChannel {
+        try await post("/chat/channels", body: ChannelPayload(name: name, topic: topic, member_user_ids: memberUserIds))
     }
     func channelMessages(_ id: Int) async throws -> [ChatMsg] { try await get("/chat/channels/\(id)/messages") }
     func channelDetail(_ id: Int) async throws -> ChatChannelDetail { try await get("/chat/channels/\(id)/detail") }

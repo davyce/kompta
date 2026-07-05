@@ -483,6 +483,7 @@ struct ChatChannel: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let topic: String
+    var is_restricted: Bool = false
 }
 
 struct ChatChannelPayload: Encodable {
@@ -533,7 +534,7 @@ struct ChatChannelDetail: Codable {
 }
 
 struct MessagePayload: Encodable { var body: String }
-struct ChannelPayload: Encodable { var name: String; var topic: String }
+struct ChannelPayload: Encodable { var name: String; var topic: String; var member_user_ids: [Int] = [] }
 struct CurrencyConvertResult: Codable { let converted: Double?; let rate: Double? }
 
 // MARK: - Custom roles & permissions

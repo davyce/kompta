@@ -242,6 +242,8 @@ export type Channel = {
   name: string;
   topic: string;
   company_id: number;
+  is_restricted?: boolean;
+  member_ids?: number[];
 };
 
 export type ChatMember = {

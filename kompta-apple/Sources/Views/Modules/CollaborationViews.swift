@@ -354,6 +354,13 @@ struct TaskFormView: View {
 struct ChatChannelsView: View {
     @StateObject private var state = Loadable<[ChatChannel]>()
     @State private var showNew = false
+    @EnvironmentObject private var auth: AuthManager
+
+    /// Seul un admin d'entreprise peut créer un canal (au-delà du "general"
+    /// par défaut) — même règle que côté backend (routes.py create_channel).
+    private var canCreateChannel: Bool {
+        ["admin_entreprise", "manager_entreprise", "super_admin"].contains(auth.currentUser?.role ?? "")
+    }
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun canal", emptyIcon: "bubble.left.and.bubble.right",
@@ -367,6 +374,10 @@ struct ChatChannelsView: View {
                                 Text(ch.name).font(.subheadline.bold())
                                 if !ch.topic.isEmpty { Text(ch.topic).font(.caption).foregroundStyle(.secondary) }
                             }
+                            if ch.is_restricted {
+                                Spacer()
+                                Image(systemName: "lock.fill").font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -377,7 +388,9 @@ struct ChatChannelsView: View {
         }
         .navigationTitle("Canaux")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            if canCreateChannel {
+                ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -392,6 +405,8 @@ struct ChannelFormView: View {
     @State private var name = ""
     @State private var topic = ""
     @State private var saving = false
+    @State private var companyUsers: [CompanyUserRow] = []
+    @State private var selectedMemberIds: Set<Int> = []
 
     var body: some View {
         NavigationStack {
@@ -399,6 +414,27 @@ struct ChannelFormView: View {
                 Section("Canal") {
                     TextField("Nom *", text: $name)
                     TextField("Sujet", text: $topic)
+                }
+                Section("Membres (laisser vide = canal ouvert à tous)") {
+                    if companyUsers.isEmpty {
+                        Text("Aucun utilisateur trouvé").font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(companyUsers) { u in
+                        Button {
+                            if selectedMemberIds.contains(u.id) { selectedMemberIds.remove(u.id) }
+                            else { selectedMemberIds.insert(u.id) }
+                        } label: {
+                            HStack {
+                                Text(u.full_name)
+                                Spacer()
+                                Text(u.role).font(.caption).foregroundStyle(.secondary)
+                                if selectedMemberIds.contains(u.id) {
+                                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .navigationTitle("Nouveau canal")
@@ -413,11 +449,17 @@ struct ChannelFormView: View {
                 }
             }
         }
+        .task {
+            companyUsers = (try? await APIClient.shared.chatCompanyUsers()) ?? []
+        }
     }
 
     private func save() async {
         saving = true
-        do { _ = try await APIClient.shared.createChannel(name: name, topic: topic); await onSaved(); dismiss() }
+        do {
+            _ = try await APIClient.shared.createChannel(name: name, topic: topic, memberUserIds: Array(selectedMemberIds))
+            await onSaved(); dismiss()
+        }
         catch { }
         saving = false
     }

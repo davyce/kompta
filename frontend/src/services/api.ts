@@ -622,11 +622,17 @@ export const api = {
     return request<Product>(`/products/${productId}/images`, { method: "POST", headers, body: form });
   },
   channels: () => request<Channel[]>("/chat/channels"),
-  createChannel: (payload: { name: string; topic?: string }) =>
+  createChannel: (payload: { name: string; topic?: string; member_user_ids?: number[] }) =>
     request<Channel>("/chat/channels", {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  updateChannelMembers: (channelId: number, member_user_ids: number[]) =>
+    request<Channel>(`/chat/channels/${channelId}/members`, {
+      method: "PATCH",
+      body: JSON.stringify({ member_user_ids }),
+    }),
+  chatCompanyUsers: () => request<Array<{ id: number; full_name: string; role: string; email: string }>>("/chat/company-users"),
   channelDetail: (channelId: number) => request<ChatChannelDetail>(`/chat/channels/${channelId}/detail`),
   messages: (channelId: number) => request<Message[]>(`/chat/channels/${channelId}/messages`),
   sendMessage: (channelId: number, body: string) =>
