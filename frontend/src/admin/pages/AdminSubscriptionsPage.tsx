@@ -268,7 +268,7 @@ function CompaniesSection() {
   const inv = () => qc.invalidateQueries({ queryKey: ["adminCompanySubs"] });
   const suspend = useMutation({ mutationFn: (id: number) => api.adminSubSuspend(id), onSuccess: inv });
   const reactivate = useMutation({ mutationFn: (id: number) => api.adminSubReactivate(id), onSuccess: inv });
-  const grant = useMutation({ mutationFn: ({ id, plan, days }: { id: number; plan: string; days: number }) => api.adminGrantCompany(id, plan, days), onSuccess: inv });
+  const grant = useMutation({ mutationFn: ({ id, plan, days, unlimited }: { id: number; plan: string; days: number; unlimited: boolean }) => api.adminGrantCompany(id, plan, days, unlimited), onSuccess: inv });
   const plans = useQuery({ queryKey: ["adminPlans"], queryFn: api.adminPlans });
   const [grantFor, setGrantFor] = useState<{ id: number; name: string } | null>(null);
 
@@ -304,7 +304,14 @@ function CompaniesSection() {
           <tbody className="divide-y divide-white/5">
             {rows.data?.map((r) => (
               <tr key={r.company_id} className="text-white/80">
-                <td className="px-4 py-2 font-semibold">{r.company_name}</td>
+                <td className="px-4 py-2 font-semibold">
+                  {r.company_name}
+                  {r.admin_granted && (
+                    <span title={r.admin_granted_note || "Forfait accordé manuellement"} className="ml-2 rounded-full bg-violet-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-300">
+                      <Gift size={9} className="mr-0.5 inline" />offert
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-white/50">{r.plan_code || "—"}</td>
                 <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge(r.status)}`}>{statusLabel(r.status)}</span></td>
                 <td className="px-4 py-2 text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString(i18n.language) : "—"}</td>
@@ -329,7 +336,7 @@ function CompaniesSection() {
           company={grantFor}
           plans={plans.data ?? []}
           pending={grant.isPending}
-          onGrant={(plan, days) => grant.mutate({ id: grantFor.id, plan, days }, { onSuccess: () => setGrantFor(null) })}
+          onGrant={(plan, days, unlimited) => grant.mutate({ id: grantFor.id, plan, days, unlimited }, { onSuccess: () => setGrantFor(null) })}
           onClose={() => setGrantFor(null)}
         />
       )}
@@ -341,17 +348,17 @@ function GrantModal({ company, plans, pending, onGrant, onClose }: {
   company: { id: number; name: string };
   plans: SubscriptionPlanDto[];
   pending: boolean;
-  onGrant: (plan: string, days: number) => void;
+  onGrant: (plan: string, days: number, unlimited: boolean) => void;
   onClose: () => void;
 }) {
   const { t: tr } = useTranslation();
   const [plan, setPlan] = useState<string>(plans[0]?.code ?? "business");
   const [days, setDays] = useState<number>(365);
+  const [unlimited, setUnlimited] = useState(false);
   const PRESETS: Array<{ label: string; days: number }> = [
     { label: "1 mois", days: 30 },
     { label: "3 mois", days: 90 },
     { label: "1 an", days: 365 },
-    { label: "Gratuit à vie (10 ans)", days: 3650 },
   ];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -373,18 +380,27 @@ function GrantModal({ company, plans, pending, onGrant, onClose }: {
         <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/40">Durée</label>
         <div className="mb-3 grid grid-cols-2 gap-2">
           {PRESETS.map((pr) => (
-            <button key={pr.days} onClick={() => setDays(pr.days)}
-              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${days === pr.days ? "border-violet-400 bg-violet-500/20 text-violet-100" : "border-white/10 text-white/60 hover:bg-white/5"}`}>
+            <button key={pr.days} onClick={() => { setDays(pr.days); setUnlimited(false); }}
+              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${!unlimited && days === pr.days ? "border-violet-400 bg-violet-500/20 text-violet-100" : "border-white/10 text-white/60 hover:bg-white/5"}`}>
               {pr.label}
             </button>
           ))}
+          <button onClick={() => setUnlimited(true)}
+            className={`col-span-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${unlimited ? "border-violet-400 bg-violet-500/20 text-violet-100" : "border-white/10 text-white/60 hover:bg-white/5"}`}>
+            ♾️ Illimité (protégé des renouvellements Stripe/MoMo/Apple)
+          </button>
         </div>
-        <input type="number" min={1} value={days} onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
-          className="mb-4 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2.5 text-sm" />
+        {!unlimited && (
+          <input type="number" min={1} value={days} onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
+            className="mb-4 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2.5 text-sm" />
+        )}
+        {unlimited && (
+          <p className="mb-4 text-xs text-white/50">Ce forfait restera actif indéfiniment et ne sera jamais raccourci automatiquement — retirez-le manuellement (suspendre) pour y mettre fin.</p>
+        )}
 
-        <button disabled={pending} onClick={() => onGrant(plan, days)}
+        <button disabled={pending} onClick={() => onGrant(plan, days, unlimited)}
           className="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50">
-          {pending ? tr("common.loading", { defaultValue: "…" }) : `Activer ${plan} pour ${days} jours`}
+          {pending ? tr("common.loading", { defaultValue: "…" }) : unlimited ? `Activer ${plan} en illimité` : `Activer ${plan} pour ${days} jours`}
         </button>
       </div>
     </div>

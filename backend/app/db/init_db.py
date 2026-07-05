@@ -275,7 +275,13 @@ def ensure_sqlite_migrations() -> None:
             "apple_product_id": "VARCHAR(200) DEFAULT ''",
         },
         "promotions": {},
-        "company_subscriptions": {},
+        "company_subscriptions": {
+            # Protège un forfait accordé manuellement par le super-admin
+            # (offert/illimité) contre un renouvellement Stripe/MoMo/Apple qui
+            # écraserait silencieusement plan_code/current_period_end.
+            "admin_granted": "BOOLEAN DEFAULT 0",
+            "admin_granted_note": "VARCHAR(255) DEFAULT ''",
+        },
         # Réconciliation bancaire : lien BankTransaction <-> PaymentAccount
         # + nouvelles tables bank_statement_imports / bank_statement_lines
         # (create_all crée les tables ; colonnes bank_transactions fusionnées

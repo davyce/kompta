@@ -422,6 +422,8 @@ def admin_list_company_subs(db: Session = Depends(get_db), current_user: User = 
             "company_id": c.id, "company_name": c.name, "company_status": c.status,
             "status": status, "plan_code": sub.plan_code if sub else "",
             "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
+            "admin_granted": bool(sub.admin_granted) if sub else False,
+            "admin_granted_note": sub.admin_granted_note if sub else "",
         })
     return out
 
@@ -460,12 +462,20 @@ def admin_reactivate(company_id: int, db: Session = Depends(get_db),
 class GrantRequest(BaseModel):
     plan_code: str
     days: int = 30
+    # Forfait illimité (partenariat, compte interne, geste commercial...) —
+    # ignore `days`, pousse la période très loin (100 ans). Protégé : un
+    # paiement réel ultérieur (Stripe/MoMo/Apple) ne raccourcit jamais un don
+    # marqué admin_granted tant qu'il n'offre pas une période plus longue.
+    unlimited: bool = False
+    note: str = ""
 
 
 @router.post("/admin/subscription/companies/{company_id}/grant")
 def admin_grant(company_id: int, payload: GrantRequest, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)) -> dict:
-    """Octroie/force un abonnement à une entreprise (offert ou paiement hors-ligne/Zola)."""
+    """Octroie/force un abonnement à une entreprise (offert, illimité, ou
+    paiement hors-ligne/Zola). Le don est protégé contre un renouvellement de
+    paiement réel qui viendrait l'écraser (cf. activate_after_payment)."""
     _require_super_admin(current_user)
     company = db.get(Company, company_id)
     if not company:
@@ -476,12 +486,19 @@ def admin_grant(company_id: int, payload: GrantRequest, db: Session = Depends(ge
     base = now
     if sub.current_period_end and subs._aware(sub.current_period_end) > now and sub.plan_code == plan.code:
         base = subs._aware(sub.current_period_end)
+    delta = timedelta(days=365 * 100) if payload.unlimited else timedelta(days=max(1, payload.days))
     sub.plan_code = plan.code
     sub.status = "active"
     sub.started_at = sub.started_at or now
-    sub.current_period_end = base + timedelta(days=max(1, payload.days))
+    sub.current_period_end = base + delta
+    sub.admin_granted = True
+    sub.admin_granted_note = payload.note or (
+        f"Illimité — accordé par {current_user.email}" if payload.unlimited
+        else f"Accordé par {current_user.email} ({payload.days} j)"
+    )
     if company.status == "suspended":
         company.status = "active"
     db.commit()
-    return {"company_id": company_id, "status": "active",
+    return {"company_id": company_id, "status": "active", "admin_granted": True,
+            "unlimited": payload.unlimited,
             "current_period_end": sub.current_period_end.isoformat()}

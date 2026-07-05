@@ -1,6 +1,7 @@
 """Tests du système d'abonnement plateforme :
 plans, promotions, checkout plan gratuit, suspension (402) + réactivation, grant."""
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.main import app
 
@@ -106,6 +107,63 @@ def test_super_admin_grant_period() -> None:
         me = client.get("/api/subscription/me", headers=adm).json()
         assert me["plan_code"] == "pro"
         assert me["current_period_end"] is not None
+
+
+def test_unlimited_grant_survives_shorter_real_payment_but_not_longer() -> None:
+    """Un forfait "illimité" accordé par le super-admin (ex-Guideline utilisateur:
+    Apple/Stripe/MoMo ne doivent jamais l'écraser silencieusement) doit résister
+    à un paiement réel plus court, mais céder la place à un paiement qui offre
+    réellement une période plus longue que le don."""
+    import uuid
+
+    from app.db.session import SessionLocal
+    from app.models import Company, SubscriptionPlan
+    from app.services import subscriptions as subs
+
+    with TestClient(app) as client:
+        sup = _super(client)
+        email = f"unlimited_{uuid.uuid4().hex[:8]}@kompta.local"
+        reg = client.post("/api/auth/register-company", json={
+            "company_name": "Illimite SARL", "admin_full_name": "Boss", "admin_email": email,
+            "admin_phone": "", "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+        })
+        assert reg.status_code == 201, reg.text
+        adm = {"Authorization": f"Bearer {reg.json()['access_token']}"}
+        cid = _company_id(client, adm)
+
+        g = client.post(f"/api/admin/subscription/companies/{cid}/grant", headers=sup,
+                        json={"plan_code": "business", "days": 30, "unlimited": True})
+        assert g.status_code == 200, g.text
+        assert g.json()["admin_granted"] is True
+        me = client.get("/api/subscription/me", headers=adm).json()
+        assert me["plan_code"] == "business"
+        granted_end = me["current_period_end"]
+
+        # Paiement réel plus court (30 jours "pro") : ne doit PAS écraser le don.
+        with SessionLocal() as db:
+            plan = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == "pro"))
+            subs.activate_after_payment(db, cid, plan)
+        me2 = client.get("/api/subscription/me", headers=adm).json()
+        assert me2["plan_code"] == "business", "le don illimité ne doit pas être raccourci"
+        assert me2["current_period_end"] == granted_end
+
+        with SessionLocal() as db:
+            row = db.scalar(select(Company).where(Company.id == cid))
+            assert row is not None  # sanity : l'entreprise existe toujours
+
+        # Paiement réel qui dépasse VRAIMENT le don (ex. 200 ans) : prend le relais.
+        with SessionLocal() as db:
+            plan = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == "pro"))
+            from datetime import timedelta
+
+            from app.models import CompanySubscription
+            sub = db.scalar(select(CompanySubscription).where(CompanySubscription.company_id == cid))
+            sub.current_period_end = subs._now() + timedelta(days=1)  # force une base proche pour le test
+            db.commit()
+            subs.activate_after_payment(db, cid, plan)
+            db.refresh(sub)
+            assert sub.admin_granted is False, "un paiement qui dépasse le don doit lever la protection"
 
 
 # ── Entitlements (essai 3 mois + gating modules) ────────────────────────────

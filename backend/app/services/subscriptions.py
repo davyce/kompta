@@ -199,7 +199,7 @@ def effective_status(db: Session, company: Company, sub: CompanySubscription | N
 
 def activate_after_payment(db: Session, company_id: int, plan: SubscriptionPlan,
                            promo_code: str = "", payment_id: int | None = None) -> CompanySubscription:
-    """Active/prolonge l'abonnement après un paiement réussi."""
+    """Active/prolonge l'abonnement après un paiement réussi (Stripe/MoMo/Apple)."""
     sub = get_or_create_subscription(db, company_id)
     now = _now()
     # Si la période court encore, on l'étend ; sinon on repart de maintenant.
@@ -207,10 +207,28 @@ def activate_after_payment(db: Session, company_id: int, plan: SubscriptionPlan,
     if sub.current_period_end and _aware(sub.current_period_end) > now and sub.plan_code == plan.code:
         base = _aware(sub.current_period_end)
     delta = timedelta(days=365) if plan.period == "year" else timedelta(days=30)
+    new_period_end = base + delta
+
+    # Un forfait accordé manuellement par le super-admin (offert, illimité...)
+    # ne doit jamais être raccourci par un paiement réel qui arrive ensuite
+    # (ex. renouvellement Apple d'un abonnement souscrit avant le don manuel).
+    # On enregistre quand même le paiement (last_payment_id) pour l'audit,
+    # mais on ne touche pas plan_code/status/current_period_end tant que le
+    # don manuel couvre une période plus longue que ce que ce paiement offrirait.
+    if sub.admin_granted and sub.current_period_end and _aware(sub.current_period_end) > new_period_end:
+        if payment_id:
+            sub.last_payment_id = payment_id
+        db.commit()
+        return sub
+
+    # Le paiement réel dépasse (ou égale) le don manuel : il prend le relais,
+    # et l'entreprise redevient un abonnement payant normal.
+    sub.admin_granted = False
+    sub.admin_granted_note = ""
     sub.plan_code = plan.code
     sub.status = "active"
     sub.started_at = sub.started_at or now
-    sub.current_period_end = base + delta
+    sub.current_period_end = new_period_end
     sub.cancel_at_period_end = False
     sub.applied_promo_code = promo_code or ""
     if payment_id:

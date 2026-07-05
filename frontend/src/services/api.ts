@@ -603,9 +603,9 @@ export const api = {
     request<{ company_id: number; company_status: string }>(`/admin/subscription/companies/${companyId}/suspend`, { method: "POST" }),
   adminSubReactivate: (companyId: number) =>
     request<{ company_id: number; company_status: string }>(`/admin/subscription/companies/${companyId}/reactivate`, { method: "POST" }),
-  adminGrantCompany: (companyId: number, plan_code: string, days: number) =>
-    request<{ company_id: number; status: string; current_period_end: string }>(
-      `/admin/subscription/companies/${companyId}/grant`, { method: "POST", body: JSON.stringify({ plan_code, days }) }),
+  adminGrantCompany: (companyId: number, plan_code: string, days: number, unlimited = false, note = "") =>
+    request<{ company_id: number; status: string; admin_granted: boolean; unlimited: boolean; current_period_end: string }>(
+      `/admin/subscription/companies/${companyId}/grant`, { method: "POST", body: JSON.stringify({ plan_code, days, unlimited, note }) }),
   createMovement: (payload: { product_id: number; movement_type: "in" | "out"; quantity: number; reason?: string; reference?: string }) =>
     request<{ id: number; product_id: number; movement_type: string; quantity: number; reason: string; reference: string; created_at: string; new_stock: number }>(
       "/inventory/movements", { method: "POST", body: JSON.stringify(payload) }
@@ -1853,6 +1853,8 @@ export type CompanySubRow = {
   status: string;
   plan_code: string;
   current_period_end: string | null;
+  admin_granted: boolean;
+  admin_granted_note: string;
 };
 
 export type CurrencyConvertDto = {

@@ -1522,6 +1522,12 @@ class CompanySubscription(TimestampMixin, Base):
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
     last_payment_id: Mapped[int | None] = mapped_column(ForeignKey("payment_transactions.id"), nullable=True)
     applied_promo_code: Mapped[str] = mapped_column(String(40), default="")
+    # Marque un forfait accordé manuellement par le super-admin (offert,
+    # illimité, partenariat, etc.) — protège plan_code/current_period_end
+    # d'un renouvellement de paiement réel (Stripe/MoMo/Apple) tant que ce
+    # dernier n'étend pas la période au-delà de ce qui a été accordé.
+    admin_granted: Mapped[bool] = mapped_column(Boolean, default=False)
+    admin_granted_note: Mapped[str] = mapped_column(String(255), default="")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
