@@ -30,16 +30,15 @@ final class StoreKitManager: ObservableObject {
     /// mêmes identifiants exacts, puis à associer au `SubscriptionPlan.code`
     /// correspondant côté admin backend (champ `apple_product_id`).
     enum ProductID: String, CaseIterable {
-        case proMonthly = "com.adansonia.kompta.subscription.pro.monthly"
-        case proYearly = "com.adansonia.kompta.subscription.pro.yearly"
-        case businessMonthly = "com.adansonia.kompta.subscription.business.monthly"
-        case businessYearly = "com.adansonia.kompta.subscription.business.yearly"
+        case musalaMonthly = "com.adansonia.kompta.subscription.musala.monthly"
+        case mokonziMonthly = "com.adansonia.kompta.subscription.mokonzi.monthly"
 
         /// Code du plan KOMPTA correspondant (voir backend/app/services/subscriptions.py DEFAULT_PLANS).
+        /// Note : le forfait Standard est gratuit — pas de produit StoreKit associé.
         var planCode: String {
             switch self {
-            case .proMonthly, .proYearly: return "pro"
-            case .businessMonthly, .businessYearly: return "business"
+            case .musalaMonthly: return "pro"
+            case .mokonziMonthly: return "business"
             }
         }
     }

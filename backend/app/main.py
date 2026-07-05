@@ -95,11 +95,14 @@ async def lifespan(app: FastAPI):
         logger.info("Super-admin plateforme : OK")
     except Exception:
         logger.exception("Seed super-admin échoué")
-    # Plans d'abonnement par défaut (idempotent : seulement si la table est vide).
+    # Plans d'abonnement par défaut (idempotent : seulement si la table est vide),
+    # puis synchronise nom/prix/apple_product_id des plans déjà seedés vers la
+    # grille actuelle (Standard/Musala/Mokonzi) sans écraser un plan renommé.
     try:
-        from app.services.subscriptions import seed_default_plans
+        from app.services.subscriptions import seed_default_plans, sync_default_plan_pricing
         with SessionLocal() as db:
             seed_default_plans(db)
+            sync_default_plan_pricing(db)
         logger.info("Plans d'abonnement : OK")
     except Exception:
         logger.exception("Seed plans d'abonnement échoué")

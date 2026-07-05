@@ -46,7 +46,7 @@ def test_super_admin_promo_and_validation() -> None:
         body = v.json()
         assert body["valid"] is True
         assert body["percent_off"] == 25
-        assert body["final_cents"] == 1_500_000 - 375_000  # 25% de 15 000
+        assert body["final_cents"] == 500_000 - 125_000  # 25% de 5 000 (Musala)
 
         # Nettoyage
         promos = client.get("/api/admin/subscription/promotions", headers=sup).json()

@@ -66,84 +66,42 @@
         {
           "adHocOffers" : [],
           "codeOffers" : [],
-          "displayPrice" : "15.00",
+          "displayPrice" : "7.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "20000001",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Paie, comptabilité SYSCOHADA, IA Limule, 10 utilisateurs.",
-              "displayName" : "KOMPTA Pro (mensuel)",
+              "description" : "Paie, comptabilité SYSCOHADA, IA Limule, 10 utilisateurs — 5 000 FCFA/mois.",
+              "displayName" : "KOMPTA Musala (mensuel)",
               "locale" : "fr_FR"
             }
           ],
-          "productID" : "com.adansonia.kompta.subscription.pro.monthly",
+          "productID" : "com.adansonia.kompta.subscription.musala.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "KOMPTA Pro Monthly",
+          "referenceName" : "KOMPTA Musala Monthly",
           "subscriptionGroupID" : "20000000",
           "type" : "RecurringSubscription"
         },
         {
           "adHocOffers" : [],
           "codeOffers" : [],
-          "displayPrice" : "150.00",
+          "displayPrice" : "15.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "20000002",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Paie, comptabilité SYSCOHADA, IA Limule, 10 utilisateurs — tarif annuel.",
-              "displayName" : "KOMPTA Pro (annuel)",
+              "description" : "Groupes & organisations, TERAS Connect, utilisateurs illimités — 10 000 FCFA/mois.",
+              "displayName" : "KOMPTA Mokonzi (mensuel)",
               "locale" : "fr_FR"
             }
           ],
-          "productID" : "com.adansonia.kompta.subscription.pro.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "KOMPTA Pro Yearly",
-          "subscriptionGroupID" : "20000000",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [],
-          "codeOffers" : [],
-          "displayPrice" : "40.00",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "20000003",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Groupes & organisations, TERAS Connect, utilisateurs illimités.",
-              "displayName" : "KOMPTA Business (mensuel)",
-              "locale" : "fr_FR"
-            }
-          ],
-          "productID" : "com.adansonia.kompta.subscription.business.monthly",
+          "productID" : "com.adansonia.kompta.subscription.mokonzi.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "KOMPTA Business Monthly",
-          "subscriptionGroupID" : "20000000",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [],
-          "codeOffers" : [],
-          "displayPrice" : "400.00",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "20000004",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Groupes & organisations, TERAS Connect, utilisateurs illimités — tarif annuel.",
-              "displayName" : "KOMPTA Business (annuel)",
-              "locale" : "fr_FR"
-            }
-          ],
-          "productID" : "com.adansonia.kompta.subscription.business.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "KOMPTA Business Yearly",
+          "referenceName" : "KOMPTA Mokonzi Monthly",
           "subscriptionGroupID" : "20000000",
           "type" : "RecurringSubscription"
         }

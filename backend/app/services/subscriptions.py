@@ -52,25 +52,28 @@ BUSINESS_MODULES = PRO_MODULES + ["reports-teras", "teras"]
 # ── Plans par défaut (seedés au démarrage si la table est vide) ──────────────
 DEFAULT_PLANS = [
     {
-        "code": "starter", "name": "Starter", "price_cents": 0, "currency": "XAF",
+        "code": "starter", "name": "Standard", "price_cents": 0, "currency": "XAF",
         "period": "month", "trial_days": 0, "sort_order": 0,
         "description": "Pour démarrer : POS, facturation, 2 utilisateurs.",
         "features": ["POS / Caisse", "Facturation TVA", "2 utilisateurs", "Support communautaire"],
         "included_modules": [], "max_users": 2,
+        "apple_product_id": "",
     },
     {
-        "code": "pro", "name": "Pro", "price_cents": 1_500_000, "currency": "XAF",
+        "code": "pro", "name": "Musala", "price_cents": 500_000, "currency": "XAF",
         "period": "month", "trial_days": 14, "sort_order": 1,
         "description": "Pour les PME en croissance : paie, comptabilité, IA Limule.",
-        "features": ["Tout Starter", "Paie CNSS/IRPP", "Comptabilité SYSCOHADA", "IA Limule", "Groupes & Organisations", "10 utilisateurs"],
+        "features": ["Tout Standard", "Paie CNSS/IRPP", "Comptabilité SYSCOHADA", "IA Limule", "Groupes & Organisations", "10 utilisateurs"],
         "included_modules": PRO_MODULES, "max_users": 10,
+        "apple_product_id": "com.adansonia.kompta.subscription.musala.monthly",
     },
     {
-        "code": "business", "name": "Business", "price_cents": 4_000_000, "currency": "XAF",
+        "code": "business", "name": "Mokonzi", "price_cents": 1_000_000, "currency": "XAF",
         "period": "month", "trial_days": 14, "sort_order": 2,
         "description": "Pour les structures établies : groupes, TERAS, utilisateurs illimités.",
-        "features": ["Tout Pro", "Groupes & Organisations", "TERAS Connect", "Utilisateurs illimités", "Support prioritaire"],
+        "features": ["Tout Musala", "Groupes & Organisations", "TERAS Connect", "Utilisateurs illimités", "Support prioritaire"],
         "included_modules": BUSINESS_MODULES, "max_users": 0,
+        "apple_product_id": "com.adansonia.kompta.subscription.mokonzi.monthly",
     },
 ]
 
@@ -87,7 +90,23 @@ def seed_default_plans(db: Session) -> None:
             features=json.dumps(p["features"], ensure_ascii=False), is_active=True,
             included_modules=json.dumps(p.get("included_modules", []), ensure_ascii=False),
             max_users=p.get("max_users", 0),
+            apple_product_id=p.get("apple_product_id", ""),
         ))
+    db.commit()
+
+
+def sync_default_plan_pricing(db: Session) -> None:
+    """Met à jour nom/prix/apple_product_id des plans déjà seedés (idempotent,
+    n'écrase jamais un plan renommé/re-tarifé manuellement via l'admin — ne
+    touche que les plans dont le code correspond encore à DEFAULT_PLANS)."""
+    by_code = {p["code"]: p for p in DEFAULT_PLANS}
+    for plan in db.scalars(select(SubscriptionPlan)).all():
+        ref = by_code.get(plan.code)
+        if not ref:
+            continue
+        plan.name = ref["name"]
+        plan.price_cents = ref["price_cents"]
+        plan.apple_product_id = ref.get("apple_product_id", "")
     db.commit()
 
 
