@@ -374,6 +374,33 @@ final class NotificationManager: ObservableObject {
             }
         }
 
+        // Alertes proactives Limule (trésorerie faible sous cash_low_threshold_cents,
+        // stock bas, échéances fiscales, tâches, anniversaires, cotisations en retard).
+        // Ces alertes sont calculées côté backend par compute_dashboard_alerts et
+        // partagées avec le web (même source de vérité — évite toute divergence).
+        if let alerts = try? await APIClient.shared.limuleAlerts() {
+            for alert in alerts.prefix(8) {
+                let tint: String = alert.severity == "critical" ? "red" : (alert.severity == "warning" ? "orange" : "blue")
+                let icon: String
+                let moduleId: String
+                switch alert.type {
+                case "cash_low": icon = "bell.badge.fill"; moduleId = "transactions"
+                case "overdue_invoice": icon = "exclamationmark.triangle.fill"; moduleId = "billing"
+                case "low_stock": icon = "shippingbox.fill"; moduleId = "inventory"
+                case "fiscal_deadline": icon = "calendar.badge.exclamationmark"; moduleId = "fiscal"
+                case "task_deadline": icon = "checklist"; moduleId = "kanban"
+                case "birthday": icon = "gift.fill"; moduleId = "groups"
+                case "overdue_contributions": icon = "person.2.badge.gearshape.fill"; moduleId = "groups"
+                default: icon = "bell.fill"; moduleId = "dashboard"
+                }
+                collected.append(AppNotification(
+                    title: alert.type == "cash_low" ? "Trésorerie faible" : "Alerte Limule",
+                    subtitle: alert.message,
+                    icon: icon, tint: tint, moduleId: moduleId
+                ))
+            }
+        }
+
         // Restore persisted read state — prevents notifications from "coming back"
         // after every refresh by keying off a deterministic signature.
         let readSigs = persistedReadSigs

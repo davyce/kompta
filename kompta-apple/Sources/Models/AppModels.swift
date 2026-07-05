@@ -486,6 +486,15 @@ struct BroadcastNotification: Codable, Identifiable {
     let created_at: String?
 }
 
+/// Alerte proactive Limule (GET /limule/alerts) — trésorerie faible, factures en
+/// retard, stock bas, échéances fiscales, tâches, anniversaires, cotisations.
+struct DashboardAlert: Codable {
+    let severity: String   // info | warning | critical
+    let type: String       // cash_low | overdue_invoice | low_stock | ...
+    let message: String
+    let action_url: String?
+}
+
 // MARK: - AI Chat (Limule)
 
 struct ChatMessage: Identifiable {

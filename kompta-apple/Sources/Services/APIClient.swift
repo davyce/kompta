@@ -335,6 +335,9 @@ actor APIClient {
         try await get("/limule/chat/history?limit=\(limit)")
     }
 
+    /// Alertes proactives Limule (trésorerie faible, factures en retard, stock bas, ...).
+    func limuleAlerts() async throws -> [DashboardAlert] { try await get("/limule/alerts") }
+
     // MARK: - Clients / CRM
 
     func clients(search: String = "") async throws -> [Client] {
