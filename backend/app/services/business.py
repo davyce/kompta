@@ -281,15 +281,17 @@ def chat_ai_action(body: str) -> dict:
     title = _build_title(body, action_type)
     confidence = _compute_confidence(body, action_type, due_date is not None, bool(assignee))
 
-    # Mot d'action explicite = seuil plus bas
-    has_action_word = bool(re.search(
-        r'\b(faire|créer|envoyer|vérifier|préparer|relancer|appeler|valider|approuver|'
-        r'signer|payer|urgent|réunion|meeting|rdv|document|contrat|fais|faites|envoi|'
-        r'prépare|terminer|compléter|soumettre|il faut|on doit|faudrait|peux-tu|'
-        r'traiter|corriger|analyser|gérer|bloqué|bloque)\b',
+    # Verbe d'action fort et sans ambiguïté (liste volontairement restreinte —
+    # une liste trop large de verbes courants faisait se déclencher Limule sur
+    # quasiment tous les messages). Seuil combiné plus strict : ce signal ne
+    # suffit plus seul, il doit se cumuler avec au moins un second signal
+    # indépendant (date, @mention ou mot de sévérité) déjà reflété dans le score.
+    has_strong_action_word = bool(re.search(
+        r'\b(valider|approuver|signer|payer|urgent|réunion|meeting|rdv|'
+        r'il faut|on doit|faudrait|peux-tu|pourras-tu|bloqué|bloque)\b',
         body.lower(),
     ))
-    detected = confidence >= 0.42 or (has_action_word and confidence >= 0.30)
+    detected = confidence >= 0.58 or (has_strong_action_word and confidence >= 0.45)
 
     return {
         "detected": detected,
