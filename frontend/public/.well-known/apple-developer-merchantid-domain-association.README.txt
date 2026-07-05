@@ -1,0 +1,22 @@
+Ce dossier attend le VRAI fichier "apple-developer-merchantid-domain-association"
+que Stripe fournit lorsque vous enregistrez kompta0.com comme domaine
+Apple Pay dans le Dashboard Stripe (Paramètres > Paiements > Apple Pay >
+Ajouter un nouveau domaine).
+
+Étapes manuelles (compte Stripe Dashboard du client, ne peuvent pas être
+faites par un agent) :
+  1. Se connecter au Dashboard Stripe (compte live, pas juste test).
+  2. Paramètres > Méthodes de paiement > Apple Pay (ou "Payment method domains").
+  3. Ajouter "kompta0.com" comme domaine.
+  4. Stripe génère et propose de télécharger le fichier
+     "apple-developer-merchantid-domain-association" (sans extension).
+  5. Placer ce fichier tel quel dans ce dossier :
+     frontend/public/.well-known/apple-developer-merchantid-domain-association
+     (en remplaçant/à côté de ce README) puis reconstruire/redéployer le front.
+  6. Vérifier qu'il est bien servi en clair (pas de redirection HTML) à :
+     https://kompta0.com/.well-known/apple-developer-merchantid-domain-association
+
+Note technique : nginx.conf ne bloque pas les chemins commençant par un point
+(pas de règle "location ~ /\." qui le refuserait) — Vite copie automatiquement
+tout le contenu de frontend/public/ tel quel dans dist/, donc déposer le
+fichier ici suffit, aucune autre configuration serveur n'est nécessaire.

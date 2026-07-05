@@ -6,12 +6,27 @@ import { money } from "../utils/format";
 
 // Stripe.js types minimaux
 interface StripeCardElement { mount(el: HTMLElement): void; destroy(): void; on(e: string, h: (ev: { error?: { message: string } }) => void): void; }
-interface StripeElements { create(type: "card", options?: object): StripeCardElement; }
+interface StripePaymentRequestButtonElement { mount(el: HTMLElement): void; destroy(): void; on(e: string, h: (ev: unknown) => void): void; }
+interface StripeElements {
+  create(type: "card", options?: object): StripeCardElement;
+  create(type: "paymentRequestButton", options: { paymentRequest: StripePaymentRequest; style?: object }): StripePaymentRequestButtonElement;
+}
+interface StripePaymentMethodEvent {
+  complete: (status: "success" | "fail") => void;
+  paymentMethod: { id: string };
+}
+interface StripePaymentRequest {
+  canMakePayment(): Promise<{ applePay?: boolean } | null>;
+  on(event: "paymentmethod", handler: (ev: StripePaymentMethodEvent) => void): void;
+  on(event: "cancel", handler: () => void): void;
+}
 interface StripeInstance {
   elements(): StripeElements;
   confirmCardPayment(secret: string, data: object): Promise<{ error?: { message: string }; paymentIntent?: { status: string } }>;
+  confirmCardPayment(secret: string, data: object, options: { handleActions: boolean }): Promise<{ error?: { message: string }; paymentIntent?: { status: string } }>;
+  paymentRequest(options: { country: string; currency: string; total: { label: string; amount: number }; requestPayerName?: boolean; requestPayerEmail?: boolean }): StripePaymentRequest;
 }
-declare global { interface Window { Stripe?: (key: string) => StripeInstance } }
+declare global { interface Window { Stripe?: (key: string) => unknown } }
 
 let _stripePromise: Promise<void> | null = null;
 function loadStripeJs(): Promise<void> {
@@ -46,12 +61,16 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
   const cardMountRef   = useRef<HTMLDivElement>(null);
   const cardElementRef = useRef<StripeCardElement | null>(null);
   const stripeRef      = useRef<StripeInstance | null>(null);
+  const prButtonMountRef = useRef<HTMLDivElement>(null);
+  const prButtonElementRef = useRef<StripePaymentRequestButtonElement | null>(null);
+  const paymentRequestRef = useRef<StripePaymentRequest | null>(null);
   const [phase, setPhase]             = useState<Phase>("loading");
   const [error, setError]             = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [txnId, setTxnId]             = useState<number | null>(null);
   const [cardError, setCardError]     = useState<string | null>(null);
   const [stripeMode, setStripeMode]   = useState<"test" | "live" | "unknown">("unknown");
+  const [canApplePay, setCanApplePay] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,8 +85,24 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         setTxnId(intent.transaction_id);
         setStripeMode(intent.publishable_key?.startsWith("pk_test") ? "test" : intent.publishable_key ? "live" : "unknown");
         if (!window.Stripe) throw new Error(tr("components.stripe.errors.unavailable"));
-        const stripe = window.Stripe!(intent.publishable_key);
+        const stripe = window.Stripe!(intent.publishable_key) as StripeInstance;
         stripeRef.current = stripe;
+
+        // Apple Pay (via le Payment Request Button de Stripe.js) : uniquement
+        // pour un encaissement réel (pas le paiement-test de validation carte),
+        // et seulement si le navigateur/l'appareil déclare Apple Pay disponible
+        // (Safari + Wallet). Le bouton natif s'affiche lui-même, ou rien du tout.
+        if (mode === "charge") {
+          const pr = stripe.paymentRequest({
+            country: "CM",
+            currency: (currency || "XAF").toLowerCase(),
+            total: { label: "KOMPTA", amount: Math.round(amountCents / 100) },
+          });
+          paymentRequestRef.current = pr;
+          const result = await pr.canMakePayment();
+          if (!cancelled && result?.applePay) setCanApplePay(true);
+        }
+
         // Le montage de l'élément carte se fait dans un useEffect dédié (ci-dessous),
         // une fois que React a réellement peint le conteneur (fiable sur mobile).
         setPhase("form");
@@ -77,7 +112,7 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
         setPhase("failed");
       }
     })();
-    return () => { cancelled = true; cardElementRef.current?.destroy(); };
+    return () => { cancelled = true; cardElementRef.current?.destroy(); prButtonElementRef.current?.destroy(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -98,6 +133,60 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     cardElementRef.current = card;
   }, [phase]);
 
+  // Montage du bouton Apple Pay (Payment Request Button) : même logique de
+  // timing que la carte, uniquement si `canMakePayment()` a confirmé Apple Pay.
+  useEffect(() => {
+    if (phase !== "form" || !canApplePay || !stripeRef.current || !paymentRequestRef.current || !prButtonMountRef.current || prButtonElementRef.current) return;
+    const elements = stripeRef.current.elements();
+    const prButton = elements.create("paymentRequestButton", {
+      paymentRequest: paymentRequestRef.current,
+      style: { paymentRequestButton: { type: "default", theme: "dark", height: "44px" } },
+    });
+    prButton.mount(prButtonMountRef.current);
+    prButtonElementRef.current = prButton;
+    paymentRequestRef.current.on("paymentmethod", (ev) => { void handleApplePayMethod(ev as StripePaymentMethodEvent); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, canApplePay]);
+
+  async function finalizeSuccess(transactionId: number) {
+    try {
+      if (mode === "verify") {
+        const res = await api.confirmCardTest(transactionId);
+        if (!res.verified) throw new Error(res.status || "verification_failed");
+      } else {
+        await waitForServerConfirmation(transactionId);
+      }
+      setPhase("succeeded");
+      setTimeout(() => onSuccess(transactionId), 900);
+    } catch (e) {
+      setPhase("form");
+      setError(e instanceof Error ? e.message : tr("components.stripe.errors.serverConfirmation"));
+    }
+  }
+
+  async function handleApplePayMethod(ev: StripePaymentMethodEvent) {
+    if (!stripeRef.current || !clientSecret || !txnId) { ev.complete("fail"); return; }
+    setPhase("processing"); setError(null);
+    const result = await stripeRef.current.confirmCardPayment(
+      clientSecret,
+      { payment_method: ev.paymentMethod.id },
+      { handleActions: false },
+    );
+    if (result.error) {
+      ev.complete("fail");
+      setPhase("form");
+      setError(result.error.message ?? tr("components.payments.refused"));
+      return;
+    }
+    ev.complete("success");
+    if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "requires_capture") {
+      await finalizeSuccess(txnId);
+    } else {
+      setPhase("form");
+      setError(tr("components.stripe.errors.unexpectedStatus"));
+    }
+  }
+
   async function handlePay() {
     if (!stripeRef.current || !clientSecret || !cardElementRef.current) return;
     setPhase("processing"); setError(null);
@@ -105,19 +194,7 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
     if (result.error) { setPhase("form"); setError(result.error.message ?? tr("components.payments.refused")); }
     else if (result.paymentIntent?.status === "succeeded") {
       if (!txnId) { setPhase("form"); setError(tr("components.stripe.errors.transactionMissing")); return; }
-      try {
-        if (mode === "verify") {
-          const res = await api.confirmCardTest(txnId);
-          if (!res.verified) throw new Error(res.status || "verification_failed");
-        } else {
-          await waitForServerConfirmation(txnId);
-        }
-        setPhase("succeeded");
-        setTimeout(() => onSuccess(txnId), 900);
-      } catch (e) {
-        setPhase("form");
-        setError(e instanceof Error ? e.message : tr("components.stripe.errors.serverConfirmation"));
-      }
+      await finalizeSuccess(txnId);
     }
     else { setPhase("form"); setError(tr("components.stripe.errors.unexpectedStatus")); }
   }
@@ -166,6 +243,16 @@ export function StripeCardPaymentModal({ amountCents, currency = "XAF", descript
           {/* Mode Stripe en ligne */}
           {(phase === "form" || phase === "processing") && (
             <>
+              {canApplePay && (
+                <div className="space-y-2">
+                  <div ref={prButtonMountRef} className="min-h-[44px]" />
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-[#aaaabc]">
+                    <div className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
+                    {tr("common.or", { defaultValue: "ou" })}
+                    <div className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-2">{tr("components.stripe.cardInfo")}</label>
                 <div ref={cardMountRef} className="rounded-xl border border-black/[0.10] dark:border-white/[0.10] bg-white dark:bg-[#252931] px-4 py-3.5 min-h-[46px] transition focus-within:border-blue-400" />

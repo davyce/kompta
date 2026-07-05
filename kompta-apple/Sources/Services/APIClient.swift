@@ -281,6 +281,15 @@ actor APIClient {
         }
     }
 
+    // MARK: - Stripe / Apple Pay
+
+    /// Crée un PaymentIntent Stripe (même endpoint que le paiement carte web) —
+    /// utilisé pour encaisser une vente POS via Apple Pay (STPApplePayContext
+    /// confirme ensuite l'intent directement avec le token PassKit).
+    func createStripeIntent(_ payload: StripeIntentPayload) async throws -> StripeIntentResponse {
+        try await post("/payments/stripe/intent", body: payload)
+    }
+
     // MARK: - Employees
 
     func employees() async throws -> [Employee] {
@@ -862,6 +871,12 @@ actor APIClient {
     // MARK: - Entitlements (droits d'accès de l'entreprise)
 
     func myEntitlements() async throws -> Entitlements { try await get("/subscription/entitlements") }
+
+    /// Envoie une transaction StoreKit 2 signée (JWS) au backend pour
+    /// vérification + activation/prolongation de l'abonnement de l'entreprise.
+    func verifyApplePurchase(signedTransaction: String, planCode: String = "") async throws -> AppleVerifyResult {
+        try await post("/payments/apple/verify", body: AppleVerifyPayload(signed_transaction: signedTransaction, plan_code: planCode))
+    }
 
     // MARK: - Encaissement (méthodes de paiement par entreprise)
 

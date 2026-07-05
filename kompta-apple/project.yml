@@ -16,6 +16,11 @@ settings:
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     OTHER_SWIFT_FLAGS: ""
 
+packages:
+  StripeApplePay:
+    url: https://github.com/stripe/stripe-ios
+    from: 24.1.0
+
 targets:
   # ── iOS app ──────────────────────────────────────────────────────────────
   Kompta:
@@ -61,6 +66,17 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+    entitlements:
+      path: Sources/Kompta.entitlements
+      properties:
+        # Apple Pay (POS) — merchant ID PLACEHOLDER : à remplacer par un vrai
+        # Merchant ID créé par l'utilisateur dans son compte Apple Developer,
+        # puis activer la capacité "Apple Pay" dans les Signing & Capabilities
+        # Xcode de la cible Kompta (nécessite le compte développeur du client).
+        com.apple.developer.in-app-payments:
+          - merchant.com.adansonia.kompta
+    dependencies:
+      - package: StripeApplePay
 
   # ── macOS app ─────────────────────────────────────────────────────────────
   KomptaMac:
@@ -101,3 +117,23 @@ targets:
         com.apple.security.network.client: true
         # Imports CSV et téléchargements via fileImporter/exporter.
         com.apple.security.files.user-selected.read-write: true
+        # NOTE : Apple Pay via le SDK Stripe (StripeApplePay) n'est disponible
+        # que sur iOS — le package stripe-ios ne déclare pas de support macOS
+        # (cf. Package.swift : platforms: [.iOS(.v13)]). Pas de dépendance ni
+        # de capacité Apple Pay ajoutée ici ; KomptaMac garde le paiement carte
+        # web/manuel existant. Si Apple ajoute un jour le support macOS natif
+        # au SDK Stripe, ce commentaire pourra être remplacé par la même
+        # config que la cible Kompta (iOS) ci-dessus.
+
+schemes:
+  # Active la config StoreKit Testing locale (Kompta.storekit) sur le schéma
+  # iOS, pour tester les achats intégrés en simulateur SANS produits réels
+  # App Store Connect. Xcode → Product > Scheme > Edit Scheme > Run > Options
+  # affichera "Kompta.storekit" déjà sélectionné dans "StoreKit Configuration".
+  Kompta:
+    build:
+      targets:
+        Kompta: all
+    run:
+      config: Debug
+      storeKitConfiguration: Kompta.storekit

@@ -20,7 +20,7 @@ function usePriceFormatter() {
 interface StripeCardElement { mount(el: HTMLElement): void; destroy(): void; on(e: string, h: (ev: { error?: { message: string } }) => void): void; }
 interface StripeElements { create(type: "card", options?: object): StripeCardElement; }
 interface StripeInstance { elements(): StripeElements; confirmCardPayment(s: string, d: object): Promise<{ error?: { message: string }; paymentIntent?: { status: string } }>; }
-declare global { interface Window { Stripe?: (key: string) => StripeInstance } }
+declare global { interface Window { Stripe?: (key: string) => unknown } }
 let _p: Promise<void> | null = null;
 function loadStripe(): Promise<void> {
   if (_p) return _p;
@@ -167,7 +167,7 @@ function CheckoutModal({ plan, onClose, onDone }: { plan: SubscriptionPlanDto; o
       if (method === "card") {
         await loadStripe();
         if (!window.Stripe || !res.publishable_key || !res.client_secret) throw new Error(tr("components.subscriptionPanel.errors.cardConfig"));
-        stripeRef.current = window.Stripe(res.publishable_key);
+        stripeRef.current = window.Stripe(res.publishable_key) as StripeInstance;
         secretRef.current = res.client_secret;
         setPhase("card_form"); // le champ carte est monté par le useEffect dédié
       } else if (method === "momo") {

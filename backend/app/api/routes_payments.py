@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import CompanyPaymentMethod, Invoice, PaymentTransaction, Sale, User
+from app.models import CompanyPaymentMethod, Invoice, PaymentTransaction, Sale, SubscriptionPlan, User
 from app.services import payments as pay
+from app.services import subscriptions as subs
 
 router = APIRouter(tags=["payments"])
 logger = logging.getLogger("kompta.payments")
@@ -84,6 +85,7 @@ def payments_config(current_user: User = Depends(get_current_user)) -> dict:
         "stripe_enabled": settings.stripe_enabled,
         "stripe_publishable_key": settings.stripe_publishable_key if settings.stripe_enabled else "",
         "momo_enabled": settings.momo_enabled,
+        "apple_iap_enabled": settings.apple_iap_enabled,
     }
 
 
@@ -337,7 +339,7 @@ async def payment_status(
 # Airtel, espèces, virement). KOMPTA ne transite pas les fonds — il enregistre
 # le paiement. La carte (Stripe) est validée par un paiement-test.
 
-_VALID_PROVIDERS = {"cash", "momo_mtn", "momo_airtel", "momo_moov", "bank_transfer", "card_stripe"}
+_VALID_PROVIDERS = {"cash", "momo_mtn", "momo_airtel", "momo_moov", "bank_transfer", "card_stripe", "apple_pay"}
 _CARD_TEST_AMOUNT_CENTS = 50_000  # 500 FCFA (interne en centimes ; XAF → 500)
 
 
@@ -387,7 +389,7 @@ def _method_has_required_fields(m: CompanyPaymentMethod) -> bool:
         return bool(m.merchant_number.strip())
     if m.provider == "bank_transfer":
         return bool(m.bank_account.strip())
-    if m.provider == "card_stripe":
+    if m.provider in {"card_stripe", "apple_pay"}:
         return get_settings().stripe_enabled
     return False
 
@@ -462,6 +464,8 @@ def upsert_payment_method(
         raise HTTPException(400, "Méthode d'encaissement inconnue.")
     if payload.provider == "card_stripe" and not get_settings().stripe_enabled:
         raise HTTPException(400, "La carte (Stripe) n'est pas disponible.")
+    if payload.provider == "apple_pay" and not get_settings().stripe_enabled:
+        raise HTTPException(400, "Apple Pay n'est pas disponible (Stripe non configuré).")
 
     # Une seule ligne par (entreprise, provider).
     m = db.scalar(
@@ -485,7 +489,22 @@ def upsert_payment_method(
     # La carte ne se vérifie QUE par un paiement-test réussi → on ne touche pas
     # `verified` ici. Les autres méthodes sont « vérifiées » dès que les champs
     # requis sont remplis (l'entreprise déclare ses propres coordonnées).
-    if m.provider != "card_stripe":
+    # Apple Pay est un wallet transitant par le MÊME compte Stripe que card_stripe :
+    # pas de paiement-test séparé — il hérite de la vérification de card_stripe.
+    if m.provider == "apple_pay":
+        card_method = db.scalar(
+            select(CompanyPaymentMethod).where(
+                CompanyPaymentMethod.company_id == current_user.company_id,
+                CompanyPaymentMethod.provider == "card_stripe",
+            )
+        )
+        if card_method is not None and card_method.verified:
+            m.verified = True
+            m.verified_at = card_method.verified_at
+        else:
+            m.verified = False
+            m.verified_at = None
+    elif m.provider != "card_stripe":
         if _method_has_required_fields(m):
             if not m.verified:
                 m.verified = True
@@ -607,6 +626,20 @@ async def confirm_card_test(
     m.verified = True
     m.verified_at = datetime.now(timezone.utc)
     m.last_test_status = "test_succeeded"
+
+    # Apple Pay partage le même compte Stripe que card_stripe : si l'entreprise
+    # avait déjà activé Apple Pay (en attente de vérification), on le valide
+    # automatiquement en même temps que la carte, sans paiement-test séparé.
+    apple_pay_method = db.scalar(
+        select(CompanyPaymentMethod).where(
+            CompanyPaymentMethod.company_id == current_user.company_id,
+            CompanyPaymentMethod.provider == "apple_pay",
+        )
+    )
+    if apple_pay_method is not None and apple_pay_method.enabled:
+        apple_pay_method.verified = True
+        apple_pay_method.verified_at = m.verified_at
+
     db.commit()
     db.refresh(m)
     return {"verified": True, "status": "succeeded", "method": _serialize_method(m)}
@@ -655,3 +688,154 @@ def record_direct_payment(
     db.add(txn)
     db.commit()
     return _serialize(txn)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# APPLE IN-APP PURCHASE (StoreKit 2)
+# ═══════════════════════════════════════════════════════════════════════════
+# Deux chemins, comme en production réelle :
+# - /payments/apple/verify : le client iOS envoie la transaction StoreKit 2
+#   signée (JWS) juste après un achat, pour une activation immédiate.
+# - /payments/apple/server-notification : Apple appelle directement ce
+#   endpoint (App Store Server Notifications V2) pour les renouvellements,
+#   annulations, remboursements, etc., même si l'app n'est pas ouverte.
+# Dans les deux cas, le JWS est vérifié via app.services.payments.verify_apple_jws
+# (chaîne de certificats x5c + signature), puis on réutilise EXACTEMENT le
+# même mécanisme d'activation que Stripe/MoMo : subs.activate_after_payment.
+
+class AppleVerifyRequest(BaseModel):
+    signed_transaction: str
+    plan_code: str = ""
+
+
+def _apple_txn_to_plan(db: Session, apple_product_id: str, plan_code_hint: str = "") -> SubscriptionPlan | None:
+    """Résout le plan KOMPTA correspondant à un produit App Store Connect.
+    Priorité au mapping apple_product_id ; fallback sur le plan_code fourni
+    par le client (utile en dev tant que le mapping n'est pas encore seedé)."""
+    plan = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.apple_product_id == apple_product_id))
+    if plan:
+        return plan
+    if plan_code_hint:
+        return db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == plan_code_hint))
+    return None
+
+
+def _apply_apple_transaction(db: Session, claims: dict, company_id: int, plan_code_hint: str = "") -> PaymentTransaction:
+    """Traite une transaction StoreKit 2 déjà vérifiée (claims JWS) : idempotence
+    par transactionId, création de la PaymentTransaction, puis activation de
+    l'abonnement via le mécanisme partagé (identique à Stripe/MoMo)."""
+    apple_txn_id = str(claims.get("transactionId") or claims.get("originalTransactionId") or "")
+    if not apple_txn_id:
+        raise HTTPException(400, "Transaction Apple sans identifiant.")
+
+    existing = db.scalar(select(PaymentTransaction).where(PaymentTransaction.provider_ref == apple_txn_id))
+    if existing:
+        return existing  # idempotence : déjà traitée, ne réactive pas une 2e fois
+
+    apple_product_id = str(claims.get("productId") or "")
+    plan = _apple_txn_to_plan(db, apple_product_id, plan_code_hint)
+    if not plan:
+        raise HTTPException(422, f"Aucun plan KOMPTA associé au produit Apple '{apple_product_id}'.")
+
+    amount_cents = int(plan.price_cents or 0)
+    txn = PaymentTransaction(
+        company_id=company_id,
+        provider="apple_iap",
+        provider_ref=apple_txn_id,
+        idempotency_key=f"apple:{apple_txn_id}",
+        amount_cents=amount_cents,
+        currency=plan.currency or "XAF",
+        status="succeeded",
+        purpose="subscription",
+        subscription_plan_code=plan.code,
+        description=f"Achat intégré Apple — {plan.name}",
+        raw_response=json.dumps({k: claims.get(k) for k in (
+            "transactionId", "originalTransactionId", "productId",
+            "purchaseDate", "expiresDate", "type",
+        )}),
+    )
+    db.add(txn)
+    db.flush()
+    subs.activate_after_payment(db, company_id, plan, "", txn.id)
+    db.commit()
+    db.refresh(txn)
+    return txn
+
+
+@router.post("/payments/apple/verify")
+async def verify_apple_purchase(
+    payload: AppleVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Reçoit la transaction StoreKit 2 signée (JWS) envoyée par le client iOS
+    juste après un achat réussi, la vérifie, puis active/prolonge l'abonnement
+    de l'entreprise de l'utilisateur connecté."""
+    try:
+        claims = pay.verify_apple_jws(payload.signed_transaction)
+    except pay.PaymentError as e:
+        raise HTTPException(e.status, e.message)
+
+    txn = _apply_apple_transaction(db, claims, current_user.company_id, payload.plan_code)
+    return {"transaction_id": txn.id, "status": txn.status, "plan_code": txn.subscription_plan_code}
+
+
+@router.post("/payments/apple/server-notification")
+async def apple_server_notification(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Endpoint public (Apple appelle directement, pas d'auth utilisateur) pour
+    les App Store Server Notifications V2. Le payload est un JSON contenant un
+    champ `signedPayload` (JWS) qui, une fois vérifié, contient lui-même un
+    `data.signedTransactionInfo` (JWS imbriqué) avec les détails de la transaction."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps de notification illisible.")
+
+    signed_payload = body.get("signedPayload", "")
+    if not signed_payload:
+        raise HTTPException(400, "signedPayload absent.")
+
+    try:
+        notification = pay.verify_apple_jws(signed_payload)
+    except pay.PaymentError as e:
+        raise HTTPException(e.status, e.message)
+
+    notification_type = notification.get("notificationType", "")
+    data = notification.get("data") or {}
+    signed_txn_info = data.get("signedTransactionInfo", "")
+    if not signed_txn_info:
+        return {"received": True, "ignored": "no_signed_transaction_info"}
+
+    try:
+        claims = pay.verify_apple_jws(signed_txn_info)
+    except pay.PaymentError:
+        return {"received": True, "ignored": "invalid_transaction_jws"}
+
+    apple_txn_id = str(claims.get("transactionId") or claims.get("originalTransactionId") or "")
+    if not apple_txn_id:
+        return {"received": True, "ignored": "no_transaction_id"}
+
+    # Résout l'entreprise via une transaction Apple déjà connue (créée lors du
+    # /payments/apple/verify initial, ou d'un renouvellement précédent) portant
+    # le même originalTransactionId — les renouvellements partagent cet id.
+    original_txn_id = str(claims.get("originalTransactionId") or apple_txn_id)
+    known = db.scalar(
+        select(PaymentTransaction).where(
+            PaymentTransaction.provider == "apple_iap",
+            PaymentTransaction.provider_ref == original_txn_id,
+        )
+    )
+    if known is None:
+        # Achat initial jamais vu côté serveur (ex. renouvellement après un
+        # /verify qui aurait échoué) : impossible de rattacher à une entreprise.
+        logger.warning("Notification Apple pour transaction inconnue (originalTransactionId=%s)", original_txn_id)
+        return {"received": True, "ignored": "unknown_company_for_transaction"}
+
+    company_id = known.company_id
+
+    if notification_type in {"SUBSCRIBED", "DID_RENEW"}:
+        _apply_apple_transaction(db, claims, company_id)
+    elif notification_type in {"EXPIRED", "REFUND", "DID_FAIL_TO_RENEW", "GRACE_PERIOD_EXPIRED", "REVOKE"}:
+        subs.mark_subscription_ended(db, company_id, status="cancelled" if notification_type == "REFUND" else "past_due")
+
+    return {"received": True, "notification_type": notification_type}
