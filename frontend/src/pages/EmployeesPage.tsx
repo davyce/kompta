@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "../components/EmptyState";
+import { ModuleHint } from "../components/ModuleHint";
 import { SelectInput, TextArea, TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
@@ -585,6 +586,7 @@ export function EmployeesPage() {
   return (
     <>
       <div className="space-y-5">
+        <ModuleHint moduleId="employees" title={tr("moduleHints.employees.title")} body={tr("moduleHints.employees.body")} />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-emerald-600">{tr("employeesPage.header.eyebrow")}</p>

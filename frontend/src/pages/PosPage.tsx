@@ -15,6 +15,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { productIconLabel, productIconSuggestions } from "../utils/productIcons";
 import { api } from "../services/api";
 import { useToast } from "../components/ToastProvider";
+import { ModuleHint } from "../components/ModuleHint";
 import { enqueue, listPending, dequeue } from "../lib/offlineQueue";
 import type { PaymentAccount, Product, SaleRecord } from "../types/domain";
 import { inferProductIcon } from "../utils/productIcons";
@@ -240,6 +241,11 @@ export function PosPage() {
   /* ── Panier ── */
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartId]        = useState(() => Math.floor(Math.random() * 9000) + 1000);
+  // Clé d'idempotence de la tentative de checkout en cours : générée UNE fois
+  // au premier tap sur "Encaisser" pour ce panier, réutilisée telle quelle si
+  // la requête doit être retentée (timeout réseau), puis effacée dès que la
+  // vente réussit ou que le panier est vidé (nouveau panier → nouvelle clé).
+  const [checkoutKey, setCheckoutKey] = useState<string | null>(null);
 
   /* ── Bouton flottant panier : masqué quand le panier est à l'écran ── */
   const cartSectionRef = useRef<HTMLDivElement>(null);
@@ -428,6 +434,7 @@ export function PosPage() {
       });
       toast.success(tr("pos.saleCashed", { num: data.receipt_number }));
       setCart([]);
+      setCheckoutKey(null);
       setDiscountPercent(0);
       setClientName("");
       setSelectedClientId(null);
@@ -522,6 +529,10 @@ export function PosPage() {
   }
 
   function buildSalePayload(paymentTransactionId?: number) {
+    // Réutilise la clé déjà générée pour cette tentative de checkout (retry
+    // après timeout réseau), ou en génère une nouvelle si aucune n'est en cours.
+    const key = checkoutKey ?? crypto.randomUUID();
+    if (!checkoutKey) setCheckoutKey(key);
     return {
       payment_method: paymentMethod,
       payment_account_id: paymentAccountId,
@@ -532,6 +543,7 @@ export function PosPage() {
       discount_percent: discountPercent,
       tva_enabled: tvaEnabled,
       tax_rate: tvaRate,
+      idempotency_key: key,
       ...(paymentTransactionId ? { payment_transaction_id: paymentTransactionId } : {}),
     };
   }
@@ -544,6 +556,7 @@ export function PosPage() {
       setPendingCount(rows.length);
       setOfflineToast(tr("pos.offlineQueued", { amount: money(Math.round(total)) }));
       setCart([]);
+      setCheckoutKey(null);
       setTimeout(() => setOfflineToast(null), 6000);
     } else {
       sale.mutate(payload);
@@ -629,6 +642,7 @@ export function PosPage() {
     <>
     {/* Titre sémantique visuellement masqué — requis pour l'accessibilité (a11y) */}
     <h1 className="sr-only">{tr("pos.title", { defaultValue: "Point de vente" })}</h1>
+    <ModuleHint moduleId="pos" title={tr("moduleHints.pos.title")} body={tr("moduleHints.pos.body")} />
     <div className="flex flex-col gap-4 xl:flex-row xl:h-[calc(100vh-56px)]">
 
       {/* Mobile floating cart button — masqué dès que le panier est visible

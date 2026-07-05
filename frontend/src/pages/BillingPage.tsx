@@ -5,6 +5,7 @@ import { Bell, CheckCircle2, CreditCard, Download, FileSpreadsheet, FilePlus2, P
 
 import { TextInput } from "../components/FormField";
 import { Panel } from "../components/Panel";
+import { ModuleHint } from "../components/ModuleHint";
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../services/api";
 import { money, shortDate, compactMoney, currencyLabel } from "../utils/format";
@@ -314,6 +315,7 @@ export function BillingPage() {
 
   return (
     <div className="space-y-5">
+      <ModuleHint moduleId="billing" title={tr("moduleHints.billing.title")} body={tr("moduleHints.billing.body")} />
       {relanceToast && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 shadow-lg dark:border-amber-500/30 dark:bg-amber-900/40 dark:text-amber-200">
           <Bell size={15} /> {relanceToast}

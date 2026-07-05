@@ -9,6 +9,7 @@ import {
 
 import { api } from "../services/api";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import { ModuleHint } from "../components/ModuleHint";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmProvider";
 import type { Product } from "../types/domain";
@@ -376,6 +377,7 @@ export function InventoryPage() {
 
   return (
     <div className="space-y-6">
+      <ModuleHint moduleId="inventory" title={tr("moduleHints.inventory.title")} body={tr("moduleHints.inventory.body")} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>

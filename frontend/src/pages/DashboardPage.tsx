@@ -14,6 +14,8 @@ import {
 
 import { useAuth } from "../app/AuthContext";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
+import { ModuleHint } from "../components/ModuleHint";
+import { DiscoverTourBanner } from "../components/GuidedTour";
 import i18n from "../i18n";
 import { api } from "../services/api";
 import { compactMoney, money, shortDate, currencyLabel } from "../utils/format";
@@ -415,6 +417,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <DiscoverTourBanner />
+      <ModuleHint moduleId="dashboard" title={tr("moduleHints.dashboard.title")} body={tr("moduleHints.dashboard.body")} />
 
       {/* ── Header ── */}
       <div className="flex flex-wrap items-end justify-between gap-3">

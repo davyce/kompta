@@ -183,6 +183,61 @@ export function resetOnboardingTour() {
   try { localStorage.setItem("kompta_force_tour", "1"); } catch { /* no-op */ }
 }
 
+const DISCOVER_BANNER_DISMISS_KEY = "kompta_discover_banner_dismissed";
+
+/**
+ * Petite bannière non bloquante proposant la visite guidée complète en
+ * opt-in (au lieu du lancement automatique et forcé d'avant). Affichée sur
+ * le tableau de bord tant qu'elle n'a pas été fermée ou que la visite n'a
+ * pas déjà été suivie.
+ */
+export function DiscoverTourBanner() {
+  const { t: tr } = useTranslation();
+  const { user } = useAuth();
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let hidden = false;
+    try { hidden = localStorage.getItem(DISCOVER_BANNER_DISMISS_KEY) === "1"; } catch { /* */ }
+    setDismissed(user.onboarding_done === true || hidden);
+  }, [user]);
+
+  function dismiss() {
+    setDismissed(true);
+    try { localStorage.setItem(DISCOVER_BANNER_DISMISS_KEY, "1"); } catch { /* */ }
+  }
+
+  function start() {
+    resetOnboardingTour();
+    setDismissed(true);
+    window.location.reload();
+  }
+
+  if (dismissed || !user || user.role === "super_admin") return null;
+
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 shadow-sm dark:border-emerald-500/25 dark:bg-[#1a1d23]">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+        <LimuleIcon size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-[#17211f] dark:text-white">{tr("components.guidedTour.discoverTitle")}</p>
+        <p className="text-xs text-[#717182]">{tr("components.guidedTour.discoverBody")}</p>
+      </div>
+      <button
+        onClick={start}
+        className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+      >
+        {tr("components.guidedTour.discoverCta")}
+      </button>
+      <button onClick={dismiss} aria-label="Fermer" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
 function findVisible(selector?: string): HTMLElement | null {
   if (!selector) return null;
   const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
@@ -198,12 +253,16 @@ export function GuidedTour() {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const targetElRef = useRef<HTMLElement | null>(null);
 
-  // Démarrage : 1ʳᵉ connexion (flag compte) ou relance manuelle.
+  // Démarrage : uniquement sur relance manuelle (bouton "Faire le tour complet"
+  // depuis le tableau de bord ou Paramètres). La visite ne se lance plus
+  // automatiquement à la première connexion — cette charge est désormais
+  // portée par les indices contextuels par module (ModuleHint), affichés
+  // progressivement à la première visite de chaque page.
   useEffect(() => {
     if (!user || user.must_change_password) return;
     let forced = false;
     try { forced = localStorage.getItem("kompta_force_tour") === "1"; } catch { /* */ }
-    if (!user.onboarding_done || forced) {
+    if (forced) {
       const t = setTimeout(() => setActive(true), 700);
       return () => clearTimeout(t);
     }

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { api } from "../services/api";
+import { ModuleHint } from "../components/ModuleHint";
 import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdateDto, CashDepositCreateDto } from "../services/api";
 import type { PaymentAccount } from "../types/domain";
 import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/format";
@@ -729,6 +730,7 @@ export function TransactionsPage() {
 
   return (
     <div className="space-y-6 overflow-x-hidden">
+      <ModuleHint moduleId="transactions" title={tr("moduleHints.transactions.title")} body={tr("moduleHints.transactions.body")} />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

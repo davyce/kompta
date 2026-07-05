@@ -52,19 +52,17 @@ struct AppShell: View {
         #endif
     }
 
-    /// À la 1re connexion : la visite guidée d'abord (tous les utilisateurs),
-    /// puis l'assistant de configuration (admin au profil incomplet).
-    ///
-    /// « Vue » = flag LOCAL (instantané, pas d'attente réseau) OU flag SERVEUR
-    /// (`onboarding_done` sur le compte). Le flag serveur est ce qui évite que
-    /// la visite guidée réapparaisse à chaque réinstallation ou nouvel appareil
-    /// — un simple flag local ne survit pas à ça.
+    /// La visite guidée (carrousel de 16 cartes) ne se lance plus automatiquement
+    /// à la première connexion : elle est désormais opt-in, relançable depuis
+    /// Réglages (`forceTour`). L'aide "juste à temps" est prise en charge par
+    /// les indices contextuels par module affichés à la première visite de
+    /// chaque écran. L'assistant de configuration d'entreprise, lui, reste
+    /// déclenché automatiquement pour un admin au profil incomplet — il porte
+    /// des étapes réellement nécessaires (infos légales, coordonnées bancaires…).
     private func evaluateOnboarding() {
         guard stage == nil else { return }
         if forceTour { stage = .tour; return }
         if forceSetup { stage = .setup; return }
-        let seenOnServer = auth.currentUser?.onboarding_done ?? false
-        if !tourDone && !seenOnServer { stage = .tour; return }
         if shouldShowSetup() { stage = .setup }
     }
 

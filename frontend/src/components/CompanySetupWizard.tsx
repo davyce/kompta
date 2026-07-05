@@ -252,8 +252,9 @@ export function CompanySetupWizard() {
     } catch { /* */ }
     if (forced) { void open(); return; }
     if (dismissed) return;
-    // Ne se lance qu'après la visite guidée (onboarding_done) pour ne pas se superposer.
-    if (!user.onboarding_done) return;
+    // La visite guidée (30 étapes) est désormais opt-in et ne bloque plus le
+    // démarrage de cet assistant : les indices contextuels par module
+    // (ModuleHint) prennent le relais pour l'aide progressive.
     void api.company().then((c) => {
       if ((c.completion_score ?? 0) < 100) { setDraft(c); setCompletion(c.completion_score ?? 0); setActive(true); }
     }).catch(() => { /* */ });

@@ -5,6 +5,7 @@ import { GitCompareArrows, Loader2, Upload } from "lucide-react";
 
 import { api } from "../services/api";
 import { money, shortDate } from "../utils/format";
+import { ModuleHint } from "../components/ModuleHint";
 
 const STATUS_STYLE: Record<string, string> = {
   matched: "border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30",
@@ -54,6 +55,7 @@ export function BankReconciliationPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
+      <ModuleHint moduleId="bankReconciliation" title={tr("moduleHints.bankReconciliation.title")} body={tr("moduleHints.bankReconciliation.body")} />
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
           <GitCompareArrows size={20} />
