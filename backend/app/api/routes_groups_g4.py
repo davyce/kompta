@@ -1,15 +1,20 @@
 """
-routes_groups_g4.py — Chat de groupe, médias, documents.
+routes_groups_g4.py — Chat de groupe, documents.
 
 Chat temps réel via WebSocket (réutilise le ConnectionManager existant).
-Médias : upload sécurisé stocké dans storage/groups/{group_id}/.
+Chat simplifié (2026-07) pour reprendre le même modèle simple que le Chat
+entreprise : un salon = une liste de membres du groupe, plus de distinction
+bureau/finance/private, plus de réactions/média/réponse en fil/épinglage —
+cf. décision produit "simplifier plutôt que garder la richesse". Les
+colonnes media_url/gif_url/reply_to_id/reactions/pinned/edited_at restent en
+base (pas de migration de suppression) mais ne sont plus exposées/alimentées
+par ces routes.
 Documents : PDF, images, contrats, PV, reçus — visibilité members|bureau|public.
 """
 from __future__ import annotations
 
 import json
 import os
-import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,13 +22,14 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.api.routes_groups import _get_group, _user_group_roles, _company_admin, MANAGER_ROLE_NAMES
 from app.core.security import decode_access_token
 from app.db.session import SessionLocal, get_db
 from app.models import GroupChatMessage, GroupChatRoom, GroupDocument, GroupMember, OrganizationGroup, User
+from app.services.business import chat_ai_action, extract_mentions
 
 router = APIRouter(prefix="/groups", tags=["groups-g4"])
 
@@ -44,18 +50,10 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 class MessageCreate(BaseModel):
     content: str = ""
-    message_type: str = "text"
-    gif_url: str = ""
-    reply_to_id: int | None = None
-
-
-class ReactionUpdate(BaseModel):
-    emoji: str
 
 
 class RoomCreate(BaseModel):
     name: str
-    room_type: str = "general"
 
 
 # ── Salons de chat ───────────────────────────────────────────────────────────
@@ -71,7 +69,7 @@ def create_room(group_id: int, payload: RoomCreate, db: Session = Depends(get_db
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Le nom du salon est requis")
-    room = GroupChatRoom(group_id=group.id, name=name, type=payload.room_type,
+    room = GroupChatRoom(group_id=group.id, name=name, type="general",
                          created_by_user_id=current_user.id)
     db.add(room)
     db.commit()
@@ -93,17 +91,13 @@ def seed_default_room(db: Session, group_id: int, creator_user_id: int) -> Group
 
 @router.get("/{group_id}/chat/rooms")
 def list_rooms(group_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
+    """Simplifié (2026-07) : tous les salons d'un groupe sont visibles à tout
+    membre du groupe — la distinction bureau/finance/private est supprimée,
+    l'appartenance au groupe (GroupMember) fait déjà office de restriction."""
     group = _get_group(db, group_id, current_user)
-    user_roles = _user_group_roles(db, group, current_user)
+    _assert_is_member(db, group, current_user)
     rooms = db.scalars(select(GroupChatRoom).where(GroupChatRoom.group_id == group.id)).all()
-    visible = []
-    for r in rooms:
-        if r.type == "bureau" and not (user_roles & (MANAGER_ROLE_NAMES | {"Secrétaire", "Trésorier"})):
-            continue
-        if r.type == "finance" and not (user_roles & (MANAGER_ROLE_NAMES | {"Trésorier", "Commissaire aux comptes"})):
-            continue
-        visible.append(_ser_room(r))
-    return visible
+    return [_ser_room(r) for r in rooms]
 
 
 def _ser_room(r: GroupChatRoom) -> dict:
@@ -115,6 +109,7 @@ def _ser_room(r: GroupChatRoom) -> dict:
 def list_messages(group_id: int, room_id: int, limit: int = 60, db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)) -> list[dict]:
     group = _get_group(db, group_id, current_user)
+    _assert_is_member(db, group, current_user)
     room = _get_room(db, room_id, group.id)
     msgs = db.scalars(
         select(GroupChatMessage).where(GroupChatMessage.room_id == room.id, GroupChatMessage.deleted_at == None)  # noqa: E711
@@ -129,61 +124,24 @@ def post_message(group_id: int, room_id: int, payload: MessageCreate, db: Sessio
     group = _get_group(db, group_id, current_user)
     _assert_is_member(db, group, current_user)
     room = _get_room(db, room_id, group.id)
+
+    # Détection Limule (même heuristique que le chat entreprise) — le champ
+    # ai_suggestion existait déjà côté modèle mais n'était jamais renseigné.
+    action = chat_ai_action(payload.content)
+    ai_suggestion = (
+        action["title"] if action["detected"]
+        else "Aucune action critique detectee, message archive dans le contexte du groupe."
+    )
+
     msg = GroupChatMessage(
         room_id=room.id, sender_user_id=current_user.id, sender_name=current_user.full_name,
-        content=payload.content, message_type=payload.message_type,
-        gif_url=payload.gif_url, reply_to_id=payload.reply_to_id,
+        content=payload.content, message_type="text",
+        ai_suggestion=ai_suggestion,
     )
     db.add(msg)
     db.commit()
     db.refresh(msg)
-    return _ser_msg(msg)
-
-
-@router.post("/{group_id}/chat/rooms/{room_id}/messages/upload", status_code=201)
-async def upload_media_message(
-    group_id: int, room_id: int, file: UploadFile = File(...),
-    message_type: str = Form("image"), reply_to_id: int | None = Form(None),
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-) -> dict:
-    group = _get_group(db, group_id, current_user)
-    _assert_is_member(db, group, current_user)
-    room = _get_room(db, room_id, group.id)
-    if file.content_type not in ALLOWED_MIME:
-        raise HTTPException(status_code=415, detail=f"Type {file.content_type} non autorisé")
-    content = await file.read()
-    if len(content) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 50 MB)")
-    folder = STORAGE_ROOT / str(group.id)
-    folder.mkdir(parents=True, exist_ok=True)
-    ext = Path(file.filename or "file").suffix
-    fname = f"{uuid.uuid4().hex}{ext}"
-    fpath = folder / fname
-    fpath.write_bytes(content)
-    media_url = f"/groups/{group.id}/media/{fname}"
-    msg = GroupChatMessage(
-        room_id=room.id, sender_user_id=current_user.id, sender_name=current_user.full_name,
-        content=file.filename or "", message_type=message_type,
-        media_url=media_url, reply_to_id=reply_to_id,
-    )
-    db.add(msg)
-    db.commit()
-    db.refresh(msg)
-    return _ser_msg(msg)
-
-
-@router.post("/{group_id}/chat/rooms/{room_id}/messages/{msg_id}/react")
-def react_to_message(group_id: int, room_id: int, msg_id: int, payload: ReactionUpdate,
-                     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
-    group = _get_group(db, group_id, current_user)
-    msg = db.get(GroupChatMessage, msg_id)
-    if not msg or msg.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Message introuvable")
-    reactions = json.loads(msg.reactions or "{}")
-    reactions[payload.emoji] = reactions.get(payload.emoji, 0) + 1
-    msg.reactions = json.dumps(reactions, ensure_ascii=False)
-    db.commit()
-    return {"reactions": reactions}
+    return _ser_msg(msg, action=action)
 
 
 @router.delete("/{group_id}/chat/rooms/{room_id}/messages/{msg_id}")
@@ -203,14 +161,15 @@ def delete_message(group_id: int, room_id: int, msg_id: int, db: Session = Depen
     return {"deleted": True}
 
 
-def _ser_msg(m: GroupChatMessage) -> dict:
+def _ser_msg(m: GroupChatMessage, action: dict | None = None) -> dict:
+    """Sérialisation simplifiée (2026-07) : plus de media_url/gif_url/reply_to_id/
+    reactions/pinned exposés côté client — ces colonnes restent en base pour
+    compat lecture historique mais ne sont plus alimentées par ces routes."""
     return {
         "id": m.id, "room_id": m.room_id, "sender_name": m.sender_name,
         "content": m.content, "message_type": m.message_type,
-        "media_url": m.media_url, "gif_url": m.gif_url,
-        "reply_to_id": m.reply_to_id, "reactions": json.loads(m.reactions or "{}"),
-        "pinned": m.pinned, "created_at": m.created_at,
-        "edited_at": m.edited_at, "deleted_at": m.deleted_at,
+        "ai_suggestion": m.ai_suggestion, "ai_action": action,
+        "created_at": m.created_at, "deleted_at": m.deleted_at,
     }
 
 

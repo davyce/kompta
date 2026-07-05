@@ -609,11 +609,18 @@ class ChatChannelRead(BaseModel):
     name: str
     topic: str
     company_id: int
+    is_restricted: bool = False
+    member_ids: list[int] = []
 
 
 class ChatChannelCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     topic: str = Field(default="", max_length=180)
+    member_user_ids: list[int] = Field(default_factory=list)
+
+
+class ChatChannelMembersUpdate(BaseModel):
+    member_user_ids: list[int] = Field(default_factory=list)
 
 
 class ChatMemberRead(BaseModel):

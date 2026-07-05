@@ -216,41 +216,69 @@ def _build_title(text: str, action_type: str) -> str:
 
 
 def _compute_confidence(text: str, action_type: str, has_date: bool, has_assignee: bool) -> float:
-    lower = text.lower()
-    score = 0.25
+    """Calcule un score de confiance qu'un message de chat contient une action
+    réelle à extraire (tâche/réunion/document/validation/paiement/rappel).
 
-    # Mots-clés d'action par catégorie
+    Tuning 2026-07 : le seuil précédent (base 0.25 + mots-clés génériques très
+    larges type "faire"/"voir"/"vérifier") faisait remonter la carte Limule
+    sur quasiment tout message un peu actif ("Merci de vérifier", "Ok super")
+    — cf. plainte utilisateur "ça se déclenche à chaque message". On resserre :
+    - base plus basse (0.15)
+    - liste de mots-clés forts réduite à des verbes à intention non ambiguë
+    - les bonus contextuels (date, @mention, sévérité, impératif) pèsent plus
+      lourd individuellement mais ne suffisent plus seuls : il faut au moins
+      DEUX signaux indépendants (ex: @mention + date, ou mot-clé fort + date)
+      pour dépasser le seuil de détection.
+    """
+    lower = text.lower()
+    score = 0.15
+
+    # Mots-clés d'action forts par catégorie — verbes à intention explicite et
+    # non ambiguë uniquement (on retire les verbes génériques comme "faire",
+    # "voir", "penser", "gérer", "traiter" qui apparaissent dans des messages
+    # anodins de politesse ou de suivi banal).
     kw_map: dict[str, list[str]] = {
-        "task": ["faire", "créer", "envoyer", "vérifier", "préparer", "relancer", "appeler",
-                 "contacter", "finaliser", "terminer", "compléter", "soumettre", "traiter",
-                 "gérer", "mettre à jour", "corriger", "analyser", "suivre"],
+        "task": ["envoyer", "préparer", "relancer", "finaliser", "soumettre",
+                 "compléter"],
         "meeting": ["réunion", "meeting", "rdv", "rendez-vous", "visio"],
-        "document": ["document", "contrat", "justificatif", "dossier", "rapport", "facture"],
+        "document": ["contrat", "justificatif", "dossier", "rapport", "facture"],
         "approval": ["valider", "approuver", "signer", "autoriser"],
         "payment": ["payer", "virement", "paiement", "règlement"],
-        "reminder": ["rappel", "relancer", "n'oublie"],
+        "reminder": ["rappel", "relancer"],
     }
     keywords = kw_map.get(action_type, [])
     hits = sum(1 for kw in keywords if kw in lower)
-    score += min(hits * 0.12, 0.30)
+    score += min(hits * 0.14, 0.28)
 
-    # Bonus contextuels
+    # Nombre de signaux indépendants réunis (date, @mention, sévérité) — sert
+    # à exiger une combinaison plutôt qu'un signal isolé.
+    signal_count = 0
+
     if has_date:
-        score += 0.15
+        score += 0.20
+        signal_count += 1
     if has_assignee:
-        score += 0.12
-    if re.search(r'\b(urgent|critique|bloqué|important|asap)\b', lower):
-        score += 0.12
-    # Verbe impératif
+        score += 0.15
+        signal_count += 1
+    if re.search(r'\b(urgent|urgence|critique|bloqué|bloque|impératif|imperatif)\b', lower):
+        score += 0.15
+        signal_count += 1
+    # Verbe impératif fort (pas de bonus si c'est le seul signal — cf. condition ci-dessous)
     if re.search(
-        r'\b(fais|faites|envoi|envoie|prépare|préparez|crée|créez|appelle|appelez|'
-        r'vérifie|vérifiez|mets|mettez|traite|traitez|signe|signez|valide|validez)\b', lower
+        r'\b(envoi|envoie|prépare|préparez|signe|signez|valide|validez|confirme|confirmez)\b', lower
     ):
         score += 0.10
-    # Phrase impérative sans sujet (commence par verbe)
-    first_word = lower.split()[0] if lower.split() else ""
-    if re.match(r'^(il faut|on doit|faudrait|peux-tu|pourras-tu|pense à)', lower):
+        signal_count += 1
+    # Phrase à intention explicite ("il faut", "peux-tu", ...)
+    if re.match(r'^(il faut|on doit|faudrait|peux-tu|pourras-tu)', lower):
         score += 0.08
+        signal_count += 1
+
+    # Si un seul signal contextuel est présent (en plus des mots-clés d'action
+    # de base), on plafonne le score pour éviter qu'un simple "urgent" ou une
+    # simple date isolée dans une phrase anodine ne déclenche une action.
+    if signal_count <= 1 and hits == 0:
+        score = min(score, 0.35)
 
     return min(round(score, 2), 1.0)
 
@@ -281,17 +309,21 @@ def chat_ai_action(body: str) -> dict:
     title = _build_title(body, action_type)
     confidence = _compute_confidence(body, action_type, due_date is not None, bool(assignee))
 
-    # Verbe d'action fort et sans ambiguïté (liste volontairement restreinte —
-    # une liste trop large de verbes courants faisait se déclencher Limule sur
-    # quasiment tous les messages). Seuil combiné plus strict : ce signal ne
-    # suffit plus seul, il doit se cumuler avec au moins un second signal
-    # indépendant (date, @mention ou mot de sévérité) déjà reflété dans le score.
+    # Mot d'action fort = seuil un peu plus bas, mais mots choisis pour être
+    # sans ambiguïté ("envoyer", "signer", "payer", "confirmer", "valider" —
+    # pas les verbes génériques "faire"/"voir"/"gérer" qui déclenchaient sur
+    # quasi tous les messages). Voir _compute_confidence pour le detail du
+    # tuning 2026-07.
     has_strong_action_word = bool(re.search(
-        r'\b(valider|approuver|signer|payer|urgent|réunion|meeting|rdv|'
-        r'il faut|on doit|faudrait|peux-tu|pourras-tu|bloqué|bloque)\b',
+        r'\b(envoyer|envoie|envoi|préparer|prépare|relancer|valider|valide|approuver|'
+        r'signer|signe|payer|confirmer|confirme|urgent|urgence)\b',
         body.lower(),
     ))
-    detected = confidence >= 0.58 or (has_strong_action_word and confidence >= 0.45)
+    # Barre relevée : il faut soit une confiance élevée (0.55+), soit un mot
+    # d'action fort combiné à une confiance déjà correcte (0.45+) — l'ancienne
+    # « échappatoire » à 0.30 déclenchait sur des messages anodins contenant
+    # un seul mot-clé faible.
+    detected = confidence >= 0.55 or (has_strong_action_word and confidence >= 0.45)
 
     return {
         "detected": detected,

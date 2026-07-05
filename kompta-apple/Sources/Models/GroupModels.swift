@@ -276,27 +276,25 @@ struct GroupChatRoom: Codable, Identifiable, Hashable {
 
 struct GroupRoomPayload: Encodable {
     var name: String
-    var room_type: String = "general"
 }
 
+// Simplifié (2026-07) : plus de media_url/gif_url/reply_to_id/pinned/edited_at
+// exposés — le chat de groupe reprend le même modèle simple que le chat
+// entreprise (ChatMsg dans DomainModels.swift).
 struct GroupChatMessage: Codable, Identifiable, Hashable {
     let id: Int
     let room_id: Int
     let sender_name: String
     let content: String
     let message_type: String
-    let media_url: String?
-    let gif_url: String?
-    let reply_to_id: Int?
-    let pinned: Bool
+    let ai_suggestion: String?
+    let ai_action: ChatAIAction?
     let created_at: String
-    let edited_at: String?
     let deleted_at: String?
 }
 
 struct GroupMessagePayload: Encodable {
     var content: String = ""
-    var message_type: String = "text"
 }
 
 // MARK: - Documents

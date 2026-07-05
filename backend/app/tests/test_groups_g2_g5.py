@@ -168,7 +168,7 @@ def test_g3_vote_create_respond_results():
         assert results["results"][0]["count"] == 1
 
 
-# ── G4 : Chat ─────────────────────────────────────────────────────────────────
+# ── G4 : Chat (simplifié 2026-07 — aligné sur le chat entreprise) ─────────────
 def test_g4_chat_room_and_messages():
     with TestClient(app) as client:
         h = _auth(client)
@@ -179,25 +179,67 @@ def test_g4_chat_room_and_messages():
         # Créer un salon si vide
         if not rooms:
             room = client.post(f"/api/groups/{gid}/chat/rooms", headers=h,
-                               data={"name": "Général", "room_type": "general"}).json()
+                               json={"name": "Général"}).json()
             room_id = room["id"]
         else:
             room_id = rooms[0]["id"]
         # Envoyer un message
         msg = client.post(f"/api/groups/{gid}/chat/rooms/{room_id}/messages", headers=h,
-                           json={"content": "Bonjour tout le monde !", "message_type": "text"}).json()
+                           json={"content": "Bonjour tout le monde !"}).json()
         assert msg["content"] == "Bonjour tout le monde !"
         assert msg["message_type"] == "text"
-        # Réaction
-        react = client.post(f"/api/groups/{gid}/chat/rooms/{room_id}/messages/{msg['id']}/react",
-                             headers=h, json={"emoji": "👍"}).json()
-        assert react["reactions"]["👍"] == 1
         # Supprimer
         deleted = client.delete(f"/api/groups/{gid}/chat/rooms/{room_id}/messages/{msg['id']}", headers=h).json()
         assert deleted["deleted"] is True
         # Vérifier dans la liste
         msgs = client.get(f"/api/groups/{gid}/chat/rooms/{room_id}/messages", headers=h).json()
         assert not any(m["id"] == msg["id"] and m.get("content") == "Bonjour tout le monde !" for m in msgs)
+
+
+def test_g4_chat_message_triggers_limule_action():
+    """Le message de groupe doit désormais déclencher chat_ai_action() comme
+    le chat entreprise (auparavant, ai_suggestion n'était jamais renseigné)."""
+    with TestClient(app) as client:
+        h = _auth(client)
+        gid, _ = _setup_group(client, h)
+        rooms = client.get(f"/api/groups/{gid}/chat/rooms", headers=h).json()
+        room_id = rooms[0]["id"] if rooms else client.post(
+            f"/api/groups/{gid}/chat/rooms", headers=h, json={"name": "Général"}
+        ).json()["id"]
+        clear_trigger = "Peux-tu envoyer le contrat signé avant vendredi 15h @Marie, c'est urgent"
+        msg = client.post(f"/api/groups/{gid}/chat/rooms/{room_id}/messages", headers=h,
+                           json={"content": clear_trigger}).json()
+        assert msg["ai_action"] is not None
+        assert msg["ai_action"]["detected"] is True
+        assert msg["ai_suggestion"]
+
+
+def test_g4_room_listing_no_longer_filters_by_role_or_type():
+    """Tous les salons du groupe sont visibles à tout membre — la distinction
+    bureau/finance/private a été supprimée (simplification 2026-07)."""
+    with TestClient(app) as client:
+        h = _auth(client)
+        gid, _ = _setup_group(client, h)
+        room = client.post(f"/api/groups/{gid}/chat/rooms", headers=h, json={"name": "Autre salon"})
+        assert room.status_code == 201
+        assert room.json()["type"] == "general"
+        rooms = client.get(f"/api/groups/{gid}/chat/rooms", headers=h).json()
+        assert any(r["name"] == "Autre salon" for r in rooms)
+
+
+def test_g4_removed_reaction_route_is_gone():
+    with TestClient(app) as client:
+        h = _auth(client)
+        gid, _ = _setup_group(client, h)
+        rooms = client.get(f"/api/groups/{gid}/chat/rooms", headers=h).json()
+        room_id = rooms[0]["id"] if rooms else client.post(
+            f"/api/groups/{gid}/chat/rooms", headers=h, json={"name": "Général"}
+        ).json()["id"]
+        msg = client.post(f"/api/groups/{gid}/chat/rooms/{room_id}/messages", headers=h,
+                           json={"content": "test"}).json()
+        r = client.post(f"/api/groups/{gid}/chat/rooms/{room_id}/messages/{msg['id']}/react",
+                        headers=h, json={"emoji": "👍"})
+        assert r.status_code in (404, 405)
 
 
 # ── G5 : IA permissions ───────────────────────────────────────────────────────

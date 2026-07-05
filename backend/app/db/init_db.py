@@ -9,6 +9,7 @@ from app.models import (
     Base,
     AIGeneration,
     ChatChannel,
+    ChatChannelMember,
     Company,
     CompanyModule,
     DailyNote,

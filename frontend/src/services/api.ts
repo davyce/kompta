@@ -1661,31 +1661,16 @@ export const api = {
     request<{ vote_id: number; selected: string }>(`/groups/${groupId}/votes/${voteId}/respond`, { method: "POST", body: JSON.stringify({ selected_option }) }),
   voteResults: (groupId: number, voteId: number) => request<{ title: string; total_votes: number; results: { option: string; count: number; percent: number }[] }>(`/groups/${groupId}/votes/${voteId}/results`),
 
-  // G4 — Chat, documents
+  // G4 — Chat (simplifié, aligné sur le chat entreprise), documents
   groupChatRooms: (groupId: number) => request<GroupChatRoom[]>(`/groups/${groupId}/chat/rooms`),
-  createChatRoom: (groupId: number, name: string, type = "general") =>
+  createChatRoom: (groupId: number, name: string) =>
     request<GroupChatRoom>(`/groups/${groupId}/chat/rooms`, {
       method: "POST",
-      body: JSON.stringify({ name, room_type: type }),
+      body: JSON.stringify({ name }),
     }),
-  /** Upload d'un fichier (image/audio/document) dans un salon de chat. */
-  uploadGroupChatMedia: (groupId: number, roomId: number, file: File, opts?: { message_type?: string; reply_to_id?: number }) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    if (opts?.message_type) fd.append("message_type", opts.message_type);
-    if (opts?.reply_to_id) fd.append("reply_to_id", String(opts.reply_to_id));
-    return request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages/upload`, {
-      method: "POST",
-      body: fd,
-    });
-  },
-  /** URL absolue d'un média de chat (gérée par le backend avec auth). */
-  groupChatMediaUrl: (relativeUrl: string) => `${API_URL}${relativeUrl}`,
   groupChatMessages: (groupId: number, roomId: number, limit = 60) => request<GroupChatMessage[]>(`/groups/${groupId}/chat/rooms/${roomId}/messages?limit=${limit}`),
-  sendGroupMessage: (groupId: number, roomId: number, content: string, type = "text", reply_to_id?: number) =>
-    request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages`, { method: "POST", body: JSON.stringify({ content, message_type: type, reply_to_id }) }),
-  reactToGroupMessage: (groupId: number, roomId: number, msgId: number, emoji: string) =>
-    request<{ reactions: Record<string, number> }>(`/groups/${groupId}/chat/rooms/${roomId}/messages/${msgId}/react`, { method: "POST", body: JSON.stringify({ emoji }) }),
+  sendGroupMessage: (groupId: number, roomId: number, content: string) =>
+    request<GroupChatMessage>(`/groups/${groupId}/chat/rooms/${roomId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   deleteGroupMessage: (groupId: number, roomId: number, msgId: number) =>
     request<{ deleted: boolean }>(`/groups/${groupId}/chat/rooms/${roomId}/messages/${msgId}`, { method: "DELETE" }),
   groupDocuments: (groupId: number) => request<GroupDocument[]>(`/groups/${groupId}/documents`),
