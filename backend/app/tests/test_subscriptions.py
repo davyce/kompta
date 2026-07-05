@@ -186,6 +186,85 @@ def test_new_company_gets_trial_with_full_access() -> None:
         assert client.get("/api/payroll", headers=h).status_code != 402
 
 
+def test_new_company_trial_is_branded_mokonzi() -> None:
+    """L'essai offert doit s'afficher comme Mokonzi (pas un essai générique)."""
+    import uuid
+    with TestClient(app) as client:
+        email = f"mokonzi_trial_{uuid.uuid4().hex[:8]}@kompta.local"
+        r = client.post("/api/auth/register-company", json={
+            "company_name": "Mokonzi Essai SARL", "admin_full_name": "Boss", "admin_email": email,
+            "admin_phone": "", "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+        })
+        assert r.status_code == 201, r.text
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        ent = client.get("/api/subscription/entitlements", headers=h).json()
+        assert ent["plan_code"] == "business"
+        assert ent["trial_ending_soon"] is False
+
+
+def test_expired_trial_falls_back_to_standard_not_locked() -> None:
+    """Un essai Mokonzi expiré doit retomber automatiquement sur Standard
+    (accès conservé, pas de blocage), au lieu de verrouiller l'entreprise."""
+    import uuid
+    from datetime import timedelta
+
+    from app.db.session import SessionLocal
+    from app.models import CompanySubscription
+    from app.services import subscriptions as subs
+
+    with TestClient(app) as client:
+        email = f"expired_trial_{uuid.uuid4().hex[:8]}@kompta.local"
+        r = client.post("/api/auth/register-company", json={
+            "company_name": "Essai Expire SARL", "admin_full_name": "Boss", "admin_email": email,
+            "admin_phone": "", "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+        })
+        assert r.status_code == 201, r.text
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        cid = _company_id(client, h)
+
+        with SessionLocal() as db:
+            sub = db.scalar(select(CompanySubscription).where(CompanySubscription.company_id == cid))
+            sub.current_period_end = subs._now() - timedelta(days=1)
+            db.commit()
+
+        ent = client.get("/api/subscription/entitlements", headers=h).json()
+        assert ent["locked"] is False
+        assert ent["plan_code"] == "starter"
+        assert ent["status"] == "active"
+        assert client.get("/api/products", headers=h).status_code != 402
+
+
+def test_trial_ending_soon_flag_at_j5() -> None:
+    import uuid
+    from datetime import timedelta
+
+    from app.db.session import SessionLocal
+    from app.models import CompanySubscription
+    from app.services import subscriptions as subs
+
+    with TestClient(app) as client:
+        email = f"j5_trial_{uuid.uuid4().hex[:8]}@kompta.local"
+        r = client.post("/api/auth/register-company", json={
+            "company_name": "J5 SARL", "admin_full_name": "Boss", "admin_email": email,
+            "admin_phone": "", "password": "kompta123",
+            "signatory_name": "Test Signataire", "accept_privacy": True, "accept_terms": True, "accept_disclaimer": True,
+        })
+        assert r.status_code == 201, r.text
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        cid = _company_id(client, h)
+
+        with SessionLocal() as db:
+            sub = db.scalar(select(CompanySubscription).where(CompanySubscription.company_id == cid))
+            sub.current_period_end = subs._now() + timedelta(days=4)
+            db.commit()
+
+        ent = client.get("/api/subscription/entitlements", headers=h).json()
+        assert ent["trialing"] is True
+        assert ent["trial_ending_soon"] is True
+
+
 def test_plans_expose_entitlements() -> None:
     with TestClient(app) as client:
         plans = {p["code"]: p for p in client.get("/api/subscription/plans", headers=_admin(client)).json()}

@@ -250,4 +250,21 @@ def compute_dashboard_alerts(
                 "action_url": "/groups",
             })
 
+    # ── 8. Fin d'essai Mokonzi proche (J-5) ──────────────────────────────
+    from app.services.subscriptions import TRIAL_WARNING_DAYS, company_entitlements
+
+    ent = company_entitlements(db, company_id)
+    if ent.get("trialing") and ent.get("trial_ending_soon"):
+        days_left = ent.get("trial_days_left", 0)
+        alerts.append({
+            "severity": "warning",
+            "type": "trial_ending",
+            "message": (
+                f"Ton essai gratuit Mokonzi se termine dans {days_left} jour"
+                f"{'s' if days_left > 1 else ''} — passe à un forfait payant pour "
+                f"garder tous les modules, sinon tu repasseras automatiquement en Standard"
+            ),
+            "action_url": "/settings",
+        })
+
     return alerts

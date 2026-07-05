@@ -1829,6 +1829,7 @@ export type Entitlements = {
   trialing: boolean;
   trial_days_left: number;
   soft_warning: boolean;
+  trial_ending_soon: boolean;
   period_end: string | null;
   allowed_modules: string[] | null;   // null = tous (essai)
   max_users: number;                   // 0 = illimité

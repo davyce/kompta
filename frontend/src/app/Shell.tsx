@@ -796,8 +796,8 @@ export function Shell() {
               <Lock size={16} className="shrink-0" />
               <span className="flex-1">
                 {entitlements.trialing
-                  ? `Votre essai gratuit se termine dans ${entitlements.trial_days_left} jour(s). Choisissez une offre pour ne rien perdre.`
-                  : "Votre essai est terminé. Certaines fonctionnalités sont limitées — passez à une offre pour tout débloquer."}
+                  ? `Votre essai Mokonzi offert se termine dans ${entitlements.trial_days_left} jour(s) — passez en Musala ou Mokonzi pour garder tous les modules, sinon vous repasserez automatiquement en Standard (gratuit).`
+                  : "Votre compte est suspendu. Contactez le support ou passez à une offre pour retrouver l'accès."}
               </span>
               <span className="shrink-0 rounded-lg bg-black/5 px-3 py-1.5 text-xs font-black dark:bg-white/10">Voir les offres →</span>
             </button>

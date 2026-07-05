@@ -58,9 +58,9 @@ final class EntitlementsManager: ObservableObject {
     var trialBannerText: String {
         guard let e = entitlements else { return "" }
         if e.trialing {
-            return "Votre essai gratuit se termine dans \(e.trial_days_left) jour(s). Choisissez une offre pour ne rien perdre."
+            return "Votre essai Mokonzi offert se termine dans \(e.trial_days_left) jour(s) — passez en Musala ou Mokonzi pour garder tous les modules, sinon vous repasserez automatiquement en Standard (gratuit)."
         }
-        return "Votre essai est terminé. Certaines fonctionnalités sont limitées — passez à une offre pour tout débloquer."
+        return "Votre compte est suspendu. Contactez le support ou passez à une offre pour retrouver l'accès."
     }
 
     var trialBannerIsCritical: Bool { entitlements?.locked == true }

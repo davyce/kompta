@@ -25,10 +25,13 @@ from app.models import (
 # Statuts qui donnent un accès complet à l'app
 ACTIVE_STATUSES = {"trialing", "active"}
 
-# Essai gratuit complet à l'inscription
+# Essai gratuit complet à l'inscription — branded Mokonzi offert pendant 3 mois
 TRIAL_DAYS = 90
+TRIAL_PLAN_CODE = "business"  # Mokonzi : le plan "goûté" pendant l'essai
 # Avertissement souple à partir de J-30 avant la fin d'essai
 SOFT_WARNING_DAYS = 30
+# Avertissement ferme (notification proactive) à J-5 avant la fin d'essai
+TRIAL_WARNING_DAYS = 5
 
 
 def _now() -> datetime:
@@ -261,11 +264,13 @@ def mark_subscription_ended(db: Session, company_id: int, status: str = "cancell
 # ESSAI GRATUIT + ENTITLEMENTS (accès par plan)
 # ═══════════════════════════════════════════════════════════════════════════
 def start_trial(db: Session, company_id: int, days: int = TRIAL_DAYS) -> CompanySubscription:
-    """Démarre un essai gratuit complet (accès total) pour une nouvelle entreprise."""
+    """Démarre un essai gratuit Mokonzi offert (accès complet) pour une nouvelle
+    entreprise. À l'expiration, `company_entitlements` fait automatiquement
+    retomber l'entreprise sur le forfait Standard (gratuit), sans blocage."""
     sub = get_or_create_subscription(db, company_id)
     now = _now()
     sub.status = "trialing"
-    sub.plan_code = ""               # essai = pas de plan payant encore
+    sub.plan_code = TRIAL_PLAN_CODE   # essai = Mokonzi offert, affiché tel quel
     sub.started_at = sub.started_at or now
     sub.current_period_end = now + timedelta(days=days)
     sub.cancel_at_period_end = False
@@ -295,8 +300,9 @@ def company_entitlements(db: Session, company_id: int) -> dict:
     is_trial = bool(sub and sub.status == "trialing" and eff == "trialing")
     if is_trial:
         return {
-            "status": "trialing", "plan_code": "", "trialing": True,
+            "status": "trialing", "plan_code": TRIAL_PLAN_CODE, "trialing": True,
             "trial_days_left": days_left, "soft_warning": days_left <= SOFT_WARNING_DAYS,
+            "trial_ending_soon": days_left <= TRIAL_WARNING_DAYS,
             "period_end": period_end.isoformat() if period_end else None,
             "allowed_modules": None, "max_users": 0, "locked": False,
         }
@@ -313,17 +319,44 @@ def company_entitlements(db: Session, company_id: int) -> dict:
             max_u = plan.max_users
         return {
             "status": eff, "plan_code": sub.plan_code, "trialing": False,
-            "trial_days_left": 0, "soft_warning": False,
+            "trial_days_left": 0, "soft_warning": False, "trial_ending_soon": False,
             "period_end": period_end.isoformat() if period_end else None,
             "allowed_modules": mods, "max_users": max_u, "locked": False,
         }
 
-    # Essai expiré / aucun plan / suspendu → cœur seulement
+    # Suspension manuelle par le super-admin → verrouillé (cas distinct d'un essai expiré).
+    if eff == "suspended":
+        return {
+            "status": eff, "plan_code": (sub.plan_code if sub else ""), "trialing": False,
+            "trial_days_left": 0, "soft_warning": False, "trial_ending_soon": False,
+            "period_end": period_end.isoformat() if period_end else None,
+            "allowed_modules": [], "max_users": 1, "locked": True,
+        }
+
+    # Essai Mokonzi expiré (ou jamais de plan payant) → repli automatique sur
+    # Standard (gratuit), sans blocage. Si l'entreprise sortait d'un essai,
+    # on persiste la bascule pour que le reste de l'app (facturation, admin…)
+    # reflète le vrai forfait actif plutôt qu'un essai fantôme expiré.
+    if sub and sub.status == "trialing" and eff != "trialing":
+        sub.status = "active"
+        sub.plan_code = "starter"
+        sub.current_period_end = None
+        db.commit()
+
+    starter = db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == "starter"))
+    starter_mods: list[str] = []
+    starter_max_users = 2
+    if starter:
+        try:
+            starter_mods = json.loads(starter.included_modules) if starter.included_modules else []
+        except Exception:
+            starter_mods = []
+        starter_max_users = starter.max_users
     return {
-        "status": eff, "plan_code": (sub.plan_code if sub else ""), "trialing": False,
-        "trial_days_left": 0, "soft_warning": False,
-        "period_end": period_end.isoformat() if period_end else None,
-        "allowed_modules": [], "max_users": 1, "locked": True,
+        "status": "active", "plan_code": "starter", "trialing": False,
+        "trial_days_left": 0, "soft_warning": False, "trial_ending_soon": False,
+        "period_end": None,
+        "allowed_modules": starter_mods, "max_users": starter_max_users, "locked": False,
     }
 
 
