@@ -731,13 +731,9 @@ export type GroupChatMessage = {
   sender_name: string;
   content: string;
   message_type: string;
-  media_url: string;
-  gif_url: string;
-  reply_to_id: number | null;
-  reactions: Record<string, number>;
-  pinned: boolean;
+  ai_suggestion?: string;
+  ai_action?: LimuleAction | null;
   created_at: string;
-  edited_at?: string | null;
   deleted_at: string | null;
 };
 
