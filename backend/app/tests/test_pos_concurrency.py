@@ -234,7 +234,9 @@ def test_concurrent_sessions_balance_isolation() -> None:
         # tests) afin de partir d'un état propre et prévisible.
         def _ensure_fresh_session(client: TestClient, headers: dict) -> int:
             existing = client.get("/api/pos/sessions/current/balance", headers=headers)
-            if existing.status_code == 200:
+            # 200 + corps `null` = pas de session ouverte (état normal, plus un 404
+            # depuis le fix CI E2E) : rien à fermer dans ce cas.
+            if existing.status_code == 200 and existing.json():
                 client.patch(
                     f"/api/pos/sessions/{existing.json()['session_id']}/close",
                     headers=headers,

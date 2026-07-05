@@ -73,11 +73,11 @@ def list_pos_sessions(
     return db.scalars(stmt).all()
 
 
-@router.get("/pos/sessions/current/balance", response_model=PosSessionBalance)
+@router.get("/pos/sessions/current/balance", response_model=Optional[PosSessionBalance])
 def get_current_session_balance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> PosSessionBalance:
+) -> Optional[PosSessionBalance]:
     session = db.scalars(
         select(PosSession).where(
             PosSession.company_id == current_user.company_id,
@@ -86,7 +86,11 @@ def get_current_session_balance(
         )
     ).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Aucune session de caisse ouverte")
+        # Aucune session ouverte n'est un état normal (avant la première
+        # ouverture de caisse du jour), pas une erreur — 200 + null évite un
+        # 404 bruyant (log navigateur "Failed to load resource") à chaque
+        # visite de la page POS sans session active.
+        return None
 
     # Rattachement exact par session_id (FK) plutôt que par plage de dates :
     # évite le double-comptage entre sessions/caissiers concurrents (cf. POS-01).

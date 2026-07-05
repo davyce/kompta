@@ -456,7 +456,7 @@ export const api = {
       expected_cash_cents: number;
       opened_at: string;
       opened_by: string;
-    }>("/pos/sessions/current/balance"),
+    } | null>("/pos/sessions/current/balance"),
   inventoryMovements: () => request<InventoryMovement[]>("/inventory/movements"),
   invoices: () => request<Invoice[]>("/invoices"),
   createInvoice: (payload: {
