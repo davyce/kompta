@@ -33,6 +33,7 @@ from app.models import (
     AuditLog,
     BankTransaction,
     ChatChannel,
+    ChatChannelMember,
     Client,
     ClientDiscount,
     Company,
@@ -72,6 +73,7 @@ from app.schemas import (
     AIRouterRequest,
     ChatChannelCreate,
     ChatChannelDetail,
+    ChatChannelMembersUpdate,
     ChatChannelRead,
     CompanyDocumentRead,
     CompanyDocumentReadFull,
@@ -3227,9 +3229,68 @@ async def upload_product_images(
     )
 
 
+def _is_general_channel(channel: ChatChannel) -> bool:
+    """Le canal 'general' reste toujours ouvert à toute l'entreprise, quelles
+    que soient les lignes ChatChannelMember éventuellement présentes."""
+    return channel.name.strip().lower() == "general"
+
+
+def _channel_member_ids(db: Session, channel_id: int) -> list[int]:
+    return list(
+        db.scalars(
+            select(ChatChannelMember.user_id).where(ChatChannelMember.channel_id == channel_id)
+        ).all()
+    )
+
+
+def _channel_to_read(db: Session, channel: ChatChannel) -> dict:
+    member_ids = _channel_member_ids(db, channel.id)
+    return {
+        "id": channel.id,
+        "name": channel.name,
+        "topic": channel.topic,
+        "company_id": channel.company_id,
+        "is_restricted": bool(member_ids) and not _is_general_channel(channel),
+        "member_ids": member_ids,
+    }
+
+
+def _require_channel_access(db: Session, channel: ChatChannel, current_user: User) -> None:
+    """Un canal sans ligne de membership est ouvert à toute l'entreprise
+    (couvre 'general' et tout canal admin créé sans sélection de membres).
+    Sinon, seuls les membres explicitement ajoutés y ont accès."""
+    if _is_general_channel(channel):
+        return
+    member_ids = _channel_member_ids(db, channel.id)
+    if not member_ids:
+        return
+    if current_user.id not in member_ids:
+        raise HTTPException(status_code=403, detail="Accès refusé : vous n'êtes pas membre de ce canal.")
+
+
+@router.get("/chat/company-users")
+def list_company_users_for_chat(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> list[dict]:
+    """Liste des utilisateurs de l'entreprise pour le sélecteur de membres de
+    canal (création/édition de canal restreint). Admin uniquement."""
+    _require_admin(current_user)
+    users = db.scalars(
+        select(User)
+        .where(
+            User.company_id == current_user.company_id,
+            User.is_active.is_(True),
+            User.role != "membre_groupe",
+        )
+        .order_by(User.full_name.asc())
+    ).all()
+    return [{"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role} for u in users]
+
+
 @router.get("/chat/channels", response_model=list[ChatChannelRead])
-def list_channels(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ChatChannel]:
-    return company_scope(db, current_user, ChatChannel, ChatChannel.created_at.asc())
+def list_channels(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict]:
+    channels = company_scope(db, current_user, ChatChannel, ChatChannel.created_at.asc())
+    return [_channel_to_read(db, c) for c in channels]
 
 
 @router.post("/chat/channels", response_model=ChatChannelRead, status_code=201)
@@ -3237,7 +3298,7 @@ def create_channel(
     payload: ChatChannelCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> ChatChannel:
+) -> dict:
     cleaned_name = "-".join(payload.name.strip().lower().split())
     if not cleaned_name:
         raise HTTPException(status_code=400, detail="Channel name is required")
@@ -3248,7 +3309,13 @@ def create_channel(
         )
     )
     if existing:
-        return existing
+        return _channel_to_read(db, existing)
+
+    # Seul un canal "general" reste créable sans droits admin (canal par
+    # défaut ouvert à tous) — tout autre canal nécessite un rôle admin.
+    if cleaned_name != "general":
+        _require_admin(current_user)
+
     channel = ChatChannel(
         name=cleaned_name,
         topic=payload.topic.strip(),
@@ -3257,7 +3324,43 @@ def create_channel(
     db.add(channel)
     db.commit()
     db.refresh(channel)
-    return channel
+
+    if cleaned_name != "general" and payload.member_user_ids:
+        member_ids = set(payload.member_user_ids) | {current_user.id}
+        valid_users = db.scalars(
+            select(User.id).where(User.id.in_(member_ids), User.company_id == current_user.company_id)
+        ).all()
+        for uid in valid_users:
+            db.add(ChatChannelMember(channel_id=channel.id, user_id=uid))
+        db.commit()
+
+    return _channel_to_read(db, channel)
+
+
+@router.patch("/chat/channels/{channel_id}/members", response_model=ChatChannelRead)
+def update_channel_members(
+    channel_id: int,
+    payload: ChatChannelMembersUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _require_admin(current_user)
+    channel = db.get(ChatChannel, channel_id)
+    if not channel or channel.company_id != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    if _is_general_channel(channel):
+        raise HTTPException(status_code=400, detail="Le canal 'general' reste toujours ouvert à toute l'entreprise.")
+
+    db.execute(delete(ChatChannelMember).where(ChatChannelMember.channel_id == channel_id))
+    if payload.member_user_ids:
+        member_ids = set(payload.member_user_ids)
+        valid_users = db.scalars(
+            select(User.id).where(User.id.in_(member_ids), User.company_id == current_user.company_id)
+        ).all()
+        for uid in valid_users:
+            db.add(ChatChannelMember(channel_id=channel.id, user_id=uid))
+    db.commit()
+    return _channel_to_read(db, channel)
 
 
 @router.get("/chat/channels/{channel_id}/detail", response_model=ChatChannelDetail)
@@ -3269,6 +3372,7 @@ def channel_detail(
     channel = db.get(ChatChannel, channel_id)
     if not channel or channel.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Channel not found")
+    _require_channel_access(db, channel, current_user)
 
     employees = db.scalars(
         select(Employee)
@@ -3322,7 +3426,7 @@ def channel_detail(
     ).all()
     online_count = min(len(members), len([user for user in users if user.account_status == "active"]))
     return {
-        "channel": channel,
+        "channel": _channel_to_read(db, channel),
         "members": members,
         "tasks": linked_tasks,
         "member_count": len(members),
@@ -3339,6 +3443,7 @@ def list_messages(
     channel = db.get(ChatChannel, channel_id)
     if not channel or channel.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Channel not found")
+    _require_channel_access(db, channel, current_user)
     messages = db.scalars(
         select(Message)
         .where(Message.channel_id == channel_id)
@@ -3363,6 +3468,7 @@ async def post_message(
     channel = db.get(ChatChannel, channel_id)
     if not channel or channel.company_id != current_user.company_id:
         raise HTTPException(status_code=404, detail="Channel not found")
+    _require_channel_access(db, channel, current_user)
     import json as _json
     action = chat_ai_action(payload.body)
     message = Message(
@@ -3472,6 +3578,11 @@ async def chat_websocket(websocket: WebSocket, channel_id: int, token: str = "")
         if not channel or channel.company_id != user.company_id:
             await websocket.close(code=4003)
             return
+        if not _is_general_channel(channel):
+            member_ids = _channel_member_ids(db, channel_id)
+            if member_ids and user.id not in member_ids:
+                await websocket.close(code=4003)
+                return
     await manager.connect(channel_id, websocket)
     try:
         while True:

@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -576,6 +576,16 @@ class ChatChannel(TimestampMixin, Base):
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
     messages: Mapped[list["Message"]] = relationship(cascade="all, delete-orphan", back_populates="channel")
+
+
+class ChatChannelMember(TimestampMixin, Base):
+    """Appartenance à un canal restreint (canal 'general' toujours ouvert, jamais restreint)."""
+    __tablename__ = "chat_channel_members"
+    __table_args__ = (UniqueConstraint("channel_id", "user_id", name="uq_chat_channel_member"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    channel_id: Mapped[int] = mapped_column(ForeignKey("chat_channels.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
 
 class Message(TimestampMixin, Base):
