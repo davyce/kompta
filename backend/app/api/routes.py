@@ -12,6 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import company_scope, get_current_user
@@ -2106,11 +2107,54 @@ async def inventory_ai_report(db: Session = Depends(get_db),
 @router.post("/pos/sales", status_code=201)
 def create_sale(
     payload: SaleCreate,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
+
+    # ── Idempotence : si le client a envoyé une clé et qu'une vente existe déjà
+    # avec cette clé pour cette entreprise, renvoyer la vente EXISTANTE plutôt
+    # que d'en créer une seconde (ex : retry après timeout réseau côté caisse
+    # mobile). Header X-Idempotent-Replay: true signale le rejeu ; le code
+    # HTTP reste 201 pour ne pas casser les clients qui vérifient déjà ce code
+    # (rétrocompatibilité totale — cf. constat test_pos_concurrency.py).
+    if payload.idempotency_key:
+        existing = db.scalars(
+            select(Sale)
+            .options(selectinload(Sale.items))
+            .where(
+                Sale.company_id == current_user.company_id,
+                Sale.idempotency_key == payload.idempotency_key,
+            )
+        ).first()
+        if existing:
+            response.headers["X-Idempotent-Replay"] = "true"
+            return {
+                "id": existing.id,
+                "receipt_number": existing.receipt_number,
+                "payment_method": existing.payment_method,
+                "payment_account_id": existing.payment_account_id,
+                "payment_account_label": existing.payment_account_label,
+                "status": existing.status,
+                "client_id": existing.client_id,
+                "client_name": existing.client_name,
+                "discount_percent": payload.discount_percent,
+                "discount_amount": 0.0,
+                "loyalty_points_earned": existing.loyalty_points_earned,
+                "total_amount": existing.total_amount,
+                "items": [
+                    {
+                        "product_id": item.product_id,
+                        "name": item.product_name,
+                        "quantity": item.quantity,
+                        "total": item.line_total,
+                    }
+                    for item in existing.items
+                ],
+                "transaction_id": None,
+            }
     payment_method, payment_account = _resolve_payment_account(
         db,
         current_user,
@@ -2143,10 +2187,53 @@ def create_sale(
         client_name=selected_client.name if selected_client else "",
         company_id=current_user.company_id,
         session_id=_open_session.id if _open_session else None,
+        idempotency_key=payload.idempotency_key,
     )
     total = 0.0
     db.add(sale)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # Course réelle : une autre requête concurrente avec la MÊME clé a
+        # gagné la contrainte unique (company_id, idempotency_key) entre notre
+        # lecture ci-dessus et ce flush. On annule notre insertion et on
+        # renvoie la vente qui a effectivement été créée par l'autre requête.
+        db.rollback()
+        winner = db.scalars(
+            select(Sale)
+            .options(selectinload(Sale.items))
+            .where(
+                Sale.company_id == current_user.company_id,
+                Sale.idempotency_key == payload.idempotency_key,
+            )
+        ).first()
+        if winner is None:
+            raise
+        response.headers["X-Idempotent-Replay"] = "true"
+        return {
+            "id": winner.id,
+            "receipt_number": winner.receipt_number,
+            "payment_method": winner.payment_method,
+            "payment_account_id": winner.payment_account_id,
+            "payment_account_label": winner.payment_account_label,
+            "status": winner.status,
+            "client_id": winner.client_id,
+            "client_name": winner.client_name,
+            "discount_percent": payload.discount_percent,
+            "discount_amount": 0.0,
+            "loyalty_points_earned": winner.loyalty_points_earned,
+            "total_amount": winner.total_amount,
+            "items": [
+                {
+                    "product_id": item.product_id,
+                    "name": item.product_name,
+                    "quantity": item.quantity,
+                    "total": item.line_total,
+                }
+                for item in winner.items
+            ],
+            "transaction_id": None,
+        }
     response_items = []
     for item in payload.items:
         product = db.get(Product, item.product_id)

@@ -450,6 +450,11 @@ class Sale(TimestampMixin, Base):
     # peut être créée hors session formelle). Permet un rattachement exact
     # session <-> ventes au lieu de l'heuristique par plage de dates (cf. POS-01).
     session_id: Mapped[int | None] = mapped_column(ForeignKey("pos_sessions.id"), nullable=True)
+    # Clé d'idempotence générée côté client (UUID) : une même tentative de
+    # checkout retentée après timeout réseau renvoie la vente déjà créée au
+    # lieu d'en créer une seconde et de re-décrémenter le stock (cf. constat
+    # test_pos_concurrency.py::test_duplicate_rapid_sale_requests_*).
+    idempotency_key: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan", back_populates="sale")
 

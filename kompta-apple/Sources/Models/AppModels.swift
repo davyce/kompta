@@ -241,6 +241,10 @@ struct SalePayload: Encodable {
     let discount_percent: Double
     let tva_enabled: Bool
     let tax_rate: Double
+    /// Clé d'idempotence générée une fois par tentative de checkout (UUID),
+    /// réutilisée si la requête doit être retentée après un timeout réseau.
+    /// Évite qu'une vente soit créée deux fois côté serveur (cf. audit POS).
+    var idempotency_key: String
 }
 
 struct SaleItemPayload: Encodable {

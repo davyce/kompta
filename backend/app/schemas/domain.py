@@ -504,6 +504,11 @@ class SaleCreate(BaseModel):
     discount_percent: float = 0.0
     tva_enabled: bool = False
     tax_rate: float = 18.0
+    # Clé d'idempotence optionnelle générée côté client (UUID) : si fournie et
+    # qu'une vente existe déjà pour cette entreprise avec la même clé, la vente
+    # existante est retournée au lieu d'en créer une nouvelle. Absence de clé =
+    # comportement 100% inchangé (rétrocompatible).
+    idempotency_key: str | None = Field(default=None, max_length=80)
 
 
 class PaymentAccountBase(BaseModel):

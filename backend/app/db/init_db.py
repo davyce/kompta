@@ -123,6 +123,7 @@ def ensure_sqlite_migrations() -> None:
             "client_name": "VARCHAR(160) DEFAULT ''",
             "loyalty_points_earned": "INTEGER DEFAULT 0",
             "session_id": "INTEGER",
+            "idempotency_key": "VARCHAR(80)",
         },
         "payroll_runs": {
             "payment_account_id": "INTEGER",
@@ -307,6 +308,16 @@ def ensure_sqlite_migrations() -> None:
         if email_index and email_index.get("unique"):
             connection.execute(text("DROP INDEX IF EXISTS ix_users_email"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_email ON users(email)"))
+
+        # ── Idempotence /pos/sales : une clé donnée ne doit produire qu'UNE
+        # seule vente par entreprise, y compris sous requêtes concurrentes
+        # réellement simultanées (l'index unique partiel fait respecter cette
+        # garantie au niveau SQLite, pas seulement au niveau applicatif). ──
+        if "sales" in table_names or "sales" in [t for t in inspector.get_table_names()]:
+            connection.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_sales_company_idempotency_key "
+                "ON sales(company_id, idempotency_key) WHERE idempotency_key IS NOT NULL"
+            ))
 
         # ── Backfill des colonnes _cents depuis les Float existants ────────────
         # Convertit les montants Float actuels en centimes entiers pour les

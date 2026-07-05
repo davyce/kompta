@@ -73,6 +73,11 @@ struct POSView: View {
 
     // Cart
     @State private var cart:            [CartItem] = []
+    // Clé d'idempotence de la tentative de checkout en cours : générée une
+    // fois au premier tap sur "Encaisser" pour ce panier, réutilisée si la
+    // requête est retentée après un échec réseau, effacée une fois la vente
+    // confirmée ou le panier vidé (nouveau panier → nouvelle clé).
+    @State private var checkoutKey:     String?
 
     // Payment
     @State private var paymentMethod    = "cash"
@@ -667,6 +672,10 @@ struct POSView: View {
     private func confirmSale() async {
         guard !cart.isEmpty else { return }
         isSaving = true; errorMsg = nil
+        // Réutilise la clé déjà générée pour cette tentative (retry après
+        // échec réseau) ou en génère une nouvelle si aucune n'est en cours.
+        let key = checkoutKey ?? UUID().uuidString
+        if checkoutKey == nil { checkoutKey = key }
         let payload = SalePayload(
             items: cart.map { SaleItemPayload(product_id: $0.product.id, quantity: Int($0.quantity)) },
             payment_method: paymentMethod,
@@ -674,12 +683,14 @@ struct POSView: View {
             client_id: selectedClientId,
             discount_percent: discountPercent,
             tva_enabled: tvaEnabled,
-            tax_rate: tvaRate
+            tax_rate: tvaRate,
+            idempotency_key: key
         )
         do {
             let sale = try await APIClient.shared.createSale(payload)
             lastSale = sale
             cart = []
+            checkoutKey = nil
             discountPercent = 0
             clientName = ""
             selectedClientId = nil

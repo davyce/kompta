@@ -354,3 +354,119 @@ def test_duplicate_rapid_sale_requests_both_decrement_stock_no_idempotency_key()
             assert refreshed is not None
             # Stock décrémenté DEUX fois (2 + 2 = 4) faute d'idempotence — comportement documenté, pas corrigé ici.
             assert refreshed.stock_quantity == 6
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Idempotence AVEC clé : une même clé, même sous requêtes concurrentes
+#    réellement simultanées, ne doit produire qu'UNE seule vente.
+# ═══════════════════════════════════════════════════════════════════════════
+def test_same_idempotency_key_sequential_returns_same_sale_no_double_decrement() -> None:
+    """Séquentiel : la même clé d'idempotence envoyée deux fois de suite doit
+    renvoyer la MÊME vente (pas une nouvelle) et ne décrémenter le stock
+    qu'UNE seule fois."""
+    with TestClient(app) as client:
+        headers = _auth(client)
+        suffix = uuid4().hex[:8]
+        product = client.post(
+            "/api/products",
+            headers=headers,
+            json={
+                "name": f"Produit idempotence clé {suffix}",
+                "sku": f"IDEMKEY-{suffix}",
+                "category": "Tests",
+                "price": 1000,
+                "stock_quantity": 10,
+            },
+        )
+        assert product.status_code == 201, product.text
+        product_id = product.json()["id"]
+
+        key = uuid4().hex
+        payload = {
+            "payment_method": "cash",
+            "items": [{"product_id": product_id, "quantity": 2}],
+            "tva_enabled": False,
+            "idempotency_key": key,
+        }
+        first = client.post("/api/pos/sales", headers=headers, json=payload)
+        second = client.post("/api/pos/sales", headers=headers, json=payload)
+        assert first.status_code == 201, first.text
+        assert second.status_code == 201, second.text
+        assert first.json()["id"] == second.json()["id"], (
+            "Une clé d'idempotence identique doit renvoyer la MÊME vente, pas en créer une seconde."
+        )
+        assert second.headers.get("x-idempotent-replay") == "true"
+
+        with SessionLocal() as db:
+            from app.models import Product
+            refreshed = db.get(Product, product_id)
+            assert refreshed is not None
+            # Stock décrémenté UNE SEULE fois (10 - 2 = 8) grâce à la clé d'idempotence.
+            assert refreshed.stock_quantity == 8
+
+
+def test_concurrent_same_idempotency_key_creates_exactly_one_sale() -> None:
+    """Concurrent : deux requêtes réellement simultanées avec la MÊME clé
+    d'idempotence ne doivent créer QU'UNE SEULE vente — la contrainte unique
+    (company_id, idempotency_key) doit faire respecter cette garantie même
+    quand les deux threads passent la vérification de lecture avant que l'un
+    des deux ait commité (fenêtre de course), pas seulement en séquentiel."""
+    with TestClient(app) as client:
+        headers = _auth(client)
+        suffix = uuid4().hex[:8]
+        product = client.post(
+            "/api/products",
+            headers=headers,
+            json={
+                "name": f"Produit idempotence concurrente {suffix}",
+                "sku": f"IDEMCONC-{suffix}",
+                "category": "Tests",
+                "price": 1000,
+                "stock_quantity": 10,
+            },
+        )
+        assert product.status_code == 201, product.text
+        product_id = product.json()["id"]
+
+        key = uuid4().hex
+        payload = {
+            "payment_method": "cash",
+            "items": [{"product_id": product_id, "quantity": 2}],
+            "tva_enabled": False,
+            "idempotency_key": key,
+        }
+
+        results: list = []
+        barrier = threading.Barrier(2, timeout=30)
+
+        def _attempt() -> None:
+            with TestClient(app) as c:
+                h = _auth(c)
+                barrier.wait()
+                resp = _post_with_retry(c, "/api/pos/sales", h, payload)
+                results.append(resp)
+
+        threads = [threading.Thread(target=_attempt) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+
+        assert len(results) == 2
+        for resp in results:
+            assert resp.status_code == 201, resp.text
+
+        sale_ids = {resp.json()["id"] for resp in results}
+        assert len(sale_ids) == 1, (
+            f"Deux ventes distinctes ont été créées pour la même clé d'idempotence sous "
+            f"concurrence réelle : {sale_ids}"
+        )
+
+        with SessionLocal() as db:
+            from app.models import Product, Sale
+            refreshed = db.get(Product, product_id)
+            assert refreshed is not None
+            # Stock décrémenté UNE SEULE fois (10 - 2 = 8), même sous concurrence réelle.
+            assert refreshed.stock_quantity == 8
+            sales_with_key = db.scalars(select(Sale).where(Sale.idempotency_key == key)).all()
+            assert len(sales_with_key) == 1
