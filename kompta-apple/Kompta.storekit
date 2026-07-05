@@ -1,0 +1,157 @@
+{
+  "identifier" : "6E0A1B9A-0000-4A00-9A00-000000000001",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "0000000000",
+    "_developerTeamID" : "264EZSM3VZ",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "fr_FR",
+    "_storefront" : "FRA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20000000",
+      "localizations" : [],
+      "name" : "Abonnement KOMPTA",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "15.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "20000001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Paie, comptabilité SYSCOHADA, IA Limule, 10 utilisateurs.",
+              "displayName" : "KOMPTA Pro (mensuel)",
+              "locale" : "fr_FR"
+            }
+          ],
+          "productID" : "com.adansonia.kompta.subscription.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "KOMPTA Pro Monthly",
+          "subscriptionGroupID" : "20000000",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "150.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "20000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Paie, comptabilité SYSCOHADA, IA Limule, 10 utilisateurs — tarif annuel.",
+              "displayName" : "KOMPTA Pro (annuel)",
+              "locale" : "fr_FR"
+            }
+          ],
+          "productID" : "com.adansonia.kompta.subscription.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "KOMPTA Pro Yearly",
+          "subscriptionGroupID" : "20000000",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "40.00",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "20000003",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Groupes & organisations, TERAS Connect, utilisateurs illimités.",
+              "displayName" : "KOMPTA Business (mensuel)",
+              "locale" : "fr_FR"
+            }
+          ],
+          "productID" : "com.adansonia.kompta.subscription.business.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "KOMPTA Business Monthly",
+          "subscriptionGroupID" : "20000000",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "400.00",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "20000004",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Groupes & organisations, TERAS Connect, utilisateurs illimités — tarif annuel.",
+              "displayName" : "KOMPTA Business (annuel)",
+              "locale" : "fr_FR"
+            }
+          ],
+          "productID" : "com.adansonia.kompta.subscription.business.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "KOMPTA Business Yearly",
+          "subscriptionGroupID" : "20000000",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

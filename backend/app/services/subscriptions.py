@@ -106,6 +106,7 @@ def plan_to_dict(plan: SubscriptionPlan) -> dict:
         "features": features, "trial_days": plan.trial_days,
         "included_modules": included_modules, "max_users": plan.max_users,
         "is_active": plan.is_active, "sort_order": plan.sort_order,
+        "apple_product_id": plan.apple_product_id,
     }
 
 
@@ -204,6 +205,17 @@ def activate_after_payment(db: Session, company_id: int, plan: SubscriptionPlan,
         promo = db.scalar(select(Promotion).where(Promotion.code == promo_code))
         if promo:
             promo.times_redeemed = (promo.times_redeemed or 0) + 1
+    db.commit()
+    return sub
+
+
+def mark_subscription_ended(db: Session, company_id: int, status: str = "cancelled") -> CompanySubscription:
+    """Marque l'abonnement comme terminé suite à une notification externe
+    (ex. Apple : EXPIRED / REFUND / DID_FAIL_TO_RENEW). N'affecte pas
+    `Company.status` (une suspension manuelle reste distincte) : l'accès
+    redevient simplement soumis à `effective_status` (past_due/cancelled)."""
+    sub = get_or_create_subscription(db, company_id)
+    sub.status = status
     db.commit()
     return sub
 

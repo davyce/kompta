@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
 
+    # ── Paiements : Apple In-App Purchase (StoreKit 2) ──────────────────────────
+    # bundle_id de l'app iOS, utilisé pour valider que les transactions vérifiées
+    # correspondent bien à notre app (défense en profondeur, en plus de la vérif JWS).
+    apple_iap_bundle_id: str = ""
+    # sandbox | production — seulement informatif ici (la vérif JWS ne dépend pas
+    # de l'environnement ; Apple signe les deux avec les mêmes certificats racine).
+    apple_iap_environment: str = "sandbox"
+    # Secret partagé App Store Server Notifications V2 (optionnel, defense-in-depth
+    # si Apple l'exige un jour ; la vérif principale reste la signature JWS x5c).
+    apple_iap_shared_secret: str = ""
+
     # ── Paiements : Mobile Money (MTN MoMo) ─────────────────────────────────────
     momo_subscription_key: str = ""
     momo_subscription_key_secondary: str = ""
@@ -95,6 +106,13 @@ class Settings(BaseSettings):
     @property
     def momo_enabled(self) -> bool:
         return bool(self.momo_subscription_key and self.momo_api_user and self.momo_api_key)
+
+    @property
+    def apple_iap_enabled(self) -> bool:
+        # La vérification JWS ne nécessite aucun secret (validation par certificat
+        # Apple public) ; on garde ce flag pour permettre de désactiver la feature
+        # explicitement en config si besoin (ex. bundle_id non renseigné = pas prêt).
+        return bool(self.apple_iap_bundle_id)
 
     @property
     def is_production(self) -> bool:

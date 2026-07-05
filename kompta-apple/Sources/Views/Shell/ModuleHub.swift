@@ -204,13 +204,16 @@ struct ModuleHubView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var ent: EntitlementsManager
     @State private var lockedModuleTitle: String?
+    @State private var showSubscriptionPurchase = false
     private let cols = [GridItem(.adaptive(minimum: 150), spacing: 14)]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if ent.showTrialBanner {
-                    TrialBanner(text: ent.trialBannerText, critical: ent.trialBannerIsCritical)
+                    TrialBanner(text: ent.trialBannerText, critical: ent.trialBannerIsCritical) {
+                        showSubscriptionPurchase = true
+                    }
                 }
                 ForEach(ModuleRegistry.visibleSections(for: auth.currentUser), id: \.self) { section in
                     VStack(alignment: .leading, spacing: 12) {
@@ -245,22 +248,34 @@ struct ModuleHubView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) { NotificationBell() }
         }
+        #if os(iOS)
+        .sheet(isPresented: $showSubscriptionPurchase) {
+            NavigationStack { SubscriptionPurchaseView() }
+        }
+        #endif
     }
 }
 
 struct TrialBanner: View {
     let text: String
     let critical: Bool
+    var onTap: (() -> Void)? = nil
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "lock.fill")
             Text(text).font(.footnote.weight(.medium)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
+            if onTap != nil {
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background((critical ? Color.red : Color.orange).opacity(0.15), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .foregroundStyle(critical ? Color.red : Color.orange)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onTapGesture { onTap?() }
     }
 }
 

@@ -129,6 +129,20 @@ struct SettingsView: View {
                 }
             }
 
+            #if os(iOS)
+            Section {
+                NavigationLink {
+                    SubscriptionPurchaseView()
+                } label: {
+                    Label("Abonnement", systemImage: "star.circle")
+                }
+            } header: {
+                Text("Abonnement KOMPTA")
+            } footer: {
+                Text("Choisissez ou changez votre offre. L'achat passe par l'App Store (Apple).")
+            }
+            #endif
+
             // Appearance
             Section("Apparence") {
                 Picker(selection: $appearanceRaw) {

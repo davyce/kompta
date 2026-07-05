@@ -557,6 +557,22 @@ struct CollectionMethodsResponse: Codable {
     let can_collect: Bool
 }
 
+// MARK: - Apple In-App Purchase (StoreKit 2)
+
+/// Payload envoyé au backend après un achat StoreKit 2 réussi (ou un
+/// renouvellement capté par `Transaction.updates`).
+struct AppleVerifyPayload: Encodable {
+    var signed_transaction: String
+    var plan_code: String = ""
+}
+
+/// Réponse du backend après vérification + activation de l'abonnement.
+struct AppleVerifyResult: Codable {
+    let transaction_id: Int
+    let status: String
+    let plan_code: String
+}
+
 // Employabilité (TERAS)
 struct EmployabilityCheck: Codable {
     let id: Int

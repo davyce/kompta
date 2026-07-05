@@ -1488,6 +1488,10 @@ class SubscriptionPlan(TimestampMixin, Base):
     trial_days: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    # Identifiant du produit App Store Connect correspondant (StoreKit 2 IAP),
+    # ex. "com.adansonia.kompta.subscription.pro.monthly". Vide = pas encore
+    # mappé (le plan ne peut pas être acheté via IAP tant que ce champ est vide).
+    apple_product_id: Mapped[str] = mapped_column(String(200), default="")
 
 
 class Promotion(TimestampMixin, Base):

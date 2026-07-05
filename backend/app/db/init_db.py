@@ -272,6 +272,7 @@ def ensure_sqlite_migrations() -> None:
         "subscription_plans": {
             "included_modules": "TEXT DEFAULT '[]'",
             "max_users": "INTEGER DEFAULT 0",
+            "apple_product_id": "VARCHAR(200) DEFAULT ''",
         },
         "promotions": {},
         "company_subscriptions": {},

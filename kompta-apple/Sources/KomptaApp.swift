@@ -18,6 +18,9 @@ struct KomptaApp: App {
                 .task(id: auth.currentUser?.id) {
                     if auth.currentUser != nil { await entitlements.load() } else { entitlements.clear() }
                 }
+                #if os(iOS)
+                .task { StoreKitManager.shared.startListeningForTransactionUpdates() }
+                #endif
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)

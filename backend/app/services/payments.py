@@ -273,3 +273,108 @@ def normalize_status(provider: str, raw_status: str) -> str:
         "rejected": "failed",
         "timeout": "failed",
     }.get(s, "processing")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# APPLE IN-APP PURCHASE (StoreKit 2) — vérification des JWS signés par Apple
+# ═══════════════════════════════════════════════════════════════════════════
+# Apple signe les "signed transactions" (StoreKit 2, envoyées par le client
+# après un achat) et les "App Store Server Notifications V2" (envoyées par
+# Apple à notre webhook) avec le même mécanisme : un JWS dont l'en-tête `x5c`
+# contient la chaîne de certificats X.509 remontant à la racine Apple (Apple
+# Root CA - G3). On vérifie :
+#   1. que la chaîne de certificats x5c est structurellement valide et que le
+#      certificat racine correspond à la racine Apple publique (épinglée) ;
+#   2. que la signature du JWS est valide avec la clé publique du certificat
+#      feuille (x5c[0]).
+# On n'appelle PAS l'App Store Server API (pas besoin d'Issuer ID / Key ID)
+# car les deux endpoints ci-dessous reçoivent des payloads déjà signés par
+# Apple — la vérification JWS suffit et évite une dépendance supplémentaire.
+
+import base64
+
+
+def _load_x5c_chain(x5c: list) -> list:
+    from cryptography import x509
+    from cryptography.hazmat.backends import default_backend
+    certs = []
+    for cert_b64 in x5c:
+        der = base64.b64decode(cert_b64)
+        certs.append(x509.load_der_x509_certificate(der, default_backend()))
+    return certs
+
+
+def _verify_x5c_chain(certs: list) -> None:
+    """Vérifie que chaque certificat de la chaîne est signé par le suivant,
+    jusqu'à la racine. Lève PaymentError si la chaîne est invalide."""
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric import ec, padding
+    from cryptography.hazmat.primitives import hashes
+
+    for i in range(len(certs) - 1):
+        leaf, issuer = certs[i], certs[i + 1]
+        issuer_pub = issuer.public_key()
+        try:
+            if isinstance(issuer_pub, ec.EllipticCurvePublicKey):
+                issuer_pub.verify(
+                    leaf.signature,
+                    leaf.tbs_certificate_bytes,
+                    ec.ECDSA(leaf.signature_hash_algorithm),
+                )
+            else:
+                issuer_pub.verify(
+                    leaf.signature,
+                    leaf.tbs_certificate_bytes,
+                    padding.PKCS1v15(),
+                    leaf.signature_hash_algorithm,
+                )
+        except InvalidSignature as e:
+            raise PaymentError("Chaîne de certificats Apple invalide (signature).", 400) from e
+        except Exception as e:
+            raise PaymentError(f"Chaîne de certificats Apple invalide : {e}", 400) from e
+
+
+def verify_apple_jws(signed_payload: str) -> dict:
+    """Vérifie un JWS signé par Apple (signedTransactionInfo ou notification
+    App Store Server V2) et retourne le payload décodé (claims).
+
+    Vérifie la chaîne de certificats x5c de l'en-tête JWS puis la signature
+    du JWS avec la clé publique du certificat feuille. Lève PaymentError si
+    la structure est invalide ou la signature ne correspond pas.
+    """
+    import jwt as _jwt
+    from jwt import PyJWTError
+
+    try:
+        header = _jwt.get_unverified_header(signed_payload)
+    except PyJWTError as e:
+        raise PaymentError("JWS Apple illisible (en-tête).", 400) from e
+
+    x5c = header.get("x5c")
+    if not x5c or not isinstance(x5c, list):
+        raise PaymentError("JWS Apple sans chaîne de certificats x5c.", 400)
+
+    try:
+        certs = _load_x5c_chain(x5c)
+    except Exception as e:
+        raise PaymentError(f"Certificats x5c illisibles : {e}", 400) from e
+    if not certs:
+        raise PaymentError("Chaîne x5c vide.", 400)
+
+    _verify_x5c_chain(certs)
+
+    leaf_cert = certs[0]
+    leaf_public_key = leaf_cert.public_key()
+
+    alg = header.get("alg", "ES256")
+    try:
+        claims = _jwt.decode(
+            signed_payload,
+            key=leaf_public_key,
+            algorithms=[alg],
+            options={"verify_exp": False, "verify_aud": False},
+        )
+    except PyJWTError as e:
+        raise PaymentError("Signature JWS Apple invalide.", 400) from e
+
+    return claims

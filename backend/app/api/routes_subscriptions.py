@@ -262,6 +262,7 @@ class PlanUpsert(BaseModel):
     trial_days: int = 0
     is_active: bool = True
     sort_order: int = 0
+    apple_product_id: str = ""
 
 
 @router.get("/admin/subscription/plans")
@@ -287,6 +288,7 @@ def admin_create_plan(payload: PlanUpsert, db: Session = Depends(get_db),
         included_modules=json.dumps(payload.included_modules, ensure_ascii=False),
         max_users=max(0, payload.max_users),
         trial_days=max(0, payload.trial_days), is_active=payload.is_active, sort_order=payload.sort_order,
+        apple_product_id=payload.apple_product_id.strip(),
     )
     db.add(plan); db.commit(); db.refresh(plan)
     return subs.plan_to_dict(plan)
@@ -299,7 +301,7 @@ def admin_update_plan(plan_id: int, payload: dict, db: Session = Depends(get_db)
     plan = db.get(SubscriptionPlan, plan_id)
     if not plan:
         raise HTTPException(404, "Plan introuvable.")
-    allowed = {"name", "description", "price_cents", "currency", "period", "trial_days", "is_active", "sort_order", "max_users"}
+    allowed = {"name", "description", "price_cents", "currency", "period", "trial_days", "is_active", "sort_order", "max_users", "apple_product_id"}
     for k, v in payload.items():
         if k in allowed:
             setattr(plan, k, v)
