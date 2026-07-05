@@ -1,0 +1,22 @@
+# Override OPT-IN pour utiliser des images pré-construites depuis GHCR au
+# lieu de rebuild localement (voir .github/workflows/build-and-push.yml qui
+# construit et pousse ces images à chaque push sur main).
+#
+# Usage (sur le serveur, une fois les images GHCR disponibles) :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     --env-file infra/aws/.env.production pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     --env-file infra/aws/.env.production up -d
+#
+# Ne remplace PAS docker-compose.yml : celui-ci reste utilisable seul pour
+# construire les images localement (dev, ou fallback si GHCR est indisponible).
+#
+# IMAGE_TAG (optionnel) permet de cibler un commit précis au lieu de `latest` :
+#   IMAGE_TAG=<sha> docker compose -f docker-compose.yml -f docker-compose.prod.yml ... pull
+
+services:
+  backend:
+    image: ghcr.io/davyce/kompta-backend:${IMAGE_TAG:-latest}
+
+  frontend:
+    image: ghcr.io/davyce/kompta-frontend:${IMAGE_TAG:-latest}
