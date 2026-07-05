@@ -386,7 +386,7 @@ final class NotificationManager: ObservableObject {
                 case "overdue_invoice": icon = "exclamationmark.triangle.fill"; moduleId = "billing"
                 case "low_stock": icon = "shippingbox.fill"; moduleId = "inventory"
                 case "fiscal_deadline": icon = "calendar.badge.exclamationmark"; moduleId = "fiscal"
-                case "task_deadline": icon = "checklist"; moduleId = "kanban"
+                case "task_deadline": icon = "checklist"; moduleId = "tasks"
                 case "birthday": icon = "gift.fill"; moduleId = "groups"
                 case "overdue_contributions": icon = "person.2.badge.gearshape.fill"; moduleId = "groups"
                 default: icon = "bell.fill"; moduleId = "dashboard"

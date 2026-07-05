@@ -17,6 +17,8 @@ export type NotificationRecord = {
   unread: boolean;
   /** Identifiant backend d'une diffusion admin persistée (dédoublonnage). */
   broadcastId?: number;
+  /** Route interne vers laquelle naviguer au clic (ex: "/billing?status=late"). */
+  moduleId?: string;
 };
 
 type WSNotification = {
@@ -25,6 +27,8 @@ type WSNotification = {
   detail?: string;
   count?: number;
   severity?: "critical" | "warning" | "info";
+  /** Route interne cible (envoyée par le backend pour les business_alert). */
+  action_url?: string;
 };
 
 // WS_BASE doit être ABSOLU (ws://|wss://). Si l'API est en chemin relatif (/api),
@@ -76,7 +80,7 @@ export function useWebSocketNotifications(
   const onDisplayRef = useRef(onDisplay);
   onDisplayRef.current = onDisplay;
 
-  const push = useCallback((msg: string, detail?: string, tone: AppToast["tone"] = "info") => {
+  const push = useCallback((msg: string, detail?: string, tone: AppToast["tone"] = "info", moduleId?: string) => {
     // Délègue l'affichage au système de toast unique de l'application
     onDisplayRef.current?.(msg, tone, detail);
 
@@ -88,6 +92,7 @@ export function useWebSocketNotifications(
       tone,
       createdAt: new Date().toISOString(),
       unread: true,
+      moduleId,
     };
     setHistory((prev) => {
       const next = [record, ...prev].slice(0, MAX_HISTORY);
@@ -103,6 +108,14 @@ export function useWebSocketNotifications(
       return next;
     });
     setLiveAlertCount(0);
+  }, []);
+
+  const markOneRead = useCallback((id: number) => {
+    setHistory((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, unread: false } : r));
+      saveHistory(next);
+      return next;
+    });
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -128,11 +141,12 @@ export function useWebSocketNotifications(
             const data: WSNotification = JSON.parse(e.data);
             if (data.type === "teras_alert") {
               setLiveAlertCount((n) => n + (data.count ?? 1));
-              push(data.title, data.detail, "warning");
+              push(data.title, data.detail, "warning", data.action_url);
             } else if (data.type === "business_alert") {
               setLiveAlertCount((n) => n + (data.count ?? 1));
               const tone = data.severity === "critical" ? "error" : data.severity === "warning" ? "warning" : "info";
-              push(data.title, data.detail, tone);
+              // Le backend envoie l'URL cible dans `action_url` (voir routes.py ws/notifications).
+              push(data.title, data.detail, tone, data.action_url);
             } else if (data.type === "sync") {
               push(data.title, data.detail, "success");
             } else {
@@ -192,5 +206,5 @@ export function useWebSocketNotifications(
     return () => { cancelled = true; };
   }, [companyId]);
 
-  return { liveAlertCount, push, history, markAllRead, clearHistory };
+  return { liveAlertCount, push, history, markAllRead, markOneRead, clearHistory };
 }

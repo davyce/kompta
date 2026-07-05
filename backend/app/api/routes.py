@@ -3502,7 +3502,8 @@ async def notifications_websocket(websocket: WebSocket, company_id: int, token: 
                 await websocket.send_json({
                     "type": "business_alert",
                     "title": alert.get("message", "Alerte KOMPTA"),
-                    "detail": alert.get("action_url", ""),
+                    "detail": "",
+                    "action_url": alert.get("action_url", ""),
                     "severity": alert.get("severity", "info"),
                     "count": 1,
                 })

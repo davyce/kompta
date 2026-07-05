@@ -3,6 +3,7 @@ import { AlertTriangle, Bell, CheckCircle2, Info, Sparkles, Trash2, X, XCircle }
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { useNavigate } from "react-router-dom";
 
 import type { NotificationRecord } from "../hooks/useWebSocketNotifications";
 
@@ -34,10 +35,12 @@ type Props = {
   notifications: NotificationRecord[];
   onMarkAllRead: () => void;
   onClear: () => void;
+  onMarkOneRead: (id: number) => void;
 };
 
-export function NotificationCenter({ open, onClose, notifications, onMarkAllRead, onClear }: Props) {
+export function NotificationCenter({ open, onClose, notifications, onMarkAllRead, onClear, onMarkOneRead }: Props) {
   const { t: tr } = useTranslation();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const items = filter === "unread" ? notifications.filter((n) => n.unread) : notifications;
   const unreadCount = notifications.filter((n) => n.unread).length;
@@ -97,7 +100,29 @@ export function NotificationCenter({ open, onClose, notifications, onMarkAllRead
             items.map((n) => {
               const Icon = toneIcon[n.tone];
               return (
-                <article key={n.id} className={`flex items-start gap-3 px-5 py-4 ${n.unread ? "bg-emerald-50/35" : ""}`}>
+                <article
+                  key={n.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    onMarkOneRead(n.id);
+                    if (n.moduleId) {
+                      navigate(n.moduleId);
+                      onClose();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onMarkOneRead(n.id);
+                      if (n.moduleId) {
+                        navigate(n.moduleId);
+                        onClose();
+                      }
+                    }
+                  }}
+                  className={`flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-black/[0.02] ${n.unread ? "bg-emerald-50/35" : ""} ${n.moduleId ? "cursor-pointer" : "cursor-default"}`}
+                >
                   <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${toneClasses[n.tone]}`}>
                     <Icon size={18} />
                   </span>

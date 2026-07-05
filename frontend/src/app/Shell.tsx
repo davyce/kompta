@@ -38,7 +38,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
@@ -308,14 +308,20 @@ export function Shell() {
   );
 
   const { toast: showToast } = useToast();
-  const { liveAlertCount, history, markAllRead, clearHistory } = useWebSocketNotifications(
+  const { liveAlertCount, history, markAllRead, markOneRead, clearHistory } = useWebSocketNotifications(
     user?.company_id,
     // Toutes les notifications WS passent par le ToastProvider unique
     (msg, tone, detail) => showToast(msg, tone, tone === "error" ? 8000 : 5000, detail),
   );
-  const { notifications: polledNotifications } = useNotificationsPolling(!!user);
+  const { notifications: polledNotifications, clearAll: clearPolledNotifications } = useNotificationsPolling(!!user);
   const unreadCount = history.filter((n) => n.unread).length;
   const bellCount = unreadCount + liveAlertCount + polledNotifications.length + Object.values(terasModuleBadges).reduce((s, n) => s + n, 0);
+
+  const handleMarkAllRead = useCallback(() => {
+    markAllRead();
+    clearPolledNotifications();
+    setTerasModuleBadges({});
+  }, [markAllRead, clearPolledNotifications]);
   const { theme, toggle: toggleTheme } = useTheme();
 
   // Abonnement + entitlements (pour verrouiller les modules hors plan).
@@ -852,7 +858,8 @@ export function Shell() {
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
         notifications={history}
-        onMarkAllRead={markAllRead}
+        onMarkAllRead={handleMarkAllRead}
+        onMarkOneRead={markOneRead}
         onClear={clearHistory}
       />
       <GuidedTour />
