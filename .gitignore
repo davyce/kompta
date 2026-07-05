@@ -132,3 +132,20 @@ infra/.tunnel-token
 # ── Tauri desktop app (Windows/Linux) ───────────────────
 kompta-desktop/src-tauri/target/
 kompta-desktop/node_modules/
+
+# ── Rapports internes / audits (usage interne uniquement, jamais publiés) ──
+/AI_AUDIT.md
+/API_MATRIX.md
+/AUDIT_*.md
+/DATABASE_AUDIT.md
+/FINAL_MASTER_REPORT.md
+/IOS_AUDIT.md
+/MACOS_AUDIT.md
+/PARITY_MATRIX.md
+/PAYMENT_AUDIT.md
+/PERFORMANCE_REPORT.md
+/PRODUCTION_READINESS.md
+/RAPPORT_*.md
+/STATUT_APPS_NATIVES.md
+/WEB_AUDIT.md
+/audit_artifacts/
