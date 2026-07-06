@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user, get_db
+from app.api.routes import _require_admin
 from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount, Company
 from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate, CashDepositCreate
 from app.services import accounting as _accounting
@@ -458,6 +459,11 @@ def delete_transaction(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> None:
+    # Suppression définitive d'un enregistrement financier : réservée aux
+    # admins (cf. audit). Un rôle non-admin ne doit pas pouvoir effacer une
+    # transaction bancaire, qui fait foi pour la réconciliation et la
+    # comptabilité de l'entreprise.
+    _require_admin(current_user)
     txn = db.get(BankTransaction, txn_id)
     if not txn or txn.company_id != current_user.company_id:
         raise HTTPException(404, "Transaction introuvable")

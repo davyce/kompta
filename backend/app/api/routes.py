@@ -2755,14 +2755,23 @@ def pay_invoice(
     )
     db.add(txn)
     # ── Écriture comptable automatique : Dr Trésorerie / Cr Clients ──
+    # Le règlement et son écriture comptable doivent être atomiques : si
+    # l'écriture échoue, le paiement ENTIER (statut facture, transaction
+    # bancaire) doit être annulé plutôt que validé silencieusement sans
+    # comptabilisation (même principe que la vente POS, cf. audit ACC-01).
+    company = db.get(Company, current_user.company_id)
     try:
-        company = db.get(Company, current_user.company_id)
         _accounting.record_invoice_payment(
             db, company, invoice_id=invoice.id, total=float(invoice.total_amount or 0),
             payment_method=payment_method, user_id=current_user.id,
         )
     except Exception:
-        logging.getLogger("kompta").exception("Échec écriture comptable règlement facture #%s", invoice.id)
+        logging.getLogger("kompta").exception("Échec écriture comptable règlement facture #%s — paiement annulé", invoice.id)
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Le paiement n'a pas pu être enregistré (échec de l'écriture comptable). Réessayez.",
+        )
     db.commit()
     db.refresh(invoice)
     return invoice
