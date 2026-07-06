@@ -96,6 +96,7 @@ struct CompanySetupWizard: View {
     @State private var completion = 0
     @State private var showLogoPicker = false
     @State private var logoPicked = false
+    @State private var logoError: String?
 
     private var step: SetupStep { setupSteps[idx] }
     private var isLast: Bool { idx == setupSteps.count - 1 }
@@ -148,6 +149,9 @@ struct CompanySetupWizard: View {
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
             }
             .buttonStyle(.bordered).tint(theme.primary).padding(.top, 14)
+            if let logoError {
+                Text(logoError).font(.caption).foregroundStyle(.red).padding(.top, 6)
+            }
         case .info:
             Image(systemName: "info.circle").font(.largeTitle).foregroundStyle(theme.primary.opacity(0.7))
                 .frame(maxWidth: .infinity).padding(.top, 18)
@@ -259,12 +263,27 @@ struct CompanySetupWizard: View {
     }
 
     private func uploadLogo(_ url: URL) async {
+        logoError = nil
         let needsStop = url.startAccessingSecurityScopedResource()
         defer { if needsStop { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url) else { return }
-        let mime = url.pathExtension.lowercased() == "png" ? "image/png" : "image/jpeg"
-        _ = try? await APIClient.shared.uploadCompanyLogo(data, fileName: url.lastPathComponent, mime: mime)
-        logoPicked = true
+        guard let data = try? Data(contentsOf: url) else {
+            logoError = "Lecture du fichier impossible"
+            return
+        }
+        let ext = url.pathExtension.lowercased()
+        let mime: String
+        switch ext {
+        case "png": mime = "image/png"
+        case "webp": mime = "image/webp"
+        case "pdf": mime = "application/pdf"
+        default: mime = "image/jpeg"
+        }
+        do {
+            _ = try await APIClient.shared.uploadCompanyLogo(data, fileName: url.lastPathComponent, mime: mime)
+            logoPicked = true
+        } catch {
+            logoError = (error as? LocalizedError)?.errorDescription ?? "Échec de l'envoi du logo"
+        }
     }
 
     /// Avance IMMÉDIATEMENT (UI synchrone, indépendante du réseau) et persiste
