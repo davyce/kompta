@@ -1,9 +1,9 @@
-import { BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, UserPlus, Users2, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, UserPlus, Users2, Wallet } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import { TextInput } from "../components/FormField";
+import { SelectInput, TextInput } from "../components/FormField";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { LimuleAvatar, LimuleIcon } from "../components/LimuleAvatar";
 import { useToast } from "../components/ToastProvider";
@@ -40,6 +40,53 @@ export function LoginPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Assistant de création en 3 étapes courtes (au lieu d'un unique formulaire
+  // de 10 champs + pavé légal) : bien plus digeste sur mobile, où l'ancien
+  // formulaire obligeait à un long défilement sans repère de progression.
+  const REGISTER_STEPS = ["company", "admin", "consent"] as const;
+  type RegisterStep = (typeof REGISTER_STEPS)[number];
+  const [registerStep, setRegisterStep] = useState<RegisterStep>("company");
+
+  function isStepValid(step: RegisterStep): boolean {
+    if (step === "company") {
+      return registration.company_name.trim().length > 0 && registration.country.trim().length > 0;
+    }
+    if (step === "admin") {
+      return (
+        registration.admin_full_name.trim().length > 0 &&
+        registration.admin_email.trim().length > 0 &&
+        registration.password.trim().length >= 6
+      );
+    }
+    return (
+      registration.signatory_name.trim().length > 0 &&
+      registration.accept_privacy &&
+      registration.accept_terms &&
+      registration.accept_disclaimer
+    );
+  }
+
+  function goToRegisterMode() {
+    setMode("register");
+    setRegisterStep("company");
+    setError("");
+  }
+
+  function nextRegisterStep() {
+    if (!isStepValid(registerStep)) {
+      setError(t("auth.stepIncomplete"));
+      return;
+    }
+    setError("");
+    const i = REGISTER_STEPS.indexOf(registerStep);
+    setRegisterStep(REGISTER_STEPS[Math.min(i + 1, REGISTER_STEPS.length - 1)]);
+  }
+
+  function prevRegisterStep() {
+    setError("");
+    const i = REGISTER_STEPS.indexOf(registerStep);
+    setRegisterStep(REGISTER_STEPS[Math.max(i - 1, 0)]);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -100,6 +147,10 @@ export function LoginPage() {
 
   async function onRegister(event: FormEvent) {
     event.preventDefault();
+    if (registerStep !== "consent") {
+      nextRegisterStep();
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -213,11 +264,29 @@ export function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setMode("register"); setError(""); }}
+                    onClick={goToRegisterMode}
                     className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${mode === "register" ? "bg-white text-ink shadow-sm" : "text-stone-500 active:bg-stone-200"}`}
                   >
                     {t("auth.tabRegister")}
                   </button>
+                </div>
+              )}
+              {mode === "register" && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-stone-400">
+                    <span>{t("auth.stepCount", { current: REGISTER_STEPS.indexOf(registerStep) + 1, total: REGISTER_STEPS.length })}</span>
+                    <span className="text-emerald-700">{t(`auth.step_${registerStep}`)}</span>
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    {REGISTER_STEPS.map((s, i) => (
+                      <div
+                        key={s}
+                        className={`h-1.5 flex-1 rounded-full transition-colors ${
+                          i <= REGISTER_STEPS.indexOf(registerStep) ? "bg-emerald-600" : "bg-stone-200"
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -287,62 +356,71 @@ export function LoginPage() {
                     {t("auth.backToLogin")}
                   </button>
                 </>
-              ) : (
+              ) : registerStep === "company" ? (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <TextInput
-                      label={t("auth.companyName")}
-                      value={registration.company_name}
-                      onChange={(event) => setRegistration({ ...registration, company_name: event.target.value })}
-                    />
-                    <TextInput
-                      label={t("auth.legalName")}
-                      value={registration.legal_name}
-                      onChange={(event) => setRegistration({ ...registration, legal_name: event.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <TextInput
-                      label={t("auth.industry")}
-                      value={registration.industry}
-                      onChange={(event) => setRegistration({ ...registration, industry: event.target.value })}
-                    />
-                    <TextInput
-                      label={t("auth.country")}
-                      value={registration.country}
-                      onChange={(event) => setRegistration({ ...registration, country: event.target.value })}
-                    />
-                  </div>
+                  <TextInput
+                    label={t("auth.companyName")}
+                    value={registration.company_name}
+                    onChange={(event) => setRegistration({ ...registration, company_name: event.target.value })}
+                    autoFocus
+                  />
+                  <TextInput
+                    label={`${t("auth.legalName")} (${t("auth.optional")})`}
+                    value={registration.legal_name}
+                    onChange={(event) => setRegistration({ ...registration, legal_name: event.target.value })}
+                  />
+                  <TextInput
+                    label={t("auth.industry")}
+                    value={registration.industry}
+                    onChange={(event) => setRegistration({ ...registration, industry: event.target.value })}
+                  />
+                  <SelectInput
+                    label={t("auth.country")}
+                    value={registration.country}
+                    onChange={(event) => setRegistration({ ...registration, country: event.target.value })}
+                  >
+                    {["Congo", "Cameroun", "Gabon", "Tchad", "RCA", "Guinée équatoriale"].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </SelectInput>
+                </>
+              ) : registerStep === "admin" ? (
+                <>
                   <TextInput
                     label={t("auth.ceoName")}
                     value={registration.admin_full_name}
                     onChange={(event) => setRegistration({ ...registration, admin_full_name: event.target.value })}
+                    autoFocus
                   />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <TextInput
-                      label={t("auth.adminEmail")}
-                      value={registration.admin_email}
-                      onChange={(event) => setRegistration({ ...registration, admin_email: event.target.value })}
-                    />
-                    <TextInput
-                      label={t("auth.adminPhone")}
-                      value={registration.admin_phone}
-                      onChange={(event) => setRegistration({ ...registration, admin_phone: event.target.value })}
-                    />
-                  </div>
+                  <TextInput
+                    label={t("auth.adminEmail")}
+                    type="email"
+                    inputMode="email"
+                    value={registration.admin_email}
+                    onChange={(event) => setRegistration({ ...registration, admin_email: event.target.value })}
+                  />
+                  <TextInput
+                    label={`${t("auth.adminPhone")} (${t("auth.optional")})`}
+                    value={registration.admin_phone}
+                    onChange={(event) => setRegistration({ ...registration, admin_phone: event.target.value })}
+                  />
                   <TextInput
                     label={t("auth.adminPassword")}
                     type="password"
+                    autoComplete="new-password"
                     value={registration.password}
                     onChange={(event) => setRegistration({ ...registration, password: event.target.value })}
                   />
-                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Consentement</p>
-                    <TextInput
-                      label="Nom du signataire"
-                      value={registration.signatory_name}
-                      onChange={(event) => setRegistration({ ...registration, signatory_name: event.target.value })}
-                    />
+                </>
+              ) : (
+                <>
+                  <TextInput
+                    label={t("auth.signatoryName")}
+                    value={registration.signatory_name}
+                    onChange={(event) => setRegistration({ ...registration, signatory_name: event.target.value })}
+                    autoFocus
+                  />
+                  <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
                     <label className="flex items-start gap-2 text-xs text-stone-600">
                       <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={registration.accept_privacy}
                         onChange={(e) => setRegistration({ ...registration, accept_privacy: e.target.checked })} />
@@ -362,19 +440,43 @@ export function LoginPage() {
                 </>
               )}
               {error ? <p className="rounded-lg bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700">{error}</p> : null}
-              <button
-                disabled={loading || resetLoading || (mode === "register" && !(registration.accept_privacy && registration.accept_terms && registration.accept_disclaimer && registration.signatory_name.trim().length > 0))}
-                className="flex min-h-[52px] sm:min-h-0 w-full items-center justify-center gap-2 rounded-xl sm:rounded-lg bg-emerald-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition active:scale-[0.98] hover:bg-emerald-700 disabled:opacity-60 disabled:active:scale-100"
-              >
-                {(loading || resetLoading) ? (
-                  <LimuleAvatar state="thinking" size={22} />
-                ) : mode === "login" ? (
-                  <ShieldCheck size={18} />
-                ) : (
-                  <UserPlus size={18} />
+              <div className="flex items-center gap-2">
+                {mode === "register" && registerStep !== "company" && (
+                  <button
+                    type="button"
+                    onClick={prevRegisterStep}
+                    className="flex min-h-[52px] sm:min-h-0 shrink-0 items-center justify-center gap-1.5 rounded-xl sm:rounded-lg border border-stone-200 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-stone-600 transition active:scale-[0.98] hover:bg-stone-50"
+                  >
+                    <ArrowLeft size={16} />
+                    {t("auth.previousStep")}
+                  </button>
                 )}
-                {(loading || resetLoading) ? t("auth.verifying") : mode === "login" ? t("auth.enter") : mode === "reset" ? t("auth.requestToken") : mode === "reset_confirm" ? t("auth.changePassword") : t("auth.createEnter")}
-              </button>
+                <button
+                  disabled={loading || resetLoading || (mode === "register" && registerStep === "consent" && !isStepValid("consent"))}
+                  className="flex min-h-[52px] sm:min-h-0 w-full items-center justify-center gap-2 rounded-xl sm:rounded-lg bg-emerald-600 px-4 py-3.5 sm:py-3 text-base sm:text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition active:scale-[0.98] hover:bg-emerald-700 disabled:opacity-60 disabled:active:scale-100"
+                >
+                  {(loading || resetLoading) ? (
+                    <LimuleAvatar state="thinking" size={22} />
+                  ) : mode === "login" ? (
+                    <ShieldCheck size={18} />
+                  ) : mode === "register" && registerStep !== "consent" ? (
+                    <ArrowRight size={18} />
+                  ) : (
+                    <UserPlus size={18} />
+                  )}
+                  {(loading || resetLoading)
+                    ? t("auth.verifying")
+                    : mode === "login"
+                    ? t("auth.enter")
+                    : mode === "reset"
+                    ? t("auth.requestToken")
+                    : mode === "reset_confirm"
+                    ? t("auth.changePassword")
+                    : registerStep !== "consent"
+                    ? t("auth.nextStep")
+                    : t("auth.createEnter")}
+                </button>
+              </div>
             </div>
 
             {mode === "login" && (
@@ -388,13 +490,18 @@ export function LoginPage() {
               />
             )}
 
-            <div className="mt-5 flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-xs sm:text-sm text-stone-600">
-              <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
-              <span>{t("auth.emptyHint")}</span>
-            </div>
+            {mode !== "register" && (
+              <div className="mt-5 flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-xs sm:text-sm text-stone-600">
+                <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
+                <span>{t("auth.emptyHint")}</span>
+              </div>
+            )}
           </form>
 
-          {/* MOBILE — Trust signals + mini-features (caché sur desktop) */}
+          {/* MOBILE — Trust signals + mini-features (caché sur desktop et pendant
+              l'inscription : ces tuiles marketing distraient inutilement pendant
+              un flux transactionnel qui doit rester concentré sur les étapes). */}
+          {mode !== "register" && (
           <div className="lg:hidden mt-6 w-full space-y-4">
             {/* Mini-features grid */}
             <div className="grid grid-cols-3 gap-2">
@@ -436,6 +543,7 @@ export function LoginPage() {
               <a href="/terms" className="hover:text-emerald-600">Conditions d'utilisation</a>
             </p>
           </div>
+          )}
         </section>
 
       </div>
