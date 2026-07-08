@@ -290,6 +290,17 @@ actor APIClient {
         try await post("/payments/stripe/intent", body: payload)
     }
 
+    /// Jeton de connexion StripeTerminal (Tap to Pay on iPhone) — un jeton
+    /// par tentative de connexion du lecteur, consommé uniquement par le SDK.
+    func stripeTerminalConnectionToken() async throws -> TerminalConnectionTokenResponse {
+        try await actionDecoded("/payments/stripe/terminal/connection-token")
+    }
+
+    /// PaymentIntent "carte présente" pour un encaissement Tap to Pay au POS.
+    func createStripeTerminalIntent(_ payload: StripeIntentPayload) async throws -> TerminalIntentResponse {
+        try await post("/payments/stripe/terminal/intent", body: payload)
+    }
+
     // MARK: - Employees
 
     func employees() async throws -> [Employee] {

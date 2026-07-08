@@ -117,6 +117,82 @@ async def stripe_retrieve_payment_intent(intent_id: str) -> dict[str, Any]:
     return data
 
 
+async def stripe_create_terminal_payment_intent(
+    *,
+    amount_cents: int,
+    currency: str,
+    idempotency_key: str,
+    description: str = "",
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """PaymentIntent pour un encaissement carte présente (Tap to Pay on
+    iPhone / lecteur StripeTerminal) — contrairement au PaymentIntent Apple
+    Pay/web (`stripe_create_payment_intent`), `card_present` ne supporte PAS
+    `automatic_payment_methods` : le type de moyen de paiement doit être
+    explicite, et la capture est automatique (le SDK Terminal confirme et
+    capture en un seul geste physique, pas de capture différée)."""
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise PaymentError("Stripe non configuré (STRIPE_SECRET_KEY manquant).", 503)
+
+    amount = to_provider_amount(amount_cents, currency)
+    if amount <= 0:
+        raise PaymentError("Montant invalide.", 400)
+
+    form: dict[str, str] = {
+        "amount": str(amount),
+        "currency": currency.lower(),
+        "payment_method_types[]": "card_present",
+        "capture_method": "automatic",
+    }
+    if description:
+        form["description"] = description[:255]
+    for k, v in (metadata or {}).items():
+        form[f"metadata[{k}]"] = str(v)
+
+    headers = {
+        "Authorization": f"Bearer {settings.stripe_secret_key}",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": idempotency_key,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(f"{_STRIPE_API}/payment_intents", data=form, headers=headers)
+    except httpx.HTTPError as e:
+        raise PaymentError(f"Stripe injoignable : {e}") from e
+
+    data = resp.json()
+    if resp.status_code >= 400:
+        msg = (data.get("error") or {}).get("message", "Erreur Stripe")
+        raise PaymentError(msg, resp.status_code)
+    return data
+
+
+async def stripe_terminal_connection_token() -> str:
+    """Jeton de connexion StripeTerminal (Tap to Pay on iPhone) : consommé par
+    le SDK côté app pour authentifier l'appareil auprès de Stripe, jamais par
+    le backend lui-même — un jeton par tentative de connexion du lecteur."""
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise PaymentError("Stripe non configuré (STRIPE_SECRET_KEY manquant).", 503)
+
+    headers = {"Authorization": f"Bearer {settings.stripe_secret_key}"}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(f"{_STRIPE_API}/terminal/connection_tokens", headers=headers)
+    except httpx.HTTPError as e:
+        raise PaymentError(f"Stripe injoignable : {e}") from e
+
+    data = resp.json()
+    if resp.status_code >= 400:
+        msg = (data.get("error") or {}).get("message", "Erreur Stripe")
+        raise PaymentError(msg, resp.status_code)
+    secret = data.get("secret")
+    if not secret:
+        raise PaymentError("Réponse Stripe invalide (connection token manquant).")
+    return secret
+
+
 def stripe_verify_webhook(payload: bytes, sig_header: str, tolerance_seconds: int = 300) -> dict[str, Any]:
     """Vérifie la signature d'un webhook Stripe (schéma `t=...,v1=...`).
     Retourne l'événement JSON si valide, lève PaymentError sinon."""

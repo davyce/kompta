@@ -27,8 +27,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>KOMPTA utilise le Bluetooth pour détecter un lecteur de carte externe, si vous en connectez un.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>KOMPTA utilise la caméra pour scanner les codes-barres et QR codes de vos produits.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>KOMPTA a besoin de votre position pour valider les paiements par carte sans contact (Tap to Pay), conformément aux exigences des réseaux de cartes.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

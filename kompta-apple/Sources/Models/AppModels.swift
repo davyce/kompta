@@ -266,6 +266,20 @@ struct StripeIntentResponse: Decodable {
     let status: String?
 }
 
+/// Réponse du PaymentIntent "carte présente" (Tap to Pay) — pas de
+/// publishable_key ici : le SDK StripeTerminal ne s'authentifie jamais avec
+/// elle, uniquement via le connection token (cf. TerminalConnectionTokenResponse).
+struct TerminalIntentResponse: Decodable {
+    let transaction_id: Int
+    let payment_intent_id: String
+    let client_secret: String
+    let status: String?
+}
+
+struct TerminalConnectionTokenResponse: Decodable {
+    let secret: String
+}
+
 struct SaleItemPayload: Encodable {
     let product_id: Int
     let quantity: Int

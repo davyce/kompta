@@ -30,8 +30,16 @@ private func posPaymentOptions(accounts: [PaymentAccount]) -> [POSPaymentOption]
         opts.append(.init(id: "cash", method: "cash", accountId: nil, label: "Espèces", symbol: "banknote"))
     }
     if !opts.contains(where: { $0.method == "card" }) {
-        opts.append(.init(id: "card", method: "card", accountId: nil, label: "Carte", symbol: "creditcard.fill"))
+        opts.append(.init(id: "card", method: "card", accountId: nil, label: "Carte (hors app)", symbol: "creditcard.fill"))
     }
+    // Tap to Pay on iPhone (StripeTerminal) : encaissement carte RÉEL, sans
+    // lecteur externe. iOS uniquement (NFC absent sur Mac). Reste proposé
+    // même si le compte Stripe/l'entitlement Apple ne sont pas encore
+    // approuvés — la tentative échoue alors avec un message explicite
+    // (cf. TapToPayCheckout.CheckoutError) plutôt que de masquer l'option.
+    #if os(iOS)
+    opts.append(.init(id: "tap_to_pay", method: "tap_to_pay", accountId: nil, label: "Tap to Pay", symbol: "wave.3.right.circle.fill"))
+    #endif
     // Apple Pay : proposé uniquement si l'entreprise a activé/vérifié
     // "apple_pay" côté backend (compte Stripe) ET si l'appareil peut payer
     // (PassKit configuré avec au moins une carte Wallet).
@@ -46,6 +54,7 @@ private func _posSymbol(_ method: String) -> String {
     switch method {
     case "cash":      return "banknote"
     case "card":      return "creditcard.fill"
+    case "tap_to_pay": return "wave.3.right.circle.fill"
     case "bank":      return "building.columns.fill"
     case "qr":        return "qrcode"
     case "apple_pay": return "applelogo"
@@ -633,6 +642,8 @@ struct POSView: View {
             Button {
                 if paymentMethod == "apple_pay" {
                     Task { await confirmSaleWithApplePay() }
+                } else if paymentMethod == "tap_to_pay" {
+                    Task { await confirmSaleWithTapToPay() }
                 } else {
                     Task { await confirmSale() }
                 }
@@ -640,9 +651,10 @@ struct POSView: View {
                 HStack {
                     if isSaving {
                         ProgressView().tint(.white)
+                        if paymentMethod == "tap_to_pay" { Text("Approchez la carte…") }
                     } else {
-                        Image(systemName: paymentMethod == "apple_pay" ? "applelogo" : "checkmark.seal.fill")
-                        Text(paymentMethod == "apple_pay" ? "Payer avec Apple Pay · \(fcfa(grandTotal))" : "Encaisser · \(fcfa(grandTotal))")
+                        Image(systemName: paymentMethod == "apple_pay" ? "applelogo" : paymentMethod == "tap_to_pay" ? "wave.3.right.circle.fill" : "checkmark.seal.fill")
+                        Text(paymentMethod == "apple_pay" ? "Payer avec Apple Pay · \(fcfa(grandTotal))" : paymentMethod == "tap_to_pay" ? "Tap to Pay · \(fcfa(grandTotal))" : "Encaisser · \(fcfa(grandTotal))")
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -704,6 +716,33 @@ struct POSView: View {
                         if !(error is CancellationError) {
                             errorMsg = error.localizedDescription
                         }
+                        isSaving = false
+                    }
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    /// Encaissement Tap to Pay on iPhone : même principe qu'Apple Pay — la
+    /// carte doit être débitée AVANT que la vente ne soit créée côté backend.
+    /// Pas de `#if os(iOS)` ici : `TapToPayCheckout` a son propre stub macOS
+    /// qui échoue proprement (option jamais proposée sur Mac de toute façon).
+    private func confirmSaleWithTapToPay() async {
+        guard !cart.isEmpty else { return }
+        isSaving = true; errorMsg = nil
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            TapToPayCheckout.shared.start(
+                amountCents: Int((grandTotal * 100).rounded()),
+                currency: "XAF",
+                description: "Vente POS KOMPTA"
+            ) { result in
+                Task { @MainActor in
+                    switch result {
+                    case .success:
+                        await confirmSale()
+                    case .failure(let error):
+                        errorMsg = error.localizedDescription
                         isSaving = false
                     }
                     continuation.resume()

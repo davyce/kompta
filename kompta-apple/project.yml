@@ -20,6 +20,9 @@ packages:
   StripeApplePay:
     url: https://github.com/stripe/stripe-ios
     from: 24.1.0
+  StripeTerminal:
+    url: https://github.com/stripe/stripe-terminal-ios
+    from: 5.0.0
 
 targets:
   # ── iOS app ──────────────────────────────────────────────────────────────
@@ -56,6 +59,12 @@ targets:
         # clair — n'affaiblit pas la sécurité prod (HTTP internet reste bloqué).
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Tap to Pay on iPhone (StripeTerminal, lecteur "local mobile") : la
+        # localisation approximative est exigée par les réseaux de cartes pour
+        # la conformité PCI (géolocaliser la transaction), et Bluetooth est
+        # utilisé par le SDK pour la découverte de lecteurs externes optionnels.
+        NSLocationWhenInUseUsageDescription: "KOMPTA a besoin de votre position pour valider les paiements par carte sans contact (Tap to Pay), conformément aux exigences des réseaux de cartes."
+        NSBluetoothAlwaysUsageDescription: "KOMPTA utilise le Bluetooth pour détecter un lecteur de carte externe, si vous en connectez un."
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -75,8 +84,14 @@ targets:
         # Xcode de la cible Kompta (nécessite le compte développeur du client).
         com.apple.developer.in-app-payments:
           - merchant.com.adansonia.kompta
+        # Tap to Pay on iPhone — entitlement à valider par Apple (demande
+        # via le compte développeur, cf. TapToPayCheckout.swift). Sans cette
+        # approbation, StripeTerminal.discoverReaders(.localMobile) échoue
+        # au runtime même avec cette clé présente dans le binaire.
+        com.apple.developer.proximity-reader.payment.acceptance: true
     dependencies:
       - package: StripeApplePay
+      - package: StripeTerminal
 
   # ── macOS app ─────────────────────────────────────────────────────────────
   KomptaMac:

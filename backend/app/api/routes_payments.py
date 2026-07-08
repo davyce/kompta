@@ -144,6 +144,70 @@ async def create_stripe_intent(
     }
 
 
+@router.post("/payments/stripe/terminal/connection-token")
+async def stripe_terminal_connection_token(current_user: User = Depends(get_current_user)) -> dict:
+    """Jeton consommé par le SDK StripeTerminal côté app (Tap to Pay on
+    iPhone) pour connecter le lecteur "local mobile" — un jeton par tentative
+    de connexion, ne sert jamais à autre chose côté backend."""
+    secret = await pay.stripe_terminal_connection_token()
+    return {"secret": secret}
+
+
+@router.post("/payments/stripe/terminal/intent")
+async def create_stripe_terminal_intent(
+    payload: StripeIntentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Équivalent de /payments/stripe/intent mais pour carte présente
+    (Tap to Pay / lecteur externe) — payment_method_types=[card_present],
+    capture automatique, cf. stripe_create_terminal_payment_intent."""
+    if payload.amount_cents <= 0:
+        raise HTTPException(400, "Montant invalide.")
+    _reject_if_already_paid(db, current_user.company_id, payload.sale_id, payload.invoice_id)
+
+    idem = pay.new_reference()
+    txn = PaymentTransaction(
+        company_id=current_user.company_id,
+        provider="stripe_terminal",
+        idempotency_key=idem,
+        amount_cents=payload.amount_cents,
+        currency=payload.currency.upper(),
+        status="pending",
+        sale_id=payload.sale_id,
+        invoice_id=payload.invoice_id,
+        description=payload.description,
+    )
+    db.add(txn)
+    db.flush()
+
+    try:
+        intent = await pay.stripe_create_terminal_payment_intent(
+            amount_cents=payload.amount_cents,
+            currency=payload.currency,
+            idempotency_key=idem,
+            description=payload.description,
+            metadata={"transaction_id": txn.id, "company_id": current_user.company_id},
+        )
+    except pay.PaymentError as e:
+        txn.status = "failed"
+        txn.failure_reason = e.message[:255]
+        db.commit()
+        raise HTTPException(e.status, e.message)
+
+    txn.provider_ref = intent.get("id", "")
+    txn.status = pay.normalize_status("stripe", intent.get("status", ""))
+    txn.raw_response = json.dumps({"id": intent.get("id"), "status": intent.get("status")})
+    db.commit()
+
+    return {
+        "transaction_id": txn.id,
+        "payment_intent_id": intent.get("id"),
+        "client_secret": intent.get("client_secret"),
+        "status": txn.status,
+    }
+
+
 @router.post("/payments/stripe/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
     raw = await request.body()
@@ -302,7 +366,7 @@ async def payment_status(
         raise HTTPException(404, "Transaction introuvable.")
 
     # Pour Stripe/MoMo en cours, on rafraîchit le statut depuis le prestataire.
-    if txn.provider == "stripe" and txn.status in {"pending", "processing"} and txn.provider_ref:
+    if txn.provider in {"stripe", "stripe_terminal"} and txn.status in {"pending", "processing"} and txn.provider_ref:
         try:
             data = await pay.stripe_retrieve_payment_intent(txn.provider_ref)
             new_status = pay.normalize_status("stripe", data.get("status", ""))

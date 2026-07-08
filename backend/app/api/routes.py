@@ -1270,7 +1270,7 @@ def _get_current_company(db: Session, current_user: User) -> Company:
     return company
 
 
-PAYMENT_PROVIDERS = {"mobile_money", "zola", "bank", "paypal", "card", "cash"}
+PAYMENT_PROVIDERS = {"mobile_money", "zola", "bank", "paypal", "card", "cash", "tap_to_pay"}
 POS_PAYMENT_TRANSACTION_PROVIDERS = {
     "card": "stripe",
     "mobile_money": "momo",
@@ -1350,7 +1350,7 @@ def _payment_account_for_method(
     use_case: str,
 ) -> PaymentAccount | None:
     provider = _normalize_payment_provider(provider)
-    if provider in {"cash", "card"}:
+    if provider in {"cash", "card", "tap_to_pay"}:
         return None
     use_field = PaymentAccount.use_for_payroll if use_case == "payroll" else PaymentAccount.use_for_pos
     default_field = PaymentAccount.is_default_payroll if use_case == "payroll" else PaymentAccount.is_default_pos
@@ -1383,7 +1383,7 @@ def _resolve_payment_account(
         if not account.enabled or not allowed:
             raise HTTPException(status_code=400, detail="Ce compte n'est pas active pour ce paiement")
         method = account.provider
-    elif method not in {"cash", "card"}:
+    elif method not in {"cash", "card", "tap_to_pay"}:
         account = _payment_account_for_method(db, current_user.company_id, method, use_case=use_case)
         if not account:
             raise HTTPException(
