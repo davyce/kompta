@@ -69,6 +69,7 @@ async function auditRoute(page: Page, path: string) {
   const onPageError = (error: Error) => pageErrors.push(error.message);
   const onResponse = (response: import("@playwright/test").Response) => {
     if (publicRoute && response.url().includes("/api/auth/refresh") && response.status() === 401) return;
+    if (publicRoute && response.url().includes("/api/portal/me") && response.status() === 401) return;
     if (path === "/settings" && response.url().endsWith("/api/company/logo") && response.status() === 404) return;
     if (response.url().includes("/api/") && response.status() >= 400) {
       apiErrors.push(`${response.status()} ${response.url()}`);
