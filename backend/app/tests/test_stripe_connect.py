@@ -18,7 +18,8 @@ from app.main import app
 
 
 def _register_test_company(client: TestClient) -> dict[str, str]:
-    email = f"connect-{uuid4().hex[:8]}@kompta.local"
+    unique = uuid4().hex[:8]
+    email = f"connect-{unique}@kompta.local"
     r = client.post("/api/auth/register-company", json={
         "company_name": "QA Connect",
         "legal_name": "QA Connect SARL",
@@ -27,7 +28,7 @@ def _register_test_company(client: TestClient) -> dict[str, str]:
         "country": "US",
         "admin_full_name": "QA Connect",
         "admin_email": email,
-        "admin_phone": "060000002",
+        "admin_phone": f"06{unique[:8]}",
         "password": "TestConnect123!",
         "signatory_name": "QA Connect",
         "accept_privacy": True,
