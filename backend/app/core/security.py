@@ -97,3 +97,31 @@ def clear_auth_cookie(response: "Response") -> None:
         domain=settings.effective_cookie_domain or None,
         path="/",
     )
+
+
+# Cookie HttpOnly distinct pour le portail client (espace d'auth cloisonné de
+# celui du staff) — même protection anti-XSS que set_auth_cookie ci-dessus.
+PORTAL_COOKIE_NAME = "kompta_portal_session"
+
+
+def set_portal_auth_cookie(response: "Response", token: str) -> None:
+    settings = get_settings()
+    response.set_cookie(
+        key=PORTAL_COOKIE_NAME,
+        value=token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        secure=settings.effective_cookie_secure,
+        samesite=settings.auth_cookie_samesite,  # type: ignore[arg-type]
+        domain=settings.effective_cookie_domain or None,
+        path="/",
+    )
+
+
+def clear_portal_auth_cookie(response: "Response") -> None:
+    settings = get_settings()
+    response.delete_cookie(
+        key=PORTAL_COOKIE_NAME,
+        domain=settings.effective_cookie_domain or None,
+        path="/",
+    )

@@ -1,44 +1,19 @@
 /**
  * portalApi.ts — Client API du Portail client (auth séparée de l'app principale).
  *
- * Le token du portail est stocké dans une clé localStorage DISTINCTE de
- * l'app principale (`kompta_portal_token` vs le token en mémoire de
- * services/api.ts), pour qu'un admin connecté à l'app et un client connecté
- * au portail dans le même navigateur ne se marchent pas dessus.
+ * Le token du portail vit dans un cookie HttpOnly distinct de celui de l'app
+ * principale (`kompta_portal_session` côté backend), jamais dans localStorage
+ * ni en JS — même protection anti-XSS que l'app principale. Chaque requête
+ * passe `credentials: "include"` pour que le navigateur envoie ce cookie.
  */
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8010/api";
-const PORTAL_TOKEN_KEY = "kompta_portal_token";
 
 export class PortalApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
-  }
-}
-
-export function getPortalToken(): string | null {
-  try {
-    return localStorage.getItem(PORTAL_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setPortalToken(token: string): void {
-  try {
-    localStorage.setItem(PORTAL_TOKEN_KEY, token);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function clearPortalToken(): void {
-  try {
-    localStorage.removeItem(PORTAL_TOKEN_KEY);
-  } catch {
-    /* ignore */
   }
 }
 
@@ -90,13 +65,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json");
   }
-  const token = getPortalToken();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    response = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include" });
   } catch {
     throw new PortalApiError(0, `API indisponible sur ${API_URL}.`);
   }
@@ -109,10 +80,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 async function requestBlob(path: string): Promise<Blob> {
-  const headers = new Headers();
-  const token = getPortalToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_URL}${path}`, { headers });
+  const response = await fetch(`${API_URL}${path}`, { credentials: "include" });
   if (!response.ok) throw new PortalApiError(response.status, await readError(response));
   return response.blob();
 }
@@ -123,6 +91,11 @@ export const portalApi = {
       "/portal/auth/login",
       { method: "POST", body: JSON.stringify({ email, password }) }
     ),
+
+  logout: () => request<{ status: string }>("/portal/auth/logout", { method: "POST" }),
+
+  /** Restaure la session au chargement de page via le cookie HttpOnly. */
+  me: () => request<PortalClient>("/portal/me"),
 
   myCompany: () => request<PortalCompany>("/portal/me/company"),
 

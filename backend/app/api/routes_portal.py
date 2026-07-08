@@ -25,7 +25,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_client, get_current_user
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    clear_portal_auth_cookie,
+    create_access_token,
+    hash_password,
+    set_portal_auth_cookie,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models import User
 from app.models.domain import Client, Company, Invoice, PaymentAccount
@@ -57,6 +63,11 @@ class PortalLoginRequest(BaseModel):
 class PortalTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    client_id: int
+    client_name: str
+
+
+class PortalClientRead(BaseModel):
     client_id: int
     client_name: str
 
@@ -126,7 +137,7 @@ def set_portal_password(
 # ═══════════════════════════════════════════════════════════════════
 
 @router.post("/auth/login", response_model=PortalTokenResponse)
-def portal_login(payload: PortalLoginRequest, db: Session = Depends(get_db)) -> PortalTokenResponse:
+def portal_login(payload: PortalLoginRequest, response: Response, db: Session = Depends(get_db)) -> PortalTokenResponse:
     email = payload.email.strip().lower()
     password = payload.password.strip()
     if not email or not password:
@@ -150,12 +161,30 @@ def portal_login(payload: PortalLoginRequest, db: Session = Depends(get_db)) -> 
         subject=str(client.id),
         extra={"scope": "client_portal", "company_id": client.company_id},
     )
+    # Cookie HttpOnly en plus du token dans le corps de la réponse (le
+    # frontend arrête de stocker le token en localStorage — vecteur de vol
+    # de session par XSS — et s'appuie désormais sur ce cookie ambiant).
+    set_portal_auth_cookie(response, token)
     return PortalTokenResponse(access_token=token, client_id=client.id, client_name=client.name)
+
+
+@router.post("/auth/logout")
+def portal_logout(response: Response) -> dict:
+    clear_portal_auth_cookie(response)
+    return {"status": "logged_out"}
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Espace client (auth client-portal requise)
 # ═══════════════════════════════════════════════════════════════════
+
+@router.get("/me", response_model=PortalClientRead)
+def portal_me(current_client: Client = Depends(get_current_client)) -> PortalClientRead:
+    """Restaure la session au chargement de page via le cookie HttpOnly
+    (symétrique de /auth/me côté app principale) — le frontend n'a plus besoin
+    de garder le token en mémoire persistante pour savoir qui est connecté."""
+    return PortalClientRead(client_id=current_client.id, client_name=current_client.name)
+
 
 @router.get("/me/company", response_model=PortalCompanyRead)
 def portal_company(

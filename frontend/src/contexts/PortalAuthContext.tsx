@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { clearPortalToken, getPortalToken, portalApi, setPortalToken } from "../services/portalApi";
+import { portalApi } from "../services/portalApi";
 
 type PortalAuthState = {
-  token: string | null;
+  /** true dès qu'une session valide existe (cookie HttpOnly) ; le token brut n'est jamais exposé au JS. */
+  isAuthenticated: boolean;
+  bootstrapping: boolean;
   clientId: number | null;
   clientName: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -13,28 +15,51 @@ type PortalAuthState = {
 const PortalAuthContext = createContext<PortalAuthState | null>(null);
 
 export function PortalAuthProvider({ children }: { children: ReactNode }) {
-  const [token, setTokenState] = useState<string | null>(() => getPortalToken());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [clientId, setClientId] = useState<number | null>(null);
   const [clientName, setClientName] = useState<string | null>(null);
 
+  // Restaure la session au chargement via le cookie HttpOnly (aucun token
+  // n'est jamais conservé côté JS, donc rien à lire ici sauf tenter l'appel).
+  useEffect(() => {
+    let cancelled = false;
+    portalApi
+      .me()
+      .then((res) => {
+        if (cancelled) return;
+        setIsAuthenticated(true);
+        setClientId(res.client_id);
+        setClientName(res.client_name);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAuthenticated(false);
+      })
+      .finally(() => {
+        if (!cancelled) setBootstrapping(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     const result = await portalApi.login(email, password);
-    setPortalToken(result.access_token);
-    setTokenState(result.access_token);
+    setIsAuthenticated(true);
     setClientId(result.client_id);
     setClientName(result.client_name);
   }, []);
 
   const logout = useCallback(() => {
-    clearPortalToken();
-    setTokenState(null);
+    portalApi.logout().catch(() => { /* le cookie expirera de toute façon */ });
+    setIsAuthenticated(false);
     setClientId(null);
     setClientName(null);
   }, []);
 
   const value = useMemo(
-    () => ({ token, clientId, clientName, login, logout }),
-    [token, clientId, clientName, login, logout]
+    () => ({ isAuthenticated, bootstrapping, clientId, clientName, login, logout }),
+    [isAuthenticated, bootstrapping, clientId, clientName, login, logout]
   );
 
   return <PortalAuthContext.Provider value={value}>{children}</PortalAuthContext.Provider>;
