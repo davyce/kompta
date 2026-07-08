@@ -360,6 +360,10 @@ struct DashboardOverview: Decodable {
     var invoicesPaid: Double { kpis["invoices_paid"] ?? 0 }
     var invoicesPending: Double { kpis["invoices_pending"] ?? 0 }
     var invoicesPaidCount: Int { Int(kpis["invoices_paid_count"] ?? 0) }
+    /// "Collected" must reflect all cash actually received: paid invoices AND
+    /// POS sales (collected immediately at sale) — using invoicesPaid alone
+    /// badly understates cash-in for storefront-heavy businesses.
+    var collectedTotal: Double { kpis["collected_total"] ?? (invoicesPaid + salesTotal) }
 
     /// Treasury: real bank balance if transactions exist, else POS sales total.
     var treasury: Double { txCount > 0 ? treasuryBalance : salesTotal }

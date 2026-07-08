@@ -3886,6 +3886,12 @@ def reports_overview(
         "invoices_pending":     round(invoices_pending, 2),
         "invoices_paid_count":  invoices_paid_count,
         "sales_total":          round(sales_total, 2),
+        # "Encaissé" doit refléter tout l'argent réellement collecté : les
+        # factures payées ET les ventes POS (encaissées immédiatement à la
+        # vente), pas seulement les factures — sinon le tableau de bord
+        # sous-estime fortement le cash-in des commerces qui vendent surtout
+        # au comptoir.
+        "collected_total":      round(invoices_paid + sales_total, 2),
         "open_tasks":           open_tasks,
         "teras_score":          company.teras_score if company else 0,
         # Real bank data from BankTransaction

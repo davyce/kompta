@@ -373,8 +373,12 @@ export function DashboardPage() {
   const invoicesPending = data?.kpis.invoices_pending ?? 0;
   const invoicesPaidCount = data?.kpis.invoices_paid_count ?? 0;
   const invoicesTotal   = data?.kpis.invoices_total   ?? 0;
-  const treasury   = Math.round((txCount > 0 ? txBalance : (data?.kpis.sales_total ?? 0)) / divisor);
-  const revenue    = Math.round(invoicesPaid / divisor);
+  const salesTotal      = data?.kpis.sales_total      ?? 0;
+  // "Encaissé" = factures payées + ventes POS (encaissées au comptoir),
+  // sinon le total est biaisé pour les commerces qui vendent surtout en caisse.
+  const collectedTotal  = data?.kpis.collected_total  ?? (invoicesPaid + salesTotal);
+  const treasury   = Math.round((txCount > 0 ? txBalance : salesTotal) / divisor);
+  const revenue    = Math.round(collectedTotal / divisor);
   // Real average net pay per employee (from actual Payslip history), computed
   // backend-side. null when the company has no payslip history yet — no fabricated number.
   const avgPayrollPerEmployee = data?.kpis.avg_payroll_per_employee ?? null;
@@ -560,8 +564,18 @@ export function DashboardPage() {
         />
         <KpiCard
           label={tr("dashboard.kpiCollected")}
-          value={revenue > 0 ? compactMoney(revenue) : invoicesTotal > 0 ? "0" : "—"}
-          delta={invoicesPaidCount > 0 ? tr("dashboard.invoicesPaid", { count: invoicesPaidCount }) : invoicesPending > 0 ? tr("dashboard.pendingDelta", { amount: compactMoney(invoicesPending) }) : tr("dashboard.noInvoice")}
+          value={revenue > 0 ? compactMoney(revenue) : invoicesTotal > 0 || salesTotal > 0 ? "0" : "—"}
+          delta={
+            invoicesPaidCount > 0 && salesTotal > 0
+              ? tr("dashboard.invoicesPlusSales", { count: invoicesPaidCount, sales: compactMoney(salesTotal) })
+              : invoicesPaidCount > 0
+              ? tr("dashboard.invoicesPaid", { count: invoicesPaidCount })
+              : salesTotal > 0
+              ? tr("dashboard.posSalesAmount", { amount: compactMoney(salesTotal) })
+              : invoicesPending > 0
+              ? tr("dashboard.pendingDelta", { amount: compactMoney(invoicesPending) })
+              : tr("dashboard.noInvoice")
+          }
           hint={invoicesTotal > 0 ? tr("dashboard.ofBilled", { amount: compactMoney(invoicesTotal) }) : tr("dashboard.collectedInvoices")}
           icon={ReceiptText}
           accent="teal"

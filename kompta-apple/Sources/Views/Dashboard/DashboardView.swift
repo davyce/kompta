@@ -225,7 +225,7 @@ struct DashboardView: View {
     private func kpiGrid(_ m: DashboardOverview) -> some View {
         let div = period.divisor
         let treasury = m.treasury / div
-        let collected = m.invoicesPaid / div
+        let collected = m.collectedTotal / div
         // Real payroll mass = sum of actual employee salaries (no hardcoded average).
         let totalSalaries = employees.reduce(0.0) { $0 + $1.salary }
         let payroll = totalSalaries / div
@@ -234,8 +234,14 @@ struct DashboardView: View {
             KpiTile(label: "Trésorerie", value: treasury != 0 ? compactFCFA(treasury) : "—",
                     delta: m.txCount > 0 ? "\(m.txCount) mouvement(s)" : "Ventes POS",
                     icon: "wallet.bifold.fill", tint: theme.primary)
-            KpiTile(label: "Encaissé", value: collected > 0 ? compactFCFA(collected) : (m.invoicesTotal > 0 ? "0" : "—"),
-                    delta: m.invoicesPaidCount > 0 ? "\(m.invoicesPaidCount) facture(s) payée(s)" : (m.invoicesPending > 0 ? "\(compactFCFA(m.invoicesPending)) en attente" : "Aucune facture"),
+            KpiTile(label: "Encaissé", value: collected > 0 ? compactFCFA(collected) : (m.invoicesTotal > 0 || m.salesTotal > 0 ? "0" : "—"),
+                    delta: m.invoicesPaidCount > 0 && m.salesTotal > 0
+                        ? "\(m.invoicesPaidCount) facture(s) + \(compactFCFA(m.salesTotal)) en caisse"
+                        : m.invoicesPaidCount > 0
+                        ? "\(m.invoicesPaidCount) facture(s) payée(s)"
+                        : m.salesTotal > 0
+                        ? "\(compactFCFA(m.salesTotal)) de ventes en caisse"
+                        : (m.invoicesPending > 0 ? "\(compactFCFA(m.invoicesPending)) en attente" : "Aucune facture"),
                     icon: "doc.text.fill", tint: .teal)
             KpiTile(label: "Masse salariale", value: payroll > 0 ? compactFCFA(payroll) : "—",
                     delta: payroll > 0 ? "\(m.employees) employé(s)" : (m.employees > 0 ? "Salaires à renseigner" : "Aucun employé"),
@@ -561,7 +567,7 @@ struct DashboardView: View {
     private func generateAISummary() async {
         guard let m = overview else { return }
         aiLoading = true
-        let kpis = "Trésorerie \(compactFCFA(m.treasury)), Encaissé \(compactFCFA(m.invoicesPaid)), TERAS \(m.terasScore)/100, \(m.employees) employés, \(alerts.filter { $0.status == "open" }.count) alertes."
+        let kpis = "Trésorerie \(compactFCFA(m.treasury)), Encaissé \(compactFCFA(m.collectedTotal)), TERAS \(m.terasScore)/100, \(m.employees) employés, \(alerts.filter { $0.status == "open" }.count) alertes."
         let prompt = "Donne un résumé synthétique (3-4 phrases) de la santé de mon entreprise à partir de ces indicateurs : \(kpis). Sois concret et propose une priorité."
         do {
             let resp = try await APIClient.shared.chatRich(messages: [ChatMessage(role: "user", content: prompt, sources: [], signals: [])], module: "dashboard")
