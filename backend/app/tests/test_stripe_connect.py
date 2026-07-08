@@ -35,7 +35,7 @@ def _register_test_company(client: TestClient) -> dict[str, str]:
         "accept_terms": True,
         "accept_disclaimer": True,
     })
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -76,7 +76,7 @@ def test_platform_fee_requires_admin_role() -> None:
         "email": f"nonadmin-{uuid4().hex[:6]}@kompta.local",
         "job_title": "Staff", "employment_type": "CDI",
     }, headers=admin_headers)
-    assert emp.status_code == 200, emp.text
+    assert emp.status_code == 201, emp.text
     employee_id = emp.json()["id"]
 
     prov = client.post(f"/api/employees/{employee_id}/provision-access?role=employe", headers=admin_headers)
