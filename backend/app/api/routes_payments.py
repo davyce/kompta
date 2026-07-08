@@ -19,11 +19,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.routes import _require_admin
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import CompanyPaymentMethod, Invoice, PaymentTransaction, Sale, SubscriptionPlan, User
+from app.models import Company, CompanyPaymentMethod, Invoice, PaymentTransaction, Sale, SubscriptionPlan, User
 from app.services import payments as pay
 from app.services import subscriptions as subs
+
+# Fourchette de commission plateforme autorisée : évite qu'une entreprise se
+# configure une commission absurde (0% cassant le modèle économique de
+# KOMPTA, ou >20% clairement abusif pour du simple encaissement carte).
+_PLATFORM_FEE_MIN = 0.0
+_PLATFORM_FEE_MAX = 10.0
 
 router = APIRouter(tags=["payments"])
 logger = logging.getLogger("kompta.payments")
@@ -92,6 +99,20 @@ def payments_config(current_user: User = Depends(get_current_user)) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 # STRIPE
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _connect_destination(db: Session, company_id: int, amount_cents: int) -> tuple[str, int]:
+    """Compte connecté + commission plateforme à appliquer pour cette
+    entreprise, ou ("", 0) si l'entreprise n'a pas terminé son onboarding
+    Stripe Connect (dans ce cas les fonds restent sur le compte KOMPTA —
+    comportement précédent, pas de régression pour les entreprises qui n'ont
+    pas encore configuré leur reversement)."""
+    company = db.get(Company, company_id)
+    if not company or not company.stripe_connect_account_id or company.stripe_connect_status != "active":
+        return "", 0
+    fee_cents = round(amount_cents * (company.platform_fee_percent or 0.0) / 100)
+    return company.stripe_connect_account_id, fee_cents
+
+
 @router.post("/payments/stripe/intent")
 async def create_stripe_intent(
     payload: StripeIntentRequest,
@@ -117,6 +138,9 @@ async def create_stripe_intent(
     db.add(txn)
     db.flush()
 
+    destination_account_id, application_fee_cents = _connect_destination(
+        db, current_user.company_id, payload.amount_cents
+    )
     try:
         intent = await pay.stripe_create_payment_intent(
             amount_cents=payload.amount_cents,
@@ -124,6 +148,8 @@ async def create_stripe_intent(
             idempotency_key=idem,
             description=payload.description,
             metadata={"transaction_id": txn.id, "company_id": current_user.company_id},
+            destination_account_id=destination_account_id,
+            application_fee_cents=application_fee_cents,
         )
     except pay.PaymentError as e:
         txn.status = "failed"
@@ -181,6 +207,9 @@ async def create_stripe_terminal_intent(
     db.add(txn)
     db.flush()
 
+    destination_account_id, application_fee_cents = _connect_destination(
+        db, current_user.company_id, payload.amount_cents
+    )
     try:
         intent = await pay.stripe_create_terminal_payment_intent(
             amount_cents=payload.amount_cents,
@@ -188,6 +217,8 @@ async def create_stripe_terminal_intent(
             idempotency_key=idem,
             description=payload.description,
             metadata={"transaction_id": txn.id, "company_id": current_user.company_id},
+            destination_account_id=destination_account_id,
+            application_fee_cents=application_fee_cents,
         )
     except pay.PaymentError as e:
         txn.status = "failed"
@@ -206,6 +237,96 @@ async def create_stripe_terminal_intent(
         "client_secret": intent.get("client_secret"),
         "status": txn.status,
     }
+
+
+class PlatformFeeUpdate(BaseModel):
+    platform_fee_percent: float
+
+
+@router.post("/payments/connect/onboard")
+async def start_connect_onboarding(
+    return_url: str = Query(..., description="URL vers laquelle Stripe redirige une fois l'onboarding terminé"),
+    refresh_url: str = Query(..., description="URL vers laquelle Stripe redirige si le lien a expiré"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Démarre (ou reprend) l'onboarding Stripe Connect Express de l'entreprise
+    — préalable pour que les encaissements carte (Tap to Pay, Apple Pay, web)
+    soient reversés à l'entreprise plutôt que retenus sur le compte KOMPTA."""
+    _require_admin(current_user)
+    company = db.get(Company, current_user.company_id)
+    if not company:
+        raise HTTPException(404, "Entreprise introuvable")
+
+    try:
+        if not company.stripe_connect_account_id:
+            account = await pay.stripe_create_connect_account(
+                email=company.email or current_user.email,
+                country=company.country or "US",
+                business_name=company.name,
+            )
+            company.stripe_connect_account_id = account["id"]
+            company.stripe_connect_status = "pending"
+            db.commit()
+
+        onboarding_url = await pay.stripe_create_account_link(
+            account_id=company.stripe_connect_account_id,
+            refresh_url=refresh_url,
+            return_url=return_url,
+        )
+    except pay.PaymentError as e:
+        raise HTTPException(e.status, e.message)
+    return {"onboarding_url": onboarding_url, "account_id": company.stripe_connect_account_id}
+
+
+@router.get("/payments/connect/status")
+async def connect_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """État du reversement Stripe Connect + commission plateforme configurée."""
+    company = db.get(Company, current_user.company_id)
+    if not company:
+        raise HTTPException(404, "Entreprise introuvable")
+
+    if company.stripe_connect_account_id and company.stripe_connect_status != "active":
+        try:
+            account = await pay.stripe_retrieve_connect_account(company.stripe_connect_account_id)
+            payouts_enabled = bool(account.get("payouts_enabled"))
+            charges_enabled = bool(account.get("charges_enabled"))
+            company.stripe_connect_payouts_enabled = payouts_enabled
+            company.stripe_connect_status = "active" if (payouts_enabled and charges_enabled) else "pending"
+            db.commit()
+        except pay.PaymentError:
+            pass  # Stripe momentanément indisponible : garder le statut connu
+
+    return {
+        "status": company.stripe_connect_status,
+        "payouts_enabled": company.stripe_connect_payouts_enabled,
+        "account_id": company.stripe_connect_account_id,
+        "platform_fee_percent": company.platform_fee_percent,
+    }
+
+
+@router.patch("/payments/connect/fee")
+def update_platform_fee(
+    payload: PlatformFeeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Configure la commission plateforme prélevée sur chaque encaissement
+    carte de l'entreprise (bornée pour éviter une valeur absurde)."""
+    _require_admin(current_user)
+    if not (_PLATFORM_FEE_MIN <= payload.platform_fee_percent <= _PLATFORM_FEE_MAX):
+        raise HTTPException(
+            400, f"La commission doit être comprise entre {_PLATFORM_FEE_MIN}% et {_PLATFORM_FEE_MAX}%.",
+        )
+    company = db.get(Company, current_user.company_id)
+    if not company:
+        raise HTTPException(404, "Entreprise introuvable")
+    company.platform_fee_percent = payload.platform_fee_percent
+    db.commit()
+    return {"platform_fee_percent": company.platform_fee_percent}
 
 
 @router.post("/payments/stripe/webhook")

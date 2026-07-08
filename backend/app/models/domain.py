@@ -63,6 +63,22 @@ class Company(TimestampMixin, Base):
     bank_account: Mapped[str] = mapped_column(String(80), default="")        # RIB / IBAN
     logo_path: Mapped[str] = mapped_column(String(512), default="")          # chemin disque du logo uploadé
 
+    # ── Stripe Connect (reversement des encaissements carte à l'entreprise) ──
+    # Sans ceci, TOUT paiement carte (Tap to Pay, Apple Pay, carte web) finit
+    # dans le compte Stripe de la plateforme KOMPTA, jamais chez le marchand —
+    # cf. audit. Compte Express : l'entreprise complète un onboarding Stripe
+    # (identité + IBAN/compte bancaire), puis les futurs PaymentIntents sont
+    # créés avec `transfer_data[destination]` = ce compte + une commission
+    # plateforme prélevée automatiquement (`platform_fee_percent`).
+    stripe_connect_account_id: Mapped[str] = mapped_column(String(80), default="")
+    stripe_connect_status: Mapped[str] = mapped_column(String(20), default="not_started")  # not_started | pending | active | restricted
+    stripe_connect_payouts_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Commission KOMPTA sur chaque paiement carte encaissé pour cette entreprise
+    # (en %, ex: 1.5 = 1.5%). Configurable par l'entreprise elle-même dans une
+    # fourchette autorisée (cf. _PLATFORM_FEE_MIN/MAX côté route) — pas de
+    # commission par défaut tant qu'aucune valeur n'est explicitement définie.
+    platform_fee_percent: Mapped[float] = mapped_column(Float, default=0.0)
+
     # ── Taux de paie configurables (défauts = anciennes constantes en dur) ────
     cnss_employee_rate: Mapped[float] = mapped_column(Float, default=0.04)
     cnss_employer_rate: Mapped[float] = mapped_column(Float, default=0.08)

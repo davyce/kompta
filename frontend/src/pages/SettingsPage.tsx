@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
 import { SubscriptionPanel } from "../components/SubscriptionPanel";
 import { CollectionMethodsPanel } from "../components/CollectionMethodsPanel";
+import { StripeConnectPanel } from "../components/StripeConnectPanel";
 import { OpeningBalancePanel } from "../components/OpeningBalancePanel";
 import { RolesSettings } from "../components/settings/RolesSettings";
 import { useTheme } from "../hooks/useTheme";
@@ -968,6 +969,11 @@ export function SettingsPage() {
                 <h2 className="font-bold text-[#17211f] dark:text-white">{tr("settingsPage.payments.title")}</h2>
                 <p className="text-sm text-[#717182]">{tr("settingsPage.payments.subtitle")}</p>
               </div>
+              {!isEmployeeSelfService && (
+                <div className="border-b border-black/[0.05] p-6 dark:border-white/[0.05]">
+                  <StripeConnectPanel />
+                </div>
+              )}
               {!isEmployeeSelfService && (
                 <div className="border-b border-black/[0.05] p-6 dark:border-white/[0.05]">
                   <CollectionMethodsPanel />

@@ -310,6 +310,20 @@ export const api = {
     }),
   deletePaymentAccount: (id: number) =>
     request<void>(`/payment-accounts/${id}`, { method: "DELETE" }),
+  connectStatus: () =>
+    request<{ status: string; payouts_enabled: boolean; account_id: string; platform_fee_percent: number }>(
+      "/payments/connect/status"
+    ),
+  startConnectOnboarding: (returnUrl: string, refreshUrl: string) =>
+    request<{ onboarding_url: string; account_id: string }>(
+      `/payments/connect/onboard?return_url=${encodeURIComponent(returnUrl)}&refresh_url=${encodeURIComponent(refreshUrl)}`,
+      { method: "POST" }
+    ),
+  updatePlatformFee: (platform_fee_percent: number) =>
+    request<{ platform_fee_percent: number }>("/payments/connect/fee", {
+      method: "PATCH",
+      body: JSON.stringify({ platform_fee_percent }),
+    }),
   onboarding: () =>
     request<{ completion_score: number; steps: Array<{ key: string; label: string; done: boolean }> }>("/onboarding"),
   overview: (branch?: string) =>

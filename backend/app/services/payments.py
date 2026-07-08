@@ -58,6 +58,8 @@ async def stripe_create_payment_intent(
     idempotency_key: str,
     description: str = "",
     metadata: dict[str, Any] | None = None,
+    destination_account_id: str = "",
+    application_fee_cents: int = 0,
 ) -> dict[str, Any]:
     settings = get_settings()
     if not settings.stripe_secret_key:
@@ -76,6 +78,13 @@ async def stripe_create_payment_intent(
         form["description"] = description[:255]
     for k, v in (metadata or {}).items():
         form[f"metadata[{k}]"] = str(v)
+    # Charge en compte connecté (Stripe Connect) : les fonds vont directement
+    # au compte de l'entreprise moins la commission plateforme, plutôt que de
+    # rester sur le compte Stripe de KOMPTA (cf. audit "reversement absent").
+    if destination_account_id:
+        form["transfer_data[destination]"] = destination_account_id
+        if application_fee_cents > 0:
+            form["application_fee_amount"] = str(to_provider_amount(application_fee_cents, currency))
 
     headers = {
         "Authorization": f"Bearer {settings.stripe_secret_key}",
@@ -124,6 +133,8 @@ async def stripe_create_terminal_payment_intent(
     idempotency_key: str,
     description: str = "",
     metadata: dict[str, Any] | None = None,
+    destination_account_id: str = "",
+    application_fee_cents: int = 0,
 ) -> dict[str, Any]:
     """PaymentIntent pour un encaissement carte présente (Tap to Pay on
     iPhone / lecteur StripeTerminal) — contrairement au PaymentIntent Apple
@@ -149,6 +160,10 @@ async def stripe_create_terminal_payment_intent(
         form["description"] = description[:255]
     for k, v in (metadata or {}).items():
         form[f"metadata[{k}]"] = str(v)
+    if destination_account_id:
+        form["transfer_data[destination]"] = destination_account_id
+        if application_fee_cents > 0:
+            form["application_fee_amount"] = str(to_provider_amount(application_fee_cents, currency))
 
     headers = {
         "Authorization": f"Bearer {settings.stripe_secret_key}",
@@ -191,6 +206,102 @@ async def stripe_terminal_connection_token() -> str:
     if not secret:
         raise PaymentError("Réponse Stripe invalide (connection token manquant).")
     return secret
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# STRIPE CONNECT — reversement des encaissements carte vers l'entreprise
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def stripe_create_connect_account(*, email: str, country: str, business_name: str) -> dict[str, Any]:
+    """Crée un compte Express Stripe Connect pour une entreprise. Express =
+    Stripe héberge l'onboarding (identité, IBAN) ; KOMPTA n'a jamais à manier
+    de données bancaires brutes."""
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise PaymentError("Stripe non configuré (STRIPE_SECRET_KEY manquant).", 503)
+
+    form: dict[str, str] = {
+        "type": "express",
+        "country": country or "US",
+        "capabilities[card_payments][requested]": "true",
+        "capabilities[transfers][requested]": "true",
+        "business_type": "company",
+        "business_profile[name]": (business_name or "")[:255],
+    }
+    if email:
+        form["email"] = email
+
+    headers = {
+        "Authorization": f"Bearer {settings.stripe_secret_key}",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(f"{_STRIPE_API}/accounts", data=form, headers=headers)
+    except httpx.HTTPError as e:
+        raise PaymentError(f"Stripe injoignable : {e}") from e
+
+    data = resp.json()
+    if resp.status_code >= 400:
+        msg = (data.get("error") or {}).get("message", "Erreur Stripe")
+        raise PaymentError(msg, resp.status_code)
+    return data
+
+
+async def stripe_create_account_link(*, account_id: str, refresh_url: str, return_url: str) -> str:
+    """URL d'onboarding hébergée par Stripe (formulaire identité + IBAN).
+    Un lien = usage unique, expire après quelques minutes si non utilisé."""
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise PaymentError("Stripe non configuré (STRIPE_SECRET_KEY manquant).", 503)
+
+    form = {
+        "account": account_id,
+        "refresh_url": refresh_url,
+        "return_url": return_url,
+        "type": "account_onboarding",
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.stripe_secret_key}",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(f"{_STRIPE_API}/account_links", data=form, headers=headers)
+    except httpx.HTTPError as e:
+        raise PaymentError(f"Stripe injoignable : {e}") from e
+
+    data = resp.json()
+    if resp.status_code >= 400:
+        msg = (data.get("error") or {}).get("message", "Erreur Stripe")
+        raise PaymentError(msg, resp.status_code)
+    url = data.get("url")
+    if not url:
+        raise PaymentError("Réponse Stripe invalide (lien d'onboarding manquant).")
+    return url
+
+
+async def stripe_retrieve_connect_account(account_id: str) -> dict[str, Any]:
+    """État courant du compte connecté — `charges_enabled`/`payouts_enabled`
+    passent à `true` une fois l'onboarding Stripe complété et vérifié."""
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise PaymentError("Stripe non configuré (STRIPE_SECRET_KEY manquant).", 503)
+    if not account_id:
+        raise PaymentError("Compte Stripe Connect manquant.", 400)
+
+    headers = {"Authorization": f"Bearer {settings.stripe_secret_key}"}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{_STRIPE_API}/accounts/{account_id}", headers=headers)
+    except httpx.HTTPError as e:
+        raise PaymentError(f"Stripe injoignable : {e}") from e
+
+    data = resp.json()
+    if resp.status_code >= 400:
+        msg = (data.get("error") or {}).get("message", "Erreur Stripe")
+        raise PaymentError(msg, resp.status_code)
+    return data
 
 
 def stripe_verify_webhook(payload: bytes, sig_header: str, tolerance_seconds: int = 300) -> dict[str, Any]:

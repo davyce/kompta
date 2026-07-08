@@ -204,6 +204,10 @@ def ensure_sqlite_migrations() -> None:
             "cnss_employer_rate": "FLOAT DEFAULT 0.08",
             "family_allowance_rate": "FLOAT DEFAULT 0.07",
             "work_accident_rate": "FLOAT DEFAULT 0.02",
+            "stripe_connect_account_id": "VARCHAR(80) DEFAULT ''",
+            "stripe_connect_status": "VARCHAR(20) DEFAULT 'not_started'",
+            "stripe_connect_payouts_enabled": "BOOLEAN DEFAULT 0",
+            "platform_fee_percent": "FLOAT DEFAULT 0.0",
         },
         # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
         "products": {
