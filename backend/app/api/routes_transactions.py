@@ -459,16 +459,19 @@ def delete_transaction(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> None:
-    # Suppression définitive d'un enregistrement financier : réservée aux
-    # admins (cf. audit). Un rôle non-admin ne doit pas pouvoir effacer une
-    # transaction bancaire, qui fait foi pour la réconciliation et la
-    # comptabilité de l'entreprise. La transaction est archivée dans le
-    # journal d'audit avant suppression pour garder une trace consultable
-    # (cf. audit "suppression définitive sans historique").
+    # Annule une transaction bancaire — réservé aux admins. Contrairement à
+    # une suppression physique (interdite en comptabilité : un mouvement de
+    # caisse déjà enregistré ne doit jamais disparaître), la transaction
+    # d'origine reste immuable et une contre-écriture miroir (montant
+    # inversé) est générée pour neutraliser son effet sur les soldes et
+    # rapports, tout en conservant la trace comptable complète. Tracé dans
+    # le journal d'audit.
     _require_admin(current_user)
     txn = db.get(BankTransaction, txn_id)
     if not txn or txn.company_id != current_user.company_id:
         raise HTTPException(404, "Transaction introuvable")
+    if txn.status == "cancelled":
+        raise HTTPException(409, "Transaction déjà annulée.")
     snapshot = {
         "date": txn.date,
         "label": txn.label,
@@ -481,16 +484,34 @@ def delete_transaction(
         "status": txn.status,
         "payment_account_id": txn.payment_account_id,
     }
+
+    reversal = BankTransaction(
+        company_id=current_user.company_id,
+        date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        label=f"Annulation — {txn.label}",
+        amount=-txn.amount,
+        debit=txn.credit,
+        credit=txn.debit,
+        currency=txn.currency,
+        category=txn.category,
+        counterpart=txn.counterpart,
+        reference=txn.reference,
+        source_type="cancellation",
+        status="confirmed",
+        payment_account_id=txn.payment_account_id,
+    )
+    db.add(reversal)
+    txn.status = "cancelled"
+
     db.add(AuditLog(
         user_id=current_user.id,
         user_name=current_user.full_name,
-        action="delete",
+        action="cancel",
         resource_type="bank_transaction",
         resource_id=txn.id,
         details=json.dumps({"transaction_snapshot": snapshot}, ensure_ascii=False),
         company_id=current_user.company_id,
     ))
-    db.delete(txn)
     db.commit()
 
 
