@@ -32,9 +32,10 @@ type BillingRow = {
 
 const STATUS_TR: Record<string, string> = {
   paid: "billing.statusPaid", sent: "billing.statusSent", draft: "billing.statusDraft", overdue: "billing.statusOverdue",
+  cancelled: "billing.statusCancelled", credit_note: "billing.statusCreditNote",
 };
 const STATUS_TONES: Record<string, "green" | "blue" | "amber" | "red"> = {
-  paid: "green", sent: "blue", draft: "amber", overdue: "red",
+  paid: "green", sent: "blue", draft: "amber", overdue: "red", cancelled: "red", credit_note: "amber",
 };
 
 function KpiCard({ label, value, hint, icon: Icon, tone = "emerald" }: {
@@ -477,9 +478,11 @@ export function BillingPage() {
                         <Pencil size={13} />
                       </button>
                     )}
-                    {/* Suppression autorisée même sur une facture payée (correction
-                        d'erreur) — motif obligatoire, tracé dans le journal d'audit. */}
-                    {r.kind === "invoice" && canManageInvoices && (
+                    {/* Annulation autorisée même sur une facture payée (correction
+                        d'erreur) — motif obligatoire, génère un avoir miroir et
+                        trace le tout dans le journal d'audit (jamais de suppression
+                        physique d'une pièce comptable déjà émise). */}
+                    {r.kind === "invoice" && canManageInvoices && r.status !== "cancelled" && r.status !== "credit_note" && (
                       <button
                         onClick={() => handleDeleteInvoice(r.id, r.number)}
                         disabled={deleteInvoice.isPending}

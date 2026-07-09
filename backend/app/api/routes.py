@@ -2601,11 +2601,13 @@ def delete_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    """Supprime une facture — réservé au DG/PDG (admin_entreprise). Un motif
-    est obligatoire et la facture complète (lignes incluses) est archivée
-    dans le journal d'audit avant suppression, pour retrouver la version
-    précédente si besoin — y compris pour une facture déjà payée (correction
-    d'erreur), désormais autorisée."""
+    """Annule une facture — réservé au DG/PDG (admin_entreprise). Un motif
+    est obligatoire. Contrairement à une suppression physique (interdite en
+    comptabilité : une pièce déjà émise ne doit jamais disparaître), la
+    facture d'origine reste immuable et un avoir (note de crédit) miroir est
+    généré automatiquement si elle avait des lignes, pour neutraliser son
+    effet dans les totaux (TVA, chiffre d'affaires) tout en conservant la
+    trace comptable complète. Le tout est archivé dans le journal d'audit."""
     _require_company_owner(current_user)
     invoice = db.scalar(
         select(Invoice)
@@ -2614,6 +2616,8 @@ def delete_invoice(
     )
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status in {"cancelled", "credit_note"}:
+        raise HTTPException(status_code=409, detail="Facture déjà annulée ou déjà un avoir.")
 
     snapshot = {
         "number": invoice.number,
@@ -2632,16 +2636,58 @@ def delete_invoice(
             for l in invoice.lines
         ],
     }
+
+    credit_note_number: str | None = None
+    if invoice.lines:
+        credit = Invoice(
+            number=_next_invoice_number(db, current_user.company_id),
+            customer_name=invoice.customer_name,
+            customer_email=invoice.customer_email,
+            status="credit_note",
+            due_date=invoice.due_date,
+            company_id=current_user.company_id,
+        )
+        subtotal = 0.0
+        tax_total = 0.0
+        for line in invoice.lines:
+            rate = getattr(line, "tax_rate", 18.0) or 0.0
+            neg_ht = -abs(line.total)
+            neg_tax = round(neg_ht * (rate / 100.0), 2)
+            subtotal += neg_ht
+            tax_total += neg_tax
+            credit.lines.append(
+                InvoiceLine(
+                    description=f"Annulation facture {invoice.number} — {line.description}",
+                    quantity=line.quantity,
+                    unit_price=-abs(line.unit_price),
+                    tax_rate=rate,
+                    total=neg_ht,
+                )
+            )
+        credit.subtotal = round(subtotal, 2)
+        credit.tax_amount = round(tax_total, 2)
+        credit.total_amount = round(subtotal + tax_total, 2)
+        credit.subtotal_cents = _accounting.to_cents(subtotal)
+        credit.tax_amount_cents = _accounting.to_cents(tax_total)
+        credit.total_amount_cents = _accounting.to_cents(subtotal + tax_total)
+        db.add(credit)
+        db.flush()
+        credit_note_number = credit.number
+
+    invoice.status = "cancelled"
     db.add(AuditLog(
         user_id=current_user.id,
         user_name=current_user.full_name,
-        action="delete",
+        action="cancel",
         resource_type="invoice",
         resource_id=invoice.id,
-        details=json.dumps({"reason": payload.reason, "invoice_snapshot": snapshot}, ensure_ascii=False),
+        details=json.dumps({
+            "reason": payload.reason,
+            "invoice_snapshot": snapshot,
+            "credit_note_number": credit_note_number,
+        }, ensure_ascii=False),
         company_id=current_user.company_id,
     ))
-    db.delete(invoice)
     db.commit()
     return Response(status_code=204)
 
