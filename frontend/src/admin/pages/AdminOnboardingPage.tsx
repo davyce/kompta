@@ -29,9 +29,9 @@ type OnboardingStats = {
 type LevelFilter = "all" | "low" | "medium" | "advanced";
 
 function scoreColor(score: number): string {
-  if (score >= 80) return "text-emerald-300";
-  if (score >= 50) return "text-indigo-300";
-  return "text-rose-300";
+  if (score >= 80) return "text-emerald-600 dark:text-emerald-300";
+  if (score >= 50) return "text-indigo-600 dark:text-indigo-300";
+  return "text-rose-600 dark:text-rose-300";
 }
 
 function scoreBarColor(score: number): string {
@@ -42,9 +42,9 @@ function scoreBarColor(score: number): string {
 
 function BoolBadge({ ok }: { ok: boolean }) {
   return ok ? (
-    <CheckCircle2 size={16} className="text-emerald-400" />
+    <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
   ) : (
-    <XCircle size={16} className="text-white/25" />
+    <XCircle size={16} className="text-slate-300 dark:text-white/25" />
   );
 }
 
@@ -82,11 +82,11 @@ function ScoreDonut({ advanced, medium, low }: { advanced: number; medium: numbe
       </ResponsiveContainer>
       <div className="mt-2 flex flex-wrap justify-center gap-3">
         {data.map((d) => (
-          <div key={d.name} className="flex items-center gap-1.5 text-xs font-bold text-white/60">
+          <div key={d.name} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-white/60">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
             {d.name}
             {total > 0 && (
-              <span className="text-white/40">({Math.round((d.value / total) * 100)}%)</span>
+              <span className="text-slate-400 dark:text-white/40">({Math.round((d.value / total) * 100)}%)</span>
             )}
           </div>
         ))}
@@ -146,18 +146,18 @@ export function AdminOnboardingPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">{tr("admin.onboarding.eyebrow")}</p>
-        <h1 className="text-3xl font-black">{tr("admin.onboarding.title")}</h1>
-        <p className="mt-1 text-sm text-white/60">{tr("admin.onboarding.subtitle")}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-500">{tr("admin.onboarding.eyebrow")}</p>
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white">{tr("admin.onboarding.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-white/60">{tr("admin.onboarding.subtitle")}</p>
       </div>
 
       {/* KPIs + donut */}
       <div className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
         {/* KPI cards */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-2">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-5 col-span-2">
-            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">{tr("admin.onboarding.totalCompanies")}</p>
-            <p className="text-4xl font-black">{total}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 col-span-2 dark:border-white/10 dark:bg-white/5">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">{tr("admin.onboarding.totalCompanies")}</p>
+            <p className="text-4xl font-black text-slate-900 dark:text-white">{total}</p>
           </div>
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
             <p className="text-3xl font-black text-emerald-300">{advanced}</p>
@@ -187,8 +187,8 @@ export function AdminOnboardingPage() {
         </div>
 
         {/* Donut */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <h3 className="mb-2 font-black">{tr("admin.onboarding.levelBreakdown")}</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+          <h3 className="mb-2 font-black text-slate-900 dark:text-white">{tr("admin.onboarding.levelBreakdown")}</h3>
           {stats.isLoading ? (
             <div className="flex h-48 items-center justify-center">
               <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
@@ -201,13 +201,13 @@ export function AdminOnboardingPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 flex-1 min-w-48">
-          <Building2 size={15} className="text-white/40" />
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 flex-1 min-w-48 dark:border-white/10 dark:bg-white/5">
+          <Building2 size={15} className="text-slate-400 dark:text-white/40" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={tr("admin.onboarding.searchPlaceholder")}
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/35"
           />
         </div>
         {(["all", "advanced", "medium", "low"] as LevelFilter[]).map((l) => (
@@ -216,8 +216,8 @@ export function AdminOnboardingPage() {
             onClick={() => setLevelFilter(l)}
             className={`rounded-xl border px-4 py-2.5 text-sm font-bold ${
               levelFilter === l
-                ? "border-indigo-500 bg-indigo-600/20 text-white"
-                : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                ? "border-indigo-500 bg-indigo-600/20 text-slate-900 dark:text-white"
+                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
             }`}
           >
             {l === "all" ? tr("common.all") : l === "advanced" ? tr("admin.onboarding.filterAdvanced") : l === "medium" ? tr("admin.onboarding.filterMedium") : tr("admin.onboarding.filterLow")}
@@ -233,10 +233,10 @@ export function AdminOnboardingPage() {
       )}
 
       {!stats.isLoading && (
-        <div className="rounded-xl border border-white/10 bg-white/5 overflow-x-auto">
+        <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto dark:border-white/10 dark:bg-white/5">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr className="border-b border-white/10 text-xs font-bold uppercase text-white/40">
+              <tr className="border-b border-slate-200 text-xs font-bold uppercase text-slate-400 dark:border-white/10 dark:text-white/40">
                 <th className="px-4 py-3 text-left">{tr("admin.dashboard.company")}</th>
                 <th className="px-4 py-3 text-center" title={tr("admin.onboarding.employees")}><Users size={13} className="mx-auto" /></th>
                 <th className="px-4 py-3 text-center" title={tr("admin.onboarding.invoices")}><FileText size={13} className="mx-auto" /></th>
@@ -249,13 +249,13 @@ export function AdminOnboardingPage() {
             </thead>
             <tbody>
               {filtered.map((company) => (
-                <tr key={company.id} className="border-b border-white/5 hover:bg-white/5">
+                <tr key={company.id} className="border-b border-slate-100 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600/20 text-indigo-200">
+                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-200">
                         <Building2 size={13} />
                       </span>
-                      <span className="font-bold">{company.name}</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{company.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center"><BoolBadge ok={company.has_employees} /></td>
@@ -264,7 +264,7 @@ export function AdminOnboardingPage() {
                   <td className="px-4 py-3 text-center"><BoolBadge ok={company.has_documents} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-2 w-24 rounded-full bg-slate-100 overflow-hidden dark:bg-white/10">
                         <div
                           className={`h-full rounded-full ${scoreBarColor(company.score)}`}
                           style={{ width: `${company.score}%` }}
@@ -275,7 +275,7 @@ export function AdminOnboardingPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden text-xs text-white/40 lg:table-cell">
+                  <td className="px-4 py-3 hidden text-xs text-slate-400 lg:table-cell dark:text-white/40">
                     {company.last_activity ? shortDate(company.last_activity) : "–"}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -285,7 +285,7 @@ export function AdminOnboardingPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-white/35">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-white/35">
                     {tr("admin.onboarding.noCompany")}
                   </td>
                 </tr>

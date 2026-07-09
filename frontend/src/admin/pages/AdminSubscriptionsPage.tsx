@@ -23,8 +23,8 @@ export function AdminSubscriptionsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-black text-white">{tr("admin.subscriptions.title")}</h1>
-        <p className="text-sm text-white/50">{tr("admin.subscriptions.subtitle")}</p>
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white">{tr("admin.subscriptions.title")}</h1>
+        <p className="text-sm text-slate-500 dark:text-white/50">{tr("admin.subscriptions.subtitle")}</p>
       </div>
       <div className="flex gap-2">
         {tabs.map(
@@ -33,7 +33,7 @@ export function AdminSubscriptionsPage() {
               key={k}
               onClick={() => setTab(k)}
               className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
-                tab === k ? "bg-emerald-600 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"
+                tab === k ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
               }`}
             >
               <Icon size={15} /> {label}
@@ -72,7 +72,7 @@ function PlansSection() {
           <Plus size={15} /> {tr("admin.subscriptions.newPlan")}
         </button>
       </div>
-      {plans.isLoading && <p className="text-white/50">{tr("common.loading")}</p>}
+      {plans.isLoading && <p className="text-slate-500 dark:text-white/50">{tr("common.loading")}</p>}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {plans.data?.map((p) => (
           <PlanCard key={p.id} plan={p} onSave={(patch) => update.mutate({ id: p.id, patch })} onDelete={async () => {
@@ -121,34 +121,34 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
   const modulesDirty = JSON.stringify([...modules].sort()) !== JSON.stringify([...plan.included_modules].sort());
   const dirty = price !== Math.round(plan.price_cents / 100) || name !== plan.name || maxUsers !== plan.max_users || modulesDirty;
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
       <div className="flex items-center justify-between">
-        <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-transparent text-lg font-black text-white outline-none" />
+        <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-transparent text-lg font-black text-slate-900 outline-none dark:text-white" />
         <button onClick={() => onSave({ is_active: !plan.is_active })} title={plan.is_active ? tr("admin.subscriptions.status.active") : tr("admin.subscriptions.status.inactive")}
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${plan.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${plan.is_active ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300" : "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/40"}`}>
           {plan.is_active ? tr("admin.subscriptions.status.activeUpper") : tr("admin.subscriptions.status.inactiveUpper")}
         </button>
       </div>
-      <p className="mt-1 text-xs text-white/50">{plan.description}</p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-white/50">{plan.description}</p>
       <div className="mt-3 flex items-center gap-2">
         <input type="number" value={price} min={0} step={500} onChange={(e) => setPrice(Math.max(0, Number(e.target.value) || 0))}
-          className="w-28 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm font-mono text-white outline-none focus:border-emerald-500" />
-        <span className="text-sm text-white/50">{plan.currency} / {plan.period === "year" ? tr("admin.subscriptions.period.yearShort") : tr("admin.subscriptions.period.monthShort")}</span>
+          className="w-28 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-mono text-slate-900 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+        <span className="text-sm text-slate-500 dark:text-white/50">{plan.currency} / {plan.period === "year" ? tr("admin.subscriptions.period.yearShort") : tr("admin.subscriptions.period.monthShort")}</span>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-xs text-white/50">Utilisateurs max</span>
+        <span className="text-xs text-slate-500 dark:text-white/50">Utilisateurs max</span>
         <input type="number" min={0} value={maxUsers} onChange={(e) => setMaxUsers(Math.max(0, Number(e.target.value) || 0))}
-          className="w-20 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm font-mono text-white outline-none focus:border-emerald-500" />
-        <span className="text-[10px] text-white/40">(0 = illimité)</span>
+          className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-mono text-slate-900 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+        <span className="text-[10px] text-slate-400 dark:text-white/40">(0 = illimité)</span>
       </div>
 
       <div className="mt-3">
-        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-white/40">Modules inclus</p>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-white/40">Modules inclus</p>
         <div className="grid grid-cols-2 gap-1">
           {MODULE_OPTIONS.map((m) => (
-            <label key={m.key} className="flex cursor-pointer items-center gap-1.5 text-xs text-white/70">
+            <label key={m.key} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-white/70">
               <input type="checkbox" checked={modules.includes(m.key)} onChange={() => toggleModule(m.key)}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-emerald-500" />
+                className="h-3.5 w-3.5 rounded border-slate-300 bg-white accent-emerald-500 dark:border-white/20 dark:bg-white/5" />
               {m.label}
             </label>
           ))}
@@ -158,7 +158,7 @@ function PlanCard({ plan, onSave, onDelete }: { plan: SubscriptionPlanDto; onSav
       <div className="mt-3 flex gap-2">
         <button disabled={!dirty} onClick={() => onSave({ price_cents: price * 100, name, max_users: maxUsers, included_modules: modules })}
           className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tr("common.save")}</button>
-        <button onClick={onDelete} className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-rose-300 hover:bg-rose-500/30"><Trash2 size={14} /></button>
+        <button onClick={onDelete} className="rounded-lg bg-rose-50 px-3 py-1.5 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/30"><Trash2 size={14} /></button>
       </div>
     </div>
   );
@@ -209,25 +209,25 @@ function PromosSection() {
       <div className="flex justify-end">
         <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"><Plus size={15} /> {tr("admin.subscriptions.newPromo")}</button>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-white/10">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
         <table className="w-full text-sm">
-          <thead className="bg-white/5 text-left text-xs uppercase text-white/40">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-400 dark:bg-white/5 dark:text-white/40">
             <tr><th className="px-4 py-2">Code</th><th className="px-4 py-2">{tr("admin.subscriptions.discount")}</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">{tr("admin.subscriptions.used")}</th><th className="px-4 py-2">{tr("common.status")}</th><th className="px-4 py-2"></th></tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
             {promos.data?.map((p) => (
-              <tr key={p.id} className="text-white/80">
-                <td className="px-4 py-2 font-mono font-bold">{p.code}</td>
+              <tr key={p.id} className="text-slate-700 dark:text-white/80">
+                <td className="px-4 py-2 font-mono font-bold text-slate-900 dark:text-white">{p.code}</td>
                 <td className="px-4 py-2">-{p.percent_off}%</td>
-                <td className="px-4 py-2 text-white/50">{p.plan_code || tr("common.all")}</td>
-                <td className="px-4 py-2 text-white/50">{p.times_redeemed}{p.max_redemptions ? `/${p.max_redemptions}` : ""}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-white/50">{p.plan_code || tr("common.all")}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-white/50">{p.times_redeemed}{p.max_redemptions ? `/${p.max_redemptions}` : ""}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => toggle.mutate({ id: p.id, is_active: !p.is_active })} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${p.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>{p.is_active ? tr("admin.subscriptions.status.activeUpper") : tr("admin.subscriptions.status.inactiveUpper")}</button>
+                  <button onClick={() => toggle.mutate({ id: p.id, is_active: !p.is_active })} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${p.is_active ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300" : "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/40"}`}>{p.is_active ? tr("admin.subscriptions.status.activeUpper") : tr("admin.subscriptions.status.inactiveUpper")}</button>
                 </td>
-                <td className="px-4 py-2 text-right"><button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmDeletePromoTitle", { code: p.code }), danger: true, confirmLabel: tr("common.delete") })) del.mutate(p.id); }} className="text-rose-400 hover:text-rose-300"><Trash2 size={14} /></button></td>
+                <td className="px-4 py-2 text-right"><button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmDeletePromoTitle", { code: p.code }), danger: true, confirmLabel: tr("common.delete") })) del.mutate(p.id); }} className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"><Trash2 size={14} /></button></td>
               </tr>
             ))}
-            {!promos.data?.length && <tr><td colSpan={6} className="px-4 py-6 text-center text-white/40">{tr("admin.subscriptions.noPromo")}</td></tr>}
+            {!promos.data?.length && <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400 dark:text-white/40">{tr("admin.subscriptions.noPromo")}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -274,11 +274,14 @@ function CompaniesSection() {
 
   const badge = (s: string) => {
     const map: Record<string, string> = {
-      active: "bg-emerald-500/20 text-emerald-300", trialing: "bg-sky-500/20 text-sky-300",
-      past_due: "bg-amber-500/20 text-amber-300", suspended: "bg-rose-500/20 text-rose-300",
-      none: "bg-white/10 text-white/40", cancelled: "bg-white/10 text-white/40",
+      active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+      trialing: "bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
+      past_due: "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+      suspended: "bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+      none: "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/40",
+      cancelled: "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/40",
     };
-    return map[s] || "bg-white/10 text-white/40";
+    return map[s] || "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/40";
   };
 
   const statusLabel = (s: string) => {
@@ -295,33 +298,33 @@ function CompaniesSection() {
 
   return (
     <div className="space-y-3">
-      <button onClick={inv} className="flex items-center gap-2 text-xs text-white/50 hover:text-white"><RefreshCw size={13} /> {tr("admin.subscriptions.refresh")}</button>
-      <div className="overflow-hidden rounded-2xl border border-white/10">
+      <button onClick={inv} className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-900 dark:text-white/50 dark:hover:text-white"><RefreshCw size={13} /> {tr("admin.subscriptions.refresh")}</button>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
         <table className="w-full text-sm">
-          <thead className="bg-white/5 text-left text-xs uppercase text-white/40">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-400 dark:bg-white/5 dark:text-white/40">
             <tr><th className="px-4 py-2">{tr("admin.subscriptions.company")}</th><th className="px-4 py-2">Plan</th><th className="px-4 py-2">{tr("common.status")}</th><th className="px-4 py-2">{tr("admin.subscriptions.dueDate")}</th><th className="px-4 py-2 text-right">{tr("common.actions")}</th></tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
             {rows.data?.map((r) => (
-              <tr key={r.company_id} className="text-white/80">
-                <td className="px-4 py-2 font-semibold">
+              <tr key={r.company_id} className="text-slate-700 dark:text-white/80">
+                <td className="px-4 py-2 font-semibold text-slate-900 dark:text-white">
                   {r.company_name}
                   {r.admin_granted && (
-                    <span title={r.admin_granted_note || "Forfait accordé manuellement"} className="ml-2 rounded-full bg-violet-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-300">
+                    <span title={r.admin_granted_note || "Forfait accordé manuellement"} className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
                       <Gift size={9} className="mr-0.5 inline" />offert
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-white/50">{r.plan_code || "—"}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-white/50">{r.plan_code || "—"}</td>
                 <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge(r.status)}`}>{statusLabel(r.status)}</span></td>
-                <td className="px-4 py-2 text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString(i18n.language) : "—"}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-white/50">{r.current_period_end ? new Date(r.current_period_end).toLocaleDateString(i18n.language) : "—"}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1.5">
-                    <button onClick={() => setGrantFor({ id: r.company_id, name: r.company_name })} title="Octroyer un abonnement" className="rounded-lg bg-violet-500/20 px-2 py-1 text-violet-300 hover:bg-violet-500/30"><Gift size={14} /></button>
+                    <button onClick={() => setGrantFor({ id: r.company_id, name: r.company_name })} title="Octroyer un abonnement" className="rounded-lg bg-violet-50 px-2 py-1 text-violet-700 hover:bg-violet-100 dark:bg-violet-500/20 dark:text-violet-300 dark:hover:bg-violet-500/30"><Gift size={14} /></button>
                     {r.company_status === "suspended" ? (
-                      <button onClick={() => reactivate.mutate(r.company_id)} title={tr("admin.subscriptions.reactivate")} className="rounded-lg bg-emerald-500/20 px-2 py-1 text-emerald-300 hover:bg-emerald-500/30"><Check size={14} /></button>
+                      <button onClick={() => reactivate.mutate(r.company_id)} title={tr("admin.subscriptions.reactivate")} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30"><Check size={14} /></button>
                     ) : (
-                      <button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmSuspendTitle", { name: r.company_name }), message: tr("admin.subscriptions.confirmSuspendMessage"), danger: true, confirmLabel: tr("admin.subscriptions.suspend") })) suspend.mutate(r.company_id); }} title={tr("admin.subscriptions.suspend")} className="rounded-lg bg-rose-500/20 px-2 py-1 text-rose-300 hover:bg-rose-500/30"><Ban size={14} /></button>
+                      <button onClick={async () => { if (await confirm({ title: tr("admin.subscriptions.confirmSuspendTitle", { name: r.company_name }), message: tr("admin.subscriptions.confirmSuspendMessage"), danger: true, confirmLabel: tr("admin.subscriptions.suspend") })) suspend.mutate(r.company_id); }} title={tr("admin.subscriptions.suspend")} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/30"><Ban size={14} /></button>
                     )}
                   </div>
                 </td>
