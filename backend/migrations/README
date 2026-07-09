@@ -1,0 +1,25 @@
+Migrations Alembic — KOMPTA backend
+
+Contexte : la base a longtemps été maintenue via un dict `additions` dans
+`app/db/init_db.py` (ALTER TABLE au démarrage). Ce mécanisme reste en place
+pour tout ce qui existe déjà en prod — Alembic ne le remplace pas
+rétroactivement (la révision `43bfdb0b0072` est un no-op volontaire, voir
+sa docstring).
+
+À partir de maintenant, pour un NOUVEAU changement de schéma :
+
+1. Modifier le modèle SQLAlchemy dans `app/models/domain.py`.
+2. Générer une révision :
+     alembic revision --autogenerate -m "description courte"
+3. OUVRIR et relire le fichier généré dans `migrations/versions/` avant de
+   la committer — l'autogénération peut proposer des changements en trop
+   (types, contraintes) s'ils divergent du schéma réel. Ne jamais committer
+   une révision sans l'avoir lue.
+4. Tester sur une COPIE de la base (jamais directement en prod) :
+     cp kompta.db /tmp/test.db
+     DATABASE_URL=sqlite:////tmp/test.db alembic upgrade head
+5. Une fois vérifiée, l'appliquer normalement (upgrade head) au déploiement.
+
+Ne jamais ajouter de nouvelle colonne au dict `additions` de `init_db.py`
+en parallèle d'une migration Alembic pour la même colonne — un seul
+mécanisme par changement, sinon les deux se marchent dessus.
