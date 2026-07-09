@@ -276,6 +276,10 @@ export function GuidedTour() {
     if (!step.selector) { targetElRef.current = null; setRect(null); return; }
     let tries = 0;
     let timer: number;
+    // Certaines pages sont chargées à la demande (React.lazy) : le chunk
+    // peut ne pas être encore monté juste après navigate(). On laisse donc
+    // plus de marge (jusqu'à ~4.8s) avant d'abandonner et de retomber sur
+    // une bulle centrée.
     const tick = () => {
       const el = findVisible(step.selector);
       if (el) {
@@ -286,10 +290,10 @@ export function GuidedTour() {
         return;
       }
       tries += 1;
-      if (tries < 14) timer = window.setTimeout(tick, 160);
+      if (tries < 24) timer = window.setTimeout(tick, 200);
       else { targetElRef.current = null; setRect(null); } // fallback : bulle centrée
     };
-    tick();
+    timer = window.setTimeout(tick, 150);
     return () => window.clearTimeout(timer);
   }, [step.selector]);
 
@@ -352,7 +356,11 @@ export function GuidedTour() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true">
+    // z-[120] : au-dessus de CompanySetupWizard (z-85) et SubscriptionGate
+    // (z-100), sinon la visite se lance mais reste cachée derrière ces
+    // overlays plein écran — ce qui la rendait invisible pour les comptes
+    // fraîchement créés (assistant de configuration encore actif).
+    <div className="fixed inset-0 z-[120]" role="dialog" aria-modal="true">
       {/* Spotlight : assombrit tout sauf la cible (découpe via box-shadow) */}
       {rect ? (
         <div

@@ -29,7 +29,7 @@ from pydantic import BaseModel
 
 from app.api.deps import get_current_user, get_db
 from app.api.routes import _require_admin
-from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount, Company
+from app.models import BankTransaction, BankStatementImport, BankStatementLine, PaymentAccount, Company, AuditLog
 from app.schemas.domain import BankTransactionCreate, BankTransactionRead, BankTransactionUpdate, CashDepositCreate
 from app.services import accounting as _accounting
 from app.services.currency import convert_to_xaf
@@ -462,11 +462,34 @@ def delete_transaction(
     # Suppression définitive d'un enregistrement financier : réservée aux
     # admins (cf. audit). Un rôle non-admin ne doit pas pouvoir effacer une
     # transaction bancaire, qui fait foi pour la réconciliation et la
-    # comptabilité de l'entreprise.
+    # comptabilité de l'entreprise. La transaction est archivée dans le
+    # journal d'audit avant suppression pour garder une trace consultable
+    # (cf. audit "suppression définitive sans historique").
     _require_admin(current_user)
     txn = db.get(BankTransaction, txn_id)
     if not txn or txn.company_id != current_user.company_id:
         raise HTTPException(404, "Transaction introuvable")
+    snapshot = {
+        "date": txn.date,
+        "label": txn.label,
+        "amount": txn.amount,
+        "currency": txn.currency,
+        "category": txn.category,
+        "counterpart": txn.counterpart,
+        "reference": txn.reference,
+        "source_type": txn.source_type,
+        "status": txn.status,
+        "payment_account_id": txn.payment_account_id,
+    }
+    db.add(AuditLog(
+        user_id=current_user.id,
+        user_name=current_user.full_name,
+        action="delete",
+        resource_type="bank_transaction",
+        resource_id=txn.id,
+        details=json.dumps({"transaction_snapshot": snapshot}, ensure_ascii=False),
+        company_id=current_user.company_id,
+    ))
     db.delete(txn)
     db.commit()
 
