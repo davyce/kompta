@@ -28,6 +28,11 @@ struct PayrollView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                Section {
+                    NavigationLink { PayrollTaxRemittancesView() } label: {
+                        Label("Reversements CNSS / État", systemImage: "building.columns.fill")
+                    }
+                }
                 ForEach(runs) { run in
                     NavigationLink { PayrollRunDetailView(run: run, onChanged: load) } label: {
                         HStack {
@@ -64,6 +69,116 @@ struct PayrollView: View {
 private func runStatusLabel(_ s: String) -> String {
     switch s { case "validated": return "Validé"; case "paid": return "Payé"; default: return "Brouillon" }
 }
+
+// MARK: - Reversements CNSS / État
+
+/// Les cotisations retenues sur les salaires (CNSS, IRPP) s'accumulent au
+/// fil des cycles de paie comme une dette (comptes 431/447) tant qu'elles
+/// n'ont pas été effectivement reversées à la CNSS/DGI. Cette vue affiche la
+/// dette courante et permet d'enregistrer un reversement réel.
+struct PayrollTaxRemittancesView: View {
+    @EnvironmentObject private var theme: CompanyTheme
+    @State private var liabilities: TaxLiabilities?
+    @State private var loading = true
+    @State private var remitCode: String?
+    @State private var remitAmount = ""
+    @State private var remitMethod = "bank"
+    @State private var submitting = false
+
+    var body: some View {
+        List {
+            Section {
+                Text("Les cotisations retenues sur les salaires (CNSS, IRPP) s'accumulent au fil des cycles de paie jusqu'à leur reversement effectif à la CNSS et à la DGI. Enregistrez ici chaque versement réel pour garder cette dette à jour.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("CNSS (cotisations sociales)") {
+                remittanceRow(code: "431", due: liabilities?.cnss_due ?? 0)
+            }
+            Section("État — IRPP (DGI)") {
+                remittanceRow(code: "447", due: liabilities?.state_tax_due ?? 0)
+            }
+        }
+        .navigationTitle("Reversements")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .task { await load() }
+        .refreshable { await load() }
+        .sheet(item: Binding(get: { remitCode.map { RemitTarget(code: $0) } }, set: { remitCode = $0?.code })) { target in
+            remitSheet(code: target.code)
+        }
+    }
+
+    @ViewBuilder
+    private func remittanceRow(code: String, due: Double) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Montant dû, non reversé").font(.caption).foregroundStyle(.secondary)
+                Text(loading ? "…" : fcfa(due)).font(.title3.bold())
+                    .foregroundStyle(due > 0 ? .red : .green)
+            }
+            Spacer()
+            Button("Reverser") {
+                remitAmount = due > 0 ? String(format: "%.0f", due) : ""
+                remitMethod = "bank"
+                remitCode = code
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(theme.primary)
+            .disabled(due <= 0)
+        }
+    }
+
+    @ViewBuilder
+    private func remitSheet(code: String) -> some View {
+        NavigationStack {
+            Form {
+                Section(code == "431" ? "CNSS (cotisations sociales)" : "État — IRPP (DGI)") {
+                    TextField("Montant reversé", text: $remitAmount)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    Picker("Moyen de paiement", selection: $remitMethod) {
+                        Text("Virement bancaire").tag("bank")
+                        Text("Espèces").tag("cash")
+                        Text("Mobile Money").tag("mobile_money")
+                    }
+                }
+            }
+            .navigationTitle("Enregistrer un reversement")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { remitCode = nil } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Confirmer") { Task { await remit(code: code) } }
+                        .disabled(Double(remitAmount) == nil || Double(remitAmount) == 0 || submitting)
+                }
+            }
+        }
+    }
+
+    private func load() async {
+        loading = true
+        liabilities = try? await APIClient.shared.payrollTaxLiabilities()
+        loading = false
+    }
+
+    private func remit(code: String) async {
+        guard let amount = Double(remitAmount), amount > 0 else { return }
+        submitting = true
+        do {
+            liabilities = try await APIClient.shared.remitPayrollTaxLiability(
+                TaxRemittancePayload(code: code, amount: amount, payment_method: remitMethod)
+            )
+            remitCode = nil
+        } catch { }
+        submitting = false
+    }
+}
+
+private struct RemitTarget: Identifiable { let code: String; var id: String { code } }
 
 struct PayrollRunDetailView: View {
     @State var run: PayrollRun

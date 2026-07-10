@@ -549,6 +549,11 @@ actor APIClient {
     /// Génère le virement de masse (CSV) pour un cycle de paie et marque les bulletins payés.
     func massPayment(runId: Int) async throws -> Data { try await postRawData("/payroll/runs/\(runId)/mass-payment") }
 
+    func payrollTaxLiabilities() async throws -> TaxLiabilities { try await get("/payroll/tax-liabilities") }
+    func remitPayrollTaxLiability(_ p: TaxRemittancePayload) async throws -> TaxLiabilities {
+        try await post("/payroll/tax-liabilities/remit", body: p)
+    }
+
     // MARK: - Téléchargements PDF/CSV (parité web)
     func invoiceExportPDF(_ id: Int) async throws -> Data { try await rawData("/invoices/\(id)/export?format=pdf") }
     func payrollRunExportPDF(_ id: Int) async throws -> Data { try await rawData("/payroll/runs/\(id)/export?format=pdf") }

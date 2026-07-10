@@ -630,6 +630,19 @@ struct PayrollRunPayload: Encodable {
     var payment_account_id: Int?
 }
 
+/// Cotisations CNSS/IRPP retenues sur les salaires mais pas encore reversées
+/// à la CNSS/DGI — accumulées au fil des cycles de paie (comptes 431/447).
+struct TaxLiabilities: Codable {
+    let cnss_due: Double
+    let state_tax_due: Double
+}
+
+struct TaxRemittancePayload: Encodable {
+    var code: String  // "431" (CNSS) | "447" (État/IRPP)
+    var amount: Double
+    var payment_method: String = "bank"
+}
+
 // MARK: - Meetings / Calendar
 
 struct Meeting: Codable, Identifiable, Hashable {
