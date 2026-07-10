@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, Bell, Building2, CheckCircle, Info, Megaphone, Send, Trash2 } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CheckCircle, Info, Megaphone, Send, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -65,16 +65,25 @@ export function AdminBroadcastPage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState<BroadcastType>("info");
-  const [targetAll, setTargetAll] = useState(true);
+  // "all" | "companies" | "users" — remplace l'ancien booléen targetAll pour
+  // pouvoir viser soit des entreprises, soit des utilisateurs individuels.
+  const [targetMode, setTargetMode] = useState<"all" | "companies" | "users">("all");
   // Sélection multiple d'entreprises ("équipes") — remplace l'ancien
   // sélecteur mono-entreprise, on peut désormais viser plusieurs clients d'un
   // coup sans repasser par "toutes les entreprises".
   const [targetCompanyIds, setTargetCompanyIds] = useState<number[]>([]);
   const [companySearch, setCompanySearch] = useState("");
+  const [targetUserIds, setTargetUserIds] = useState<number[]>([]);
+  const [userSearch, setUserSearch] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>(() => loadBroadcasts());
 
   const companies = useQuery({ queryKey: ["adminCompanies"], queryFn: api.adminCompanies });
+  const users = useQuery({
+    queryKey: ["adminUsers", "broadcast"],
+    queryFn: () => api.adminUsers(),
+    enabled: targetMode === "users",
+  });
 
   const sendBroadcast = useMutation({
     mutationFn: () =>
@@ -82,7 +91,8 @@ export function AdminBroadcastPage() {
         title,
         message,
         type,
-        target_company_ids: targetAll ? undefined : targetCompanyIds,
+        target_company_ids: targetMode === "companies" ? targetCompanyIds : undefined,
+        target_user_ids: targetMode === "users" ? targetUserIds : undefined,
       }),
     onSuccess: (data) => {
       const record: BroadcastRecord = {
@@ -90,11 +100,16 @@ export function AdminBroadcastPage() {
         title,
         message,
         type,
-        target: targetAll
-          ? tr("admin.broadcast.allCompanies")
-          : targetCompanyIds
-              .map((id) => companies.data?.find((c) => c.id === id)?.name ?? tr("admin.broadcast.companyNumber", { id }))
-              .join(", "),
+        target:
+          targetMode === "all"
+            ? tr("admin.broadcast.allCompanies")
+            : targetMode === "companies"
+              ? targetCompanyIds
+                  .map((id) => companies.data?.find((c) => c.id === id)?.name ?? tr("admin.broadcast.companyNumber", { id }))
+                  .join(", ")
+              : targetUserIds
+                  .map((id) => users.data?.find((u) => u.id === id)?.full_name ?? `#${id}`)
+                  .join(", "),
         sentAt: new Date().toISOString(),
         userCount: data.user_count ?? 0,
       };
@@ -120,11 +135,26 @@ export function AdminBroadcastPage() {
     setTargetCompanyIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   }
 
-  const targetLabel = targetAll
-    ? tr("admin.broadcast.allCompanies")
-    : targetCompanyIds.length === 0
-      ? tr("admin.broadcast.selectCompany")
-      : tr("admin.broadcast.companiesSelected", { count: targetCompanyIds.length });
+  const filteredUsers = (users.data ?? []).filter(
+    (u) =>
+      u.full_name.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  function toggleUser(id: number) {
+    setTargetUserIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
+  const targetLabel =
+    targetMode === "all"
+      ? tr("admin.broadcast.allCompanies")
+      : targetMode === "companies"
+        ? targetCompanyIds.length === 0
+          ? tr("admin.broadcast.selectCompany")
+          : tr("admin.broadcast.companiesSelected", { count: targetCompanyIds.length })
+        : targetUserIds.length === 0
+          ? tr("admin.broadcast.selectUser")
+          : tr("admin.broadcast.usersSelected", { count: targetUserIds.length });
 
   return (
     <div className="space-y-6">
@@ -202,9 +232,9 @@ export function AdminBroadcastPage() {
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setTargetAll(true)}
+                  onClick={() => setTargetMode("all")}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold ${
-                    targetAll
+                    targetMode === "all"
                       ? "border-indigo-400 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-white"
                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
                   }`}
@@ -212,17 +242,27 @@ export function AdminBroadcastPage() {
                   <Megaphone size={15} /> {tr("admin.broadcast.allCompanies")}
                 </button>
                 <button
-                  onClick={() => setTargetAll(false)}
+                  onClick={() => setTargetMode("companies")}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold ${
-                    !targetAll
+                    targetMode === "companies"
                       ? "border-indigo-400 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-white"
                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
                   }`}
                 >
                   <Building2 size={15} /> {tr("admin.broadcast.specificCompany")}
                 </button>
+                <button
+                  onClick={() => setTargetMode("users")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold ${
+                    targetMode === "users"
+                      ? "border-indigo-400 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <UserRound size={15} /> {tr("admin.broadcast.specificUser")}
+                </button>
               </div>
-              {!targetAll && (
+              {targetMode === "companies" && (
                 <div className="rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950">
                   <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-white/10">
                     <input
@@ -261,6 +301,51 @@ export function AdminBroadcastPage() {
                   </div>
                 </div>
               )}
+              {targetMode === "users" && (
+                <div className="rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950">
+                  <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-white/10">
+                    <input
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder={tr("admin.broadcast.searchUser")}
+                      className="w-full bg-transparent text-sm text-slate-700 outline-none dark:text-white"
+                    />
+                    {targetUserIds.length > 0 && (
+                      <button
+                        onClick={() => setTargetUserIds([])}
+                        className="shrink-0 text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-300"
+                      >
+                        {tr("admin.broadcast.clearSelection")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-56 overflow-y-auto p-2">
+                    {users.isLoading && (
+                      <p className="px-2 py-3 text-center text-xs text-slate-400 dark:text-white/40">{tr("common.loading")}</p>
+                    )}
+                    {!users.isLoading && filteredUsers.length === 0 && (
+                      <p className="px-2 py-3 text-center text-xs text-slate-400 dark:text-white/40">{tr("admin.broadcast.noUserMatch")}</p>
+                    )}
+                    {filteredUsers.map((u) => {
+                      const checked = targetUserIds.includes(u.id);
+                      return (
+                        <label
+                          key={u.id}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold ${
+                            checked ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-white" : "text-slate-700 hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/5"
+                          }`}
+                        >
+                          <input type="checkbox" checked={checked} onChange={() => toggleUser(u.id)} className="h-4 w-4 accent-indigo-600" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {u.full_name}
+                            <span className="ml-1.5 font-normal text-slate-400 dark:text-white/40">{u.email}{u.company_name ? ` · ${u.company_name}` : ""}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -276,7 +361,11 @@ export function AdminBroadcastPage() {
             </div>
           )}
           <button
-            disabled={!title.trim() || !message.trim() || (!targetAll && targetCompanyIds.length === 0) || sendBroadcast.isPending}
+            disabled={
+              !title.trim() || !message.trim() || sendBroadcast.isPending ||
+              (targetMode === "companies" && targetCompanyIds.length === 0) ||
+              (targetMode === "users" && targetUserIds.length === 0)
+            }
             onClick={() => sendBroadcast.mutate()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
           >

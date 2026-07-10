@@ -885,11 +885,23 @@ struct AdminBroadcastView: View {
     @StateObject private var companiesState = Loadable<[AdminCompanyRow]>()
     @State private var selectedCompanyIds: Set<Int> = []
     @State private var companySearch = ""
+    @StateObject private var usersState = Loadable<[AdminUserRow]>()
+    @State private var selectedUserIds: Set<Int> = []
+    @State private var userSearch = ""
 
     private var filteredCompanies: [AdminCompanyRow] {
         guard let all = companiesState.value else { return [] }
         guard !companySearch.isEmpty else { return all }
         return all.filter { $0.name.localizedCaseInsensitiveContains(companySearch) }
+    }
+
+    private var filteredUsers: [AdminUserRow] {
+        guard let all = usersState.value else { return [] }
+        guard !userSearch.isEmpty else { return all }
+        return all.filter {
+            $0.full_name.localizedCaseInsensitiveContains(userSearch) ||
+            $0.email.localizedCaseInsensitiveContains(userSearch)
+        }
     }
 
     var body: some View {
@@ -906,9 +918,40 @@ struct AdminBroadcastView: View {
                 Picker("Cible", selection: $target) {
                     Text("Toutes les entreprises").tag("all")
                     Text("Équipes sélectionnées").tag("companies")
+                    Text("Utilisateur(s) spécifique(s)").tag("users")
                 }
                 .onChange(of: target) { _, newValue in
                     if newValue == "companies" { Task { await loadCompanies() } }
+                    if newValue == "users" { Task { await loadUsers() } }
+                }
+            }
+            if target == "users" {
+                Section("Utilisateurs (\(selectedUserIds.count) sélectionné(s))") {
+                    TextField("Rechercher par nom ou email…", text: $userSearch)
+                    if usersState.isLoading {
+                        ProgressView()
+                    } else {
+                        ForEach(filteredUsers) { user in
+                            Button {
+                                if selectedUserIds.contains(user.id) { selectedUserIds.remove(user.id) }
+                                else { selectedUserIds.insert(user.id) }
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(user.full_name).foregroundStyle(.primary)
+                                        Text("\(user.email)\(user.company_name.map { " · \($0)" } ?? "")")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if selectedUserIds.contains(user.id) {
+                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.indigo)
+                                    } else {
+                                        Image(systemName: "circle").foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             if target == "companies" {
@@ -938,7 +981,11 @@ struct AdminBroadcastView: View {
             }
             Section {
                 KomptaButton(label: "Envoyer la diffusion", icon: "megaphone.fill", isLoading: sending) { showConfirm = true }
-                    .disabled(title.isEmpty || message.isEmpty || (target == "companies" && selectedCompanyIds.isEmpty))
+                    .disabled(
+                        title.isEmpty || message.isEmpty
+                        || (target == "companies" && selectedCompanyIds.isEmpty)
+                        || (target == "users" && selectedUserIds.isEmpty)
+                    )
             }
             if let r = result {
                 Section("Résultat") {
@@ -961,11 +1008,16 @@ struct AdminBroadcastView: View {
         await companiesState.load { try await APIClient.shared.adminCompanies() }
     }
 
+    private func loadUsers() async {
+        await usersState.load { try await APIClient.shared.adminUsers() }
+    }
+
     private func send() async {
         sending = true
         let payload = BroadcastPayload(
             title: title, message: message, type: type, target: target,
-            target_company_ids: target == "companies" ? Array(selectedCompanyIds) : nil
+            target_company_ids: target == "companies" ? Array(selectedCompanyIds) : nil,
+            target_user_ids: target == "users" ? Array(selectedUserIds) : nil
         )
         do { result = try await APIClient.shared.adminBroadcast(payload) }
         catch { }
