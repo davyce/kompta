@@ -2165,22 +2165,41 @@ def list_notifications(
 ):
     """Diffusions admin visibles par l'utilisateur courant (in-app).
 
-    Inclut les broadcasts ciblant tout le monde (`all`) ou son entreprise
-    (`company_id:<id>`), des 30 derniers jours, du plus récent au plus ancien.
-    Permet aux clients (web/iOS/macOS) d'afficher les diffusions même si
-    l'utilisateur n'était pas connecté au moment de l'envoi.
+    Inclut les broadcasts ciblant tout le monde (`all`), son entreprise
+    (`company_id:<id>` ou `company_ids:...,<id>,...`), ou lui personnellement
+    (`user_ids:...,<id>,...`), des 30 derniers jours, du plus récent au plus
+    ancien. Permet aux clients (web/iOS/macOS) d'afficher les diffusions même
+    si l'utilisateur n'était pas connecté au moment de l'envoi.
+
+    Le filtrage se fait côté Python (pas en SQL) car `target` encode des
+    listes CSV (`company_ids:1,2,3`) que l'égalité stricte SQL ne peut pas
+    matcher par appartenance — un bug précédent faisait que les diffusions
+    multi-entreprises n'apparaissaient jamais dans aucune liste.
     """
     since = datetime.now(timezone.utc) - timedelta(days=30)
-    company_target = f"company_id:{current_user.company_id}" if current_user.company_id else "__none__"
-    rows = db.scalars(
+    cid = current_user.company_id
+    uid = current_user.id
+    candidates = db.scalars(
         select(BroadcastLog)
-        .where(
-            BroadcastLog.created_at >= since,
-            BroadcastLog.target.in_(["all", company_target]),
-        )
+        .where(BroadcastLog.created_at >= since)
         .order_by(BroadcastLog.created_at.desc())
-        .limit(50)
+        .limit(200)
     ).all()
+
+    def _matches(t: str) -> bool:
+        if t == "all":
+            return True
+        if t.startswith("company_id:"):
+            return cid is not None and t == f"company_id:{cid}"
+        if t.startswith("company_ids:"):
+            ids = {x for x in t.split(":", 1)[1].split(",") if x}
+            return cid is not None and str(cid) in ids
+        if t.startswith("user_ids:"):
+            ids = {x for x in t.split(":", 1)[1].split(",") if x}
+            return str(uid) in ids
+        return False
+
+    rows = [r for r in candidates if _matches(r.target)][:50]
     return [
         {
             "id": r.id,

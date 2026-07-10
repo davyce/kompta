@@ -285,6 +285,9 @@ class BroadcastPayload(BaseModel):
     # Sélection multiple d'entreprises ("équipes") — prime sur les deux champs
     # ci-dessus quand fournie et non vide.
     target_company_ids: list[int] | None = None
+    # Sélection d'utilisateurs individuels, tous comptes confondus — prime sur
+    # tous les champs de ciblage entreprise quand fournie et non vide.
+    target_user_ids: list[int] | None = None
 
 
 @router.post("/admin/broadcast")
@@ -296,47 +299,68 @@ def broadcast_notification(
 ):
     _require_super_admin(current_user)
 
-    # Cible : `target_company_ids` (multi-sélection) prime, puis
-    # `target_company_id` (legacy single-select), puis `target`.
+    # Cible : `target_user_ids` (utilisateurs individuels) prime sur tout,
+    # puis `target_company_ids` (multi-sélection), puis `target_company_id`
+    # (legacy single-select), puis `target`.
     target = payload.target
-    if payload.target_company_ids:
+    if payload.target_user_ids:
+        target = "user_ids:" + ",".join(str(uid) for uid in payload.target_user_ids)
+    elif payload.target_company_ids:
         target = "company_ids:" + ",".join(str(cid) for cid in payload.target_company_ids)
     elif payload.target_company_id is not None:
         target = f"company_id:{payload.target_company_id}"
 
-    # Déterminer les entreprises ciblées
-    if target == "all":
-        target_company_ids = list(db.scalars(select(Company.id)).all())
-    elif target.startswith("company_ids:"):
+    target_company_ids: list[int] = []
+    if target.startswith("user_ids:"):
         try:
-            ids = [int(x) for x in target.split(":", 1)[1].split(",") if x]
+            uids = [int(x) for x in target.split(":", 1)[1].split(",") if x]
         except ValueError:
             raise HTTPException(status_code=400, detail="Format target invalide.")
-        if not ids:
-            raise HTTPException(status_code=400, detail="Sélectionnez au moins une entreprise.")
-        found = list(db.scalars(select(Company.id).where(Company.id.in_(ids))).all())
-        if not found:
-            raise HTTPException(status_code=404, detail="Aucune des entreprises sélectionnées n'existe.")
-        target_company_ids = found
-    elif target.startswith("company_id:"):
-        try:
-            cid = int(target.split(":")[1])
-        except (IndexError, ValueError):
-            raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
-        company = db.get(Company, cid)
-        if not company:
-            raise HTTPException(status_code=404, detail="Entreprise introuvable")
-        target_company_ids = [cid]
+        if not uids:
+            raise HTTPException(status_code=400, detail="Sélectionnez au moins un utilisateur.")
+        target_users = list(db.scalars(
+            select(User).where(User.id.in_(uids), User.is_active == True).limit(100)
+        ).all())
+        if not target_users:
+            raise HTTPException(status_code=404, detail="Aucun des utilisateurs sélectionnés n'existe.")
+        # Le push temps réel passe par les canaux entreprise — on cible donc
+        # aussi les entreprises des utilisateurs choisis (le filtrage fin par
+        # utilisateur se fait à la réception côté client via `target`).
+        target_company_ids = list({u.company_id for u in target_users if u.company_id})
     else:
-        raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
+        # Déterminer les entreprises ciblées
+        if target == "all":
+            target_company_ids = list(db.scalars(select(Company.id)).all())
+        elif target.startswith("company_ids:"):
+            try:
+                ids = [int(x) for x in target.split(":", 1)[1].split(",") if x]
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Format target invalide.")
+            if not ids:
+                raise HTTPException(status_code=400, detail="Sélectionnez au moins une entreprise.")
+            found = list(db.scalars(select(Company.id).where(Company.id.in_(ids))).all())
+            if not found:
+                raise HTTPException(status_code=404, detail="Aucune des entreprises sélectionnées n'existe.")
+            target_company_ids = found
+        elif target.startswith("company_id:"):
+            try:
+                cid = int(target.split(":")[1])
+            except (IndexError, ValueError):
+                raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
+            company = db.get(Company, cid)
+            if not company:
+                raise HTTPException(status_code=404, detail="Entreprise introuvable")
+            target_company_ids = [cid]
+        else:
+            raise HTTPException(status_code=400, detail="Format target invalide. Utiliser 'all' ou 'company_id:123'")
 
-    # Récupérer les utilisateurs actifs ciblés (max 100 pour éviter timeout)
-    target_users = db.scalars(
-        select(User).where(
-            User.company_id.in_(target_company_ids),
-            User.is_active == True,
-        ).limit(100)
-    ).all()
+        # Récupérer les utilisateurs actifs ciblés (max 100 pour éviter timeout)
+        target_users = list(db.scalars(
+            select(User).where(
+                User.company_id.in_(target_company_ids),
+                User.is_active == True,
+            ).limit(100)
+        ).all())
     sent_count = len(target_users)
 
     log = BroadcastLog(
@@ -365,10 +389,16 @@ def broadcast_notification(
     # (les clients connectés — web/iOS/macOS — l'affichent immédiatement). La
     # persistance reste assurée par BroadcastLog, relue via GET /notifications
     # pour les utilisateurs hors-ligne au moment de l'envoi.
-    background_tasks.add_task(
-        _push_broadcast_realtime, list(target_company_ids),
-        payload.title, payload.message, payload.type,
-    )
+    # Exception : ciblage par utilisateur individuel — le canal de push est
+    # par entreprise, pas par utilisateur, donc un push temps réel afficherait
+    # le message à tout le monde dans l'entreprise (fuite vers des personnes
+    # non ciblées). On s'appuie alors uniquement sur l'email + la liste
+    # persistée (filtrée correctement par utilisateur côté GET /notifications).
+    if not target.startswith("user_ids:"):
+        background_tasks.add_task(
+            _push_broadcast_realtime, list(target_company_ids),
+            payload.title, payload.message, payload.type,
+        )
 
     # Envoi emails en arrière-plan
     for user in target_users:

@@ -495,9 +495,13 @@ struct NotificationBell: View {
                 if manager.unreadCount > 0 {
                     Text("\(min(manager.unreadCount, 99))")
                         .font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
-                        .padding(3).background(.red, in: Circle()).offset(x: 6, y: -6)
+                        .padding(3).background(.red, in: Circle()).offset(x: 3, y: -4)
                 }
             }
+            // Place en .primaryAction (bord droit de la nav bar) : sans cette
+            // marge, le badge de compteur déborde hors de l'écran et se
+            // retrouve coupé (cf. capture utilisateur).
+            .padding(.trailing, 4)
         }
         .sheet(isPresented: $showSheet) { NotificationsView() }
         .task { await manager.refresh() }
