@@ -1699,7 +1699,23 @@
       "variables": "1 · Variables",
       "bulletins": "2 · Bulletins",
       "teras": "3 · TERAS",
+      "remittances": "Reversements",
       "history": "4 · Historique"
+    },
+    "remittances": {
+      "explainer": "Les cotisations retenues sur les salaires (CNSS, IRPP) s'accumulent au fil des cycles de paie jusqu'à leur reversement effectif à la CNSS et à la DGI. Enregistrez ici chaque versement réel pour garder cette dette à jour.",
+      "cnssTitle": "CNSS (cotisations sociales)",
+      "stateTitle": "État — IRPP (DGI)",
+      "dueLabel": "Montant dû, non reversé",
+      "remitButton": "Reverser",
+      "amountLabel": "Montant reversé",
+      "methodLabel": "Moyen de paiement",
+      "methodBank": "Virement bancaire",
+      "methodCash": "Espèces",
+      "methodMobileMoney": "Mobile Money",
+      "confirmButton": "Confirmer le reversement",
+      "remitSuccess": "Reversement enregistré ✓",
+      "remitError": "Erreur lors de l'enregistrement du reversement."
     },
     "kpi": {
       "payrollMass": "Masse salariale",

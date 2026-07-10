@@ -1699,7 +1699,23 @@
       "variables": "1 · Variables",
       "bulletins": "2 · Payslips",
       "teras": "3 · TERAS",
+      "remittances": "Remittances",
       "history": "4 · History"
+    },
+    "remittances": {
+      "explainer": "Payroll withholdings (CNSS, income tax) accumulate across payroll cycles until they are actually remitted to CNSS and the tax authority. Record each real payment here to keep this liability accurate.",
+      "cnssTitle": "CNSS (social contributions)",
+      "stateTitle": "State — income tax (DGI)",
+      "dueLabel": "Amount due, not yet remitted",
+      "remitButton": "Remit",
+      "amountLabel": "Amount remitted",
+      "methodLabel": "Payment method",
+      "methodBank": "Bank transfer",
+      "methodCash": "Cash",
+      "methodMobileMoney": "Mobile Money",
+      "confirmButton": "Confirm remittance",
+      "remitSuccess": "Remittance recorded ✓",
+      "remitError": "Error recording the remittance."
     },
     "kpi": {
       "payrollMass": "Payroll mass",

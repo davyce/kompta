@@ -679,6 +679,13 @@ export const api = {
   exportInvoice: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/invoices/${id}/export?format=${format}`),
   exportPayrollRun: (id: number, format: "html" | "pdf" = "html") => requestBlob(`/payroll/runs/${id}/export?format=${format}`),
   massPaymentPayrollRun: (id: number) => requestBlob(`/payroll/runs/${id}/mass-payment`, { method: "POST" }),
+  payrollTaxLiabilities: () =>
+    request<{ cnss_due: number; cnss_due_cents: number; state_tax_due: number; state_tax_due_cents: number }>("/payroll/tax-liabilities"),
+  remitPayrollTaxLiability: (payload: { code: "431" | "447"; amount: number; payment_method: string }) =>
+    request<{ cnss_due: number; state_tax_due: number }>("/payroll/tax-liabilities/remit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   terasAlerts: () => request<TerasAlert[]>("/teras/alerts"),
   createTaskFromTeras: (id: number) =>
     request<Task>(`/teras/alerts/${id}/create-task`, {

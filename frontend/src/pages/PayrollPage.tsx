@@ -70,7 +70,7 @@ function payrollDate(value: string | null, tr: TFunction) {
   }).format(new Date(value));
 }
 
-type Tab = "variables" | "bulletins" | "teras" | "historique";
+type Tab = "variables" | "bulletins" | "teras" | "historique" | "reversements";
 
 /* ── sub-components ────────────────────────────────────────────── */
 function KpiCard({ label, value, sub, icon: Icon, accent = "emerald" }: {
@@ -245,6 +245,109 @@ function BulletinCard({
   );
 }
 
+/* ── Reversements CNSS / DGI ──────────────────────────────────────
+   Les cotisations retenues sur les salaires (CNSS + IRPP) s'accumulent au
+   fil des cycles de paie comme une dette (comptes 431/447) tant qu'elles
+   n'ont pas été effectivement reversées à la CNSS/DGI. Ce panneau affiche
+   la dette courante et permet d'enregistrer un reversement réel. */
+function PayrollTaxRemittancesPanel({ taxLiabilitiesQ, remitTaxMut, tr }: {
+  taxLiabilitiesQ: { data?: { cnss_due: number; state_tax_due: number }; isLoading: boolean };
+  remitTaxMut: { mutate: (p: { code: "431" | "447"; amount: number; payment_method: string }) => void; isPending: boolean };
+  tr: TFunction;
+}) {
+  const [remitCode, setRemitCode] = useState<"431" | "447" | null>(null);
+  const [remitAmount, setRemitAmount] = useState<string>("");
+  const [remitMethod, setRemitMethod] = useState("bank");
+
+  const cnssDue = taxLiabilitiesQ.data?.cnss_due ?? 0;
+  const stateDue = taxLiabilitiesQ.data?.state_tax_due ?? 0;
+
+  function openRemit(code: "431" | "447", due: number) {
+    setRemitCode(code);
+    setRemitAmount(String(due));
+  }
+
+  function confirmRemit() {
+    if (!remitCode) return;
+    const amount = Number(remitAmount);
+    if (!amount || amount <= 0) return;
+    remitTaxMut.mutate({ code: remitCode, amount, payment_method: remitMethod });
+    setRemitCode(null);
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-5 space-y-4">
+      <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
+        {tr("payroll.remittances.explainer")}
+      </div>
+
+      {[
+        { code: "431" as const, label: tr("payroll.remittances.cnssTitle"), due: cnssDue },
+        { code: "447" as const, label: tr("payroll.remittances.stateTitle"), due: stateDue },
+      ].map(({ code, label, due }) => (
+        <div key={code} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-[#17211f] dark:text-white">{label}</p>
+            <p className="text-xs text-[#717182] mt-0.5">{tr("payroll.remittances.dueLabel")}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <p className={`text-xl font-extrabold ${due > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+              {taxLiabilitiesQ.isLoading ? "…" : money(due)}
+            </p>
+            <button
+              onClick={() => openRemit(code, due)}
+              disabled={due <= 0}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 text-xs font-bold text-white transition"
+            >
+              <Wallet size={12} /> {tr("payroll.remittances.remitButton")}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {remitCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setRemitCode(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
+            <h3 className="font-bold text-[#17211f] dark:text-white">
+              {remitCode === "431" ? tr("payroll.remittances.cnssTitle") : tr("payroll.remittances.stateTitle")}
+            </h3>
+            <label className="block text-xs font-bold uppercase tracking-wide text-[#717182]">
+              {tr("payroll.remittances.amountLabel")}
+              <input
+                type="number" min={0} value={remitAmount} onChange={(e) => setRemitAmount(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              />
+            </label>
+            <label className="block text-xs font-bold uppercase tracking-wide text-[#717182]">
+              {tr("payroll.remittances.methodLabel")}
+              <select
+                value={remitMethod} onChange={(e) => setRemitMethod(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              >
+                <option value="bank">{tr("payroll.remittances.methodBank")}</option>
+                <option value="cash">{tr("payroll.remittances.methodCash")}</option>
+                <option value="mobile_money">{tr("payroll.remittances.methodMobileMoney")}</option>
+              </select>
+            </label>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setRemitCode(null)} className="flex-1 rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white">
+                {tr("common.cancel")}
+              </button>
+              <button
+                onClick={confirmRemit}
+                disabled={remitTaxMut.isPending}
+                className="flex-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {tr("payroll.remittances.confirmButton")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════ */
 export function PayrollPage() {
   const { t: tr } = useTranslation();
@@ -276,6 +379,7 @@ export function PayrollPage() {
   const runsQ      = useQuery({ queryKey: ["payrollRuns"], queryFn: api.payrollRuns });
   const accountsQ  = useQuery({ queryKey: ["paymentAccounts"], queryFn: api.paymentAccounts });
   const employeesQ = useQuery({ queryKey: ["employees"], queryFn: api.employees });
+  const taxLiabilitiesQ = useQuery({ queryKey: ["payrollTaxLiabilities"], queryFn: api.payrollTaxLiabilities });
 
   const payrollAccounts = useMemo(
     () => (accountsQ.data ?? []).filter((a) => a.enabled && a.use_for_payroll),
@@ -366,6 +470,15 @@ export function PayrollPage() {
     onError: () => toast.error(tr("payroll.errors.downloadPdf")),
   });
 
+  const remitTaxMut = useMutation({
+    mutationFn: api.remitPayrollTaxLiability,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payrollTaxLiabilities"] });
+      toast.success(tr("payroll.remittances.remitSuccess"));
+    },
+    onError: () => toast.error(tr("payroll.remittances.remitError")),
+  });
+
   /* ── Limule analysis ── */
   async function handleLimuleAnalysis() {
     if (!currentRun || limuleRunning) return;
@@ -400,10 +513,11 @@ export function PayrollPage() {
 
   /* ── Tabs ── */
   const TABS: { key: Tab; tk: string; icon: React.ElementType }[] = [
-    { key: "variables",   tk: "payroll.tabs.variables",  icon: Edit2 },
-    { key: "bulletins",   tk: "payroll.tabs.bulletins",  icon: FileText },
-    { key: "teras",       tk: "payroll.tabs.teras",      icon: AlertCircle },
-    { key: "historique",  tk: "payroll.tabs.history",    icon: Clock },
+    { key: "variables",    tk: "payroll.tabs.variables",    icon: Edit2 },
+    { key: "bulletins",    tk: "payroll.tabs.bulletins",    icon: FileText },
+    { key: "teras",        tk: "payroll.tabs.teras",        icon: AlertCircle },
+    { key: "reversements", tk: "payroll.tabs.remittances",  icon: Wallet },
+    { key: "historique",   tk: "payroll.tabs.history",      icon: Clock },
   ];
 
   /* ════════ RENDER ════════════════════════════════════════════ */
@@ -931,6 +1045,8 @@ export function PayrollPage() {
         {/* ═══════════════════════════════════════════════════════
             TAB 4 — HISTORIQUE
         ═══════════════════════════════════════════════════════ */}
+        {activeTab === "reversements" && <PayrollTaxRemittancesPanel taxLiabilitiesQ={taxLiabilitiesQ} remitTaxMut={remitTaxMut} tr={tr} />}
+
         {activeTab === "historique" && (
           <div className="max-w-5xl mx-auto px-6 py-5">
             {(runsQ.data?.length ?? 0) === 0 ? (
