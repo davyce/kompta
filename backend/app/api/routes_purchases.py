@@ -24,7 +24,7 @@ from datetime import date, datetime, timezone
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
@@ -74,10 +74,20 @@ def list_purchase_orders(
     if status:
         stmt = stmt.where(PurchaseOrder.status == status)
     if per_page == 0:
-        return db.scalars(stmt).all()
-    total = db.scalar(select(PurchaseOrder.id).where(PurchaseOrder.company_id == current_user.company_id)) or 0
+        items = db.scalars(stmt).all()
+        return [PurchaseOrderRead.model_validate(po) for po in items]
+    total = db.scalar(
+        select(func.count()).select_from(
+            select(PurchaseOrder.id).where(PurchaseOrder.company_id == current_user.company_id).subquery()
+        )
+    ) or 0
     items = db.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all()
-    return {"items": items, "page": page, "per_page": per_page, "pages": math.ceil((total or 1) / per_page) if per_page else 1}
+    return {
+        "items": [PurchaseOrderRead.model_validate(po) for po in items],
+        "page": page,
+        "per_page": per_page,
+        "pages": math.ceil(total / per_page) if per_page else 1,
+    }
 
 
 @router.post("/purchase-orders", response_model=PurchaseOrderRead, status_code=201)
