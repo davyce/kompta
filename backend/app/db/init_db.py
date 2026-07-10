@@ -182,6 +182,7 @@ def ensure_sqlite_migrations() -> None:
             "cash_low_threshold_cents": "INTEGER DEFAULT 5000000",
             "loyalty_enabled": "BOOLEAN DEFAULT 0",
             "loyalty_points_per_1000": "INTEGER DEFAULT 1",
+            "is_public_sector": "BOOLEAN DEFAULT 0",
             # Mentions légales entreprise réelle (CEMAC / OHADA)
             "legal_form": "VARCHAR(40) DEFAULT ''",
             "rccm": "VARCHAR(80) DEFAULT ''",

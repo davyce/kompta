@@ -40,6 +40,12 @@ class Company(TimestampMixin, Base):
     # Programme fidélité POS (désactivé par défaut, activable par l'entreprise).
     loyalty_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     loyalty_points_per_1000: Mapped[int] = mapped_column(Integer, default=1)
+    # Structure de l'État (administration publique) : dans ces structures, les
+    # rémunérations échappent souvent à toute retenue à la source. Ce flag ne
+    # désactive aucune fonctionnalité pour les autres entreprises — il sert
+    # uniquement à signaler/forcer l'affichage du détail des retenues fiscales
+    # sur les bulletins de paie et le suivi des reversements CNSS/DGI.
+    is_public_sector: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # ── Mentions légales (entreprise réelle — zone CEMAC / OHADA) ─────────────
     legal_form: Mapped[str] = mapped_column(String(40), default="")          # SARL | SA | SAS | SUARL | EI | GIE | Association | Coopérative

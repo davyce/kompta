@@ -226,21 +226,90 @@ def record_group_expense(db: Session, company: Company, *, expense_id: int, amou
 
 
 def record_payroll_payment(db: Session, company: Company, *, run_id: int,
-                           amounts_by_method: dict[str, int], user_id: int | None = None) -> JournalEntry | None:
-    """Virement de masse de paie : Dr Charges de personnel (66) / Cr Trésorerie
-    (une ligne de crédit par moyen de paiement utilisé, ex. caisse/banque/mobile money).
-    `amounts_by_method` : {payout_method: montant_cents}, déjà net_pay agrégé par moyen."""
-    total_c = sum(amounts_by_method.values())
-    if total_c <= 0:
+                           amounts_by_method: dict[str, int], user_id: int | None = None,
+                           cnss_employee_cents: int = 0, cnss_employer_cents: int = 0,
+                           irpp_cents: int = 0, family_allowance_cents: int = 0,
+                           work_accident_cents: int = 0) -> JournalEntry | None:
+    """Virement de masse de paie, décomposé (au lieu d'un seul débit "Charges de
+    personnel" opaque = net_pay, qui perdait toute trace des cotisations
+    retenues) :
+
+    Dr 66 Charges de personnel = coût employeur total (brut + cnss employeur +
+                                  allocations familiales + accidents du travail)
+    Cr Trésorerie              = net_pay effectivement versé aux salariés
+    Cr 431 CNSS                = cnss salariale + cnss patronale + allocations
+                                  familiales + accidents du travail (dû à la CNSS)
+    Cr 447 État — impôts       = IRPP retenu (dû à la DGI)
+
+    `amounts_by_method` : {payout_method: net_pay_cents}, déjà agrégé par moyen.
+    Les montants de cotisations sont agrégés sur l'ensemble du cycle par
+    l'appelant (somme des *_cents de chaque bulletin payé dans ce virement).
+
+    L'écriture s'équilibre naturellement : net_pay = brut - cnss_employee - irpp,
+    donc Σdébits = brut + cnss_employer + family_allowance + work_accident =
+    Σcrédits. Les montants crédités sur 431/447 s'accumulent au fil des cycles
+    de paie et représentent la dette non reversée — voir `tax_liabilities()`
+    et `remit_tax_liability()` pour le suivi et le reversement effectif.
+    """
+    net_total_c = sum(amounts_by_method.values())
+    if net_total_c <= 0:
         return None
-    lines = [{"code": "66", "debit": total_c, "credit": 0, "label": "Charges de personnel — virement de masse"}]
+    gross_c = net_total_c + cnss_employee_cents + irpp_cents
+    employer_cost_c = gross_c + cnss_employer_cents + family_allowance_cents + work_accident_cents
+    cnss_total_c = cnss_employee_cents + cnss_employer_cents + family_allowance_cents + work_accident_cents
+
+    lines = [{"code": "66", "debit": employer_cost_c, "credit": 0, "label": "Charges de personnel — coût employeur total"}]
     for method, amount_c in amounts_by_method.items():
         if amount_c <= 0:
             continue
         tre = treasury_account_code(method)
         lines.append({"code": tre, "debit": 0, "credit": amount_c, "label": f"Paie versée ({method or 'espèces'})"})
+    if cnss_total_c > 0:
+        lines.append({"code": "431", "debit": 0, "credit": cnss_total_c, "label": "CNSS retenue/due (salariale + patronale + AF + AT)"})
+    if irpp_cents > 0:
+        lines.append({"code": "447", "debit": 0, "credit": irpp_cents, "label": "IRPP retenu — dû à la DGI"})
+
     return post_entry(db, company_id=company.id, label=f"Virement de masse — cycle de paie #{run_id}", lines=lines,
                       source_type="payroll_payment", source_id=run_id, currency=company_currency(company), user_id=user_id)
+
+
+def tax_liabilities(db: Session, company_id: int) -> dict:
+    """Montants dus mais non encore reversés à la CNSS (431) et à l'État/DGI
+    (447), accumulés au fil des cycles de paie. Solde créditeur = dette."""
+    balances: dict[str, int] = {}
+    for code in ("431", "447"):
+        row = db.execute(
+            select(
+                func.coalesce(func.sum(JournalLine.credit_cents), 0) - func.coalesce(func.sum(JournalLine.debit_cents), 0),
+            )
+            .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+            .where(JournalEntry.company_id == company_id, JournalLine.account_code == code)
+        ).scalar_one()
+        balances[code] = int(row or 0)
+    return {
+        "cnss_due": from_cents(balances["431"]),
+        "cnss_due_cents": balances["431"],
+        "state_tax_due": from_cents(balances["447"]),
+        "state_tax_due_cents": balances["447"],
+    }
+
+
+def remit_tax_liability(db: Session, company: Company, *, code: str, amount_cents: int,
+                        payment_method: str, user_id: int | None = None) -> JournalEntry:
+    """Reversement effectif d'une dette fiscale/sociale accumulée : Dr 431|447
+    (réduit la dette) / Cr Trésorerie (sortie de caisse réelle)."""
+    if code not in ("431", "447"):
+        raise HTTPException(status_code=400, detail="Code invalide — utiliser 431 (CNSS) ou 447 (État).")
+    if amount_cents <= 0:
+        raise HTTPException(status_code=400, detail="Montant invalide.")
+    tre = treasury_account_code(payment_method)
+    label = "Reversement CNSS" if code == "431" else "Reversement État (IRPP/DGI)"
+    lines = [
+        {"code": code, "debit": amount_cents, "credit": 0, "label": label},
+        {"code": tre, "debit": 0, "credit": amount_cents, "label": label},
+    ]
+    return post_entry(db, company_id=company.id, label=label, lines=lines,
+                      source_type="tax_remittance", currency=company_currency(company), user_id=user_id)
 
 
 def company_currency(company: Company) -> str:

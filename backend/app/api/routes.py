@@ -4114,6 +4114,7 @@ def mass_payment_payroll_run(
     w = csv.writer(buf)
     w.writerow(["Bénéficiaire", "Moyen de paiement", "Destination", "Montant net (XAF)", "Référence"])
     amounts_by_method: dict[str, int] = {}
+    cnss_employee_c = cnss_employer_c = irpp_c = family_allowance_c = work_accident_c = 0
     for slip in unpaid:
         w.writerow([
             slip.employee_name,
@@ -4128,11 +4129,18 @@ def mass_payment_payroll_run(
         amounts_by_method[method] = amounts_by_method.get(method, 0) + (
             slip.net_pay_cents or _accounting.to_cents(slip.net_pay)
         )
+        cnss_employee_c += slip.cnss_employee_cents or 0
+        cnss_employer_c += slip.cnss_employer_cents or 0
+        irpp_c += slip.irpp_cents or 0
+        family_allowance_c += slip.family_allowance_cents or 0
+        work_accident_c += slip.work_accident_cents or 0
 
     company = db.get(Company, current_user.company_id)
     try:
         _accounting.record_payroll_payment(
             db, company, run_id=run.id, amounts_by_method=amounts_by_method, user_id=current_user.id,
+            cnss_employee_cents=cnss_employee_c, cnss_employer_cents=cnss_employer_c,
+            irpp_cents=irpp_c, family_allowance_cents=family_allowance_c, work_accident_cents=work_accident_c,
         )
     except Exception:
         db.rollback()
@@ -4145,6 +4153,42 @@ def mass_payment_payroll_run(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="virement-masse-{run.period}.csv"'},
     )
+
+
+class TaxRemittanceRequest(BaseModel):
+    code: str  # "431" (CNSS) | "447" (État/IRPP)
+    amount: float
+    payment_method: str = "bank"
+
+
+@router.get("/payroll/tax-liabilities")
+def get_payroll_tax_liabilities(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Cotisations CNSS et impôts (IRPP) retenus sur les salaires mais pas
+    encore reversés à la CNSS/DGI — accumulés au fil des cycles de paie via
+    l'écriture comptable décomposée du virement de masse."""
+    _require_hr(current_user)
+    return _accounting.tax_liabilities(db, current_user.company_id)
+
+
+@router.post("/payroll/tax-liabilities/remit")
+def remit_payroll_tax_liability(
+    payload: TaxRemittanceRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Enregistre un reversement effectif à la CNSS ou à l'État (DGI) : sortie
+    de trésorerie réelle qui réduit la dette accumulée."""
+    _require_hr(current_user)
+    company = db.get(Company, current_user.company_id)
+    _accounting.remit_tax_liability(
+        db, company, code=payload.code, amount_cents=_accounting.to_cents(payload.amount),
+        payment_method=payload.payment_method, user_id=current_user.id,
+    )
+    db.commit()
+    return _accounting.tax_liabilities(db, current_user.company_id)
 
 
 @router.patch("/payroll/runs/{run_id}", response_model=PayrollRunRead)

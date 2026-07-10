@@ -110,6 +110,7 @@ class CompanyRead(BaseModel):
     cnss_employer_rate: float = 0.08
     family_allowance_rate: float = 0.07
     work_accident_rate: float = 0.02
+    is_public_sector: bool = False
 
 
 class CompanyUpdate(BaseModel):
@@ -144,6 +145,7 @@ class CompanyUpdate(BaseModel):
     cnss_employer_rate: float | None = None
     family_allowance_rate: float | None = None
     work_accident_rate: float | None = None
+    is_public_sector: bool | None = None
 
 
 class CustomRoleBrief(BaseModel):
