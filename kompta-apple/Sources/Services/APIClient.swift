@@ -375,6 +375,26 @@ actor APIClient {
     func deleteClientDiscount(_ clientId: Int, _ discountId: Int) async throws {
         try await delete("/clients/\(clientId)/discounts/\(discountId)")
     }
+    // MARK: - Fournisseurs / Achats (Phase B)
+
+    func suppliers(search: String = "") async throws -> [Supplier] {
+        let q = search.isEmpty ? "" : "&search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        return try await get("/suppliers?per_page=0\(q)")
+    }
+    func createSupplier(_ p: SupplierPayload) async throws -> Supplier { try await post("/suppliers", body: p) }
+    func updateSupplier(_ id: Int, _ p: SupplierPayload) async throws -> Supplier { try await put("/suppliers/\(id)", body: p) }
+    func deleteSupplier(_ id: Int) async throws { try await delete("/suppliers/\(id)") }
+
+    func purchaseOrders() async throws -> [PurchaseOrder] { try await get("/purchase-orders?per_page=0") }
+    func createPurchaseOrder(_ p: PurchaseOrderPayload) async throws -> PurchaseOrder { try await post("/purchase-orders", body: p) }
+    func approvePurchaseOrder(_ id: Int) async throws -> PurchaseOrder { try await actionDecoded("/purchase-orders/\(id)/approve") }
+    func orderPurchaseOrder(_ id: Int) async throws -> PurchaseOrder { try await actionDecoded("/purchase-orders/\(id)/order") }
+    func receivePurchaseOrder(_ id: Int) async throws -> PurchaseOrder { try await actionDecoded("/purchase-orders/\(id)/receive") }
+    func payPurchaseOrder(_ id: Int, method: String) async throws -> PurchaseOrder {
+        try await actionDecoded("/purchase-orders/\(id)/pay?payment_method=\(method)")
+    }
+    func deletePurchaseOrder(_ id: Int) async throws { try await delete("/purchase-orders/\(id)") }
+
     func updateClientLoyalty(_ id: Int, _ p: UpdateClientLoyaltyPayload) async throws -> Client {
         try await patch("/clients/\(id)/loyalty", body: p)
     }

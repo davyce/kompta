@@ -105,6 +105,84 @@ struct UpdateClientLoyaltyPayload: Encodable {
     var global_discount_percent: Double? = nil
 }
 
+// MARK: - Fournisseurs / Achats (Phase B)
+
+struct Supplier: Codable, Identifiable, Hashable {
+    let id: Int
+    var name: String
+    var email: String?
+    var phone: String?
+    var address: String?
+    var city: String?
+    var country: String?
+    var notes: String?
+    var status: String
+    var tax_id: String?
+    var payment_terms_days: Int
+
+    var initials: String {
+        name.components(separatedBy: " ").prefix(2)
+            .compactMap { $0.first }.map(String.init).joined().uppercased()
+    }
+}
+
+struct SupplierPayload: Encodable {
+    var name: String
+    var email: String?
+    var phone: String?
+    var address: String?
+    var city: String?
+    var country: String?
+    var notes: String?
+    var status: String = "active"
+    var tax_id: String?
+    var payment_terms_days: Int = 30
+}
+
+struct PurchaseOrderLine: Codable, Identifiable, Hashable {
+    let id: Int
+    let product_id: Int?
+    let description: String
+    let quantity: Int
+    let unit_cost: Double
+    let tax_rate: Double
+    let total: Double
+}
+
+struct PurchaseOrder: Codable, Identifiable, Hashable {
+    let id: Int
+    let number: String
+    let supplier_id: Int
+    let supplier_name: String
+    let status: String            // draft | ordered | received | paid | cancelled
+    let approval_status: String   // not_required | pending | approved | rejected
+    let subtotal: Double
+    let tax_amount: Double
+    let total_amount: Double
+    let expected_date: String?
+    let received_at: String?
+    let payment_method: String
+    let paid_at: String?
+    let rejection_reason: String
+    let notes: String
+    let lines: [PurchaseOrderLine]
+}
+
+struct PurchaseOrderLinePayload: Encodable {
+    var product_id: Int?
+    var description: String
+    var quantity: Int = 1
+    var unit_cost: Double = 0
+    var tax_rate: Double = 0
+}
+
+struct PurchaseOrderPayload: Encodable {
+    var supplier_id: Int
+    var expected_date: String?
+    var notes: String = ""
+    var lines: [PurchaseOrderLinePayload]
+}
+
 // MARK: - Billing / Invoices
 
 struct InvoiceLine: Codable, Identifiable, Hashable {

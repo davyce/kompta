@@ -57,6 +57,7 @@
 		7C2B020019256D3AF5D87E27 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F7EC48B1C0BA411551319A /* AppShell.swift */; };
 		7D8F3CE37151828D140D39C1 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34302996CFECB2C83D8235C1 /* LoginView.swift */; };
 		7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55170B62A38E88B30FA3639D /* PDFExport.swift */; };
+		808388202E6C13CB11E77A5A /* PurchasesViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297CEF818E8C1C947B5BEB89 /* PurchasesViews.swift */; };
 		81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55170B62A38E88B30FA3639D /* PDFExport.swift */; };
 		8C5A0388D29DFFD60C0C4921 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF8CE3A9BAFAF147D13F64E2 /* Assets.xcassets */; };
 		8ECAB359A25A46DECE4004B5 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176A484AD1CA84ECA25942D /* AdminModels.swift */; };
@@ -112,6 +113,7 @@
 		F06291DC26435979688D4934 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2333D4A2BC2297747BB6973E /* ContentView.swift */; };
 		F553AEF0A1FE12D88D8A8AC8 /* SuperAdminShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9774793C3306AE1DEFC9F8F /* SuperAdminShell.swift */; };
 		F76A1255F3FB5F4303482719 /* ActivationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28CE337254CC475A9781F72 /* ActivationView.swift */; };
+		F76E89D135DDAA1A9679954D /* PurchasesViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297CEF818E8C1C947B5BEB89 /* PurchasesViews.swift */; };
 		F87BFAAF08DBA02905925320 /* HRExtraViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */; };
 		F93DDD6398F9A594B39F8B69 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
 		FAD061691A7FB30C0BBB39DC /* AIAnalysisPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */; };
@@ -130,6 +132,7 @@
 		1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
 		2333D4A2BC2297747BB6973E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		27610E5929BD66FE3262DA7D /* GlassComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassComponents.swift; sourceTree = "<group>"; };
+		297CEF818E8C1C947B5BEB89 /* PurchasesViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchasesViews.swift; sourceTree = "<group>"; };
 		2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRExtraViews.swift; sourceTree = "<group>"; };
 		33D00FB95CA5427EB049A576 /* ScanProductView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanProductView.swift; sourceTree = "<group>"; };
 		34302996CFECB2C83D8235C1 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -264,6 +267,7 @@
 				2F9A528B2D84A4F5A1B76ECD /* HRExtraViews.swift */,
 				1FFBBE5ED2595A8C9A067076 /* InventoryView.swift */,
 				05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */,
+				297CEF818E8C1C947B5BEB89 /* PurchasesViews.swift */,
 				5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */,
 			);
 			path = Modules;
@@ -567,6 +571,7 @@
 				62F376CD3EEF9D632C5F0A5A /* OpeningBalanceView.swift in Sources */,
 				7EC28DE3202F7A17A331C109 /* PDFExport.swift in Sources */,
 				BB462B1371FC2680A6747AF9 /* POSView.swift in Sources */,
+				F76E89D135DDAA1A9679954D /* PurchasesViews.swift in Sources */,
 				B0CB3DA128A97F405395C5AC /* RolesView.swift in Sources */,
 				C407F9024F86F3CF55D7FF7F /* ScanProductView.swift in Sources */,
 				EA8C06FAFB8C286B8C8A1889 /* SecurityView.swift in Sources */,
@@ -625,6 +630,7 @@
 				E874D21BD5F4FFAEE9CB84BF /* OpeningBalanceView.swift in Sources */,
 				81CED3B0362CA0F245E69746 /* PDFExport.swift in Sources */,
 				7880938DFF872F614648FF2C /* POSView.swift in Sources */,
+				808388202E6C13CB11E77A5A /* PurchasesViews.swift in Sources */,
 				75439F2759679EAC1B4D4429 /* RolesView.swift in Sources */,
 				4A9A4098A3108750CDF42A85 /* ScanProductView.swift in Sources */,
 				DBA190C6E3B8D0AC62EDA501 /* SecurityView.swift in Sources */,

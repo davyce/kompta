@@ -40,6 +40,8 @@ enum ModuleRegistry {
                   tint: .indigo, section: "Ventes & clients") { BillingView() },
         AppModule("inventory", "Inventaire", icon: "shippingbox.fill",
                   tint: .orange, section: "Ventes & clients") { InventoryView() },
+        AppModule("purchases", "Achats", icon: "cart.badge.plus",
+                  tint: .brown, section: "Ventes & clients") { PurchasesView() },
         // ── Finance ─────────────────────────────────────────────────────
         AppModule("transactions", "Transactions", icon: "arrow.left.arrow.right",
                   tint: .teal, section: "Finance") { TransactionsView() },
