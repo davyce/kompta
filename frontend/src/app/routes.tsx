@@ -53,6 +53,7 @@ const MeetingsPage        = lazy(() => import("../pages/MeetingsPage").then(m =>
 const HelpCenterPage      = lazy(() => import("../pages/HelpCenterPage").then(m => ({ default: m.HelpCenterPage })));
 const SafeModePage        = lazy(() => import("../pages/SafeModePage").then(m => ({ default: m.SafeModePage })));
 const ClientsPage         = lazy(() => import("../pages/ClientsPage").then(m => ({ default: m.ClientsPage })));
+const PurchasesPage       = lazy(() => import("../pages/PurchasesPage").then(m => ({ default: m.PurchasesPage })));
 const CrmPage             = lazy(() => import("../pages/CrmPage").then(m => ({ default: m.CrmPage })));
 const InvestmentsPage     = lazy(() => import("../pages/InvestmentsPage").then(m => ({ default: m.InvestmentsPage })));
 const BudgetPage          = lazy(() => import("../pages/BudgetPage").then(m => ({ default: m.BudgetPage })));
@@ -318,6 +319,7 @@ export const router = createBrowserRouter([
       { path: "help",                  element: <LazyRoute page={HelpCenterPage} /> },
       { path: "safe-mode",             element: <LazyRoute page={SafeModePage} /> },
       { path: "clients",               element: <LazyRoute page={ClientsPage} /> },
+      { path: "purchases",             element: <LazyRoute page={PurchasesPage} /> },
       { path: "crm",                   element: <LazyRoute page={CrmPage} /> },
       { path: "investments",           element: <LazyRoute page={InvestmentsPage} /> },
       { path: "budget",                element: <LazyRoute page={BudgetPage} /> },

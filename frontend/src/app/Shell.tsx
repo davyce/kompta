@@ -35,6 +35,7 @@ import {
   ShoppingCart,
   Boxes,
   Target,
+  Truck,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -201,6 +202,7 @@ const navSections: NavSection[] = [
       { to: "/crm", icon: Target },
       { to: "/pos", icon: ShoppingCart },
       { to: "/inventory", icon: Boxes },
+      { to: "/purchases", icon: Truck },
     ],
   },
   {
@@ -270,6 +272,7 @@ const routeLabels: Record<string, { sectionKey: string; titleTk: string }> = {
   "/crm": { sectionKey: "Commerce", titleTk: "nav.titles./crm" },
   "/pos": { sectionKey: "POS / Caisse", titleTk: "nav.titles./pos" },
   "/inventory": { sectionKey: "Inventaire", titleTk: "nav.titles./inventory" },
+  "/purchases": { sectionKey: "Achats", titleTk: "nav.titles./purchases" },
   "/projects": { sectionKey: "Projets", titleTk: "nav.titles./projects" },
   "/kanban": { sectionKey: "Kanban", titleTk: "nav.titles./kanban" },
   "/chat": { sectionKey: "Chat", titleTk: "nav.titles./chat" },

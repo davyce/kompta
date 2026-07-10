@@ -1292,6 +1292,42 @@ export const api = {
   deleteClient: (id: number) =>
     request<void>(`/clients/${id}`, { method: "DELETE" }),
 
+  /* ── Fournisseurs / Achats (Phase B) ─────────────────────── */
+  suppliers: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return request<{ items: SupplierDto[]; total: number } | SupplierDto[]>(`/suppliers${q ? `?${q}` : ""}`).then((r) => (Array.isArray(r) ? r : (r as { items: SupplierDto[] }).items ?? []));
+  },
+  supplierStats: (id: number) => request<SupplierStatsDto>(`/suppliers/${id}/stats`),
+  createSupplier: (payload: Pick<SupplierDto, "name" | "email" | "phone" | "address" | "city" | "country" | "notes" | "status" | "tax_id" | "payment_terms_days">) =>
+    request<SupplierDto>("/suppliers", { method: "POST", body: JSON.stringify(payload) }),
+  updateSupplier: (id: number, payload: Partial<Pick<SupplierDto, "name" | "email" | "phone" | "address" | "city" | "country" | "notes" | "status" | "tax_id" | "payment_terms_days">>) =>
+    request<SupplierDto>(`/suppliers/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteSupplier: (id: number) =>
+    request<void>(`/suppliers/${id}`, { method: "DELETE" }),
+
+  purchaseOrders: (params?: { status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    const q = qs.toString();
+    return request<{ items: PurchaseOrderDto[] } | PurchaseOrderDto[]>(`/purchase-orders${q ? `?${q}` : ""}`).then((r) => (Array.isArray(r) ? r : (r as { items: PurchaseOrderDto[] }).items ?? []));
+  },
+  purchaseOrder: (id: number) => request<PurchaseOrderDto>(`/purchase-orders/${id}`),
+  createPurchaseOrder: (payload: {
+    supplier_id: number; expected_date?: string | null; notes?: string;
+    lines: { product_id?: number | null; description: string; quantity: number; unit_cost: number; tax_rate?: number }[];
+  }) => request<PurchaseOrderDto>("/purchase-orders", { method: "POST", body: JSON.stringify(payload) }),
+  approvePurchaseOrder: (id: number) => request<PurchaseOrderDto>(`/purchase-orders/${id}/approve`, { method: "POST" }),
+  rejectPurchaseOrder: (id: number, reason: string) =>
+    request<PurchaseOrderDto>(`/purchase-orders/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }),
+  orderPurchaseOrder: (id: number) => request<PurchaseOrderDto>(`/purchase-orders/${id}/order`, { method: "POST" }),
+  receivePurchaseOrder: (id: number) => request<PurchaseOrderDto>(`/purchase-orders/${id}/receive`, { method: "POST" }),
+  payPurchaseOrder: (id: number, paymentMethod: string) =>
+    request<PurchaseOrderDto>(`/purchase-orders/${id}/pay?payment_method=${encodeURIComponent(paymentMethod)}`, { method: "POST" }),
+  deletePurchaseOrder: (id: number) => request<void>(`/purchase-orders/${id}`, { method: "DELETE" }),
+
   /* ── CRM léger — pipeline d'opportunités ─────────────────────── */
   crmOpportunities: (params?: { stage?: string }) => {
     const qs = new URLSearchParams();
@@ -2262,6 +2298,62 @@ export type ClientDto = {
   company_id: number;
   created_at: string;
   updated_at: string;
+};
+
+export type SupplierDto = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  notes: string | null;
+  status: string;
+  tax_id: string | null;
+  payment_terms_days: number;
+  company_id: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierStatsDto = {
+  supplier_id: number;
+  purchase_order_count: number;
+  total_owed: number;
+  unpaid_count: number;
+  last_order_date: string | null;
+};
+
+export type PurchaseOrderLineDto = {
+  id: number;
+  product_id: number | null;
+  description: string;
+  quantity: number;
+  unit_cost: number;
+  tax_rate: number;
+  total: number;
+};
+
+export type PurchaseOrderDto = {
+  id: number;
+  number: string;
+  supplier_id: number;
+  supplier_name: string;
+  status: string; // draft | pending_approval-ish (approval_status separate) | ordered | received | paid | cancelled
+  approval_status: string; // not_required | pending | approved | rejected
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  expected_date: string | null;
+  received_at: string | null;
+  payment_method: string;
+  paid_at: string | null;
+  rejection_reason: string;
+  notes: string;
+  company_id: number;
+  created_at: string;
+  lines: PurchaseOrderLineDto[];
 };
 
 export type ClientDiscountDto = {
