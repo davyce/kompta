@@ -181,6 +181,7 @@ export function SettingsPage() {
     cnss_employer_rate: 0.08,
     family_allowance_rate: 0.07,
     work_accident_rate: 0.02,
+    is_public_sector: false,
   });
   const [myPayoutForm, setMyPayoutForm] = useState({
     payout_method: "mobile_money",
@@ -262,6 +263,7 @@ export function SettingsPage() {
       cnss_employer_rate: d.cnss_employer_rate ?? 0.08,
       family_allowance_rate: d.family_allowance_rate ?? 0.07,
       work_accident_rate: d.work_accident_rate ?? 0.02,
+      is_public_sector: d.is_public_sector ?? false,
     });
   }, [company.data]);
 
@@ -606,7 +608,7 @@ export function SettingsPage() {
                         <label key={field.key} className="block text-xs font-bold uppercase text-[#717182]">
                           {field.label}
                           <input
-                            value={companyForm[field.key as keyof typeof companyForm]}
+                            value={companyForm[field.key as keyof typeof companyForm] as string}
                             onChange={(event) => setCompanyForm({ ...companyForm, [field.key]: event.target.value })}
                             placeholder={field.placeholder}
                             disabled={isEmployeeSelfService}
@@ -688,7 +690,7 @@ export function SettingsPage() {
                         { label: tr("settingsPage.general.fields.shareCapital"), key: "share_capital", ph: tr("settingsPage.general.placeholders.shareCapital") },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
-                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                          <input value={companyForm[f.key as keyof typeof companyForm] as string} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
                             className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                         </label>
                       ))}
@@ -720,7 +722,7 @@ export function SettingsPage() {
                         { label: tr("settingsPage.general.fields.website"), key: "website", ph: "https://…" },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
-                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                          <input value={companyForm[f.key as keyof typeof companyForm] as string} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
                             className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                         </label>
                       ))}
@@ -751,7 +753,7 @@ export function SettingsPage() {
                         { label: tr("settingsPage.paymentFields.bankAccount"), key: "bank_account", ph: tr("settingsPage.paymentFields.accountNumber") },
                       ].map((f) => (
                         <label key={f.key} className="block text-xs font-bold uppercase text-[#717182]">{f.label}
-                          <input value={companyForm[f.key as keyof typeof companyForm]} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
+                          <input value={companyForm[f.key as keyof typeof companyForm] as string} onChange={(e) => setCompanyForm({ ...companyForm, [f.key]: e.target.value })} placeholder={f.ph} disabled={isEmployeeSelfService}
                             className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm normal-case text-[#17211f] outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
                         </label>
                       ))}
@@ -791,6 +793,23 @@ export function SettingsPage() {
                         </label>
                       ))}
                     </div>
+                    <label className="mt-4 flex items-start gap-3 rounded-xl border border-black/[0.06] bg-white p-3 dark:border-white/[0.06] dark:bg-[#252931]">
+                      <input
+                        type="checkbox"
+                        checked={companyForm.is_public_sector}
+                        onChange={(e) => setCompanyForm({ ...companyForm, is_public_sector: e.target.checked })}
+                        disabled={isEmployeeSelfService}
+                        className="mt-0.5 h-4 w-4 accent-emerald-600"
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-[#17211f] dark:text-white">Structure de l'État (administration publique)</span>
+                        <span className="block text-xs text-[#717182]">
+                          Dans les structures publiques, les rémunérations échappent souvent à toute retenue à la source.
+                          Active cette option pour garder le détail des retenues fiscales toujours visible sur les
+                          bulletins de paie et le suivi des reversements CNSS/DGI.
+                        </span>
+                      </span>
+                    </label>
                   </div>
 
                   {updateCompany.isSuccess && <p className="mt-3 text-xs font-bold text-emerald-600">{tr("settingsPage.general.companySaved")}</p>}

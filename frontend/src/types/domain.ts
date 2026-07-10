@@ -54,6 +54,7 @@ export type Company = {
   cnss_employer_rate?: number;
   family_allowance_rate?: number;
   work_accident_rate?: number;
+  is_public_sector?: boolean;
 };
 
 export type Employee = {
