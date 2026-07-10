@@ -11,14 +11,14 @@ Principes :
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Iterable
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.models import Account, Company, JournalEntry, JournalLine
+from app.models import Account, Company, FiscalYear, JournalEntry, JournalLine
 
 
 # ── Conversion argent ───────────────────────────────────────────────────────
@@ -38,6 +38,12 @@ DEFAULT_CHART: list[tuple[str, str, str, int]] = [
     # Classe 1 — Capitaux
     ("101", "Capital", "equity", 1),
     ("12", "Résultat de l'exercice", "equity", 1),
+    # Classe 2 — Immobilisations
+    ("21", "Immobilisations incorporelles", "asset", 2),
+    ("24", "Matériel et mobilier", "asset", 2),
+    ("28", "Amortissements des immobilisations", "asset", 2),  # contra-actif (solde créditeur)
+    # Classe 3 — Stocks
+    ("31", "Stocks de marchandises", "asset", 3),
     # Classe 4 — Tiers
     ("401", "Fournisseurs", "liability", 4),
     ("411", "Clients", "asset", 4),
@@ -52,6 +58,7 @@ DEFAULT_CHART: list[tuple[str, str, str, int]] = [
     ("571", "Caisse espèces", "asset", 5),
     # Classe 6 — Charges
     ("60", "Achats", "expense", 6),
+    ("603", "Variation de stock", "expense", 6),  # numéroté 603 par convention SYSCOHADA malgré son lien fonctionnel à la classe 3
     ("62", "Services extérieurs", "expense", 6),
     ("66", "Charges de personnel", "expense", 6),
     ("64", "Impôts et taxes", "expense", 6),
@@ -83,13 +90,17 @@ def treasury_account_code(payment_method: str) -> str:
 
 # ── Plan comptable : seed & accès ───────────────────────────────────────────
 def seed_chart_of_accounts(db: Session, company_id: int) -> None:
-    """Crée le plan comptable par défaut pour une société s'il n'existe pas encore."""
-    existing = db.scalar(
-        select(func.count()).select_from(Account).where(Account.company_id == company_id)
-    ) or 0
-    if existing:
-        return
+    """Crée le plan comptable par défaut pour une société, en ne créant que les
+    comptes MANQUANTS (jamais de doublon). Ainsi une société déjà seedée avant
+    l'ajout de nouveaux comptes au DEFAULT_CHART (ex. classes 2/3) les reçoit
+    automatiquement au prochain appel, sans script de migration séparé ni
+    toucher aux comptes déjà en place."""
+    existing_codes = set(db.scalars(
+        select(Account.code).where(Account.company_id == company_id)
+    ).all())
     for code, name, type_, cls in DEFAULT_CHART:
+        if code in existing_codes:
+            continue
         db.add(Account(company_id=company_id, code=code, name=name, type=type_, syscohada_class=cls))
     db.flush()
 
@@ -147,6 +158,20 @@ def post_entry(
         )
     if total_debit == 0:
         raise HTTPException(status_code=400, detail="Écriture de montant nul")
+
+    # Verrou d'exercice clos : si aucun FiscalYear n'existe pour cette date,
+    # aucune restriction (adoption opt-in — ne casse rien pour les sociétés
+    # qui n'utilisent pas encore la clôture d'exercice).
+    effective_date = entry_date or date.today()
+    fy = db.scalar(
+        select(FiscalYear).where(
+            FiscalYear.company_id == company_id,
+            FiscalYear.start_date <= effective_date,
+            FiscalYear.end_date >= effective_date,
+        )
+    )
+    if fy and fy.status == "closed":
+        raise HTTPException(status_code=400, detail=f"{fy.label} est clôturé — écriture refusée sur cette période.")
 
     entry = JournalEntry(
         company_id=company_id,
@@ -310,6 +335,142 @@ def remit_tax_liability(db: Session, company: Company, *, code: str, amount_cent
     ]
     return post_entry(db, company_id=company.id, label=label, lines=lines,
                       source_type="tax_remittance", currency=company_currency(company), user_id=user_id)
+
+
+# ── Écritures Phase B : achats, stock, exercice ─────────────────────────────
+def record_purchase_receipt(db: Session, company: Company, *, po_id: int,
+                            stock_ht_cents: int, expense_ht_cents: int, tax_cents: int = 0,
+                            user_id: int | None = None) -> JournalEntry | None:
+    """Réception d'un bon de commande, ligne par ligne selon qu'elle est liée
+    à un produit suivi en stock ou à une charge hors-stock (service...) :
+
+    Lignes produit (stock_ht_cents) : Dr 31 Stocks (actif — la charge n'est
+                                       constatée qu'à la vente, voir record_cogs)
+    Lignes hors-stock (expense_ht_cents) : Dr 60 Achats (charge immédiate)
+    TVA déductible (tax_cents)          : Dr 445
+    Cr 401 Fournisseurs = total (stock + charge + TVA)
+    """
+    total_c = stock_ht_cents + expense_ht_cents + tax_cents
+    if total_c <= 0:
+        return None
+    lines = []
+    if stock_ht_cents > 0:
+        lines.append({"code": "31", "debit": stock_ht_cents, "credit": 0, "label": "Entrée en stock (CMP)"})
+    if expense_ht_cents > 0:
+        lines.append({"code": "60", "debit": expense_ht_cents, "credit": 0, "label": "Achats (hors-stock)"})
+    if tax_cents > 0:
+        lines.append({"code": "445", "debit": tax_cents, "credit": 0, "label": "TVA déductible"})
+    lines.append({"code": "401", "debit": 0, "credit": total_c, "label": "Fournisseurs"})
+    return post_entry(db, company_id=company.id, label=f"Réception achat #{po_id}", lines=lines,
+                      source_type="purchase_receipt", source_id=po_id, currency=company_currency(company), user_id=user_id)
+
+
+def record_purchase_payment(db: Session, company: Company, *, po_id: int, total: float,
+                            payment_method: str, user_id: int | None = None) -> JournalEntry | None:
+    """Règlement fournisseur : Dr 401 Fournisseurs / Cr Trésorerie."""
+    total_c = to_cents(total)
+    if total_c <= 0:
+        return None
+    tre = treasury_account_code(payment_method)
+    lines = [{"code": "401", "debit": total_c, "credit": 0, "label": "Règlement fournisseur"},
+             {"code": tre, "debit": 0, "credit": total_c, "label": "Décaissement"}]
+    return post_entry(db, company_id=company.id, label=f"Règlement achat #{po_id}", lines=lines,
+                      source_type="purchase_payment", source_id=po_id, currency=company_currency(company), user_id=user_id)
+
+
+def record_cogs(db: Session, company: Company, *, sale_id: int, cogs_cents: int,
+                user_id: int | None = None) -> JournalEntry | None:
+    """Sortie de stock à la vente, constatée au coût moyen pondéré (CMP) :
+    Dr 603 Variation de stock / Cr 31 Stocks.
+    Aucune écriture si cogs_cents <= 0 (ex. produit jamais reçu via un bon de
+    commande, sans base de coût connue — évite de fausser la marge avec un
+    coût à zéro)."""
+    if cogs_cents <= 0:
+        return None
+    lines = [{"code": "603", "debit": cogs_cents, "credit": 0, "label": "Variation de stock (sortie CMP)"},
+             {"code": "31", "debit": 0, "credit": cogs_cents, "label": "Stocks de marchandises"}]
+    return post_entry(db, company_id=company.id, label=f"COGS vente #{sale_id}", lines=lines,
+                      source_type="cogs", source_id=sale_id, currency=company_currency(company), user_id=user_id)
+
+
+def net_result_cents(db: Session, company_id: int, *, start: date, end: date) -> int:
+    """Résultat net = Σ(crédits - débits) des comptes de classe 6 (charges) et
+    7 (produits) sur la période. Positif = bénéfice, négatif = perte."""
+    row = db.execute(
+        select(func.coalesce(func.sum(JournalLine.credit_cents - JournalLine.debit_cents), 0))
+        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+        .join(Account, JournalLine.account_id == Account.id)
+        .where(
+            JournalEntry.company_id == company_id,
+            Account.syscohada_class.in_((6, 7)),
+            JournalEntry.entry_date >= start,
+            JournalEntry.entry_date <= end,
+        )
+    ).scalar_one()
+    return int(row or 0)
+
+
+def close_fiscal_year(db: Session, company: Company, *, fiscal_year: FiscalYear,
+                      user_id: int | None = None) -> JournalEntry | None:
+    """Clôture d'exercice (version minimale) : solde tous les comptes de
+    classe 6/7 mouvementés sur la période vers le compte 12 "Résultat de
+    l'exercice", puis verrouille la période (voir le garde-fou dans
+    post_entry). Pas de report à nouveau multi-exercices, pas de réouverture
+    — une correction après clôture nécessite un nouvel exercice."""
+    if fiscal_year.status == "closed":
+        raise HTTPException(status_code=400, detail="Exercice déjà clôturé")
+
+    rows = db.execute(
+        select(
+            JournalLine.account_code,
+            func.coalesce(func.sum(JournalLine.debit_cents), 0),
+            func.coalesce(func.sum(JournalLine.credit_cents), 0),
+        )
+        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+        .join(Account, JournalLine.account_id == Account.id)
+        .where(
+            JournalEntry.company_id == company.id,
+            Account.syscohada_class.in_((6, 7)),
+            JournalEntry.entry_date >= fiscal_year.start_date,
+            JournalEntry.entry_date <= fiscal_year.end_date,
+        )
+        .group_by(JournalLine.account_code)
+    ).all()
+
+    lines = []
+    net_c = 0
+    for code, debit, credit in rows:
+        balance = debit - credit  # classe 6/7 : solde normalement débiteur (charge) ou créditeur (produit)
+        if balance == 0:
+            continue
+        net_c += balance
+        if balance > 0:
+            # Solde débiteur (charge) → on le solde au crédit.
+            lines.append({"code": code, "debit": 0, "credit": balance, "label": "Clôture — solde charge"})
+        else:
+            lines.append({"code": code, "debit": -balance, "credit": 0, "label": "Clôture — solde produit"})
+
+    if not lines:
+        fiscal_year.status = "closed"
+        fiscal_year.closed_at = datetime.now(timezone.utc)
+        fiscal_year.closed_by_user_id = user_id
+        return None
+
+    # Équilibre : le résultat (net_c = débits charges - crédits produits, donc
+    # négatif si bénéfice) part sur 12 en sens inverse pour équilibrer l'écriture.
+    if net_c > 0:
+        lines.append({"code": "12", "debit": 0, "credit": net_c, "label": "Résultat de l'exercice (perte)"})
+    elif net_c < 0:
+        lines.append({"code": "12", "debit": -net_c, "credit": 0, "label": "Résultat de l'exercice (bénéfice)"})
+
+    entry = post_entry(db, company_id=company.id, label=f"Clôture {fiscal_year.label}", lines=lines,
+                       source_type="fiscal_year_closing", source_id=fiscal_year.id,
+                       entry_date=fiscal_year.end_date, currency=company_currency(company), user_id=user_id)
+    fiscal_year.status = "closed"
+    fiscal_year.closed_at = datetime.now(timezone.utc)
+    fiscal_year.closed_by_user_id = user_id
+    fiscal_year.closing_entry_id = entry.id if entry else None
+    return entry
 
 
 def company_currency(company: Company) -> str:

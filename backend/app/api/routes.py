@@ -2237,6 +2237,7 @@ def create_sale(
             "transaction_id": None,
         }
     response_items = []
+    cogs_total_cents = 0
     for item in payload.items:
         product = db.get(Product, item.product_id)
         if not product or product.company_id != current_user.company_id:
@@ -2257,6 +2258,14 @@ def create_sale(
         db.refresh(product)
         line_total = product.price * item.quantity
         total += line_total
+        # CMP courant du produit (inchangé par une vente — seule une réception
+        # d'achat le fait bouger, cf. inventory_valuation.apply_purchase_receipt).
+        # 0 si le produit n'a jamais été reçu via un bon de commande — dans ce
+        # cas aucun COGS n'est comptabilisé pour cette ligne (évite de fausser
+        # la marge avec un coût à zéro sur du stock legacy sans base de coût).
+        item_unit_cost_cents = product.average_cost_cents or 0
+        item_cogs_cents = item_unit_cost_cents * item.quantity
+        cogs_total_cents += item_cogs_cents
         sale_item = SaleItem(
             sale_id=sale.id,
             product_id=product.id,
@@ -2271,6 +2280,9 @@ def create_sale(
             quantity=item.quantity,
             reason="Vente POS",
             reference=sale.receipt_number,
+            unit_cost_cents=item_unit_cost_cents,
+            total_cost_cents=-item_cogs_cents,
+            source_type="sale",
             company_id=current_user.company_id,
         )
         sale_item.unit_price_cents = _accounting.to_cents(product.price)
@@ -2391,6 +2403,8 @@ def create_sale(
             db, company, sale_id=sale.id, total=total,
             payment_method=payment_method, tax_amount=0.0, user_id=current_user.id,
         )
+        if cogs_total_cents > 0:
+            _accounting.record_cogs(db, company, sale_id=sale.id, cogs_cents=cogs_total_cents, user_id=current_user.id)
     except Exception:
         logging.getLogger("kompta").exception("Échec écriture comptable vente #%s — vente annulée", sale.id)
         db.rollback()

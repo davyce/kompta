@@ -209,10 +209,20 @@ def ensure_sqlite_migrations() -> None:
             "stripe_connect_status": "VARCHAR(20) DEFAULT 'not_started'",
             "stripe_connect_payouts_enabled": "BOOLEAN DEFAULT 0",
             "platform_fee_percent": "FLOAT DEFAULT 0.0",
+            # Phase B — achats/stock
+            "purchase_order_seq": "INTEGER DEFAULT 0",
+            "purchase_approval_threshold_cents": "INTEGER DEFAULT 0",
         },
         # Colonnes _cents : exactitude monétaire (BigInteger, minor units)
         "products": {
             "price_cents": "INTEGER DEFAULT 0",
+            "average_cost_cents": "INTEGER DEFAULT 0",
+        },
+        "inventory_movements": {
+            "unit_cost_cents": "INTEGER DEFAULT 0",
+            "total_cost_cents": "INTEGER DEFAULT 0",
+            "source_type": "VARCHAR(40) DEFAULT 'manual'",
+            "source_id": "INTEGER",
         },
         "sale_items": {
             "unit_price_cents": "INTEGER DEFAULT 0",

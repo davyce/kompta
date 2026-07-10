@@ -30,11 +30,14 @@ class Company(TimestampMixin, Base):
     # Compteurs de numérotation persistants (jamais dérivés de COUNT → ni collision ni réutilisation)
     invoice_seq: Mapped[int] = mapped_column(Integer, default=0)
     sale_seq: Mapped[int] = mapped_column(Integer, default=0)
+    purchase_order_seq: Mapped[int] = mapped_column(Integer, default=0)
     # Moteur comptable : "simple" (petit commerce, écritures auto invisibles) | "full" (SYSCOHADA visible)
     accounting_mode: Mapped[str] = mapped_column(String(20), default="simple")
     accounting_seq: Mapped[int] = mapped_column(Integer, default=0)  # n° séquentiel des écritures
     # Workflow d'approbation factures : si > 0, toute facture ≥ seuil exige approbation N+1.
     invoice_approval_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    # Idem pour les bons de commande achats — seuil distinct (autorité achats ≠ autorité ventes).
+    purchase_approval_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     # Seuil d'alerte trésorerie (Limule) : alerte si solde < seuil. Défaut 50 000 (en centimes).
     cash_low_threshold_cents: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
     # Programme fidélité POS (désactivé par défaut, activable par l'entreprise).
@@ -364,6 +367,11 @@ class Product(TimestampMixin, Base):
     currency: Mapped[str] = mapped_column(String(10), default="XAF")
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0)
     reorder_level: Mapped[int] = mapped_column(Integer, default=5)
+    # Coût moyen pondéré (CMP) courant, en centimes/unité — recalculé à
+    # chaque réception d'achat, inchangé lors d'une vente (voir
+    # app/services/inventory_valuation.py). 0 = jamais reçu via un bon de
+    # commande (stock legacy sans base de coût connue).
+    average_cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
     qr_code: Mapped[str] = mapped_column(String(255), default="")
     qr_generated: Mapped[bool] = mapped_column(Boolean, default=False)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
@@ -399,6 +407,12 @@ class InventoryMovement(TimestampMixin, Base):
     quantity: Mapped[int] = mapped_column(Integer)
     reason: Mapped[str] = mapped_column(String(160), default="")
     reference: Mapped[str] = mapped_column(String(120), default="")
+    # Valorisation CMP (Phase B) — coût unitaire au moment du mouvement et
+    # coût total signé (positif entrée, négatif sortie), en centimes.
+    unit_cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    total_cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    source_type: Mapped[str] = mapped_column(String(40), default="manual")  # purchase_receipt|sale|adjustment|manual
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
@@ -451,6 +465,89 @@ class InvoiceLine(Base):
     total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
 
     invoice: Mapped[Invoice] = relationship(back_populates="lines")
+
+
+class PurchaseOrder(TimestampMixin, Base):
+    """Bon de commande / achat fournisseur (Phase B)."""
+    __tablename__ = "purchase_orders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    number: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"))
+    supplier_name: Mapped[str] = mapped_column(String(160), default="")
+    # draft → (pending_approval) → approved → ordered → received → paid ; cancelled à tout moment avant received.
+    status: Mapped[str] = mapped_column(String(40), default="draft")
+    subtotal_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    tax_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    total_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
+    expected_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(80), default="")
+    payment_account_id: Mapped[int | None] = mapped_column(ForeignKey("payment_accounts.id"), nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    approval_status: Mapped[str] = mapped_column(String(20), default="not_required")
+    approved_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    rejection_reason: Mapped[str] = mapped_column(String(500), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+
+    lines: Mapped[list["PurchaseOrderLine"]] = relationship(cascade="all, delete-orphan", back_populates="purchase_order")
+
+    # Vues décimales (centimes = source de vérité) pour la sérialisation API,
+    # comme Invoice.subtotal/tax_amount/total_amount.
+    @property
+    def subtotal(self) -> float:
+        return round((self.subtotal_cents or 0) / 100, 2)
+
+    @property
+    def tax_amount(self) -> float:
+        return round((self.tax_amount_cents or 0) / 100, 2)
+
+    @property
+    def total_amount(self) -> float:
+        return round((self.total_amount_cents or 0) / 100, 2)
+
+
+class PurchaseOrderLine(Base):
+    __tablename__ = "purchase_order_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    purchase_order_id: Mapped[int] = mapped_column(ForeignKey("purchase_orders.id"))
+    # Nullable : une ligne peut être une charge hors-stock (service, fourniture non suivie).
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True)
+    description: Mapped[str] = mapped_column(String(180))
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    unit_cost_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    tax_rate: Mapped[float] = mapped_column(Float, default=18.0)
+    total_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    purchase_order: Mapped[PurchaseOrder] = relationship(back_populates="lines")
+
+    @property
+    def unit_cost(self) -> float:
+        return round((self.unit_cost_cents or 0) / 100, 2)
+
+    @property
+    def total(self) -> float:
+        return round((self.total_cents or 0) / 100, 2)
+
+
+class FiscalYear(TimestampMixin, Base):
+    """Exercice comptable — période de clôture annuelle (Phase B, version minimale :
+    pas de report à nouveau multi-exercices, pas de réouverture après clôture)."""
+    __tablename__ = "fiscal_years"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    label: Mapped[str] = mapped_column(String(40))  # ex. "Exercice 2026"
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open | closed
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    closed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    closing_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"), nullable=True)
 
 
 class Sale(TimestampMixin, Base):
@@ -884,6 +981,23 @@ class Client(TimestampMixin, Base):
     portal_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
     discounts: Mapped[list["ClientDiscount"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+
+
+class Supplier(TimestampMixin, Base):
+    __tablename__ = "suppliers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True, default="Congo")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | inactive
+    tax_id: Mapped[str | None] = mapped_column(String(60), nullable=True)  # NIU/NIF fiscal fournisseur
+    payment_terms_days: Mapped[int] = mapped_column(Integer, default=30)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
 
 
 class ClientDiscount(TimestampMixin, Base):

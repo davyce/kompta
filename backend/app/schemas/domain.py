@@ -1125,6 +1125,113 @@ class ClientRead(BaseModel):
     updated_at: datetime
 
 
+class SupplierCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = "Congo"
+    notes: str | None = None
+    status: str = "active"
+    tax_id: str | None = None
+    payment_terms_days: int = 30
+
+
+class SupplierUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
+    notes: str | None = None
+    status: str | None = None
+    tax_id: str | None = None
+    payment_terms_days: int | None = None
+
+
+class SupplierRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str | None
+    phone: str | None
+    address: str | None
+    city: str | None
+    country: str | None
+    notes: str | None
+    status: str
+    tax_id: str | None
+    payment_terms_days: int
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SupplierStatsRead(BaseModel):
+    supplier_id: int
+    purchase_order_count: int
+    total_owed: float
+    unpaid_count: int
+    last_order_date: str | None
+
+
+class PurchaseOrderLineCreate(BaseModel):
+    product_id: int | None = None
+    description: str
+    quantity: int = Field(default=1, gt=0)
+    unit_cost: float = Field(default=0, ge=0)
+    tax_rate: float = Field(default=0.0, ge=0, le=100)
+
+
+class PurchaseOrderLineRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    product_id: int | None
+    description: str
+    quantity: int
+    unit_cost: float
+    tax_rate: float = 0.0
+    total: float
+
+
+class PurchaseOrderCreate(BaseModel):
+    supplier_id: int
+    expected_date: date | None = None
+    notes: str = ""
+    lines: list[PurchaseOrderLineCreate]
+
+
+class PurchaseOrderRejectPayload(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PurchaseOrderRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    number: str
+    supplier_id: int
+    supplier_name: str
+    status: str
+    subtotal: float = 0
+    tax_amount: float = 0
+    total_amount: float
+    expected_date: date | None
+    received_at: datetime | None
+    payment_method: str = ""
+    paid_at: datetime | None
+    approval_status: str = "not_required"
+    rejection_reason: str = ""
+    notes: str = ""
+    company_id: int
+    created_at: datetime
+    lines: list[PurchaseOrderLineRead] = []
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Législation
 # ─────────────────────────────────────────────────────────────────────────
