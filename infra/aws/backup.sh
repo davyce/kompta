@@ -12,6 +12,12 @@ COMPOSE="docker compose --env-file $ENV_FILE"
 TS="$(date +%Y%m%d_%H%M%S)"
 HOST_DIR="/opt/kompta/backups"
 RETENTION_DAYS=14
+# Bucket S3 offsite (protège contre une panne/perte de l'instance elle-même,
+# pas seulement du volume Docker) — nécessite `aws configure` fait une fois
+# sur l'instance avec un utilisateur IAM limité à s3:PutObject/ListBucket sur
+# ce bucket. Laisser vide désactive silencieusement cette étape (pas
+# d'échec du backup local si l'export offsite n'est pas configuré).
+S3_BUCKET="${KOMPTA_BACKUP_S3_BUCKET:-kompta-backups-771413671974}"
 mkdir -p "$HOST_DIR"
 
 cd /opt/kompta
@@ -39,7 +45,26 @@ find "$HOST_DIR" -name 'kompta_*.db.gz' -mtime +"$RETENTION_DAYS" -delete
 
 echo "==> Backup OK : $HOST_DIR/kompta_${TS}.db.gz"
 
+# 3) Export offsite vers S3 — protège contre une panne de l'instance/du
+# disque entier, pas seulement une erreur applicative. Ne fait jamais
+# échouer le backup local si l'upload échoue (réseau coupé, etc.) : le
+# backup local reste la source de vérité immédiate, S3 est une assurance
+# supplémentaire.
+if [[ -n "$S3_BUCKET" ]] && command -v aws >/dev/null 2>&1; then
+  if aws s3 cp "$HOST_DIR/kompta_${TS}.db.gz" "s3://$S3_BUCKET/kompta_${TS}.db.gz" --only-show-errors; then
+    echo "==> Export offsite OK : s3://$S3_BUCKET/kompta_${TS}.db.gz"
+  else
+    echo "==> AVERTISSEMENT : échec de l'export offsite S3 (backup local conservé)" >&2
+  fi
+else
+  echo "==> Export offsite S3 ignoré (S3_BUCKET vide ou CLI aws absent)"
+fi
+
 # Restauration (exemple) :
 #   gunzip -c /opt/kompta/backups/kompta_XXX.db.gz > /tmp/restore.db
 #   docker compose --env-file infra/aws/.env.production cp /tmp/restore.db backend:/app/storage/kompta.db
 #   docker compose --env-file infra/aws/.env.production restart backend
+#
+# Restauration depuis S3 (si l'instance a été perdue) :
+#   aws s3 cp s3://kompta-backups-771413671974/kompta_XXX.db.gz /tmp/restore.db.gz
+#   gunzip /tmp/restore.db.gz
