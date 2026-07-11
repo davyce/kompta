@@ -134,6 +134,56 @@ struct ConvertOpportunityResult: Codable {
     var client_id: Int
 }
 
+// MARK: - Rapprochement bancaire
+
+let BANK_LINE_STATUS_LABEL: [String: String] = [
+    "matched": "Rapproché", "suggested": "Suggéré", "unmatched": "Non rapproché", "ignored": "Ignoré",
+]
+
+let BANK_LINE_STATUS_COLOR: [String: String] = [
+    "matched": "green", "suggested": "orange", "unmatched": "red", "ignored": "gray",
+]
+
+struct BankStatementCandidate: Codable, Hashable {
+    var id: Int
+    var date: String
+    var label: String
+    var amount: Double
+}
+
+struct BankStatementLine: Codable, Identifiable, Hashable {
+    var id: Int
+    var import_id: Int
+    var date: String
+    var label: String
+    var amount: Double
+    var raw_reference: String?
+    var match_status: String
+    var matched_transaction_id: Int?
+    var candidate_transaction_id: Int?
+    var matched_transaction: BankStatementCandidate?
+    var candidate_transaction: BankStatementCandidate?
+}
+
+struct BankStatementImport: Codable, Identifiable, Hashable {
+    var import_id: Int
+    var filename: String
+    var payment_account_id: Int?
+    var status: String
+    var line_count: Int
+    var matched_count: Int
+    var suggested_count: Int
+    var unmatched_count: Int
+    var imported_at: String?
+    var lines: [BankStatementLine]
+
+    var id: Int { import_id }
+}
+
+struct ConfirmLinePayload: Encodable {
+    var transaction_id: Int
+}
+
 struct ClientPayload: Encodable {
     var name: String
     var email: String?

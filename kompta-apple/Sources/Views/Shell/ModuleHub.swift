@@ -47,6 +47,8 @@ enum ModuleRegistry {
         // ── Finance ─────────────────────────────────────────────────────
         AppModule("transactions", "Transactions", icon: "arrow.left.arrow.right",
                   tint: .teal, section: "Finance") { TransactionsView() },
+        AppModule("bank_reconciliation", "Rapprochement bancaire", icon: "arrow.triangle.2.circlepath",
+                  tint: .teal, section: "Finance") { BankReconciliationView() },
         AppModule("budget", "Budget", icon: "chart.pie.fill",
                   tint: .purple, section: "Finance") { BudgetView() },
         AppModule("investments", "Investissements", icon: "chart.line.uptrend.xyaxis",
@@ -141,12 +143,12 @@ enum RolePermissions {
             "company", "hr", "documents", "payroll", "billing", "clients", "crm", "pos", "inventory",
             "work", "tasks", "reports", "analytics", "fiscal", "teras", "reports_teras", "ai_writing",
             "declarations", "legislation", "accounting", "projects", "investments",
-            "budget", "transactions", "audit", "payment_accounts", "safe_mode",
+            "budget", "transactions", "bank_reconciliation", "audit", "payment_accounts", "safe_mode",
         ],
         "comptable": [
             "accounting", "billing", "clients", "crm", "reports", "analytics", "fiscal", "teras", "reports_teras",
             "declarations", "legislation", "ai_writing", "documents", "investments",
-            "budget", "transactions", "payment_accounts",
+            "budget", "transactions", "bank_reconciliation", "payment_accounts",
         ],
         "rh_entreprise": ["hr", "documents", "payroll", "reports", "ai_writing", "declarations"],
         "responsable_pos": ["pos", "inventory", "billing", "clients", "crm", "work", "tasks", "reports", "transactions"],
@@ -167,10 +169,11 @@ enum RolePermissions {
     /// Quelques modules partagent une clé (ex. reports_teras → teras).
     private static func permissionKey(for moduleId: String) -> String? {
         switch moduleId {
-        case "payment_accounts": return "transactions"
-        case "reports_teras":    return "teras"
-        case "work":             return "tasks"
-        case "crm":              return "clients"
+        case "payment_accounts":     return "transactions"
+        case "bank_reconciliation":  return "transactions"
+        case "reports_teras":        return "teras"
+        case "work":                 return "tasks"
+        case "crm":                  return "clients"
         case "dashboard", "groups", "chat", "calendar", "meetings",
              "notes", "help", "limule", "settings", "ai_writing", "safe_mode":
             return nil

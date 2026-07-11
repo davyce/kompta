@@ -397,6 +397,28 @@ actor APIClient {
         try await actionDecoded("/crm/opportunities/\(id)/convert-to-invoice")
     }
 
+    // MARK: - Rapprochement bancaire
+
+    func importBankStatement(accountId: Int, fileData: Data, fileName: String) async throws -> BankStatementImport {
+        try await uploadMultipart("/treasury/accounts/\(accountId)/statements/import",
+                                   fileField: "file", fileData: fileData, fileName: fileName, mime: "text/csv")
+    }
+    func getBankStatementImport(_ importId: Int) async throws -> BankStatementImport {
+        try await get("/treasury/statements/\(importId)")
+    }
+    func rerunStatementMatch(_ importId: Int) async throws {
+        _ = try await postRawData("/treasury/statements/\(importId)/match")
+    }
+    func confirmStatementLine(_ lineId: Int, transactionId: Int) async throws -> BankStatementLine {
+        try await post("/treasury/statements/lines/\(lineId)/confirm", body: ConfirmLinePayload(transaction_id: transactionId))
+    }
+    func createTransactionFromLine(_ lineId: Int) async throws -> BankStatementLine {
+        try await actionDecoded("/treasury/statements/lines/\(lineId)/create-transaction")
+    }
+    func ignoreStatementLine(_ lineId: Int) async throws -> BankStatementLine {
+        try await actionDecoded("/treasury/statements/lines/\(lineId)/ignore")
+    }
+
     // MARK: - Fournisseurs / Achats (Phase B)
 
     func suppliers(search: String = "") async throws -> [Supplier] {
