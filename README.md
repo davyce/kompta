@@ -818,6 +818,12 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 
 ## Changelog
 
+### v1.8.0 — Juillet 2026 (réseau fournisseurs, landing page, portail client)
+
+- ✅ **Réseau fournisseurs inter-entreprises** : recherche d'entreprises par nom/email, invitation à devenir fournisseur connecté, acceptation/refus, bons de commande transmis directement dans l'app du fournisseur (nouvel onglet « Reçues » du module Achats) — disponible sur **web, iOS et macOS**
+- ✅ **Landing page publique** (`/`) : présentation grand public de KOMPTA (modules, spotlight Limule, apps natives) affichée aux visiteurs non connectés, avant l'écran de connexion
+- ✅ **Création de compte portail client simplifiée** : case à cocher directement dans « Nouveau client » pour générer l'accès au portail (web, avec parité iOS/macOS), lien direct vers l'espace client depuis l'écran de connexion
+
 ### v1.7.0 — Juillet 2026 (Achats, apps natives, audit qualité)
 
 - ✅ **Module Achats & Fournisseurs (Phase B)** : fournisseurs, bons de commande avec cycle de vie complet (draft → approuvé → commandé → reçu → payé), **stock valorisé au coût moyen pondéré (CMP)**, écritures comptables automatiques à la réception et au règlement, COGS posté à la vente — disponible sur **web, iOS et macOS**
