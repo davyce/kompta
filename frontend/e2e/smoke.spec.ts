@@ -35,7 +35,7 @@ function criticalErrors(errors: string[]): string[] {
 
 test("la page de connexion se charge sans erreur", async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto("/");
+  await page.goto("/login");
   await expect(page).toHaveTitle(/KOMPTA/i);
   // Un champ de connexion est visible (app montée, pas d'écran blanc).
   // Bilingue : l'app peut s'afficher en FR ou EN selon la langue du navigateur.
@@ -45,7 +45,7 @@ test("la page de connexion se charge sans erreur", async ({ page }) => {
 
 test("le login démo mène au tableau de bord", async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByLabel(/Email ou téléphone|Email or phone/i).fill(DEMO_EMAIL);
   await page.getByLabel(/Mot de passe|Password/i).fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: /Entrer dans KOMPTA|Enter KOMPTA/i }).click();
@@ -57,7 +57,7 @@ test("le login démo mène au tableau de bord", async ({ page }) => {
 });
 
 test("pas de débordement horizontal sur mobile (login)", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.waitForLoadState("networkidle");
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

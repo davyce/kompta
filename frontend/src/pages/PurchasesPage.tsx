@@ -37,10 +37,10 @@ export function PurchasesPage() {
         <h1 className="text-2xl font-extrabold text-[#17211f] dark:text-white">Fournisseurs & Bons de commande</h1>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
         <button
           onClick={() => setTab("orders")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             tab === "orders" ? "bg-emerald-600 text-white" : "bg-white text-[#717182] hover:bg-black/[0.03] dark:bg-[#1e2229] dark:text-white/60 dark:hover:bg-white/[0.04]"
           }`}
         >
@@ -48,7 +48,7 @@ export function PurchasesPage() {
         </button>
         <button
           onClick={() => setTab("suppliers")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             tab === "suppliers" ? "bg-emerald-600 text-white" : "bg-white text-[#717182] hover:bg-black/[0.03] dark:bg-[#1e2229] dark:text-white/60 dark:hover:bg-white/[0.04]"
           }`}
         >
@@ -56,7 +56,7 @@ export function PurchasesPage() {
         </button>
         <button
           onClick={() => setTab("received")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             tab === "received" ? "bg-emerald-600 text-white" : "bg-white text-[#717182] hover:bg-black/[0.03] dark:bg-[#1e2229] dark:text-white/60 dark:hover:bg-white/[0.04]"
           }`}
         >
