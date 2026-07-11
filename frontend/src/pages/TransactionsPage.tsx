@@ -14,6 +14,7 @@ import type { BankTransactionDto, BankTransactionCreateDto, BankTransactionUpdat
 import type { PaymentAccount } from "../types/domain";
 import { compactMoney, money, shortDate, getActiveCurrency } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import * as T from "../styles/table";
 import { LimuleIcon } from "../components/LimuleAvatar";
 import { exportTableToExcel } from "../utils/export";
 import { useConfirm } from "../components/ConfirmProvider";
@@ -864,38 +865,38 @@ export function TransactionsPage() {
             <p className="text-xs mt-1">{tr("transactions.noTxDesc")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+          <div className={T.tableWrap}>
+            <table className={`${T.table} min-w-[900px]`}>
               <thead>
-                <tr className="border-b border-black/[0.04] dark:border-white/[0.04] text-left text-[11px] font-semibold uppercase tracking-wider text-[#717182]">
-                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("date")}>
+                <tr className={T.theadRow}>
+                  <th className={T.thSortable} onClick={() => toggleSort("date")}>
                     <span className="flex items-center">{tr("transactions.colDate")}<SortIcon field="date" /></span>
                   </th>
-                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("label")}>
+                  <th className={T.thSortable} onClick={() => toggleSort("label")}>
                     <span className="flex items-center">{tr("transactions.colLabel")}<SortIcon field="label" /></span>
                   </th>
-                  <th className="cursor-pointer px-4 py-3 text-right" onClick={() => toggleSort("amount")}>
+                  <th className={T.thSortableRight} onClick={() => toggleSort("amount")}>
                     <span className="flex items-center justify-end">{tr("transactions.colDebit")}<SortIcon field="amount" /></span>
                   </th>
-                  <th className="px-4 py-3 text-right">{tr("transactions.colCredit")}</th>
-                  <th className="px-4 py-3 text-right hidden lg:table-cell">{tr("transactions.colBalance")}</th>
-                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleSort("category")}>
+                  <th className={T.thRight}>{tr("transactions.colCredit")}</th>
+                  <th className={`${T.thRight} hidden lg:table-cell`}>{tr("transactions.colBalance")}</th>
+                  <th className={T.thSortable} onClick={() => toggleSort("category")}>
                     <span className="flex items-center">{tr("transactions.colCategory")}<SortIcon field="category" /></span>
                   </th>
-                  <th className="px-4 py-3 hidden md:table-cell">{tr("transactions.colThirdParty")}</th>
-                  <th className="px-4 py-3 hidden sm:table-cell">{tr("transactions.colSource")}</th>
-                  <th className="px-4 py-3 text-right">{tr("transactions.colActions")}</th>
+                  <th className={`${T.th} hidden md:table-cell`}>{tr("transactions.colThirdParty")}</th>
+                  <th className={`${T.th} hidden sm:table-cell`}>{tr("transactions.colSource")}</th>
+                  <th className={T.thRight}>{tr("transactions.colActions")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+              <tbody className={T.tbody}>
                 {filtered.map((t) => {
                   const d = t.debit  ?? (t.amount < 0 ? -t.amount : 0);
                   const c = t.credit ?? (t.amount > 0 ? t.amount  : 0);
                   const cat = catMeta(t.category, tr);
                   return (
-                    <tr key={t.id} className="group hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
-                      <td className="px-4 py-3 text-xs text-[#717182] whitespace-nowrap">{shortDate(t.date)}</td>
-                      <td className="px-4 py-3 max-w-[280px]">
+                    <tr key={t.id} className={T.tr}>
+                      <td className={`${T.td} text-xs text-[#717182] whitespace-nowrap`}>{shortDate(t.date)}</td>
+                      <td className={`${T.td} max-w-[280px]`}>
                         <div className="flex items-center gap-1.5">
                           <p className="truncate text-sm font-medium text-[#17211f] dark:text-white">{t.label}</p>
                           {t.currency && t.currency !== getActiveCurrency() && (
@@ -904,16 +905,16 @@ export function TransactionsPage() {
                         </div>
                         {t.reference && <p className="text-[10px] text-[#aaa]">{t.reference}</p>}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className={T.tdRight}>
                         {d > 0 ? <span className="font-semibold text-red-500">−{formatTxAmount(d, t.currency)}</span> : <span className="text-[#aaa]">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className={T.tdRight}>
                         {c > 0 ? <span className="font-semibold text-emerald-600">+{formatTxAmount(c, t.currency)}</span> : <span className="text-[#aaa]">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right hidden lg:table-cell text-xs text-[#717182]">
+                      <td className={`${T.tdRight} hidden lg:table-cell text-xs text-[#717182]`}>
                         {t.balance != null ? money(t.balance) : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={T.td}>
                         {t.category ? (
                           <span
                             className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -923,10 +924,10 @@ export function TransactionsPage() {
                           </span>
                         ) : <span className="text-[#aaa] text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
+                      <td className={`${T.td} hidden md:table-cell`}>
                         <span className="truncate text-xs text-[#717182] max-w-[120px] block">{t.counterpart || "—"}</span>
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className={`${T.td} hidden sm:table-cell`}>
                         {t.source_file ? (
                           <span className="flex items-center gap-1 text-xs text-[#717182]">
                             <FileTypeIcon filename={t.source_file} />
@@ -936,7 +937,7 @@ export function TransactionsPage() {
                           <span className="text-xs text-[#aaa]">{srcLabel(t.source_type, tr)}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className={T.tdRight}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
                           <button onClick={() => setEditTxn(t)} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]">
                             <Pencil size={13} />
