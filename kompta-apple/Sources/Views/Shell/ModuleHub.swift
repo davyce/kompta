@@ -36,6 +36,8 @@ enum ModuleRegistry {
         // ── Ventes & clients ────────────────────────────────────────────
         AppModule("clients", "Clients", icon: "person.crop.circle.badge.checkmark",
                   tint: .blue, section: "Ventes & clients") { ClientsView() },
+        AppModule("crm", "CRM", icon: "target",
+                  tint: .pink, section: "Ventes & clients") { CrmView() },
         AppModule("billing", "Facturation", icon: "doc.text.fill",
                   tint: .indigo, section: "Ventes & clients") { BillingView() },
         AppModule("inventory", "Inventaire", icon: "shippingbox.fill",
@@ -136,18 +138,18 @@ enum RolePermissions {
     /// Module ids each role may see, beyond the universally-available ones.
     private static let table: [String: Set<String>] = [
         "manager_entreprise": [
-            "company", "hr", "documents", "payroll", "billing", "clients", "pos", "inventory",
+            "company", "hr", "documents", "payroll", "billing", "clients", "crm", "pos", "inventory",
             "work", "tasks", "reports", "analytics", "fiscal", "teras", "reports_teras", "ai_writing",
             "declarations", "legislation", "accounting", "projects", "investments",
             "budget", "transactions", "audit", "payment_accounts", "safe_mode",
         ],
         "comptable": [
-            "accounting", "billing", "clients", "reports", "analytics", "fiscal", "teras", "reports_teras",
+            "accounting", "billing", "clients", "crm", "reports", "analytics", "fiscal", "teras", "reports_teras",
             "declarations", "legislation", "ai_writing", "documents", "investments",
             "budget", "transactions", "payment_accounts",
         ],
         "rh_entreprise": ["hr", "documents", "payroll", "reports", "ai_writing", "declarations"],
-        "responsable_pos": ["pos", "inventory", "billing", "clients", "work", "tasks", "reports", "transactions"],
+        "responsable_pos": ["pos", "inventory", "billing", "clients", "crm", "work", "tasks", "reports", "transactions"],
         "caissier_pos": ["pos", "inventory"],
         "employe": ["work", "tasks"],
         "membre_groupe": ["documents", "investments", "projects", "work", "tasks", "ai_writing"],
@@ -168,6 +170,7 @@ enum RolePermissions {
         case "payment_accounts": return "transactions"
         case "reports_teras":    return "teras"
         case "work":             return "tasks"
+        case "crm":              return "clients"
         case "dashboard", "groups", "chat", "calendar", "meetings",
              "notes", "help", "limule", "settings", "ai_writing", "safe_mode":
             return nil

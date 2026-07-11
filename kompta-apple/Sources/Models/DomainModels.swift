@@ -67,6 +67,73 @@ struct PortalPasswordResult: Codable, Identifiable {
     var id: Int { client_id }
 }
 
+// MARK: - CRM léger — pipeline d'opportunités
+
+let CRM_STAGES = ["nouveau", "qualifie", "proposition", "negociation", "gagne", "perdu"]
+
+let CRM_STAGE_LABEL: [String: String] = [
+    "nouveau": "Nouveau", "qualifie": "Qualifié", "proposition": "Proposition",
+    "negociation": "Négociation", "gagne": "Gagné", "perdu": "Perdu",
+]
+
+let CRM_STAGE_COLOR: [String: String] = [
+    "nouveau": "gray", "qualifie": "blue", "proposition": "orange",
+    "negociation": "orange", "gagne": "green", "perdu": "red",
+]
+
+struct Opportunity: Codable, Identifiable, Hashable {
+    let id: Int
+    var company_id: Int
+    var client_id: Int?
+    var contact_name: String
+    var contact_phone: String
+    var contact_email: String
+    var title: String
+    var stage: String
+    var estimated_amount_cents: Int
+    var probability_percent: Int
+    var expected_close_date: String?
+    var notes: String
+    var assigned_to_user_id: Int?
+    var created_at: String
+    var updated_at: String
+}
+
+struct OpportunityCreatePayload: Encodable {
+    var title: String
+    var client_id: Int?
+    var contact_name: String
+    var contact_phone: String
+    var contact_email: String
+    var stage: String
+    var estimated_amount_cents: Int
+    var probability_percent: Int
+    var expected_close_date: String?
+    var notes: String
+}
+
+struct OpportunityUpdatePayload: Encodable {
+    var stage: String?
+}
+
+struct PipelineStageSummary: Codable, Identifiable {
+    var stage: String
+    var count: Int
+    var total_estimated_amount_cents: Int
+
+    var id: String { stage }
+}
+
+struct PipelineSummaryRead: Codable {
+    var stages: [PipelineStageSummary]
+}
+
+struct ConvertOpportunityResult: Codable {
+    var invoice_id: Int
+    var invoice_number: String
+    var client_id: Int
+}
+
 struct ClientPayload: Encodable {
     var name: String
     var email: String?

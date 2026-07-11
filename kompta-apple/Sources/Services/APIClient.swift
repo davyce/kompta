@@ -378,6 +378,25 @@ actor APIClient {
     func deleteClientDiscount(_ clientId: Int, _ discountId: Int) async throws {
         try await delete("/clients/\(clientId)/discounts/\(discountId)")
     }
+
+    // MARK: - CRM léger — pipeline d'opportunités
+
+    func crmOpportunities(stage: String? = nil) async throws -> [Opportunity] {
+        let q = stage.map { "?stage=\($0)" } ?? ""
+        return try await get("/crm/opportunities\(q)")
+    }
+    func createOpportunity(_ p: OpportunityCreatePayload) async throws -> Opportunity {
+        try await post("/crm/opportunities", body: p)
+    }
+    func updateOpportunityStage(_ id: Int, stage: String) async throws -> Opportunity {
+        try await patch("/crm/opportunities/\(id)", body: OpportunityUpdatePayload(stage: stage))
+    }
+    func deleteOpportunity(_ id: Int) async throws { try await delete("/crm/opportunities/\(id)") }
+    func crmPipelineSummary() async throws -> PipelineSummaryRead { try await get("/crm/pipeline/summary") }
+    func convertOpportunityToInvoice(_ id: Int) async throws -> ConvertOpportunityResult {
+        try await actionDecoded("/crm/opportunities/\(id)/convert-to-invoice")
+    }
+
     // MARK: - Fournisseurs / Achats (Phase B)
 
     func suppliers(search: String = "") async throws -> [Supplier] {
