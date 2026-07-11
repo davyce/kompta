@@ -48,9 +48,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-20 border-b border-black/[0.06] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 font-black text-white shadow-lg shadow-emerald-600/20">
-              K
-            </div>
+            <img src="/branding/logo-512.png" alt="KOMPTA" className="h-9 w-9 shrink-0 rounded-xl shadow-lg shadow-emerald-600/20" />
             <span className="text-lg font-black">KOMPTA</span>
           </div>
           <div className="flex items-center gap-2">

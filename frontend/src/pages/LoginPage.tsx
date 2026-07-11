@@ -172,9 +172,7 @@ export function LoginPage() {
         <section className="hidden lg:flex flex-col justify-between bg-ink p-10 text-white">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-emerald-600 font-black text-white text-lg">
-              K
-            </div>
+            <img src="/branding/logo-512.png" alt="KOMPTA" className="h-11 w-11 shrink-0 rounded-lg" />
             <div>
               <p className="text-xl font-black">KOMPTA</p>
               <p className="text-sm text-white/60">{t("auth.tagline")}</p>
@@ -223,9 +221,7 @@ export function LoginPage() {
         <section className="flex flex-col lg:items-center lg:justify-center px-4 py-6 sm:px-6">
           {/* MOBILE — Hero compact (caché sur desktop) */}
           <header className="lg:hidden mb-5 flex items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 font-black text-white text-xl shadow-lg shadow-emerald-600/20">
-              K
-            </div>
+            <img src="/branding/logo-512.png" alt="KOMPTA" className="h-12 w-12 shrink-0 rounded-2xl shadow-lg shadow-emerald-600/20" />
             <div className="min-w-0">
               <p className="text-2xl font-black text-ink leading-tight">KOMPTA</p>
               <p className="text-xs text-stone-500 leading-tight">{t("auth.mobileTagline")}</p>

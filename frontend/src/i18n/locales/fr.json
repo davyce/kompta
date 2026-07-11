@@ -2609,7 +2609,9 @@
     "changePasswordSubmit": "Mettre à jour",
     "changePasswordSuccess": "Mot de passe mis à jour avec succès.",
     "changePasswordError": "Impossible de changer le mot de passe.",
-    "loadingLines": "Chargement des lignes…"
+    "loadingLines": "Chargement des lignes…",
+    "noAccountTitle": "Vous n'avez pas encore de compte ?",
+    "noAccountBody": "L'accès au portail est créé par l'entreprise dont vous êtes client, depuis son espace KOMPTA. Contactez-la directement pour qu'elle active votre accès — vous recevrez un email avec vos identifiants."
   },
   "productIcons": {
     "shirt": "Chemise / T-shirt",

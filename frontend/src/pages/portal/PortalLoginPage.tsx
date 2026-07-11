@@ -77,6 +77,11 @@ export function PortalLoginPage() {
             {t("portal.loginButton")}
           </button>
         </form>
+
+        <div className="mt-6 rounded-xl border border-black/5 bg-black/[0.02] p-4 text-sm text-[#717182] dark:border-white/10 dark:bg-white/5 dark:text-white/60">
+          <p className="font-semibold text-[#17211f] dark:text-white">{t("portal.noAccountTitle")}</p>
+          <p className="mt-1">{t("portal.noAccountBody")}</p>
+        </div>
       </div>
     </div>
   );

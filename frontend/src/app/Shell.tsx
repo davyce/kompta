@@ -477,10 +477,8 @@ export function Shell() {
       <div className={`border-b border-white/[0.08] ${collapsed ? "flex flex-col items-center gap-2 p-3" : "p-4"}`}>
         {collapsed ? (
           <>
-            {/* Collapsed : logo K */}
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-black text-white">
-              K
-            </div>
+            {/* Collapsed : logo */}
+            <img src="/branding/logo-512.png" alt="KOMPTA" className="h-9 w-9 shrink-0 rounded-lg" />
             <button
               onClick={toggleCollapsed}
               className="grid h-7 w-7 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
@@ -494,10 +492,8 @@ export function Shell() {
             onClick={toggleCollapsed}
             className="flex w-full items-center gap-3 rounded-lg p-1.5 hover:bg-white/[0.06] transition"
           >
-            {/* Expanded : logo K + nom entreprise */}
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 font-black text-white text-sm">
-              K
-            </div>
+            {/* Expanded : logo + nom entreprise */}
+            <img src="/branding/logo-512.png" alt="KOMPTA" className="h-9 w-9 shrink-0 rounded-lg" />
             <div className="min-w-0 flex-1 text-left">
               <p className="truncate text-sm text-white font-semibold">{user?.branch ? `KOMPTA · ${user.branch}` : "KOMPTA"}</p>
               <p className="truncate text-xs text-white/50">{t("nav.localPlan")} · {roleText(user?.role)}</p>

@@ -2609,7 +2609,9 @@
     "changePasswordSubmit": "Update",
     "changePasswordSuccess": "Password updated successfully.",
     "changePasswordError": "Could not change password.",
-    "loadingLines": "Loading line items…"
+    "loadingLines": "Loading line items…",
+    "noAccountTitle": "Don't have an account yet?",
+    "noAccountBody": "Portal access is created by the company you are a client of, from their KOMPTA workspace. Contact them directly to have your access activated — you'll receive an email with your credentials."
   },
   "productIcons": {
     "shirt": "Shirt / T-shirt",
