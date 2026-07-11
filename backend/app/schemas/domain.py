@@ -1167,6 +1167,7 @@ class SupplierRead(BaseModel):
     tax_id: str | None
     payment_terms_days: int
     company_id: int
+    linked_company_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -1229,8 +1230,40 @@ class PurchaseOrderRead(BaseModel):
     rejection_reason: str = ""
     notes: str = ""
     company_id: int
+    supplier_company_id: int | None = None
+    supplier_decision: str = ""
+    supplier_decision_reason: str = ""
+    supplier_decided_at: datetime | None = None
     created_at: datetime
     lines: list[PurchaseOrderLineRead] = []
+
+
+class CompanySearchResult(BaseModel):
+    id: int
+    name: str
+    industry: str = ""
+    city: str = ""
+
+
+class SupplierConnectPayload(BaseModel):
+    target_company_id: int
+
+
+class SupplierConnectionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    requester_company_id: int
+    requester_company_name: str = ""
+    supplier_id: int
+    target_company_id: int
+    status: str
+    created_at: datetime
+    responded_at: datetime | None = None
+
+
+class SupplierDeclinePayload(BaseModel):
+    reason: str = Field(default="", max_length=500)
 
 
 # ─────────────────────────────────────────────────────────────────────────

@@ -19,11 +19,16 @@ struct PurchasesView: View {
             Picker("", selection: $tab) {
                 Text("Bons de commande").tag(0)
                 Text("Fournisseurs").tag(1)
+                Text("Reçues").tag(2)
             }
             .pickerStyle(.segmented)
             .padding()
 
-            if tab == 0 { PurchaseOrdersView() } else { SuppliersView() }
+            switch tab {
+            case 0: PurchaseOrdersView()
+            case 1: SuppliersView()
+            default: ReceivedOrdersView()
+            }
         }
         .navigationTitle("Achats")
     }
@@ -33,16 +38,51 @@ struct PurchasesView: View {
 
 struct SuppliersView: View {
     @StateObject private var state = Loadable<[Supplier]>()
+    @State private var incoming: [SupplierConnection] = []
     @State private var showNew = false
+    @State private var connecting: Supplier?
+    @State private var respondingId: Int?
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun fournisseur", emptyIcon: "building.2", reload: load) { suppliers in
             List {
-                ForEach(suppliers) { s in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(s.name).font(.subheadline.bold())
-                        Text([s.email, s.phone, s.city].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
+                if !incoming.isEmpty {
+                    Section("Demandes de connexion reçues") {
+                        ForEach(incoming) { c in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("\(c.requester_company_name) souhaite vous ajouter comme fournisseur connecté")
+                                    .font(.caption)
+                                HStack(spacing: 8) {
+                                    Button {
+                                        Task { await respond(c, accept: true) }
+                                    } label: {
+                                        if respondingId == c.id { ProgressView() } else { Text("Accepter").font(.caption.bold()) }
+                                    }
+                                    .buttonStyle(.borderedProminent).tint(.green)
+                                    Button("Refuser") { Task { await respond(c, accept: false) } }
+                                        .buttonStyle(.bordered).tint(.red)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+                Section {
+                    ForEach(suppliers) { s in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(s.name).font(.subheadline.bold())
+                                if s.linked_company_id != nil {
+                                    StatusPill(text: "Connecté", colorName: "green")
+                                }
+                            }
+                            Text([s.email, s.phone, s.city].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                                .font(.caption).foregroundStyle(.secondary)
+                            if s.linked_company_id == nil {
+                                Button("Connecter à une entreprise") { connecting = s }
+                                    .font(.caption.bold()).buttonStyle(.bordered)
+                            }
+                        }
                     }
                 }
             }
@@ -56,9 +96,83 @@ struct SuppliersView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showNew) { SupplierFormView { await load() } }
+        .sheet(item: $connecting) { s in ConnectSupplierView(supplier: s) { await load() } }
     }
 
-    private func load() async { await state.load { try await APIClient.shared.suppliers() } }
+    private func load() async {
+        await state.load { try await APIClient.shared.suppliers() }
+        incoming = (try? await APIClient.shared.incomingSupplierConnections()) ?? []
+    }
+
+    private func respond(_ c: SupplierConnection, accept: Bool) async {
+        respondingId = c.id
+        _ = try? await (accept ? APIClient.shared.acceptSupplierConnection(c.id) : APIClient.shared.declineSupplierConnection(c.id))
+        await load()
+        respondingId = nil
+    }
+}
+
+struct ConnectSupplierView: View {
+    let supplier: Supplier
+    let onDone: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var results: [CompanySearchResult] = []
+    @State private var searching = false
+    @State private var connectingId: Int?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    TextField("Nom ou email de l'entreprise…", text: $query)
+                        .onChange(of: query) { _, newValue in Task { await search(newValue) } }
+                } footer: {
+                    Text("Une fois qu'elle accepte, vos bons de commande vers « \(supplier.name) » apparaîtront directement dans son espace Achats.")
+                }
+                if searching { ProgressView() }
+                ForEach(results) { c in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(c.name).font(.subheadline.bold())
+                            Text([c.industry, c.city].filter { !$0.isEmpty }.joined(separator: " · "))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            Task { await connect(c) }
+                        } label: {
+                            if connectingId == c.id { ProgressView() } else { Text("Inviter").font(.caption.bold()) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(connectingId != nil)
+                    }
+                }
+            }
+            .navigationTitle("Connecter « \(supplier.name) »")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+            }
+        }
+    }
+
+    private func search(_ q: String) async {
+        guard q.trimmingCharacters(in: .whitespaces).count >= 2 else { results = []; return }
+        searching = true
+        results = (try? await APIClient.shared.searchCompanies(q)) ?? []
+        searching = false
+    }
+
+    private func connect(_ c: CompanySearchResult) async {
+        connectingId = c.id
+        _ = try? await APIClient.shared.connectSupplier(supplier.id, targetCompanyId: c.id)
+        connectingId = nil
+        await onDone()
+        dismiss()
+    }
 }
 
 struct SupplierFormView: View {
@@ -263,5 +377,82 @@ struct NewPurchaseOrderView: View {
             await onSaved(); dismiss()
         } catch { }
         saving = false
+    }
+}
+
+// MARK: - Commandes reçues (réseau fournisseurs)
+
+private let SUPPLIER_DECISION_LABEL: [String: String] = [
+    "pending": "À traiter", "accepted": "Acceptée", "declined": "Refusée",
+]
+
+struct ReceivedOrdersView: View {
+    @StateObject private var state = Loadable<[PurchaseOrder]>()
+    @State private var busyId: Int?
+    @State private var declining: PurchaseOrder?
+
+    var body: some View {
+        AsyncList(state: state, emptyTitle: "Aucune commande reçue", emptyIcon: "tray.and.arrow.down", reload: load) { orders in
+            List {
+                ForEach(orders) { po in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            let decision = po.supplier_decision ?? "pending"
+                            StatusPill(text: SUPPLIER_DECISION_LABEL[decision] ?? decision, colorName: decisionColor(decision))
+                            Spacer()
+                            Text(fcfa(po.total_amount)).font(.subheadline.bold())
+                        }
+                        Text("\(po.number) · \(po.buyer_company_name ?? "")").font(.subheadline.bold())
+                        Text("\(po.lines.count) ligne(s)").font(.caption).foregroundStyle(.secondary)
+                        if let reason = po.supplier_decision_reason, !reason.isEmpty {
+                            Text("Motif : \(reason)").font(.caption).foregroundStyle(.red)
+                        }
+                        if (po.supplier_decision ?? "pending") == "pending" {
+                            HStack(spacing: 8) {
+                                Button {
+                                    Task { await accept(po) }
+                                } label: {
+                                    if busyId == po.id { ProgressView() } else { Text("Accepter").font(.caption.bold()) }
+                                }
+                                .buttonStyle(.borderedProminent).tint(.green)
+                                Button("Refuser") { declining = po }
+                                    .buttonStyle(.bordered).tint(.red)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            #if os(iOS)
+            .listStyle(.insetGrouped)
+            #endif
+        }
+        .task { await load() }
+        .refreshable { await load() }
+        .alert("Refuser ce bon de commande ?", isPresented: Binding(get: { declining != nil }, set: { if !$0 { declining = nil } })) {
+            Button("Refuser", role: .destructive) { if let po = declining { Task { await decline(po) } } }
+            Button("Annuler", role: .cancel) { declining = nil }
+        }
+    }
+
+    private func decisionColor(_ s: String) -> String {
+        switch s {
+        case "accepted": return "green"
+        case "declined": return "red"
+        default: return "orange"
+        }
+    }
+
+    private func load() async { await state.load { try await APIClient.shared.receivedPurchaseOrders() } }
+    private func accept(_ po: PurchaseOrder) async {
+        busyId = po.id
+        _ = try? await APIClient.shared.supplierAcceptPurchaseOrder(po.id)
+        await load(); busyId = nil
+    }
+    private func decline(_ po: PurchaseOrder) async {
+        declining = nil
+        busyId = po.id
+        _ = try? await APIClient.shared.supplierDeclinePurchaseOrder(po.id, reason: "")
+        await load(); busyId = nil
     }
 }

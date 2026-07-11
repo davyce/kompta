@@ -1,5 +1,6 @@
 """
-routes_suppliers.py — Module Fournisseurs (Phase B : achats/stock).
+routes_suppliers.py — Module Fournisseurs (Phase B : achats/stock) + réseau
+fournisseurs inter-entreprises (connexion B2B entre deux entreprises KOMPTA).
 
 Endpoints :
   GET    /suppliers               — liste des fournisseurs
@@ -7,6 +8,13 @@ Endpoints :
   PUT    /suppliers/{id}          — modifier un fournisseur
   DELETE /suppliers/{id}          — supprimer un fournisseur
   GET    /suppliers/{id}/stats    — stats bons de commande liés
+
+  GET    /companies/search                        — rechercher une entreprise KOMPTA par nom/email
+  POST   /suppliers/{id}/connect                   — inviter une entreprise à se connecter comme ce fournisseur
+  GET    /supplier-connections/incoming            — demandes de connexion reçues (en tant que cible)
+  GET    /supplier-connections/outgoing            — demandes envoyées par mon entreprise
+  POST   /supplier-connections/{id}/accept         — accepter une demande reçue
+  POST   /supplier-connections/{id}/decline        — refuser une demande reçue
 """
 
 from __future__ import annotations
@@ -16,13 +24,21 @@ from datetime import datetime, timezone
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.domain import PurchaseOrder, Supplier
-from app.schemas.domain import SupplierCreate, SupplierRead, SupplierStatsRead, SupplierUpdate
+from app.models.domain import Company, PurchaseOrder, Supplier, SupplierConnection
+from app.schemas.domain import (
+    CompanySearchResult,
+    SupplierConnectPayload,
+    SupplierConnectionRead,
+    SupplierCreate,
+    SupplierRead,
+    SupplierStatsRead,
+    SupplierUpdate,
+)
 
 router = APIRouter(tags=["suppliers"])
 
@@ -129,3 +145,147 @@ def supplier_stats(
         unpaid_count=unpaid_count,
         last_order_date=last_order_date,
     )
+
+
+# ── Réseau fournisseurs inter-entreprises ───────────────────────────────────
+
+@router.get("/companies/search", response_model=list[CompanySearchResult])
+def search_companies(
+    q: str = Query(min_length=2, max_length=120),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[Company]:
+    """Recherche une entreprise KOMPTA par nom ou email, pour l'inviter comme
+    fournisseur connecté. Ne renvoie que des informations non sensibles
+    (nom, secteur, ville) — jamais de données financières/internes."""
+    pattern = f"%{q}%"
+    companies = db.scalars(
+        select(Company)
+        .where(
+            Company.id != current_user.company_id,
+            Company.status == "active",
+            or_(Company.name.ilike(pattern), Company.email.ilike(pattern)),
+        )
+        .order_by(Company.name)
+        .limit(20)
+    ).all()
+    return companies
+
+
+@router.post("/suppliers/{supplier_id}/connect", response_model=SupplierConnectionRead, status_code=201)
+def connect_supplier(
+    supplier_id: int,
+    payload: SupplierConnectPayload,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> dict:
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier or supplier.company_id != current_user.company_id:
+        raise HTTPException(404, "Fournisseur introuvable")
+    if payload.target_company_id == current_user.company_id:
+        raise HTTPException(400, "Impossible de se connecter à sa propre entreprise")
+    target = db.get(Company, payload.target_company_id)
+    if not target:
+        raise HTTPException(404, "Entreprise introuvable")
+    existing = db.scalar(
+        select(SupplierConnection).where(
+            SupplierConnection.supplier_id == supplier_id,
+            SupplierConnection.target_company_id == payload.target_company_id,
+            SupplierConnection.status == "pending",
+        )
+    )
+    if existing:
+        raise HTTPException(409, "Une demande de connexion est déjà en attente pour ce fournisseur")
+    connection = SupplierConnection(
+        requester_company_id=current_user.company_id,
+        supplier_id=supplier_id,
+        target_company_id=payload.target_company_id,
+        status="pending",
+        requested_by_user_id=current_user.id,
+    )
+    db.add(connection)
+    db.commit()
+    db.refresh(connection)
+    return _serialize_connection(db, connection)
+
+
+def _serialize_connection(db: Session, connection: SupplierConnection) -> dict:
+    requester = db.get(Company, connection.requester_company_id)
+    return {
+        "id": connection.id,
+        "requester_company_id": connection.requester_company_id,
+        "requester_company_name": requester.name if requester else "",
+        "supplier_id": connection.supplier_id,
+        "target_company_id": connection.target_company_id,
+        "status": connection.status,
+        "created_at": connection.created_at,
+        "responded_at": connection.responded_at,
+    }
+
+
+@router.get("/supplier-connections/incoming", response_model=list[SupplierConnectionRead])
+def list_incoming_connections(
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[dict]:
+    stmt = select(SupplierConnection).where(SupplierConnection.target_company_id == current_user.company_id)
+    if status:
+        stmt = stmt.where(SupplierConnection.status == status)
+    connections = db.scalars(stmt.order_by(SupplierConnection.created_at.desc())).all()
+    return [_serialize_connection(db, c) for c in connections]
+
+
+@router.get("/supplier-connections/outgoing", response_model=list[SupplierConnectionRead])
+def list_outgoing_connections(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[dict]:
+    connections = db.scalars(
+        select(SupplierConnection)
+        .where(SupplierConnection.requester_company_id == current_user.company_id)
+        .order_by(SupplierConnection.created_at.desc())
+    ).all()
+    return [_serialize_connection(db, c) for c in connections]
+
+
+def _get_incoming_connection(db: Session, connection_id: int, current_user) -> SupplierConnection:
+    connection = db.get(SupplierConnection, connection_id)
+    if not connection or connection.target_company_id != current_user.company_id:
+        raise HTTPException(404, "Demande de connexion introuvable")
+    if connection.status != "pending":
+        raise HTTPException(409, "Cette demande a déjà été traitée")
+    return connection
+
+
+@router.post("/supplier-connections/{connection_id}/accept", response_model=SupplierConnectionRead)
+def accept_connection(
+    connection_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> dict:
+    connection = _get_incoming_connection(db, connection_id, current_user)
+    connection.status = "accepted"
+    connection.responded_by_user_id = current_user.id
+    connection.responded_at = datetime.now(timezone.utc)
+    supplier = db.get(Supplier, connection.supplier_id)
+    if supplier:
+        supplier.linked_company_id = current_user.company_id
+    db.commit()
+    db.refresh(connection)
+    return _serialize_connection(db, connection)
+
+
+@router.post("/supplier-connections/{connection_id}/decline", response_model=SupplierConnectionRead)
+def decline_connection(
+    connection_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> dict:
+    connection = _get_incoming_connection(db, connection_id, current_user)
+    connection.status = "declined"
+    connection.responded_by_user_id = current_user.id
+    connection.responded_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(connection)
+    return _serialize_connection(db, connection)

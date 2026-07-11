@@ -395,6 +395,31 @@ actor APIClient {
     }
     func deletePurchaseOrder(_ id: Int) async throws { try await delete("/purchase-orders/\(id)") }
 
+    // MARK: - Réseau fournisseurs inter-entreprises
+
+    func searchCompanies(_ q: String) async throws -> [CompanySearchResult] {
+        try await get("/companies/search?q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+    }
+    func connectSupplier(_ supplierId: Int, targetCompanyId: Int) async throws -> SupplierConnection {
+        try await post("/suppliers/\(supplierId)/connect", body: SupplierConnectPayload(target_company_id: targetCompanyId))
+    }
+    func incomingSupplierConnections() async throws -> [SupplierConnection] {
+        try await get("/supplier-connections/incoming?status=pending")
+    }
+    func acceptSupplierConnection(_ id: Int) async throws -> SupplierConnection {
+        try await actionDecoded("/supplier-connections/\(id)/accept")
+    }
+    func declineSupplierConnection(_ id: Int) async throws -> SupplierConnection {
+        try await actionDecoded("/supplier-connections/\(id)/decline")
+    }
+    func receivedPurchaseOrders() async throws -> [PurchaseOrder] { try await get("/purchase-orders/received") }
+    func supplierAcceptPurchaseOrder(_ id: Int) async throws -> PurchaseOrder {
+        try await actionDecoded("/purchase-orders/\(id)/supplier-accept")
+    }
+    func supplierDeclinePurchaseOrder(_ id: Int, reason: String) async throws -> PurchaseOrder {
+        try await post("/purchase-orders/\(id)/supplier-decline", body: SupplierDeclinePayload(reason: reason))
+    }
+
     func updateClientLoyalty(_ id: Int, _ p: UpdateClientLoyaltyPayload) async throws -> Client {
         try await patch("/clients/\(id)/loyalty", body: p)
     }

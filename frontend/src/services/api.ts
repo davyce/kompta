@@ -1308,6 +1308,28 @@ export const api = {
   deleteSupplier: (id: number) =>
     request<void>(`/suppliers/${id}`, { method: "DELETE" }),
 
+  /* ── Réseau fournisseurs inter-entreprises ───────────────────── */
+  searchCompanies: (q: string) =>
+    request<CompanySearchResultDto[]>(`/companies/search?q=${encodeURIComponent(q)}`),
+  connectSupplier: (supplierId: number, targetCompanyId: number) =>
+    request<SupplierConnectionDto>(`/suppliers/${supplierId}/connect`, {
+      method: "POST", body: JSON.stringify({ target_company_id: targetCompanyId }),
+    }),
+  incomingSupplierConnections: (status?: string) =>
+    request<SupplierConnectionDto[]>(`/supplier-connections/incoming${status ? `?status=${status}` : ""}`),
+  outgoingSupplierConnections: () =>
+    request<SupplierConnectionDto[]>("/supplier-connections/outgoing"),
+  acceptSupplierConnection: (id: number) =>
+    request<SupplierConnectionDto>(`/supplier-connections/${id}/accept`, { method: "POST" }),
+  declineSupplierConnection: (id: number) =>
+    request<SupplierConnectionDto>(`/supplier-connections/${id}/decline`, { method: "POST" }),
+  receivedPurchaseOrders: (status?: string) =>
+    request<PurchaseOrderDto[]>(`/purchase-orders/received${status ? `?status=${status}` : ""}`),
+  supplierAcceptPurchaseOrder: (id: number) =>
+    request<PurchaseOrderDto>(`/purchase-orders/${id}/supplier-accept`, { method: "POST" }),
+  supplierDeclinePurchaseOrder: (id: number, reason: string) =>
+    request<PurchaseOrderDto>(`/purchase-orders/${id}/supplier-decline`, { method: "POST", body: JSON.stringify({ reason }) }),
+
   purchaseOrders: (params?: { status?: string }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
@@ -2313,8 +2335,27 @@ export type SupplierDto = {
   tax_id: string | null;
   payment_terms_days: number;
   company_id: number;
+  linked_company_id: number | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CompanySearchResultDto = {
+  id: number;
+  name: string;
+  industry: string;
+  city: string;
+};
+
+export type SupplierConnectionDto = {
+  id: number;
+  requester_company_id: number;
+  requester_company_name: string;
+  supplier_id: number;
+  target_company_id: number;
+  status: string; // pending | accepted | declined
+  created_at: string;
+  responded_at: string | null;
 };
 
 export type SupplierStatsDto = {
@@ -2352,6 +2393,11 @@ export type PurchaseOrderDto = {
   rejection_reason: string;
   notes: string;
   company_id: number;
+  supplier_company_id: number | null;
+  supplier_decision: string; // "" | pending | accepted | declined
+  supplier_decision_reason: string;
+  supplier_decided_at: string | null;
+  buyer_company_name?: string; // renseigné uniquement par /purchase-orders/received
   created_at: string;
   lines: PurchaseOrderLineDto[];
 };

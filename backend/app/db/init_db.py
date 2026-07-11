@@ -228,6 +228,15 @@ def ensure_sqlite_migrations() -> None:
             "unit_price_cents": "INTEGER DEFAULT 0",
             "line_total_cents": "INTEGER DEFAULT 0",
         },
+        "suppliers": {
+            "linked_company_id": "INTEGER",
+        },
+        "purchase_orders": {
+            "supplier_company_id": "INTEGER",
+            "supplier_decision": "VARCHAR(20) DEFAULT ''",
+            "supplier_decision_reason": "VARCHAR(500) DEFAULT ''",
+            "supplier_decided_at": "DATETIME",
+        },
         "payslips": {
             "payout_method": "VARCHAR(40) DEFAULT ''",
             "payout_destination": "VARCHAR(180) DEFAULT ''",

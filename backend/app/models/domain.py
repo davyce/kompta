@@ -492,6 +492,13 @@ class PurchaseOrder(TimestampMixin, Base):
     rejection_reason: Mapped[str] = mapped_column(String(500), default="")
     notes: Mapped[str] = mapped_column(Text, default="")
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    # Renseigné si le fournisseur de ce BC est connecté à une vraie entreprise KOMPTA
+    # (voir SupplierConnection) — permet à cette entreprise de retrouver le BC dans
+    # son propre espace ("Achats > Commandes reçues") et de l'accepter/refuser.
+    supplier_company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True, index=True)
+    supplier_decision: Mapped[str] = mapped_column(String(20), default="")  # "" | pending | accepted | declined
+    supplier_decision_reason: Mapped[str] = mapped_column(String(500), default="")
+    supplier_decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     lines: Mapped[list["PurchaseOrderLine"]] = relationship(cascade="all, delete-orphan", back_populates="purchase_order")
 
@@ -998,6 +1005,29 @@ class Supplier(TimestampMixin, Base):
     tax_id: Mapped[str | None] = mapped_column(String(60), nullable=True)  # NIU/NIF fiscal fournisseur
     payment_terms_days: Mapped[int] = mapped_column(Integer, default=30)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    # Renseigné une fois la connexion inter-entreprises acceptée (voir SupplierConnection) :
+    # les bons de commande émis vers ce fournisseur sont alors répliqués côté entreprise
+    # cible pour qu'elle puisse les accepter/refuser depuis son propre espace KOMPTA.
+    linked_company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+
+
+class SupplierConnection(TimestampMixin, Base):
+    """Demande de connexion B2B entre deux entreprises KOMPTA : l'entreprise
+    `requester_company_id` invite `target_company_id` à devenir un fournisseur
+    « connecté » pour le `Supplier` `supplier_id` (déjà présent dans son propre
+    fichier fournisseurs). Une fois acceptée, les bons de commande émis vers ce
+    fournisseur sont visibles et actionnables directement dans l'espace Achats
+    de l'entreprise cible (onglet « Commandes reçues »)."""
+    __tablename__ = "supplier_connections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    requester_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"))
+    target_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | accepted | declined
+    requested_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    responded_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ClientDiscount(TimestampMixin, Base):

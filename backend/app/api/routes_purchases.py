@@ -31,7 +31,12 @@ from app.api.deps import get_current_user
 from app.api.routes import _require_admin
 from app.db.session import get_db
 from app.models.domain import Company, Product, PurchaseOrder, PurchaseOrderLine, Supplier, User
-from app.schemas.domain import PurchaseOrderCreate, PurchaseOrderRead, PurchaseOrderRejectPayload
+from app.schemas.domain import (
+    PurchaseOrderCreate,
+    PurchaseOrderRead,
+    PurchaseOrderRejectPayload,
+    SupplierDeclinePayload,
+)
 from app.services import accounting as _accounting
 from app.services import inventory_valuation as _inv
 
@@ -109,6 +114,10 @@ def create_purchase_order(
         expected_date=payload.expected_date,
         notes=payload.notes,
         company_id=current_user.company_id,
+        # Fournisseur connecté à une vraie entreprise KOMPTA (voir SupplierConnection) :
+        # le BC devient visible et actionnable dans son propre espace Achats.
+        supplier_company_id=supplier.linked_company_id,
+        supplier_decision="pending" if supplier.linked_company_id else "",
     )
     subtotal_c = tax_c = 0
     for line in payload.lines:
@@ -132,6 +141,35 @@ def create_purchase_order(
     db.commit()
     db.refresh(po)
     return po
+
+
+@router.get("/purchase-orders/received")
+def list_received_purchase_orders(
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Bons de commande émis par d'autres entreprises KOMPTA connectées comme
+    clients de mon entreprise (via SupplierConnection acceptée). Déclarée
+    AVANT /purchase-orders/{po_id} : sinon FastAPI matcherait "received"
+    comme un po_id et cette route ne serait jamais atteinte."""
+    stmt = (
+        select(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.lines))
+        .where(PurchaseOrder.supplier_company_id == current_user.company_id)
+        .order_by(PurchaseOrder.created_at.desc())
+    )
+    if status:
+        stmt = stmt.where(PurchaseOrder.supplier_decision == status)
+    items = db.scalars(stmt).all()
+    buyer_ids = {po.company_id for po in items}
+    buyers = {c.id: c.name for c in db.scalars(select(Company).where(Company.id.in_(buyer_ids))).all()} if buyer_ids else {}
+    result = []
+    for po in items:
+        data = PurchaseOrderRead.model_validate(po).model_dump()
+        data["buyer_company_name"] = buyers.get(po.company_id, "")
+        result.append(data)
+    return result
 
 
 @router.get("/purchase-orders/{po_id}", response_model=PurchaseOrderRead)
@@ -256,3 +294,46 @@ def delete_purchase_order(po_id: int, db: Session = Depends(get_db), current_use
         raise HTTPException(status_code=409, detail="Seul un brouillon peut être supprimé.")
     db.delete(po)
     db.commit()
+
+
+# ── Réseau fournisseurs — côté entreprise fournisseur ───────────────────────
+
+def _scoped_received_po(db: Session, po_id: int, current_user: User) -> PurchaseOrder:
+    """Comme _scoped_po, mais pour un bon de commande REÇU (l'entreprise
+    courante est le fournisseur connecté, pas l'émetteur)."""
+    po = db.scalar(
+        select(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.lines))
+        .where(PurchaseOrder.id == po_id, PurchaseOrder.supplier_company_id == current_user.company_id)
+    )
+    if not po:
+        raise HTTPException(status_code=404, detail="Bon de commande introuvable")
+    return po
+
+
+@router.post("/purchase-orders/{po_id}/supplier-accept", response_model=PurchaseOrderRead)
+def supplier_accept_purchase_order(po_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> PurchaseOrder:
+    po = _scoped_received_po(db, po_id, current_user)
+    if po.supplier_decision != "pending":
+        raise HTTPException(status_code=409, detail=f"Non acceptable dans l'état '{po.supplier_decision}'.")
+    po.supplier_decision = "accepted"
+    po.supplier_decided_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(po)
+    return po
+
+
+@router.post("/purchase-orders/{po_id}/supplier-decline", response_model=PurchaseOrderRead)
+def supplier_decline_purchase_order(
+    po_id: int, payload: SupplierDeclinePayload,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+) -> PurchaseOrder:
+    po = _scoped_received_po(db, po_id, current_user)
+    if po.supplier_decision != "pending":
+        raise HTTPException(status_code=409, detail=f"Non refusable dans l'état '{po.supplier_decision}'.")
+    po.supplier_decision = "declined"
+    po.supplier_decision_reason = payload.reason.strip()
+    po.supplier_decided_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(po)
+    return po

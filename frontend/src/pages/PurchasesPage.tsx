@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  Building2, CheckCircle2, Loader2, Package, Plus, Trash2, Truck, X, XCircle,
+  Building2, CheckCircle2, Inbox, Link2, Loader2, Package, Plus, Search, Trash2, Truck, X, XCircle,
 } from "lucide-react";
 
 import { api, type PurchaseOrderDto, type SupplierDto } from "../services/api";
@@ -10,7 +10,7 @@ import { useCurrency } from "../contexts/CurrencyContext";
 import { useConfirm } from "../components/ConfirmProvider";
 import { useToast } from "../components/ToastProvider";
 
-type Tab = "suppliers" | "orders";
+type Tab = "suppliers" | "orders" | "received";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Brouillon", ordered: "Commandé", received: "Reçu", paid: "Payé", cancelled: "Annulé",
@@ -54,9 +54,17 @@ export function PurchasesPage() {
         >
           <Building2 size={15} /> Fournisseurs
         </button>
+        <button
+          onClick={() => setTab("received")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+            tab === "received" ? "bg-emerald-600 text-white" : "bg-white text-[#717182] hover:bg-black/[0.03] dark:bg-[#1e2229] dark:text-white/60 dark:hover:bg-white/[0.04]"
+          }`}
+        >
+          <Inbox size={15} /> Commandes reçues
+        </button>
       </div>
 
-      {tab === "suppliers" ? <SuppliersTab /> : <OrdersTab />}
+      {tab === "suppliers" ? <SuppliersTab /> : tab === "received" ? <ReceivedOrdersTab /> : <OrdersTab />}
     </div>
   );
 }
@@ -67,13 +75,26 @@ function SuppliersTab() {
   const toast = useToast();
   const { confirm } = useConfirm();
   const suppliersQ = useQuery({ queryKey: ["suppliers"], queryFn: () => api.suppliers() });
+  const incomingQ = useQuery({ queryKey: ["supplierConnections", "incoming"], queryFn: () => api.incomingSupplierConnections("pending") });
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<SupplierDto | null>(null);
+  const [connecting, setConnecting] = useState<SupplierDto | null>(null);
 
   const del = useMutation({
     mutationFn: (id: number) => api.deleteSupplier(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
     onError: () => toast.error("Impossible de supprimer ce fournisseur."),
+  });
+
+  const acceptConn = useMutation({
+    mutationFn: (id: number) => api.acceptSupplierConnection(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["supplierConnections"] }),
+    onError: () => toast.error("Impossible d'accepter cette connexion."),
+  });
+  const declineConn = useMutation({
+    mutationFn: (id: number) => api.declineSupplierConnection(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["supplierConnections"] }),
+    onError: () => toast.error("Impossible de refuser cette connexion."),
   });
 
   async function handleDelete(supplier: SupplierDto) {
@@ -83,8 +104,33 @@ function SuppliersTab() {
     if (ok) del.mutate(supplier.id);
   }
 
+  const incoming = incomingQ.data ?? [];
+
   return (
     <div className="space-y-3">
+      {incoming.length > 0 && (
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 p-4 space-y-2">
+          <p className="text-xs font-bold uppercase text-indigo-700 dark:text-indigo-300">
+            Demande(s) de connexion fournisseur reçue(s)
+          </p>
+          {incoming.map((c) => (
+            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white dark:bg-[#1e2229] px-3 py-2">
+              <p className="text-sm text-[#17211f] dark:text-white">
+                <span className="font-bold">{c.requester_company_name}</span> souhaite vous ajouter comme fournisseur connecté
+              </p>
+              <div className="flex gap-1.5">
+                <button onClick={() => acceptConn.mutate(c.id)} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">
+                  <CheckCircle2 size={12} /> Accepter
+                </button>
+                <button onClick={() => declineConn.mutate(c.id)} className="flex items-center gap-1 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
+                  Refuser
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex justify-end">
         <button
           onClick={() => setShowNew(true)}
@@ -105,13 +151,25 @@ function SuppliersTab() {
         {(suppliersQ.data ?? []).map((s) => (
           <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-4">
             <div className="min-w-0">
-              <p className="font-bold text-[#17211f] dark:text-white">{s.name}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-[#17211f] dark:text-white">{s.name}</p>
+                {s.linked_company_id && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <Link2 size={10} /> Connecté
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-[#717182]">
                 {[s.email, s.phone, s.city].filter(Boolean).join(" · ") || "—"}
                 {s.tax_id ? ` · NIU ${s.tax_id}` : ""}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {!s.linked_company_id && (
+                <button onClick={() => setConnecting(s)} className="flex items-center gap-1 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20">
+                  <Link2 size={12} /> Connecter
+                </button>
+              )}
               <button onClick={() => setEditing(s)} className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
                 Modifier
               </button>
@@ -126,6 +184,76 @@ function SuppliersTab() {
       {(showNew || editing) && (
         <SupplierFormModal supplier={editing} onClose={() => { setShowNew(false); setEditing(null); }} />
       )}
+      {connecting && (
+        <ConnectSupplierModal supplier={connecting} onClose={() => setConnecting(null)} />
+      )}
+    </div>
+  );
+}
+
+function ConnectSupplierModal({ supplier, onClose }: { supplier: SupplierDto; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [query, setQuery] = useState("");
+  const searchQ = useQuery({
+    queryKey: ["companySearch", query],
+    queryFn: () => api.searchCompanies(query),
+    enabled: query.trim().length >= 2,
+  });
+
+  const connect = useMutation({
+    mutationFn: (targetCompanyId: number) => api.connectSupplier(supplier.id, targetCompanyId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Demande de connexion envoyée.");
+      onClose();
+    },
+    onError: (e: unknown) => toast.error((e as Error)?.message || "Échec de l'envoi de la demande."),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-[#17211f] dark:text-white">Connecter « {supplier.name} »</h3>
+          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+        </div>
+        <p className="text-xs text-[#717182]">
+          Recherchez l'entreprise KOMPTA correspondante. Une fois qu'elle accepte, vos bons de
+          commande vers ce fournisseur apparaîtront directement dans son espace Achats.
+        </p>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717182]" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Nom ou email de l'entreprise…"
+            className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] pl-9 pr-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500"
+          />
+        </div>
+        {searchQ.isFetching && <p className="text-xs text-[#717182]">Recherche…</p>}
+        <div className="space-y-1.5 max-h-60 overflow-y-auto">
+          {(searchQ.data ?? []).map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.06] px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold text-[#17211f] dark:text-white">{c.name}</p>
+                <p className="text-xs text-[#717182]">{[c.industry, c.city].filter(Boolean).join(" · ")}</p>
+              </div>
+              <button
+                onClick={() => connect.mutate(c.id)}
+                disabled={connect.isPending}
+                className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Inviter
+              </button>
+            </div>
+          ))}
+          {query.trim().length >= 2 && !searchQ.isFetching && (searchQ.data ?? []).length === 0 && (
+            <p className="text-xs text-[#717182] py-2">Aucune entreprise trouvée.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -384,6 +512,93 @@ function NewPurchaseOrderModal({ onClose }: { onClose: () => void }) {
         >
           {create.isPending ? <Loader2 size={14} className="mx-auto animate-spin" /> : "Créer le bon de commande"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── COMMANDES REÇUES (réseau fournisseurs) ─────────────────────────── */
+const SUPPLIER_DECISION_LABEL: Record<string, string> = {
+  pending: "À traiter", accepted: "Acceptée", declined: "Refusée",
+};
+const SUPPLIER_DECISION_TONE: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  accepted: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  declined: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+};
+
+function ReceivedOrdersTab() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { confirm } = useConfirm();
+  const ordersQ = useQuery({ queryKey: ["receivedPurchaseOrders"], queryFn: () => api.receivedPurchaseOrders() });
+
+  const acceptMut = useMutation({
+    mutationFn: (id: number) => api.supplierAcceptPurchaseOrder(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["receivedPurchaseOrders"] }),
+    onError: () => toast.error("Impossible d'accepter ce bon de commande."),
+  });
+  const declineMut = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => api.supplierDeclinePurchaseOrder(id, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["receivedPurchaseOrders"] }),
+    onError: () => toast.error("Impossible de refuser ce bon de commande."),
+  });
+
+  async function handleDecline(po: PurchaseOrderDto) {
+    const ok = await confirm({
+      title: "Refuser ce bon de commande ?", message: `${po.number} · ${po.buyer_company_name}`, confirmLabel: "Refuser", danger: true,
+    });
+    if (ok) declineMut.mutate({ id: po.id, reason: "" });
+  }
+
+  const orders = ordersQ.data ?? [];
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-[#717182]">
+        Bons de commande envoyés par des entreprises qui vous ont connecté comme fournisseur.
+      </p>
+      {ordersQ.isLoading && <p className="text-sm text-[#717182]">Chargement…</p>}
+      {!ordersQ.isLoading && orders.length === 0 && (
+        <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] py-14 text-center">
+          <Inbox size={28} className="mx-auto text-[#d1d5db]" />
+          <p className="mt-2 text-sm text-[#717182]">Aucune commande reçue pour l'instant.</p>
+          <p className="mt-1 text-xs text-[#717182]">
+            Un client peut vous inviter comme fournisseur connecté depuis son onglet Fournisseurs.
+          </p>
+        </div>
+      )}
+      <div className="space-y-2">
+        {orders.map((po) => (
+          <div key={po.id} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${SUPPLIER_DECISION_TONE[po.supplier_decision] ?? SUPPLIER_DECISION_TONE.pending}`}>
+                    {SUPPLIER_DECISION_LABEL[po.supplier_decision] ?? po.supplier_decision}
+                  </span>
+                  <p className="font-bold text-[#17211f] dark:text-white">{po.number} · {po.buyer_company_name}</p>
+                </div>
+                <p className="mt-0.5 text-xs text-[#717182]">
+                  {po.lines.length} ligne(s) · {money(po.total_amount)}
+                </p>
+                {po.supplier_decision === "declined" && po.supplier_decision_reason && (
+                  <p className="mt-1 text-xs text-rose-600 dark:text-rose-300">Motif : {po.supplier_decision_reason}</p>
+                )}
+              </div>
+              {po.supplier_decision === "pending" && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => acceptMut.mutate(po.id)} disabled={acceptMut.isPending} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
+                    <CheckCircle2 size={12} /> Accepter
+                  </button>
+                  <button onClick={() => handleDecline(po)} className="flex items-center gap-1 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
+                    <XCircle size={12} /> Refuser
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

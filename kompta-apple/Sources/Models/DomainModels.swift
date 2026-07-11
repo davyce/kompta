@@ -119,11 +119,40 @@ struct Supplier: Codable, Identifiable, Hashable {
     var status: String
     var tax_id: String?
     var payment_terms_days: Int
+    var linked_company_id: Int?
 
     var initials: String {
         name.components(separatedBy: " ").prefix(2)
             .compactMap { $0.first }.map(String.init).joined().uppercased()
     }
+}
+
+// MARK: - Réseau fournisseurs inter-entreprises
+
+struct CompanySearchResult: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let industry: String
+    let city: String
+}
+
+struct SupplierConnection: Codable, Identifiable, Hashable {
+    let id: Int
+    let requester_company_id: Int
+    let requester_company_name: String
+    let supplier_id: Int
+    let target_company_id: Int
+    let status: String // pending | accepted | declined
+    let created_at: String
+    let responded_at: String?
+}
+
+struct SupplierConnectPayload: Encodable {
+    var target_company_id: Int
+}
+
+struct SupplierDeclinePayload: Encodable {
+    var reason: String = ""
 }
 
 struct SupplierPayload: Encodable {
@@ -166,6 +195,12 @@ struct PurchaseOrder: Codable, Identifiable, Hashable {
     let rejection_reason: String
     let notes: String
     let lines: [PurchaseOrderLine]
+    // Réseau fournisseurs inter-entreprises — optionnels : absents des anciennes
+    // réponses cache ou si non applicable (fournisseur non connecté).
+    var supplier_company_id: Int?
+    var supplier_decision: String?        // "" | pending | accepted | declined
+    var supplier_decision_reason: String?
+    var buyer_company_name: String?       // renseigné uniquement par /purchase-orders/received
 }
 
 struct PurchaseOrderLinePayload: Encodable {
