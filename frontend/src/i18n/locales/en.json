@@ -5119,6 +5119,7 @@
     "paymentMode": "Payment method",
     "addMethodsIn": "Add your payment methods in",
     "settingsPayments": "Settings → Payments",
+    "cardNotConfigured": "Stripe isn't configured — enable it in Settings → Payments to accept card payments.",
     "showZolaQr": "Show the Zola QR to the customer",
     "processing": "Processing…",
     "saveOffline": "Save offline",

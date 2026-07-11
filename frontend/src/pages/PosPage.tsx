@@ -1016,32 +1016,44 @@ export function PosPage() {
           {/* Modes de paiement */}
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#717182]">{tr("pos.paymentMode")}</p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {paymentOptions.map((m) => {
-                const Icon     = m.icon;
-                const selected = paymentMethod === m.method && paymentAccountId === m.accountId;
+                const Icon        = m.icon;
+                const selected    = paymentMethod === m.method && paymentAccountId === m.accountId;
+                const unconfigured = m.method === "card" && payConfig.data && !payConfig.data.stripe_enabled;
                 return (
                   <button
                     key={m.key}
                     type="button"
                     aria-pressed={selected}
+                    title={unconfigured ? tr("pos.cardNotConfigured") : undefined}
                     onClick={() => {
                       setPaymentMethod(m.method);
                       setPaymentAccountId(m.accountId);
                       setPaymentSelectionInitialized(true);
                     }}
-                    className={`flex flex-col items-center gap-1 rounded-xl border py-2.5 px-1 text-xs font-medium transition ${
+                    className={`relative flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border py-3 px-1 text-xs font-medium transition active:scale-[0.97] ${
                       selected
                         ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                         : "border-black/[0.08] bg-white text-[#717182] hover:bg-stone-50 dark:border-white/10 dark:bg-white/5"
                     }`}
                   >
-                    <Icon size={17} />
+                    <Icon size={19} />
                     <span className="line-clamp-1 leading-tight text-center">{m.label}</span>
+                    {unconfigured && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300">
+                        <span className="text-[10px] font-bold leading-none">!</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+            {paymentMethod === "card" && payConfig.data && !payConfig.data.stripe_enabled && (
+              <p className="mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                {tr("pos.cardNotConfigured")}
+              </p>
+            )}
             {posAccounts.length === 0 && (
               <p className="mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
                 {tr("pos.addMethodsIn")}{" "}

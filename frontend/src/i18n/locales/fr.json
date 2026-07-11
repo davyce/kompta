@@ -5119,6 +5119,7 @@
     "paymentMode": "Mode de paiement",
     "addMethodsIn": "Ajoutez vos modes de paiement dans",
     "settingsPayments": "Paramètres → Paiements",
+    "cardNotConfigured": "Stripe non configuré — activez-le dans Paramètres → Paiements pour encaisser par carte.",
     "showZolaQr": "Afficher le QR Zola au client",
     "processing": "Traitement…",
     "saveOffline": "Sauvegarder hors-ligne",
