@@ -7,7 +7,7 @@ const ADMIN_PASSWORD = "super2026";
 
 const COMPANY_ROUTES = [
   "/", "/workspace", "/company", "/employees", "/documents", "/payroll",
-  "/billing", "/pos", "/inventory", "/inventory-pos", "/chat", "/work",
+  "/billing", "/pos", "/inventory", "/inventory-pos", "/purchases", "/chat", "/work",
   "/calendar", "/notes", "/reports", "/reports-teras", "/assistants",
   "/declarations", "/settings", "/accounting", "/projects", "/kanban",
   "/meetings", "/help", "/safe-mode", "/clients", "/crm", "/investments",
