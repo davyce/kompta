@@ -4,10 +4,11 @@
 > **Comptabilité partie double SYSCOHADA** · **POS** · **Facturation TVA** · **Paie CNSS + IRPP** ·
 > **Module Groupes & Organisations** · **Assistant IA Limule** · **Mode offline-first léger**.
 >
-> Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind**.
+> Stack : **FastAPI 0.115** + **SQLAlchemy 2** + **SQLite/Postgres** · **React 18** + **TS** + **Vite 8** + **Tailwind** ·
+> **iOS + macOS natifs** (SwiftUI, `kompta-apple/`).
 > Argent en **centimes entiers** (BigInt) · **paiements réels** Stripe (carte) + MTN Mobile Money.
 > Déploiement production **gratuit** via **Cloudflare Tunnel** (domaine `kompta0.com`, un seul hostname).
-> 106 tests backend + 21 tests unit frontend · CI/CD GitHub Actions.
+> 187 tests backend + tests unit frontend · CI/CD GitHub Actions.
 
 ---
 
@@ -46,6 +47,7 @@
 | **💰 Paie** | Bulletins, **CNSS 4 % salarié + 8 % patronal**, **IRPP progressif**, idempotence période, export PDF |
 | **🧾 Facturation** | Factures **HT/TVA/TTC**, **numérotation atomique anti-collision**, immutabilité facture payée, avoirs, export PDF |
 | **📦 Inventaire** | Produits, stock temps réel, **décrément atomique anti-TOCTOU**, alertes seuil bas, mouvements |
+| **🚚 Achats & Fournisseurs** | Fournisseurs, bons de commande (cycle draft → approuvé → commandé → reçu → payé), **stock valorisé au CMP** (coût moyen pondéré), écritures comptables auto à la réception (Dr 31 Stocks / Dr 60 Achats / Cr 401 Fournisseurs) |
 | **🛒 POS / Caisse** | Caisse enregistreuse, reçu détaillé, écriture comptable auto Dr Trésorerie / Cr 70, export CSV |
 | **🏛️ Comptabilité partie double** | **SYSCOHADA-lite** (18 comptes), `JournalEntry` équilibrées garanties (Σdébit=Σcrédit), grand livre, balance, contre-passation immuable |
 | **💳 Transactions** | Relevé comptable unifié (factures + POS + imports), filtres, analyse Limule |
@@ -129,6 +131,16 @@ kompta/
     │       └── format.ts            # money, shortDate, percent…
     ├── package.json
     └── .env.example
+│
+└── kompta-apple/                   # Apps natives iOS + macOS (SwiftUI, projet XcodeGen)
+    ├── project.yml                  # Génère Kompta.xcodeproj (`xcodegen generate`)
+    └── Sources/
+        ├── Models/DomainModels.swift    # Modèles Codable (miroir des schémas backend)
+        ├── Services/APIClient.swift     # Client HTTP partagé iOS + macOS
+        └── Views/
+            ├── Shell/                   # Navigation, hub de modules
+            └── Modules/                 # Un fichier par domaine (BusinessViews, FinanceViews,
+                                          # PurchasesViews, InventoryView, GroupsViews, …)
 ```
 
 ---
@@ -805,6 +817,14 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.7.0 — Juillet 2026 (Achats, apps natives, audit qualité)
+
+- ✅ **Module Achats & Fournisseurs (Phase B)** : fournisseurs, bons de commande avec cycle de vie complet (draft → approuvé → commandé → reçu → payé), **stock valorisé au coût moyen pondéré (CMP)**, écritures comptables automatiques à la réception et au règlement, COGS posté à la vente — disponible sur **web, iOS et macOS**
+- ✅ **Comptabilité étendue** : classes SYSCOHADA 2 (immobilisations) et 3 (stocks), backfill automatique du plan comptable, `FiscalYear` (clôture d'exercice, verrouillage des écritures)
+- ✅ **Audit sécurité complet** : 5 failles corrigées — Safe Mode export/restore sans contrôle de rôle, 3 IDOR (changement de bureau de groupe, suppression de message inter-groupes, création de rôle hors tenant), logs d'audit super-admin mal attribués (impersonation, reset mot de passe, suspension d'entreprise invisibles pour l'entreprise ciblée)
+- ✅ **Audit fonctionnel page par page** (7 bugs corrigés) : suivi budgétaire qui comparait des revenus au lieu des dépenses, risque de double paie entre iOS/Mac et web (formats de période incompatibles), statuts de tâche désynchronisés entre plateformes, factures liées aux clients par nom plutôt que par ID, KPI et prompts IA basés sur des clés backend inexistantes, données fictives codées en dur sur le tableau TERAS
+- ✅ **187 tests backend** (106 → 187)
 
 ### v1.6.0 — Juin 2026 (abonnements & facturation plateforme)
 
