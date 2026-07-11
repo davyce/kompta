@@ -11,7 +11,7 @@ Endpoints:
 
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import BudgetCategory
-from app.models.domain import Invoice, Sale
+from app.models.domain import BankTransaction
 from app.schemas.domain import (
     BudgetCategoryCreate,
     BudgetCategoryRead,
@@ -125,66 +125,35 @@ def _compute_spent(
     period: str,
 ) -> float:
     """
-    Compute the total spent for a budget category over the current period.
+    Compute the total spent for a budget category over the current period,
+    à partir des transactions bancaires réellement catégorisées (`BankTransaction.category`).
 
-    For 'expense' categories: sum invoices where customer_name LIKE category_name
-      (or where any invoice line description matches), plus matching POS sales.
-    For 'income' categories: sum paid invoices where the category name matches.
-    For 'investment' categories: not matched to invoices — returns 0 (investments
-      are tracked separately via the Investments module).
+    Pour 'expense' : somme des débits (montants négatifs) dont la catégorie
+      correspond au nom de la catégorie budgétaire.
+    Pour 'income' : somme des crédits (montants positifs) correspondants.
+    Pour 'investment' : non rapproché — retourne 0 (suivi via le module Investissements).
     """
     if category_type == "investment":
         return 0.0
 
     start, end = _period_bounds(period)
-    start_dt = datetime.combine(start, datetime.min.time())
-    end_dt = datetime.combine(end, datetime.max.time())
+    start_str, end_str = start.isoformat(), end.isoformat()
 
-    total = 0.0
-    name_lower = category_name.lower()
-
-    # ── Invoices ──────────────────────────────────────────────────
-    invoices = db.scalars(
-        select(Invoice).where(
-            Invoice.company_id == company_id,
-            Invoice.status == "paid",
-            Invoice.paid_at >= start_dt,
-            Invoice.paid_at <= end_dt,
+    transactions = db.scalars(
+        select(BankTransaction).where(
+            BankTransaction.company_id == company_id,
+            BankTransaction.date >= start_str,
+            BankTransaction.date <= end_str,
+            func.lower(BankTransaction.category) == category_name.lower(),
         )
     ).all()
 
-    for inv in invoices:
-        # Match if any line description contains the category name
-        matched = any(
-            name_lower in (line.description or "").lower()
-            for line in inv.lines
-        )
-        if not matched:
-            # Also check customer name as a fallback
-            matched = name_lower in (inv.customer_name or "").lower()
-        if matched:
-            if category_type == "expense":
-                total += inv.total_amount
-            elif category_type == "income":
-                total += inv.total_amount
-
-    # ── POS Sales (expense categories only — cost of sales) ───────
-    if category_type == "expense":
-        sales = db.scalars(
-            select(Sale).where(
-                Sale.company_id == company_id,
-                Sale.status == "paid",
-                Sale.created_at >= start_dt,
-                Sale.created_at <= end_dt,
-            )
-        ).all()
-        for sale in sales:
-            matched = any(
-                name_lower in (item.product_name or "").lower()
-                for item in sale.items
-            )
-            if matched:
-                total += sale.total_amount
+    total = 0.0
+    for tx in transactions:
+        if category_type == "expense" and tx.amount < 0:
+            total += -tx.amount
+        elif category_type == "income" and tx.amount > 0:
+            total += tx.amount
 
     return round(total, 2)
 

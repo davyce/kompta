@@ -553,6 +553,11 @@ def render_payroll_pdf(run, company) -> bytes:
     for idx, slip in enumerate(run.payslips):
         story.append(Paragraph(company_name, s["logo"]))
         story.append(Paragraph(f"Bulletin de paie · {run.period}", s["muted"]))
+        if getattr(company, "is_public_sector", False):
+            story.append(Paragraph(
+                "Structure publique · retenues CNSS/IRPP automatiquement calculées et reversées à l'État.",
+                s["muted"],
+            ))
         story.append(Spacer(1, 0.6 * cm))
 
         story.append(Paragraph(f"<b>{slip.employee_name}</b>", s["h2"]))

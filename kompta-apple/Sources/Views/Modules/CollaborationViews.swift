@@ -9,14 +9,15 @@ import UniformTypeIdentifiers
 // MARK: - Tâches / Kanban
 
 private let taskColumns: [(key: String, title: String)] = [
-    ("todo", "À faire"), ("in_progress", "En cours"), ("done", "Terminé"),
+    ("todo", "À faire"), ("doing", "En cours"), ("review", "En révision"), ("done", "Terminé"),
 ]
 
 private func taskAccent(_ key: String) -> Color {
     switch key {
-    case "todo":        return .orange
-    case "in_progress": return .blue
-    default:            return .green
+    case "todo":   return .orange
+    case "doing":  return .blue
+    case "review": return .purple
+    default:       return .green
     }
 }
 
@@ -194,11 +195,7 @@ private struct KanbanColumn: View {
     let onDelete: (KTask) -> Void
 
     private var accent: Color {
-        switch columnKey {
-        case "todo":        return .orange
-        case "in_progress": return .blue
-        default:            return .green
-        }
+        taskAccent(columnKey)
     }
 
     var body: some View {

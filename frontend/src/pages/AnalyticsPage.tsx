@@ -88,9 +88,12 @@ export function AnalyticsPage() {
   const paidRevenue  = invoices.filter(i => i.status === "paid" && new Date(i.created_at ?? "").getFullYear() === year)
     .reduce((s, i) => s + (i.total_amount ?? 0), 0);
   const recoveryRate = totalRevenue > 0 ? (paidRevenue / totalRevenue) * 100 : 0;
-  const marginPct    = kpis.margin_pct ?? 0;
-  const employeeCount = kpis.employee_count ?? 1;
-  const avgCostPerEmployee = employeeCount > 0 ? (kpis.total_payroll ?? 0) / employeeCount : 0;
+  // "margin_pct" n'existe pas côté backend (pas de marge/COGS agrégé exposé par
+  // /reports/overview) — null plutôt qu'un 0% fabriqué qui se ferait passer pour
+  // une vraie donnée. "avg_payroll_per_employee" est en revanche calculé
+  // réellement côté backend à partir de l'historique des bulletins de paie.
+  const marginPct: number | null = null;
+  const avgCostPerEmployee = kpis.avg_payroll_per_employee ?? 0;
 
   // ── Comparaison N / N-1 par mois ──
   const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Aoû","Sep","Oct","Nov","Déc"];
@@ -149,7 +152,6 @@ export function AnalyticsPage() {
     const prompt = `Tu es Limule, l'IA financière de KOMPTA. Génère une prévision financière pour les 6 prochains mois en français, basée sur :
 - Chiffre d'affaires ${year} : ${fmt(revenueSum)}
 - Taux de recouvrement : ${fmt(recoveryRate, false)} %
-- Marge estimée : ${fmt(marginPct, false)} %
 - DSO moyen : ${avgDso ?? "N/A"} jours
 - Nombre de clients actifs : ${clients.length}
 - Tendance mensuelle des 12 derniers mois disponibles.
@@ -185,7 +187,6 @@ Inclure : projection CA mois par mois, risques identifiés, recommandations opé
       { label: "CA total", value: fmt(totalRevenue) },
       { label: "Variation vs N-1", value: revDelta != null ? `${revDelta >= 0 ? "+" : ""}${revDelta.toFixed(1)} %` : "—" },
       { label: "Taux recouvrement", value: `${fmt(recoveryRate, false)} %` },
-      { label: "Marge estimée", value: `${fmt(marginPct, false)} %` },
       { label: "DSO moyen", value: avgDso ? `${avgDso} j` : "—" },
       { label: "Coût moyen/employé", value: fmt(avgCostPerEmployee) },
       { label: "Clients", value: String(clients.length) },
@@ -244,14 +245,14 @@ Inclure : projection CA mois par mois, risques identifiés, recommandations opé
           <KpiCard title={tr("analytics.kpiTotalRevenue")} value={fmt(totalRevenue)}
             sub={tr("analytics.invoicesCount", { count: invoices.length })}
             delta={revDelta} icon={DollarSign} color="bg-emerald-600" />
-          <KpiCard title={tr("analytics.kpiMargin")} value={`${fmt(marginPct, false)} %`}
+          <KpiCard title={tr("analytics.kpiMargin")} value={marginPct != null ? `${fmt(marginPct, false)} %` : "—"}
             sub={tr("analytics.netMarginEst")} icon={Percent} color="bg-teal-600" />
           <KpiCard title={tr("analytics.kpiRecovery")} value={`${fmt(recoveryRate, false)} %`}
             sub={tr("analytics.collected", { amount: fmt(paidRevenue) })} icon={TrendingUp} color="bg-blue-600" />
           <KpiCard title="DSO moyen" value={avgDso ? `${avgDso} j` : "—"}
             sub="Délai moyen de paiement client" icon={Clock} color="bg-amber-500" />
           <KpiCard title={tr("analytics.kpiCostPerEmployee")} value={fmt(avgCostPerEmployee)}
-            sub={tr("analytics.employeesCount", { count: employeeCount })} icon={Users} color="bg-violet-600" />
+            sub={tr("analytics.employeesCount", { count: kpis.employees ?? 0 })} icon={Users} color="bg-violet-600" />
         </div>
       )}
 

@@ -464,6 +464,7 @@ class InvoiceRead(BaseModel):
     number: str
     customer_name: str
     customer_email: str | None = None
+    client_id: int | None = None
     status: str
     subtotal: float = 0      # total HT
     tax_amount: float = 0    # total TVA

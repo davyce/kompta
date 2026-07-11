@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import logging
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -166,6 +167,28 @@ router = APIRouter()
 _HR_ROLES = {"admin_entreprise", "manager_entreprise", "rh_entreprise", "super_admin"}
 _FINANCE_ROLES = {"admin_entreprise", "manager_entreprise", "comptable", "super_admin"}
 _ADMIN_ROLES = {"admin_entreprise", "manager_entreprise", "super_admin"}
+
+_PAYROLL_PERIOD_MONTHS_FR = [
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+]
+
+
+def _payroll_period_key(period: str) -> str:
+    """Normalise une période de paie ("2026-06" ou "Juin 2026") en clé "YYYY-MM"
+    pour comparer deux périodes équivalentes saisies dans des formats différents
+    (web envoie "Juin 2026", iOS/Mac envoie librement, ex. "2026-06") — évite de
+    générer deux cycles de paie pour le même mois selon la plateforme utilisée."""
+    raw = (period or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}", raw):
+        return raw
+    parts = raw.split()
+    if len(parts) == 2:
+        month_name, year = parts[0].lower(), parts[1]
+        if month_name in _PAYROLL_PERIOD_MONTHS_FR and year.isdigit():
+            idx = _PAYROLL_PERIOD_MONTHS_FR.index(month_name) + 1
+            return f"{year}-{idx:02d}"
+    return raw.lower()
 
 
 def _require_hr(current_user: User) -> None:
@@ -2515,6 +2538,16 @@ def create_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Invoice:
+    # Résolution best-effort du client par correspondance exacte de nom (insensible
+    # à la casse) : évite qu'un renommage de client ne casse le lien avec ses
+    # anciennes factures, et permet aux stats/CA par client de se baser sur
+    # client_id plutôt que sur une comparaison de texte fragile.
+    matched_client = db.scalar(
+        select(Client).where(
+            Client.company_id == current_user.company_id,
+            func.lower(Client.name) == payload.customer_name.strip().lower(),
+        )
+    )
     invoice = Invoice(
         number=_next_invoice_number(db, current_user.company_id),
         customer_name=payload.customer_name,
@@ -2522,6 +2555,7 @@ def create_invoice(
         status=payload.status,
         due_date=payload.due_date,
         company_id=current_user.company_id,
+        client_id=matched_client.id if matched_client else None,
     )
     subtotal = 0.0   # HT
     tax_total = 0.0  # TVA
@@ -3773,14 +3807,15 @@ def create_payroll_run(
     current_user: User = Depends(get_current_user),
 ) -> PayrollRun:
     _require_hr(current_user)
-    # Idempotence : une seule paie validée par période et par société (évite les doublons / double-paiement).
-    existing_run = db.scalar(
-        select(PayrollRun).where(
-            PayrollRun.company_id == current_user.company_id,
-            PayrollRun.period == payload.period,
-        )
-    )
-    if existing_run:
+    # Idempotence : une seule paie validée par période et par société (évite les doublons /
+    # double-paiement). Comparaison par clé normalisée "YYYY-MM" pour reconnaître comme
+    # identiques deux périodes saisies dans des formats différents selon la plateforme
+    # (web envoie "Juin 2026", iOS/Mac peut envoyer "2026-06").
+    target_key = _payroll_period_key(payload.period)
+    existing_runs = db.scalars(
+        select(PayrollRun).where(PayrollRun.company_id == current_user.company_id)
+    ).all()
+    if any(_payroll_period_key(r.period) == target_key for r in existing_runs):
         raise HTTPException(
             status_code=409,
             detail=f"Une paie existe déjà pour la période {payload.period}.",

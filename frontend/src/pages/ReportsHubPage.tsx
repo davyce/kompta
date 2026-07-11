@@ -40,11 +40,22 @@ function buildContext(
   overview: { data?: { kpis: Record<string, number>; compliance: { checks: Array<{ label: string; status: string }> } } | undefined },
   payrollRuns: { data?: Array<{ period: string; payslips?: unknown[]; created_at?: string }> | undefined },
 ): ReportContext {
+  // "treasury"/"revenue"/"payroll" ne sont pas les noms de clé renvoyés par
+  // /reports/overview (voir backend/app/api/routes.py, dict `kpis`) — la
+  // version précédente lisait des clés inexistantes et envoyait "N/A" à
+  // l'IA à chaque génération de rapport. Clés réelles : tx_balance
+  // (trésorerie bancaire), collected_total (CA encaissé), et masse
+  // salariale approximée par avg_payroll_per_employee × employees (seule
+  // donnée de paie agrégée exposée par cet endpoint).
+  const k = overview.data?.kpis;
+  const payroll = k?.avg_payroll_per_employee != null && k?.employees != null
+    ? k.avg_payroll_per_employee * k.employees
+    : undefined;
   return {
-    terasScore: overview.data?.kpis.teras_score,
-    treasury: overview.data?.kpis.treasury,
-    revenue: overview.data?.kpis.revenue,
-    payroll: overview.data?.kpis.payroll,
+    terasScore: k?.teras_score,
+    treasury: k?.tx_balance,
+    revenue: k?.collected_total,
+    payroll,
     lastPayrollPeriod: payrollRuns.data?.[0]?.period,
     payslipCount: payrollRuns.data?.[0]?.payslips?.length ?? 0,
     failedChecks: overview.data?.compliance?.checks?.filter((c) => c.status === "fail").length ?? 0,
@@ -127,7 +138,17 @@ const REPORT_CARDS: ReportCard[] = [
   },
 ];
 
-function exportPLCsv(invoicesTotal: number, salesTotal: number, tr: TFunction) {
+function exportPLCsv(invoicesTotal: number, salesTotal: number, realPayroll: number | undefined, tr: TFunction) {
+  const totalRevenue = salesTotal + invoicesTotal;
+  // Masse salariale : donnée réelle (bulletins de paie) quand disponible,
+  // sinon repli sur une estimation à 35 % du CA (clairement labellisée
+  // "estimée" dans les deux cas côté traduction).
+  const payroll = realPayroll ?? Math.round(totalRevenue * 0.35);
+  // Aucune donnée réelle de charges générales n'est agrégée côté backend
+  // (nécessiterait la catégorisation des transactions bancaires, cf. module
+  // Budget) — reste une estimation à 15 % du CA, explicitement labellisée.
+  const overheads = Math.round(totalRevenue * 0.15);
+  const totalCharges = payroll + overheads;
   const rows: (string | number)[][] = [
     [tr("reportsHub.plTitle"), ""],
     [tr("reportsHub.plPeriod"), new Date().toLocaleDateString(i18n.language)],
@@ -135,14 +156,14 @@ function exportPLCsv(invoicesTotal: number, salesTotal: number, tr: TFunction) {
     [tr("reportsHub.plProducts"), tr("reportsHub.plAmount")],
     [tr("reportsHub.plPosSales"), salesTotal],
     [tr("reportsHub.plBillingClients"), invoicesTotal],
-    [tr("reportsHub.plTotalProducts"), salesTotal + invoicesTotal],
+    [tr("reportsHub.plTotalProducts"), totalRevenue],
     ["", ""],
     [tr("reportsHub.plEstimatedCharges"), ""],
-    [tr("reportsHub.plEstimatedPayroll"), Math.round((salesTotal + invoicesTotal) * 0.35)],
-    [tr("reportsHub.plEstimatedOverheads"), Math.round((salesTotal + invoicesTotal) * 0.15)],
-    [tr("reportsHub.plTotalCharges"), Math.round((salesTotal + invoicesTotal) * 0.5)],
+    [tr("reportsHub.plEstimatedPayroll"), payroll],
+    [tr("reportsHub.plEstimatedOverheads"), overheads],
+    [tr("reportsHub.plTotalCharges"), totalCharges],
     ["", ""],
-    [tr("reportsHub.plNetResult"), Math.round((salesTotal + invoicesTotal) * 0.5)],
+    [tr("reportsHub.plNetResult"), totalRevenue - totalCharges],
   ];
   const csv = rows.map((r) => r.join(";")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -248,7 +269,7 @@ export function ReportsHubPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0, tr)}
+            onClick={() => exportPLCsv(overview.data?.kpis.invoices_total ?? 0, overview.data?.kpis.sales_total ?? 0, ctx.payroll, tr)}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
             <Download size={13} /> {tr("reportsHub.exportPL")}

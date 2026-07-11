@@ -173,6 +173,7 @@ export type Invoice = {
   number: string;
   customer_name: string;
   customer_email?: string | null;
+  client_id?: number | null;
   status: string;
   total_amount: number;
   subtotal?: number;

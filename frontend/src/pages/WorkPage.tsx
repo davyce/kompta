@@ -221,7 +221,10 @@ export function WorkPage() {
 
   const grouped = useMemo(() => ({
     todo: filtered.filter((t) => t.status === "todo"),
-    doing: filtered.filter((t) => t.status === "doing"),
+    // "review" (statut du board Projets/Kanban) n'a pas de colonne dédiée ici —
+    // regroupé avec "doing" plutôt qu'invisible pour éviter qu'une tâche
+    // avancée depuis Projets ne disparaisse silencieusement du board perso.
+    doing: filtered.filter((t) => t.status === "doing" || t.status === "review"),
     done: filtered.filter((t) => t.status === "done"),
   }), [filtered]);
 

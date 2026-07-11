@@ -34,7 +34,7 @@ export function ReportsTerasPage() {
   const activeAlerts = alerts.data?.filter((alert) => alert.status === "open") ?? [];
   const terasAverage = scores.data?.length
     ? Math.round(scores.data.reduce((total, score) => total + score.score, 0) / scores.data.length)
-    : overview.data?.kpis.teras_score ?? 87;
+    : overview.data?.kpis.teras_score ?? 0;
   const recommendationCount = recommendations.data?.reduce((total, item) => total + item.recommendations.length, 0) || 0;
 
   // Build score trend from snapshots, falling back to a flat line at the average
@@ -155,9 +155,11 @@ export function ReportsTerasPage() {
         </Panel>
         <Panel title={tr("teras.activeAlerts")}>
           <div className="pt-5">
-            <p className="text-4xl font-black text-ink">{activeAlerts.length || 3}</p>
-            <p className="mt-2 text-sm font-medium text-[#717182]">{tr("teras.criticalAttention", { crit: activeAlerts.filter((alert) => alert.severity === "high").length || 1, att: Math.max((activeAlerts.length || 3) - 1, 1) })}</p>
-            <div className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{tr("teras.priority")}</div>
+            <p className="text-4xl font-black text-ink">{activeAlerts.length}</p>
+            <p className="mt-2 text-sm font-medium text-[#717182]">{tr("teras.criticalAttention", { crit: activeAlerts.filter((alert) => alert.severity === "high").length, att: Math.max(activeAlerts.length - activeAlerts.filter((alert) => alert.severity === "high").length, 0) })}</p>
+            {activeAlerts.length > 0 && (
+              <div className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{tr("teras.priority")}</div>
+            )}
           </div>
         </Panel>
         <Panel title={tr("teras.aiRecs")}>
@@ -238,7 +240,7 @@ export function ReportsTerasPage() {
                 </div>
               </div>
               <button
-                disabled={alert.status === "converted" || alert.id === 0 && !activeAlerts.length}
+                disabled={alert.status === "converted"}
                 onClick={() => convert.mutate(alert.id)}
                 className="rounded-lg border border-black/[0.06] bg-white px-3 py-2 text-sm font-bold text-ink disabled:text-stone-400"
               >

@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -133,10 +133,16 @@ def client_stats(
     if not client or client.company_id != current_user.company_id:
         raise HTTPException(404, "Client introuvable")
 
+    # Priorité au lien explicite client_id (fiable) ; repli sur une correspondance
+    # exacte de nom (pas une sous-chaîne, pour éviter les faux positifs entre
+    # deux clients au nom proche) pour les factures créées avant ce lien.
     invoices = db.scalars(
         select(Invoice).where(
             Invoice.company_id == current_user.company_id,
-            Invoice.customer_name.ilike(f"%{client.name}%"),
+            or_(
+                Invoice.client_id == client_id,
+                and_(Invoice.client_id.is_(None), func.lower(Invoice.customer_name) == client.name.strip().lower()),
+            ),
         )
     ).all()
 

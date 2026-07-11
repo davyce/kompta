@@ -83,6 +83,15 @@ function avatarBg(id: number): string {
   return INITIALS_BG[id % INITIALS_BG.length];
 }
 
+// Priorité au lien explicite client_id (fiable) ; repli sur une correspondance
+// exacte de nom (pas une sous-chaîne) pour les factures créées avant ce lien —
+// évite qu'un renommage de client ou un nom proche mélange les factures de
+// deux clients différents.
+function matchesClient(inv: Invoice, client: ClientDto): boolean {
+  if (inv.client_id != null) return inv.client_id === client.id;
+  return inv.customer_name.trim().toLowerCase() === client.name.trim().toLowerCase();
+}
+
 function clientStatusLabel(status: string, tr: TFunction) {
   if (status === "active") return tr("clientsPage.status.active");
   if (status === "inactive") return tr("clientsPage.status.inactive");
@@ -635,12 +644,8 @@ function ClientDetailPanel({
 
   const clientInvoices = useMemo(() => {
     if (!invoices.data) return [];
-    return invoices.data.filter((inv) =>
-      inv.customer_name
-        .toLowerCase()
-        .includes(client.name.toLowerCase())
-    );
-  }, [invoices.data, client.name]);
+    return invoices.data.filter((inv) => matchesClient(inv, client));
+  }, [invoices.data, client]);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
@@ -874,9 +879,7 @@ export function ClientsPage() {
     const active = clients.filter((c) => c.status === "active").length;
     let totalRevenue = 0;
     for (const client of clients) {
-      const linked = invoices.filter((inv) =>
-        inv.customer_name.toLowerCase().includes(client.name.toLowerCase())
-      );
+      const linked = invoices.filter((inv) => matchesClient(inv, client));
       totalRevenue += linked.reduce(
         (s, inv) =>
           inv.status === "paid" || inv.status === "sent"
@@ -889,11 +892,7 @@ export function ClientsPage() {
       total > 0
         ? Math.round(
             (clients.filter((c) => {
-              const linked = invoices.filter((inv) =>
-                inv.customer_name
-                  .toLowerCase()
-                  .includes(c.name.toLowerCase())
-              );
+              const linked = invoices.filter((inv) => matchesClient(inv, c));
               return linked.length > 1;
             }).length /
               total) *
@@ -921,20 +920,12 @@ export function ClientsPage() {
   // ── Client CA for card display ────────────────────────────────────
   function clientRevenue(client: ClientDto): number {
     return invoices
-      .filter(
-        (inv) =>
-          inv.customer_name
-            .toLowerCase()
-            .includes(client.name.toLowerCase()) &&
-          (inv.status === "paid" || inv.status === "sent")
-      )
+      .filter((inv) => matchesClient(inv, client) && (inv.status === "paid" || inv.status === "sent"))
       .reduce((s, inv) => s + inv.total_amount, 0);
   }
 
   function clientInvoiceCount(client: ClientDto): number {
-    return invoices.filter((inv) =>
-      inv.customer_name.toLowerCase().includes(client.name.toLowerCase())
-    ).length;
+    return invoices.filter((inv) => matchesClient(inv, client)).length;
   }
 
   // ── Mutations ─────────────────────────────────────────────────────
