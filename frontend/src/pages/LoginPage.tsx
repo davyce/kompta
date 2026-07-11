@@ -15,7 +15,9 @@ export function LoginPage() {
   const { login, registerCompany } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register" | "reset" | "reset_confirm">("login");
+  const [mode, setMode] = useState<"login" | "register" | "reset" | "reset_confirm">(
+    new URLSearchParams(window.location.search).get("mode") === "register" ? "register" : "login"
+  );
   const [resetIdentifier, setResetIdentifier] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -495,6 +497,15 @@ export function LoginPage() {
                 <Building2 size={16} className="shrink-0 mt-0.5 text-stone-400" />
                 <span>{t("auth.emptyHint")}</span>
               </div>
+            )}
+
+            {mode === "login" && (
+              <p className="mt-3 text-center text-xs text-stone-500">
+                Vous êtes client d'une entreprise sur KOMPTA ?{" "}
+                <a href="/portal/login" className="font-bold text-emerald-600 hover:underline">
+                  Accédez à votre espace client
+                </a>
+              </p>
             )}
           </form>
 

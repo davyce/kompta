@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate, Outlet, createBrowserRouter, useNavigate, useRouteError } from "react-router-dom";
+import { Navigate, Outlet, createBrowserRouter, useLocation, useNavigate, useRouteError } from "react-router-dom";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 import { Shell } from "./Shell";
@@ -10,6 +10,7 @@ import { RouteErrorBoundary } from "../components/ErrorBoundary";
 const AdminShell = lazy(() => import("../admin/AdminShell").then(m => ({ default: m.AdminShell })));
 import { useAuth } from "./AuthContext";
 import { LoginPage } from "../pages/LoginPage";
+import { LandingPage } from "../pages/LandingPage";
 import { WorkspaceSelectPage } from "../pages/WorkspaceSelectPage";
 import { RegisterGroupPage } from "../pages/RegisterGroupPage";
 import { PortalAuthProvider } from "../contexts/PortalAuthContext";
@@ -156,8 +157,12 @@ function AuthBootstrapSpinner() {
 
 function ProtectedRoute() {
   const { token, bootstrapping, user } = useAuth();
+  const location = useLocation();
   if (bootstrapping) return <AuthBootstrapSpinner />;
   if (!token) {
+    // "/" public affiche la landing page marketing plutôt que de rediriger vers
+    // /login — seules les routes internes (/billing, /pos, etc.) restent protégées.
+    if (location.pathname === "/") return <LandingPage />;
     return <Navigate to="/login" replace />;
   }
   // Un membre de groupe n'a pas accès à l'espace entreprise : redirigé vers ses groupes.

@@ -54,6 +54,19 @@ struct Client: Codable, Identifiable, Hashable {
     }
 }
 
+struct SetPortalPasswordPayload: Encodable {
+    var client_id: Int
+}
+
+struct PortalPasswordResult: Codable, Identifiable {
+    let client_id: Int
+    let email: String?
+    let temporary_password: String
+    let portal_enabled: Bool
+
+    var id: Int { client_id }
+}
+
 struct ClientPayload: Encodable {
     var name: String
     var email: String?

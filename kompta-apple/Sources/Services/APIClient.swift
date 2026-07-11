@@ -367,6 +367,9 @@ actor APIClient {
     func createClient(_ p: ClientPayload) async throws -> Client { try await post("/clients", body: p) }
     func updateClient(_ id: Int, _ p: ClientPayload) async throws -> Client { try await put("/clients/\(id)", body: p) }
     func deleteClient(_ id: Int) async throws { try await delete("/clients/\(id)") }
+    func setClientPortalPassword(_ clientId: Int) async throws -> PortalPasswordResult {
+        try await post("/portal/auth/set-password", body: SetPortalPasswordPayload(client_id: clientId))
+    }
     func clientStats(_ id: Int) async throws -> ClientStats { try await get("/clients/\(id)/stats") }
     func clientDiscounts(_ id: Int) async throws -> [ClientDiscount] { try await get("/clients/\(id)/discounts") }
     func createClientDiscount(_ clientId: Int, _ p: ClientDiscountPayload) async throws -> ClientDiscount {

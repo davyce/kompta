@@ -510,6 +510,8 @@ struct ClientFormView: View {
     @State private var status = "active"
     @State private var saving = false
     @State private var error: String?
+    @State private var createPortalAccess = false
+    @State private var portalResult: PortalPasswordResult?
 
     init(existing: Client? = nil, onSaved: @escaping () async -> Void) {
         self.existing = existing
@@ -555,6 +557,16 @@ struct ClientFormView: View {
                 Section("Notes") {
                     TextField("Remarques", text: $notes, axis: .vertical).lineLimit(2...5)
                 }
+                if !isEdit {
+                    Section {
+                        Toggle("Créer un accès au portail client", isOn: $createPortalAccess)
+                            .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
+                    } footer: {
+                        Text(email.trimmingCharacters(in: .whitespaces).isEmpty
+                             ? "Renseignez un email pour activer cette option."
+                             : "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email.")
+                    }
+                }
                 if let error { Text(error).foregroundStyle(.red).font(.caption) }
             }
             .navigationTitle(isEdit ? "Modifier client" : "Nouveau client")
@@ -566,6 +578,12 @@ struct ClientFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEdit ? "Mettre à jour" : "Enregistrer") { Task { await save() } }
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || saving)
+                }
+            }
+            .sheet(item: $portalResult) { result in
+                PortalAccessResultView(clientName: name, result: result) {
+                    Task { await onSaved() }
+                    dismiss()
                 }
             }
         }
@@ -585,15 +603,68 @@ struct ClientFormView: View {
         do {
             if let existing {
                 _ = try await APIClient.shared.updateClient(existing.id, payload)
+                await onSaved()
+                dismiss()
             } else {
-                _ = try await APIClient.shared.createClient(payload)
+                let client = try await APIClient.shared.createClient(payload)
+                if createPortalAccess {
+                    // Le résultat s'affiche dans un sheet ; onSaved()/dismiss() sont
+                    // déclenchés depuis PortalAccessResultView pour laisser le temps
+                    // à l'admin de noter le mot de passe temporaire.
+                    portalResult = try await APIClient.shared.setClientPortalPassword(client.id)
+                } else {
+                    await onSaved()
+                    dismiss()
+                }
             }
-            await onSaved()
-            dismiss()
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
         saving = false
+    }
+}
+
+struct PortalAccessResultView: View {
+    let clientName: String
+    let result: PortalPasswordResult
+    let onDone: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Communiquez ces identifiants à \(clientName) — le mot de passe ne sera plus affiché ensuite.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Email de connexion").font(.caption).foregroundStyle(.secondary)
+                        Text(result.email ?? "—").font(.system(.body, design: .monospaced).bold())
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mot de passe temporaire").font(.caption).foregroundStyle(.secondary)
+                        Text(result.temporary_password).font(.system(.body, design: .monospaced).bold())
+                    }
+                    Text("Connexion sur /portal/login").font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(.thinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                Spacer()
+                Button {
+                    dismiss()
+                    onDone()
+                } label: {
+                    Text("Compris").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .navigationTitle("Accès portail créé")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+        }
+        .interactiveDismissDisabled()
     }
 }
 

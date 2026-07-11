@@ -204,11 +204,12 @@ function ClientModal({
 }: {
   initial?: ClientFormData;
   onClose: () => void;
-  onSave: (data: ClientFormData) => void;
+  onSave: (data: ClientFormData, createPortalAccess: boolean) => void;
   loading: boolean;
 }) {
   const { t: tr } = useTranslation();
   const [form, setForm] = useState<ClientFormData>(initial ?? EMPTY_FORM);
+  const [createPortalAccess, setCreatePortalAccess] = useState(false);
 
   function set(key: keyof ClientFormData, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -342,6 +343,28 @@ function ClientModal({
               onChange={(e) => set("notes", e.target.value)}
             />
           </div>
+
+          {/* Accès portail client */}
+          {!initial && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-[#f7f8fa] dark:bg-[#14181f] px-3 py-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createPortalAccess}
+                onChange={(e) => setCreatePortalAccess(e.target.checked)}
+                disabled={!form.email.trim()}
+                className="mt-0.5 h-4 w-4 rounded border-black/20 dark:border-white/20 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-xs text-[#17211f] dark:text-white">
+                <span className="font-semibold">Créer un accès au portail client</span>
+                <br />
+                <span className="text-[#717182]">
+                  {form.email.trim()
+                    ? "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email."
+                    : "Renseignez un email pour activer cette option."}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         {/* Footer */}
@@ -354,7 +377,7 @@ function ClientModal({
           </button>
           <button
             disabled={!form.name.trim() || loading}
-            onClick={() => onSave(form)}
+            onClick={() => onSave(form, createPortalAccess && !!form.email.trim())}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             {loading ? tr("clientsPage.modal.saving") : tr("common.save")}
@@ -853,6 +876,7 @@ export function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<ClientDto | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<ClientDto | null>(null);
+  const [newPortalResult, setNewPortalResult] = useState<{ clientName: string; email: string | null; temporary_password: string } | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────
   const clientsQuery = useQuery<ClientDto[]>({
@@ -930,8 +954,8 @@ export function ClientsPage() {
 
   // ── Mutations ─────────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (data: ClientFormData) =>
-      api.createClient({
+    mutationFn: async ({ data, createPortalAccess }: { data: ClientFormData; createPortalAccess: boolean }) => {
+      const client = await api.createClient({
         name: data.name,
         email: data.email || null,
         phone: data.phone || null,
@@ -940,7 +964,13 @@ export function ClientsPage() {
         country: data.country || null,
         notes: data.notes || null,
         status: data.status,
-      }),
+      });
+      if (createPortalAccess) {
+        const portal = await api.setClientPortalPassword(client.id);
+        setNewPortalResult({ clientName: client.name, email: portal.email, temporary_password: portal.temporary_password });
+      }
+      return client;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       setShowModal(false);
@@ -989,11 +1019,11 @@ export function ClientsPage() {
     setSelectedClient(null);
   }
 
-  function handleSave(data: ClientFormData) {
+  function handleSave(data: ClientFormData, createPortalAccess: boolean) {
     if (editTarget) {
       updateMutation.mutate({ id: editTarget.id, data });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate({ data, createPortalAccess });
     }
   }
 
@@ -1297,6 +1327,31 @@ export function ClientsPage() {
           onSave={handleSave}
           loading={isMutating}
         />
+      )}
+
+      {/* Accès portail créé */}
+      {newPortalResult && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={() => setNewPortalResult(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
+            <h3 className="text-base font-bold text-[#17211f] dark:text-white">Accès portail créé</h3>
+            <p className="text-sm text-[#717182]">
+              Communiquez ces identifiants à <span className="font-semibold">{newPortalResult.clientName}</span> — le mot de passe ne sera plus affiché ensuite.
+            </p>
+            <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#14181f] p-3 space-y-1.5">
+              <p className="text-xs text-[#717182]">Email de connexion</p>
+              <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white">{newPortalResult.email || "—"}</p>
+              <p className="mt-2 text-xs text-[#717182]">Mot de passe temporaire</p>
+              <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white">{newPortalResult.temporary_password}</p>
+              <p className="mt-2 text-xs text-[#717182]">Connexion sur <span className="font-mono">/portal/login</span></p>
+            </div>
+            <button
+              onClick={() => setNewPortalResult(null)}
+              className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
+            >
+              Compris
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
