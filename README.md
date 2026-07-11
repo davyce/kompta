@@ -48,9 +48,11 @@
 | **🧾 Facturation** | Factures **HT/TVA/TTC**, **numérotation atomique anti-collision**, immutabilité facture payée, avoirs, export PDF |
 | **📦 Inventaire** | Produits, stock temps réel, **décrément atomique anti-TOCTOU**, alertes seuil bas, mouvements |
 | **🚚 Achats & Fournisseurs** | Fournisseurs, bons de commande (cycle draft → approuvé → commandé → reçu → payé), **stock valorisé au CMP** (coût moyen pondéré), écritures comptables auto à la réception (Dr 31 Stocks / Dr 60 Achats / Cr 401 Fournisseurs) |
+| **🎯 CRM léger** | Pipeline d'opportunités (nouveau → qualifié → proposition → négociation → gagné/perdu), résumé par étape, conversion en facture — **web + iOS/macOS natifs** |
 | **🛒 POS / Caisse** | Caisse enregistreuse, reçu détaillé, écriture comptable auto Dr Trésorerie / Cr 70, export CSV |
 | **🏛️ Comptabilité partie double** | **SYSCOHADA-lite** (18 comptes), `JournalEntry` équilibrées garanties (Σdébit=Σcrédit), grand livre, balance, contre-passation immuable |
 | **💳 Transactions** | Relevé comptable unifié (factures + POS + imports), filtres, analyse Limule |
+| **🏦 Rapprochement bancaire** | Import relevé CSV, matching automatique (rapproché/suggéré/non-rapproché), confirmation/création/ignore ligne par ligne — **web + iOS/macOS natifs** |
 | **🏢 Groupes & Organisations** | Tontines, mutuelles, ONG, clubs, asso : membres, **bureau & mandats**, cotisations, caisse, **chat temps réel WS**, calendrier, anniversaires, votes, IA dédiée |
 | **📄 Documents** | Upload, classification IA, analyse, rattachement employé/groupe |
 | **📅 Agenda** | Réunions, ordre du jour, participants, liens visio, intégration Journal |
@@ -817,6 +819,14 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.9.0 — Juillet 2026 (parité CRM & rapprochement bancaire iOS/macOS, corrections UX)
+
+- ✅ **CRM léger porté sur iOS/macOS** : pipeline d'opportunités par étape, résumé du pipeline, changement d'étape, conversion en facture — jusqu'ici disponible web uniquement, testé de bout en bout sur simulateur iOS avec un compte réel
+- ✅ **Rapprochement bancaire porté sur iOS/macOS** : import de relevé CSV, matching automatique, confirmation/création/ignore ligne par ligne — même parité web/natif
+- ✅ **Simplification de la connexion à une entreprise fournisseur** : recherche + création + connexion en un clic (bouton « Connecter une entreprise »)
+- ✅ **Corrections UX** : boutons de paiement POS plus grands avec statut Stripe visible, `window.alert` remplacés par des toasts (CrmPage, Copilot), style de tableau partagé (Transactions, Inventaire, Employés)
+- ✅ **Proxy Vite paramétrable** (`VITE_PROXY_TARGET`) pour l'E2E multi-session, dépendances dev à jour (0 vulnérabilité npm audit)
 
 ### v1.8.0 — Juillet 2026 (réseau fournisseurs, landing page, portail client)
 
