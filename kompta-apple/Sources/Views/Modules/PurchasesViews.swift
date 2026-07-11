@@ -42,6 +42,7 @@ struct SuppliersView: View {
     @State private var showNew = false
     @State private var connecting: Supplier?
     @State private var respondingId: Int?
+    @State private var showConnectCompany = false
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun fournisseur", emptyIcon: "building.2", reload: load) { suppliers in
@@ -91,12 +92,18 @@ struct SuppliersView: View {
             #endif
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) {
+                HStack {
+                    Button { showConnectCompany = true } label: { Image(systemName: "magnifyingglass") }
+                    Button { showNew = true } label: { Image(systemName: "plus") }
+                }
+            }
         }
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showNew) { SupplierFormView { await load() } }
         .sheet(item: $connecting) { s in ConnectSupplierView(supplier: s) { await load() } }
+        .sheet(isPresented: $showConnectCompany) { ConnectCompanyDirectView { await load() } }
     }
 
     private func load() async {
@@ -169,6 +176,68 @@ struct ConnectSupplierView: View {
     private func connect(_ c: CompanySearchResult) async {
         connectingId = c.id
         _ = try? await APIClient.shared.connectSupplier(supplier.id, targetCompanyId: c.id)
+        connectingId = nil
+        await onDone()
+        dismiss()
+    }
+}
+
+struct ConnectCompanyDirectView: View {
+    let onDone: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var results: [CompanySearchResult] = []
+    @State private var searching = false
+    @State private var connectingId: Int?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    TextField("Nom ou email de l'entreprise…", text: $query)
+                        .onChange(of: query) { _, newValue in Task { await search(newValue) } }
+                } footer: {
+                    Text("Une fiche fournisseur est créée automatiquement et la demande de connexion lui est envoyée.")
+                }
+                if searching { ProgressView() }
+                ForEach(results) { c in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(c.name).font(.subheadline.bold())
+                            Text([c.industry, c.city].filter { !$0.isEmpty }.joined(separator: " · "))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            Task { await connect(c) }
+                        } label: {
+                            if connectingId == c.id { ProgressView() } else { Text("Connecter").font(.caption.bold()) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(connectingId != nil)
+                    }
+                }
+            }
+            .navigationTitle("Connecter une entreprise")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+            }
+        }
+    }
+
+    private func search(_ q: String) async {
+        guard q.trimmingCharacters(in: .whitespaces).count >= 2 else { results = []; return }
+        searching = true
+        results = (try? await APIClient.shared.searchCompanies(q)) ?? []
+        searching = false
+    }
+
+    private func connect(_ c: CompanySearchResult) async {
+        connectingId = c.id
+        _ = try? await APIClient.shared.connectCompanyDirect(targetCompanyId: c.id)
         connectingId = nil
         await onDone()
         dismiss()

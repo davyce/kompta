@@ -406,6 +406,9 @@ actor APIClient {
     func connectSupplier(_ supplierId: Int, targetCompanyId: Int) async throws -> SupplierConnection {
         try await post("/suppliers/\(supplierId)/connect", body: SupplierConnectPayload(target_company_id: targetCompanyId))
     }
+    func connectCompanyDirect(targetCompanyId: Int) async throws -> SupplierConnection {
+        try await post("/suppliers/connect-company", body: SupplierConnectPayload(target_company_id: targetCompanyId))
+    }
     func incomingSupplierConnections() async throws -> [SupplierConnection] {
         try await get("/supplier-connections/incoming?status=pending")
     }

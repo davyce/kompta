@@ -1315,6 +1315,10 @@ export const api = {
     request<SupplierConnectionDto>(`/suppliers/${supplierId}/connect`, {
       method: "POST", body: JSON.stringify({ target_company_id: targetCompanyId }),
     }),
+  connectCompanyDirect: (targetCompanyId: number) =>
+    request<SupplierConnectionDto>("/suppliers/connect-company", {
+      method: "POST", body: JSON.stringify({ target_company_id: targetCompanyId }),
+    }),
   incomingSupplierConnections: (status?: string) =>
     request<SupplierConnectionDto[]>(`/supplier-connections/incoming${status ? `?status=${status}` : ""}`),
   outgoingSupplierConnections: () =>

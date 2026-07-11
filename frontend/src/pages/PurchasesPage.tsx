@@ -79,6 +79,7 @@ function SuppliersTab() {
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<SupplierDto | null>(null);
   const [connecting, setConnecting] = useState<SupplierDto | null>(null);
+  const [showConnectCompany, setShowConnectCompany] = useState(false);
 
   const del = useMutation({
     mutationFn: (id: number) => api.deleteSupplier(id),
@@ -131,7 +132,13 @@ function SuppliersTab() {
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => setShowConnectCompany(true)}
+          className="flex items-center gap-2 rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 px-3.5 py-2 text-sm font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
+        >
+          <Search size={15} /> Connecter une entreprise
+        </button>
         <button
           onClick={() => setShowNew(true)}
           className="flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700"
@@ -187,6 +194,77 @@ function SuppliersTab() {
       {connecting && (
         <ConnectSupplierModal supplier={connecting} onClose={() => setConnecting(null)} />
       )}
+      {showConnectCompany && (
+        <ConnectCompanyModal onClose={() => setShowConnectCompany(false)} />
+      )}
+    </div>
+  );
+}
+
+function ConnectCompanyModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [query, setQuery] = useState("");
+  const searchQ = useQuery({
+    queryKey: ["companySearch", query],
+    queryFn: () => api.searchCompanies(query),
+    enabled: query.trim().length >= 2,
+  });
+
+  const connect = useMutation({
+    mutationFn: (targetCompanyId: number) => api.connectCompanyDirect(targetCompanyId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplierConnections"] });
+      toast.success("Demande de connexion envoyée.");
+      onClose();
+    },
+    onError: (e: unknown) => toast.error((e as Error)?.message || "Échec de l'envoi de la demande."),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-[#17211f] dark:text-white">Connecter une entreprise</h3>
+          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+        </div>
+        <p className="text-xs text-[#717182]">
+          Recherchez l'entreprise KOMPTA fournisseur par son nom ou son email. Une fiche
+          fournisseur est créée automatiquement et la demande de connexion lui est envoyée —
+          une fois qu'elle accepte, vos bons de commande apparaissent directement dans son espace Achats.
+        </p>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717182]" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Nom ou email de l'entreprise…"
+            className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#0f1418] pl-8 pr-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-indigo-400"
+          />
+        </div>
+        {searchQ.isFetching && <p className="text-xs text-[#717182]">Recherche…</p>}
+        {!searchQ.isFetching && query.trim().length >= 2 && (searchQ.data ?? []).length === 0 && (
+          <p className="text-xs text-[#717182]">Aucune entreprise trouvée.</p>
+        )}
+        <div className="max-h-64 space-y-1.5 overflow-y-auto">
+          {(searchQ.data ?? []).map((c) => (
+            <button
+              key={c.id}
+              onClick={() => connect.mutate(c.id)}
+              disabled={connect.isPending}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.06] px-3 py-2 text-left hover:bg-black/[0.03] dark:hover:bg-white/[0.04] disabled:opacity-60"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#17211f] dark:text-white">{c.name}</p>
+                <p className="truncate text-xs text-[#717182]">{[c.industry, c.city].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              {connect.isPending ? <Loader2 size={14} className="shrink-0 animate-spin text-indigo-600" /> : <Link2 size={14} className="shrink-0 text-indigo-600" />}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

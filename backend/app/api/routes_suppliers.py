@@ -10,6 +10,7 @@ Endpoints :
   GET    /suppliers/{id}/stats    — stats bons de commande liés
 
   GET    /companies/search                        — rechercher une entreprise KOMPTA par nom/email
+  POST   /suppliers/connect-company                — recherche + connexion en un clic (crée le fournisseur si besoin)
   POST   /suppliers/{id}/connect                   — inviter une entreprise à se connecter comme ce fournisseur
   GET    /supplier-connections/incoming            — demandes de connexion reçues (en tant que cible)
   GET    /supplier-connections/outgoing            — demandes envoyées par mon entreprise
@@ -81,6 +82,71 @@ def create_supplier(
     db.commit()
     db.refresh(supplier)
     return supplier
+
+
+@router.post("/suppliers/connect-company", response_model=SupplierConnectionRead, status_code=201)
+def connect_company_direct(
+    payload: SupplierConnectPayload,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> dict:
+    """Simplifie le processus : recherche l'entreprise puis connecte en un clic,
+    sans passer par la création manuelle d'une fiche fournisseur au préalable.
+    Crée la fiche fournisseur automatiquement à partir des infos publiques de
+    l'entreprise cible (nom, email) si elle n'existe pas déjà.
+
+    IMPORTANT : cette route doit être déclarée AVANT PUT/DELETE /suppliers/{supplier_id}
+    dans ce fichier — sinon FastAPI/Starlette matche "connect-company" comme un
+    supplier_id et répond 405 Method Not Allowed au lieu de router vers cette
+    fonction (même piège que /purchase-orders/received, voir routes_purchases.py)."""
+    if payload.target_company_id == current_user.company_id:
+        raise HTTPException(400, "Impossible de se connecter à sa propre entreprise")
+    target = db.get(Company, payload.target_company_id)
+    if not target or target.status != "active":
+        raise HTTPException(404, "Entreprise introuvable")
+
+    existing_connection = db.scalar(
+        select(SupplierConnection)
+        .join(Supplier, Supplier.id == SupplierConnection.supplier_id)
+        .where(
+            Supplier.company_id == current_user.company_id,
+            SupplierConnection.target_company_id == payload.target_company_id,
+            SupplierConnection.status == "pending",
+        )
+    )
+    if existing_connection:
+        raise HTTPException(409, "Une demande de connexion est déjà en attente pour cette entreprise")
+
+    supplier = db.scalar(
+        select(Supplier).where(
+            Supplier.company_id == current_user.company_id,
+            Supplier.linked_company_id == payload.target_company_id,
+        )
+    )
+    if supplier:
+        raise HTTPException(409, "Cette entreprise est déjà connectée comme fournisseur")
+
+    if not supplier:
+        supplier = Supplier(
+            company_id=current_user.company_id,
+            name=target.name,
+            email=target.email or "",
+            city=target.city or "",
+        )
+        db.add(supplier)
+        db.flush()
+
+    connection = SupplierConnection(
+        requester_company_id=current_user.company_id,
+        supplier_id=supplier.id,
+        target_company_id=payload.target_company_id,
+        status="pending",
+        requested_by_user_id=current_user.id,
+    )
+    db.add(connection)
+    db.commit()
+    db.refresh(connection)
+    return _serialize_connection(db, connection)
 
 
 @router.put("/suppliers/{supplier_id}", response_model=SupplierRead)
