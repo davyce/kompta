@@ -11,6 +11,7 @@ import {
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { LimuleIcon } from "../components/LimuleAvatar";
+import { MarkdownBlock } from "../components/MarkdownBlock";
 import i18n from "../i18n";
 import { api } from "../services/api";
 import type { DeclarationRecord } from "../types/domain";
@@ -237,9 +238,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
           {record.generated_text ? (
             <div className="p-6 space-y-4">
               <div className="prose prose-sm max-w-none dark:prose-invert">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-[#17211f] dark:text-white/90 bg-transparent border-0 p-0">
-                  {record.generated_text}
-                </pre>
+                <MarkdownBlock content={record.generated_text} />
               </div>
             </div>
           ) : (

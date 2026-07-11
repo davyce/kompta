@@ -514,7 +514,7 @@ struct DeclarationDetailView: View {
                 }
                 if !declaration.generated_text.isEmpty {
                     GlassCard {
-                        Text(declaration.generated_text).font(.callout)
+                        MarkdownText(declaration.generated_text, accent: .purple)
                     }
                 }
             }.padding()
