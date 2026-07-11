@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { api, type LimuleChatHistoryItem, type LimuleSignal } from "../services/api";
 import { LimuleAvatar, LimuleIcon } from "./LimuleAvatar";
+import { useToast } from "./ToastProvider";
 import i18n from "../i18n";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -225,6 +226,7 @@ function MsgContent({ text, streaming }: { text: string; streaming?: boolean }) 
 /* ─── Report modal (#10) ─────────────────────────────────────────────────── */
 function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
   const { t: tr } = useTranslation();
+  const toast = useToast();
   async function download() {
     // Si l'interaction a un ID backend → télécharger le PDF généré par le serveur
     if (msg.interactionId) {
@@ -250,7 +252,7 @@ function ReportModal({ msg, onClose }: { msg: Message; onClose: () => void }) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     if (!isPdf) {
       // Échec EXPLICITE : la génération PDF a échoué, on exporte le texte brut.
-      window.alert(tr("components.copilot.alerts.pdfUnavailableTxt"));
+      toast.warning(tr("components.copilot.alerts.pdfUnavailableTxt"));
     }
   }
   return (
@@ -369,6 +371,7 @@ export function Copilot() {
   const { t: tr } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
 
   /* ── États de base ──────────────────────────────────────────────────────── */
   const [open, setOpen] = useState(false);
@@ -717,7 +720,7 @@ export function Copilot() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     if (!isPdf) {
-      window.alert(tr("components.copilot.alerts.pdfUnavailableTxt"));
+      toast.warning(tr("components.copilot.alerts.pdfUnavailableTxt"));
     }
   }
 

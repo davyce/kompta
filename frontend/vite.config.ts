@@ -2,6 +2,10 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// Cible du proxy /api en dev/E2E. Configurable via VITE_PROXY_TARGET pour éviter
+// les collisions quand plusieurs backends tournent sur le port 8010 en parallèle.
+const proxyTarget = process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:8010";
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -16,7 +20,7 @@ export default defineConfig({
     // RELATIVES (/api) qui fonctionnent aussi bien en local que derrière un tunnel iPhone.
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8010",
+        target: proxyTarget,
         changeOrigin: true,
         ws: true,
       },
@@ -44,7 +48,7 @@ export default defineConfig({
     // api.kompta0.com séparé : le frontend appelle des URL relatives /api.
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8010",
+        target: proxyTarget,
         changeOrigin: true,
         ws: true,
       },

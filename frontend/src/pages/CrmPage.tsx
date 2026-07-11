@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, Target, X } from "lucide-react";
 
+import { useToast } from "../components/ToastProvider";
 import { api } from "../services/api";
 import { money } from "../utils/format";
 import type { Opportunity } from "../types/domain";
@@ -47,6 +48,7 @@ export function CrmPage() {
   const [form, setForm] = useState<OpportunityFormData>(EMPTY_FORM);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const toast = useToast();
 
   const opportunitiesQuery = useQuery({ queryKey: ["crm-opportunities"], queryFn: () => api.crmOpportunities() });
   const summaryQuery = useQuery({ queryKey: ["crm-pipeline-summary"], queryFn: api.crmPipelineSummary });
@@ -89,8 +91,7 @@ export function CrmPage() {
       queryClient.invalidateQueries({ queryKey: ["crm-opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["crm-pipeline-summary"] });
       navigate("/billing");
-      // eslint-disable-next-line no-alert
-      window.alert(tr("crm.convertSuccess", { number: res.invoice_number }));
+      toast.success(tr("crm.convertSuccess", { number: res.invoice_number }));
     },
     onError: (err: Error) => setError(err.message),
     onSettled: () => setBusyId(null),
