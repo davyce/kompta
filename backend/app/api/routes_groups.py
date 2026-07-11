@@ -721,6 +721,19 @@ def change_leadership(group_id: int, payload: LeadershipChange, request: Request
     group = _get_group(db, group_id, current_user)
     _require_manage(db, group, current_user)
 
+    candidate_ids = {
+        payload.president_member_id, payload.vice_president_member_id,
+        payload.secretary_member_id, payload.treasurer_member_id,
+    } - {None}
+    if candidate_ids:
+        valid_count = db.scalar(
+            select(func.count(GroupMember.id)).where(
+                GroupMember.id.in_(candidate_ids), GroupMember.group_id == group.id,
+            )
+        ) or 0
+        if valid_count != len(candidate_ids):
+            raise HTTPException(status_code=400, detail="Un ou plusieurs membres n'appartiennent pas à ce groupe")
+
     # Clôturer le mandat courant
     current = db.scalar(
         select(GroupLeadershipHistory).where(

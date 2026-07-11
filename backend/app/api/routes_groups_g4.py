@@ -148,8 +148,9 @@ def post_message(group_id: int, room_id: int, payload: MessageCreate, db: Sessio
 def delete_message(group_id: int, room_id: int, msg_id: int, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)) -> dict:
     group = _get_group(db, group_id, current_user)
+    room = _get_room(db, room_id, group.id)
     msg = db.get(GroupChatMessage, msg_id)
-    if not msg or msg.room_id != room_id:
+    if not msg or msg.room_id != room.id:
         raise HTTPException(status_code=404, detail="Message introuvable")
     is_own = msg.sender_user_id == current_user.id
     can_mod = _company_admin(current_user) or bool(_user_group_roles(db, group, current_user) & (MANAGER_ROLE_NAMES | {"Modérateur"}))

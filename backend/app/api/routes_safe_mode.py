@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.routes import _require_company_owner
 from app.db.session import get_db
 from app.models import (
     Company, DeclarationRecord, Employee, Invoice, InvoiceLine,
@@ -670,6 +671,7 @@ async def safe_mode_export(
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """Génère et retourne le PDF pack Safe Mode complet."""
+    _require_company_owner(current_user)
     snapshot = _collect_snapshot(db, current_user.company_id)
     try:
         limule_summary = await asyncio.wait_for(
@@ -764,6 +766,7 @@ async def safe_mode_restore(
     Restaure les données depuis un snapshot Safe Mode.
     Le payload doit contenir { "snapshot": {...}, "sections": ["employees", "products", ...] }
     """
+    _require_company_owner(current_user)
     snapshot = payload.get("snapshot")
     sections: list[str] = payload.get("sections") or []
 

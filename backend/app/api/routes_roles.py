@@ -159,6 +159,14 @@ def create_role(payload: RolePayload, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)) -> RoleRead:
     if not _can_manage_roles(current_user, payload.scope):
         raise HTTPException(status_code=403, detail="Accès refusé pour gérer ce type de rôle")
+    if payload.scope == "group" and current_user.role != "super_admin":
+        if payload.group_id is None or not db.scalar(
+            select(GroupMember.id).where(
+                GroupMember.group_id == payload.group_id,
+                GroupMember.user_id == current_user.id,
+            )
+        ):
+            raise HTTPException(status_code=403, detail="Rôle hors de votre groupe")
     role = CustomRole(
         name=payload.name.strip(),
         description=payload.description.strip(),

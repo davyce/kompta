@@ -373,16 +373,19 @@ def broadcast_notification(
     )
     db.add(log)
 
-    # Audit
-    db.add(AuditLog(
-        user_id=current_user.id,
-        user_name=current_user.full_name,
-        action="create",
-        resource_type="broadcast",
-        resource_id=None,
-        details=f"Broadcast '{payload.title}' envoyé à {sent_count} utilisateurs (target={target})",
-        company_id=current_user.company_id,
-    ))
+    # Audit — une entrée par entreprise réellement ciblée, pour que l'action
+    # reste visible depuis GET /audit-logs (filtré par company_id) côté client,
+    # et pas seulement invisible dans l'entreprise du super-admin émetteur.
+    for cid in target_company_ids or [current_user.company_id]:
+        db.add(AuditLog(
+            user_id=current_user.id,
+            user_name=current_user.full_name,
+            action="create",
+            resource_type="broadcast",
+            resource_id=None,
+            details=f"Broadcast '{payload.title}' envoyé à {sent_count} utilisateurs (target={target})",
+            company_id=cid,
+        ))
     db.commit()
 
     # Notification in-app temps réel : push WebSocket à chaque entreprise ciblée
@@ -467,7 +470,7 @@ def impersonate_user(
         resource_type="user",
         resource_id=target.id,
         details=f"Super-admin {current_user.email} a impersonné {target.email}",
-        company_id=current_user.company_id,
+        company_id=target.company_id or current_user.company_id,
     ))
     db.commit()
 
@@ -508,7 +511,7 @@ def admin_reset_password(
         resource_type="user",
         resource_id=target.id,
         details=f"Mot de passe réinitialisé par super-admin pour {target.email}",
-        company_id=current_user.company_id,
+        company_id=target.company_id or current_user.company_id,
     ))
     db.commit()
 
@@ -564,7 +567,7 @@ def update_company_status(
         resource_type="company",
         resource_id=company.id,
         details=f"Statut entreprise '{company.name}' changé à '{payload.status}'",
-        company_id=current_user.company_id,
+        company_id=company.id,
     ))
     db.commit()
     db.refresh(company)
