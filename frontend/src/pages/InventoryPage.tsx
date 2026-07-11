@@ -17,6 +17,7 @@ import { shortDate, money, compactMoney, currencyLabel } from "../utils/format";
 import { inferProductIcon, productIconLabel, productIconSuggestions } from "../utils/productIcons";
 import { useCurrency } from "../contexts/CurrencyContext";
 import i18n from "../i18n";
+import * as T from "../styles/table";
 
 function ProductIconDisplay({ product, size = 22 }: { product: Pick<Product, "name" | "category">; size?: number }) {
   const entry = inferProductIcon(product);
@@ -607,40 +608,40 @@ export function InventoryPage() {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className={T.tableWrap}>
+                  <table className={T.table}>
                     <thead>
-                      <tr className="border-b border-black/[0.06] text-left text-xs font-semibold uppercase tracking-wide text-[#717182] dark:border-white/[0.06]">
-                        <th className="w-10 py-2 pr-3">
+                      <tr className={T.theadRow}>
+                        <th className={`${T.th} w-10`}>
                           <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
                         </th>
-                        <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleInvSort("name")}>
+                        <th className={T.thSortable} onClick={() => toggleInvSort("name")}>
                           <span className="flex items-center">{tr("inventory.colProduct")}<InvSortIcon field="name" /></span>
                         </th>
-                        <th className="py-2 pr-4 hidden sm:table-cell">SKU</th>
-                        <th className="py-2 pr-4 hidden md:table-cell cursor-pointer" onClick={() => toggleInvSort("category")}>
+                        <th className={`${T.th} hidden sm:table-cell`}>SKU</th>
+                        <th className={`${T.thSortable} hidden md:table-cell`} onClick={() => toggleInvSort("category")}>
                           <span className="flex items-center">{tr("inventory.colCategory")}<InvSortIcon field="category" /></span>
                         </th>
-                        <th className="py-2 pr-4 hidden lg:table-cell">{tr("inventory.colSite")}</th>
-                        <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("price")}>
+                        <th className={`${T.th} hidden lg:table-cell`}>{tr("inventory.colSite")}</th>
+                        <th className={T.thSortableRight} onClick={() => toggleInvSort("price")}>
                           <span className="flex items-center justify-end">{tr("inventory.colPrice")}<InvSortIcon field="price" /></span>
                         </th>
-                        <th className="py-2 pr-4 text-right cursor-pointer" onClick={() => toggleInvSort("stock")}>
+                        <th className={T.thSortableRight} onClick={() => toggleInvSort("stock")}>
                           <span className="flex items-center justify-end">{tr("inventory.colStock")}<InvSortIcon field="stock" /></span>
                         </th>
-                        <th className="py-2 pr-4">{tr("inventory.colStatus")}</th>
-                        <th className="py-2" />
+                        <th className={T.th}>{tr("inventory.colStatus")}</th>
+                        <th className={T.th} />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+                    <tbody className={T.tbody}>
                       {filtered.map((p) => {
                         const badge = statusBadge(p.stock_quantity, p.reorder_level);
                         return (
-                          <tr key={p.id} className={`hover:bg-[#f8f8fc] dark:hover:bg-white/[0.03] ${selected.includes(p.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}`}>
-                            <td className="py-3 pr-3">
+                          <tr key={p.id} className={`${T.tr} ${selected.includes(p.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}`}>
+                            <td className={T.td}>
                               <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className={T.td}>
                               <div className="flex items-center gap-3">
                                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${inferProductIcon(p).bg} dark:bg-white/[0.06]`}>
                                   <ProductIconDisplay product={p} size={18} />
@@ -655,17 +656,17 @@ export function InventoryPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 pr-4 hidden sm:table-cell font-mono text-xs text-[#717182]">{p.sku}</td>
-                            <td className="py-3 pr-4 hidden md:table-cell text-[#717182]">{p.category}</td>
-                            <td className="py-3 pr-4 hidden lg:table-cell">
+                            <td className={`${T.td} hidden sm:table-cell font-mono text-xs text-[#717182]`}>{p.sku}</td>
+                            <td className={`${T.td} hidden md:table-cell text-[#717182]`}>{p.category}</td>
+                            <td className={`${T.td} hidden lg:table-cell`}>
                               <span className="flex items-center gap-1 text-[#717182]"><MapPin size={12} />{tr("inventory.depot")}</span>
                             </td>
-                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.price.toLocaleString(i18n.language)}</td>
-                            <td className="py-3 pr-4 text-right font-medium text-[#17211f] dark:text-white">{p.stock_quantity}</td>
-                            <td className="py-3 pr-4">
+                            <td className={`${T.tdRight} font-medium text-[#17211f] dark:text-white`}>{p.price.toLocaleString(i18n.language)}</td>
+                            <td className={`${T.tdRight} font-medium text-[#17211f] dark:text-white`}>{p.stock_quantity}</td>
+                            <td className={T.td}>
                               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>{tr(`inventory.${badge.key}`)}</span>
                             </td>
-                            <td className="py-3">
+                            <td className={T.td}>
                               <div className="flex flex-wrap gap-1.5">
                                 <button onClick={() => openEdit(p)} className="rounded-md border border-black/[0.08] px-2.5 py-1.5 text-xs hover:bg-[#f5f5fa] dark:border-white/10">
                                   {tr("inventory.edit")}

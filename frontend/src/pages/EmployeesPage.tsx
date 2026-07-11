@@ -19,6 +19,7 @@ import i18n from "../i18n";
 import { api } from "../services/api";
 import { money, currencyLabel } from "../utils/format";
 import { useCurrency } from "../contexts/CurrencyContext";
+import * as T from "../styles/table";
 
 const EMPTY_FORM = {
   first_name: "",
@@ -734,42 +735,42 @@ export function EmployeesPage() {
 
           {/* Tab : Liste */}
           {tab === "list" && filteredEmployees?.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="text-xs uppercase text-stone-400">
-                  <tr>
-                    <th className="pb-2">
+            <div className={T.tableWrap}>
+              <table className={`${T.table} min-w-[900px]`}>
+                <thead>
+                  <tr className={T.theadRow}>
+                    <th className={T.th}>
                       <button onClick={() => toggleSort("name")} className="flex items-center hover:text-emerald-600 transition">
                         {tr("employeesPage.table.name")} <SortIcon field="name" />
                       </button>
                     </th>
-                    <th className="pb-2">{tr("employeesPage.table.contact")}</th>
-                    <th className="pb-2">{tr("employeesPage.table.role")}</th>
-                    <th className="pb-2">
+                    <th className={T.th}>{tr("employeesPage.table.contact")}</th>
+                    <th className={T.th}>{tr("employeesPage.table.role")}</th>
+                    <th className={T.th}>
                       <button onClick={() => toggleSort("department")} className="flex items-center hover:text-emerald-600 transition">
                         {tr("employeesPage.table.department")} <SortIcon field="department" />
                       </button>
                     </th>
-                    <th className="pb-2">
+                    <th className={T.th}>
                       <button onClick={() => toggleSort("branch")} className="flex items-center hover:text-emerald-600 transition">
                         {tr("employeesPage.table.branch")} <SortIcon field="branch" />
                       </button>
                     </th>
-                    <th className="pb-2">
+                    <th className={T.th}>
                       <button onClick={() => toggleSort("salary")} className="flex items-center hover:text-emerald-600 transition">
                         {tr("employeesPage.table.salary")} <SortIcon field="salary" />
                       </button>
                     </th>
-                    <th className="pb-2">{tr("employeesPage.table.payment")}</th>
-                    <th className="pb-2">{tr("employeesPage.table.account")}</th>
-                    <th className="pb-2">{tr("employeesPage.table.access")}</th>
-                    <th className="pb-2">{tr("employeesPage.table.actions")}</th>
+                    <th className={T.th}>{tr("employeesPage.table.payment")}</th>
+                    <th className={T.th}>{tr("employeesPage.table.account")}</th>
+                    <th className={T.th}>{tr("employeesPage.table.access")}</th>
+                    <th className={T.th}>{tr("employeesPage.table.actions")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className={T.tbody}>
                   {filteredEmployees.map((emp) => (
-                    <tr key={emp.id} className="hover:bg-stone-50">
-                      <td className="py-3">
+                    <tr key={emp.id} className={T.tr}>
+                      <td className={T.td}>
                         <div className="flex items-center gap-3">
                           <span
                             className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold text-white"
@@ -783,31 +784,31 @@ export function EmployeesPage() {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td className={T.td}>
                         <p>{emp.phone || tr("employeesPage.common.notProvided")}</p>
                         <p className="text-xs text-[#717182]">{tr("employeesPage.common.sms")}</p>
                       </td>
-                      <td className="font-medium">{emp.job_title}</td>
-                      <td>{emp.department}</td>
-                      <td>{emp.branch}</td>
-                      <td className="font-semibold text-emerald-600">{money(emp.salary)}</td>
-                      <td>
+                      <td className={`${T.td} font-medium`}>{emp.job_title}</td>
+                      <td className={T.td}>{emp.department}</td>
+                      <td className={T.td}>{emp.branch}</td>
+                      <td className={`${T.td} font-semibold text-emerald-600`}>{money(emp.salary)}</td>
+                      <td className={T.td}>
                         <p className="font-medium">{payoutMethodLabel(emp.payout_method, tr)}</p>
                         <p className="text-xs text-[#717182]">
                           {emp.payout_phone || emp.payout_bank_name || emp.payout_paypal_email || tr("employeesPage.common.toComplete")}
                         </p>
                       </td>
-                      <td>
+                      <td className={T.td}>
                         <StatusBadge
                           label={accountStatusLabel(emp.account_status, tr)}
                           tone={emp.account_status === "active" ? "green" : emp.account_status === "suspended" ? "red" : "amber"}
                         />
                       </td>
-                      <td>
+                      <td className={T.td}>
                         <p className="font-medium">{accessRoleLabel(emp.access_role, tr)}</p>
                         <p className="text-xs text-[#717182]">{emp.access_scope}</p>
                       </td>
-                      <td>
+                      <td className={T.td}>
                         <div className="flex items-center gap-1.5">
                           <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.viewProfile")}><ExternalLink size={15} /></Link>
                           <button
