@@ -89,6 +89,24 @@ class PortalInvoiceRead(BaseModel):
     created_at: str | None = None
 
 
+class PortalInvoiceLineRead(BaseModel):
+    id: int
+    description: str
+    quantity: int
+    unit_price: float
+    tax_rate: float
+    total: float
+
+
+class PortalInvoiceDetailRead(PortalInvoiceRead):
+    lines: list[PortalInvoiceLineRead]
+
+
+class PortalChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class PortalPaymentInstructions(BaseModel):
     invoice_number: str
     amount: float
@@ -174,6 +192,25 @@ def portal_logout(response: Response) -> dict:
     return {"status": "logged_out"}
 
 
+@router.post("/auth/change-password")
+def portal_change_password(
+    payload: PortalChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_client: Client = Depends(get_current_client),
+) -> dict:
+    if not current_client.portal_password_hash or not verify_password(
+        payload.current_password.strip(), current_client.portal_password_hash
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mot de passe actuel incorrect")
+    new_password = payload.new_password.strip()
+    if len(new_password) < 8:
+        raise HTTPException(status_code=422, detail="Le nouveau mot de passe doit contenir au moins 8 caractères")
+    current_client.portal_password_hash = hash_password(new_password)
+    current_client.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"status": "password_changed"}
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Espace client (auth client-portal requise)
 # ═══════════════════════════════════════════════════════════════════
@@ -228,6 +265,36 @@ def portal_my_invoices(
         )
         for inv in invoices
     ]
+
+
+@router.get("/me/invoices/{invoice_id}", response_model=PortalInvoiceDetailRead)
+def portal_invoice_detail(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_client: Client = Depends(get_current_client),
+) -> PortalInvoiceDetailRead:
+    invoice = _get_owned_invoice(db, invoice_id, current_client)
+    return PortalInvoiceDetailRead(
+        id=invoice.id,
+        number=invoice.number,
+        status=invoice.status,
+        total_amount=invoice.total_amount,
+        currency=invoice.currency,
+        due_date=invoice.due_date.isoformat() if invoice.due_date else None,
+        payment_requested_at=invoice.payment_requested_at.isoformat() if invoice.payment_requested_at else None,
+        created_at=invoice.created_at.isoformat() if invoice.created_at else None,
+        lines=[
+            PortalInvoiceLineRead(
+                id=line.id,
+                description=line.description,
+                quantity=line.quantity,
+                unit_price=line.unit_price,
+                tax_rate=line.tax_rate,
+                total=line.total,
+            )
+            for line in invoice.lines
+        ],
+    )
 
 
 def _get_owned_invoice(db: Session, invoice_id: int, current_client: Client) -> Invoice:

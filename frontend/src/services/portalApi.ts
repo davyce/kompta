@@ -51,6 +51,19 @@ export type PortalPaymentInstructions = {
   requested_at: string;
 };
 
+export type PortalInvoiceLine = {
+  id: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax_rate: number;
+  total: number;
+};
+
+export type PortalInvoiceDetail = PortalInvoice & {
+  lines: PortalInvoiceLine[];
+};
+
 async function readError(response: Response): Promise<string> {
   try {
     const data = await response.json();
@@ -100,6 +113,14 @@ export const portalApi = {
   myCompany: () => request<PortalCompany>("/portal/me/company"),
 
   myInvoices: () => request<PortalInvoice[]>("/portal/me/invoices"),
+
+  invoiceDetail: (invoiceId: number) => request<PortalInvoiceDetail>(`/portal/me/invoices/${invoiceId}`),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ status: string }>("/portal/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
 
   downloadInvoicePdf: async (invoiceId: number, filename: string) => {
     const blob = await requestBlob(`/portal/me/invoices/${invoiceId}/pdf`);
