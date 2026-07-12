@@ -109,8 +109,9 @@ def _wrap_email(header_color: str, header_content: str, body_content: str) -> st
 
 
 def _logo_header(title: str, subtitle: str = "") -> str:
-    """En-tête : logo monogramme « K » (badge blanc, K émeraude — le vrai logo de l'app)
-    + wordmark KOMPTA. 100% HTML/CSS, fiable dans tous les clients mail (pas d'image)."""
+    """En-tête : vrai logo KOMPTA (image publique servie par le frontend) + wordmark.
+    Remplace l'ancien badge « K » en CSS pur, qui rendait mal (juste une lettre, pas
+    le logo réel de l'app). Alt text si le client mail bloque les images distantes."""
     sub_html = (
         f'<p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;font-weight:500;">{subtitle}</p>'
         if subtitle else ""
@@ -119,8 +120,8 @@ def _logo_header(title: str, subtitle: str = "") -> str:
       <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 18px;">
         <tr>
           <td style="vertical-align:middle;padding-right:12px;">
-            <div style="width:52px;height:52px;background:#ffffff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.18);text-align:center;">
-              <span style="display:inline-block;line-height:52px;font-size:30px;font-weight:800;color:#0f766e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">K</span>
+            <div style="width:52px;height:52px;background:#ffffff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.18);text-align:center;line-height:52px;">
+              <img src="https://kompta0.com/branding/logo-512.png" alt="KOMPTA" width="40" height="40" style="vertical-align:middle;border-radius:10px;display:inline-block;">
             </div>
           </td>
           <td style="vertical-align:middle;text-align:left;">
