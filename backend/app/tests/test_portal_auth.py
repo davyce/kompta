@@ -39,7 +39,7 @@ def test_portal_login_sets_httponly_cookie() -> None:
     admin_headers = _admin_auth(client)
     _client_id, email, temp_password = _create_portal_client(client, admin_headers)
 
-    r = client.post("/api/portal/auth/login", json={"email": email, "password": temp_password})
+    r = client.post("/api/portal/auth/login", json={"identifier": email, "password": temp_password})
     assert r.status_code == 200, r.text
     assert "access_token" in r.json()
     assert "kompta_portal_session" in r.cookies
@@ -50,7 +50,7 @@ def test_portal_me_restores_session_via_cookie() -> None:
     admin_headers = _admin_auth(client)
     _client_id, email, temp_password = _create_portal_client(client, admin_headers)
 
-    login = client.post("/api/portal/auth/login", json={"email": email, "password": temp_password})
+    login = client.post("/api/portal/auth/login", json={"identifier": email, "password": temp_password})
     assert login.status_code == 200
 
     # Pas de header Authorization ici : seul le cookie HttpOnly (rejoué
@@ -65,7 +65,7 @@ def test_portal_logout_clears_cookie_and_revokes_access() -> None:
     admin_headers = _admin_auth(client)
     _client_id, email, temp_password = _create_portal_client(client, admin_headers)
 
-    client.post("/api/portal/auth/login", json={"email": email, "password": temp_password})
+    client.post("/api/portal/auth/login", json={"identifier": email, "password": temp_password})
     assert client.get("/api/portal/me").status_code == 200
 
     logout = client.post("/api/portal/auth/logout")
@@ -81,7 +81,7 @@ def test_portal_token_is_rejected_on_main_app_routes() -> None:
     admin_headers = _admin_auth(client)
     _client_id, email, temp_password = _create_portal_client(client, admin_headers)
 
-    login = client.post("/api/portal/auth/login", json={"email": email, "password": temp_password})
+    login = client.post("/api/portal/auth/login", json={"identifier": email, "password": temp_password})
     portal_token = login.json()["access_token"]
 
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {portal_token}"})

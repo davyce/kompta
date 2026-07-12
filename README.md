@@ -53,6 +53,7 @@
 | **🏛️ Comptabilité partie double** | **SYSCOHADA-lite** (18 comptes), `JournalEntry` équilibrées garanties (Σdébit=Σcrédit), grand livre, balance, contre-passation immuable |
 | **💳 Transactions** | Relevé comptable unifié (factures + POS + imports), filtres, analyse Limule |
 | **🏦 Rapprochement bancaire** | Import relevé CSV, matching automatique (rapproché/suggéré/non-rapproché), confirmation/création/ignore ligne par ligne — **web + iOS/macOS natifs** |
+| **🎁 Portail client** | Espace 100 % gratuit pour les clients (`/portal`), connexion par **email ou téléphone**, factures + PDF + demande de paiement Mobile Money, **fidélité agrégée en temps réel sur toutes les entreprises KOMPTA fréquentées** (points, palier, remise) |
 | **🏢 Groupes & Organisations** | Tontines, mutuelles, ONG, clubs, asso : membres, **bureau & mandats**, cotisations, caisse, **chat temps réel WS**, calendrier, anniversaires, votes, IA dédiée |
 | **📄 Documents** | Upload, classification IA, analyse, rattachement employé/groupe |
 | **📅 Agenda** | Réunions, ordre du jour, participants, liens visio, intégration Journal |
@@ -819,6 +820,15 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 ---
 
 ## Changelog
+
+### v1.10.0 — Juillet 2026 (portail client : fidélité multi-entreprises, connexion par téléphone)
+
+- ✅ **Fidélité agrégée en temps réel** : nouvel endpoint `/portal/me/loyalty-overview` — un client qui fréquente plusieurs commerces KOMPTA voit, depuis un seul espace, ses points/palier/remise **pour chaque entreprise**, avec la progression vers le palier suivant
+- ✅ **Connexion portail par email OU téléphone** (`identifier`), même discrimination stricte qu'`/auth/login` (évite les collisions entre un email et un téléphone partagés) ; activation de l'accès portail depuis la fiche client ne requiert plus un email
+- ✅ **Recherche client par téléphone** sur la page Clients (absente jusqu'ici — seuls nom/email/ville étaient cherchés)
+- ✅ **Landing page** : nouvelle section dédiée au portail client (badge « 100 % gratuit », aperçu fidélité, lien direct), en plus de la carte déjà existante
+- ✅ **Plan de mise en œuvre documenté** pour une app native dédiée « KOMPTA Client » (iOS/macOS, cible clients finaux) — voir `docs/KOMPTA_CLIENT_APP_PLAN.md` ; non démarré, backend déjà prêt (9 endpoints `/portal/*` réutilisables tels quels)
+- ✅ 187/187 tests backend, build + typecheck frontend propres
 
 ### v1.9.0 — Juillet 2026 (parité CRM & rapprochement bancaire iOS/macOS, corrections UX)
 

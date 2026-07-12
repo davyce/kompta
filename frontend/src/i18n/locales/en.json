@@ -1428,7 +1428,7 @@
       "retentionHint": "Clients with 2+ invoices"
     },
     "search": {
-      "placeholder": "Search a client…"
+      "placeholder": "Name, email, phone or city…"
     },
     "filters": {
       "all": "All",
@@ -2544,11 +2544,14 @@
   },
   "portal": {
     "loginTitle": "Client portal",
-    "loginSubtitle": "Sign in to view your invoices",
+    "loginSubtitle": "Sign in to view your invoices and loyalty rewards",
+    "freeBadge": "100% free for you",
     "email": "Email",
+    "identifier": "Email or phone",
+    "identifierPlaceholder": "you@example.com or +1 555 123 4567",
     "password": "Password",
     "loginButton": "Sign in",
-    "loginError": "Invalid email or password",
+    "loginError": "Invalid identifier or password",
     "logout": "Sign out",
     "invoicesTitle": "My invoices",
     "noInvoices": "No invoices yet",
@@ -2573,7 +2576,7 @@
     "portalAccessGenerated": "Portal password generated",
     "portalTemporaryPassword": "Temporary password",
     "portalAccessNote": "Share this password with the client. It won't be shown again.",
-    "portalNoEmail": "The client needs an email to activate the portal",
+    "portalNoEmail": "Add an email or phone number to activate the portal",
     "welcomeBack": "Hello {{name}}",
     "outstandingTotal": "Total due",
     "outstandingCount_one": "{{count}} invoice pending",
@@ -2611,7 +2614,19 @@
     "changePasswordError": "Could not change password.",
     "loadingLines": "Loading line items…",
     "noAccountTitle": "Don't have an account yet?",
-    "noAccountBody": "Portal access is created by the company you are a client of, from their KOMPTA workspace. Contact them directly to have your access activated — you'll receive an email with your credentials."
+    "noAccountBody": "Portal access is created by the company you are a client of, from their KOMPTA workspace. Contact them directly to have your access activated — you'll receive an email with your credentials.",
+    "loyaltyTitle": "My loyalty",
+    "loyaltySubtitle": "Your points and discounts at every business",
+    "loyaltyPoints_one": "{{count}} point",
+    "loyaltyPoints_other": "{{count}} points",
+    "loyaltyTierStandard": "Standard",
+    "loyaltyTierSilver": "Silver",
+    "loyaltyTierGold": "Gold",
+    "loyaltyTierVip": "VIP",
+    "loyaltyNextTier": "{{points}} points to reach {{tier}}",
+    "loyaltyMaxTier": "Top tier reached",
+    "loyaltyDiscount": "-{{percent}}% on your purchases",
+    "loyaltyEmpty": "No active loyalty program yet."
   },
   "productIcons": {
     "shirt": "Shirt / T-shirt",

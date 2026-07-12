@@ -8,7 +8,7 @@ type PortalAuthState = {
   bootstrapping: boolean;
   clientId: number | null;
   clientName: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
 };
 

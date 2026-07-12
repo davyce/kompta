@@ -351,16 +351,16 @@ function ClientModal({
                 type="checkbox"
                 checked={createPortalAccess}
                 onChange={(e) => setCreatePortalAccess(e.target.checked)}
-                disabled={!form.email.trim()}
+                disabled={!form.email.trim() && !form.phone.trim()}
                 className="mt-0.5 h-4 w-4 rounded border-black/20 dark:border-white/20 text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs text-[#17211f] dark:text-white">
-                <span className="font-semibold">Créer un accès au portail client</span>
+                <span className="font-semibold">Créer un accès au portail client (gratuit)</span>
                 <br />
                 <span className="text-[#717182]">
-                  {form.email.trim()
-                    ? "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email."
-                    : "Renseignez un email pour activer cette option."}
+                  {form.email.trim() || form.phone.trim()
+                    ? "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email ou son téléphone."
+                    : "Renseignez un email ou un téléphone pour activer cette option."}
                 </span>
               </span>
             </label>
@@ -377,7 +377,7 @@ function ClientModal({
           </button>
           <button
             disabled={!form.name.trim() || loading}
-            onClick={() => onSave(form, createPortalAccess && !!form.email.trim())}
+            onClick={() => onSave(form, createPortalAccess && (!!form.email.trim() || !!form.phone.trim()))}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             {loading ? tr("clientsPage.modal.saving") : tr("common.save")}
@@ -756,11 +756,11 @@ function ClientDetailPanel({
             ) : (
               <button
                 onClick={() => activatePortal.mutate()}
-                disabled={!client.email || activatePortal.isPending}
+                disabled={(!client.email && !client.phone) || activatePortal.isPending}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#17211f] px-3 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 dark:bg-white dark:text-[#17211f]"
               >
                 {activatePortal.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-                {client.email ? tr("portal.activatePortalAccess") : tr("portal.portalNoEmail")}
+                {client.email || client.phone ? tr("portal.activatePortalAccess") : tr("portal.portalNoEmail")}
               </button>
             )}
           </div>
@@ -876,7 +876,7 @@ export function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<ClientDto | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<ClientDto | null>(null);
-  const [newPortalResult, setNewPortalResult] = useState<{ clientName: string; email: string | null; temporary_password: string } | null>(null);
+  const [newPortalResult, setNewPortalResult] = useState<{ clientName: string; email: string | null; phone: string | null; temporary_password: string } | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────
   const clientsQuery = useQuery<ClientDto[]>({
@@ -932,11 +932,13 @@ export function ClientsPage() {
       const matchesStatus =
         statusFilter === "all" || c.status === statusFilter;
       const q = search.toLowerCase();
+      const qDigits = search.replace(/[^0-9+]/g, "");
       const matchesSearch =
         !q ||
         c.name.toLowerCase().includes(q) ||
         (c.email ?? "").toLowerCase().includes(q) ||
-        (c.city ?? "").toLowerCase().includes(q);
+        (c.city ?? "").toLowerCase().includes(q) ||
+        (qDigits.length >= 3 && (c.phone ?? "").replace(/[^0-9+]/g, "").includes(qDigits));
       return matchesStatus && matchesSearch;
     });
   }, [clients, statusFilter, search]);
@@ -967,7 +969,12 @@ export function ClientsPage() {
       });
       if (createPortalAccess) {
         const portal = await api.setClientPortalPassword(client.id);
-        setNewPortalResult({ clientName: client.name, email: portal.email, temporary_password: portal.temporary_password });
+        setNewPortalResult({
+          clientName: client.name,
+          email: portal.email,
+          phone: client.phone ?? null,
+          temporary_password: portal.temporary_password,
+        });
       }
       return client;
     },
@@ -1338,8 +1345,8 @@ export function ClientsPage() {
               Communiquez ces identifiants à <span className="font-semibold">{newPortalResult.clientName}</span> — le mot de passe ne sera plus affiché ensuite.
             </p>
             <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#14181f] p-3 space-y-1.5">
-              <p className="text-xs text-[#717182]">Email de connexion</p>
-              <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white">{newPortalResult.email || "—"}</p>
+              <p className="text-xs text-[#717182]">{newPortalResult.email ? "Email de connexion" : "Téléphone de connexion"}</p>
+              <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white">{newPortalResult.email || newPortalResult.phone || "—"}</p>
               <p className="mt-2 text-xs text-[#717182]">Mot de passe temporaire</p>
               <p className="text-sm font-mono font-bold text-[#17211f] dark:text-white">{newPortalResult.temporary_password}</p>
               <p className="mt-2 text-xs text-[#717182]">Connexion sur <span className="font-mono">/portal/login</span></p>

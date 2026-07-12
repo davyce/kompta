@@ -1,5 +1,5 @@
 import {
-  ArrowRight, BarChart3, Building2, CheckCircle2, Globe2, Lock, Receipt,
+  ArrowRight, Award, BarChart3, Building2, CheckCircle2, Gift, Globe2, Lock, Receipt,
   ShieldCheck, Smartphone, Sparkles, Truck, Users2, Wallet,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -28,8 +28,8 @@ const FEATURES = [
     desc: "Bulletins CNSS + IRPP, congés, et un module dédié tontines / ONG / mutuelles avec caisse et votes.",
   },
   {
-    icon: Building2, title: "Portail client",
-    desc: "Vos clients consultent leurs factures et demandent un paiement depuis leur propre espace sécurisé.",
+    icon: Building2, title: "Portail client gratuit",
+    desc: "Vos clients consultent leurs factures, suivent leurs points de fidélité et leurs réductions depuis un espace 100% gratuit.",
   },
 ];
 
@@ -168,8 +168,58 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Mobile */}
+      {/* Portail client */}
       <section className="border-t border-black/[0.06] bg-stone-50/60 py-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 lg:grid-cols-2">
+          <div>
+            <div className="mb-4 flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+              <Gift size={13} /> 100% gratuit pour vos clients
+            </div>
+            <h2 className="text-2xl font-black sm:text-3xl">Un espace client que vos clients vont adorer</h2>
+            <p className="mt-4 text-sm text-stone-600 sm:text-base">
+              Chaque client d'une entreprise KOMPTA a son propre espace, gratuit et sécurisé — accessible
+              par email ou numéro de téléphone. Il y consulte ses factures, suit ses points de fidélité
+              en temps réel et voit ses réductions, dans tous les commerces KOMPTA qu'il fréquente.
+            </p>
+            <ul className="mt-5 space-y-2.5 text-sm text-stone-700">
+              {[
+                "Connexion simple par email ou téléphone, aucune carte bancaire",
+                "Points de fidélité et paliers (Standard, Argent, Or, VIP) suivis en direct",
+                "Réductions et factures visibles pour chaque commerce, au même endroit",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" /> {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => navigate("/portal/login")}
+              className="mt-6 flex items-center gap-2 rounded-xl border border-emerald-600 px-5 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50"
+            >
+              Accéder à mon espace client <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="rounded-2xl border border-black/[0.06] bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold text-stone-500">Boutique Ngoma</p>
+              <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                <Award size={12} /> Or
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-black text-ink">1 240 <span className="text-sm font-semibold text-stone-500">points</span></p>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/[0.06]">
+              <div className="h-full w-[62%] rounded-full bg-emerald-500" />
+            </div>
+            <p className="mt-1.5 text-xs text-stone-500">Encore 760 points pour le palier VIP</p>
+            <p className="mt-3 inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              -10% sur vos achats
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Mobile */}
+      <section className="border-t border-black/[0.06] py-16">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-5 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
             <Smartphone size={26} />

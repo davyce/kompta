@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Check, Copy, Download, Eye, KeyRound, LogOut, Settings, Wallet, X } from "lucide-react";
+import { Award, Check, Copy, Download, Eye, KeyRound, LogOut, Settings, Wallet, X } from "lucide-react";
 
 import { usePortalAuth } from "../../contexts/PortalAuthContext";
 import { PortalApiError, portalApi } from "../../services/portalApi";
@@ -9,8 +9,25 @@ import type {
   PortalCompany,
   PortalInvoice,
   PortalInvoiceDetail,
+  PortalLoyaltyEntry,
   PortalPaymentInstructions,
 } from "../../services/portalApi";
+
+const TIER_KEY: Record<string, string> = {
+  standard: "portal.loyaltyTierStandard",
+  silver: "portal.loyaltyTierSilver",
+  gold: "portal.loyaltyTierGold",
+  vip: "portal.loyaltyTierVip",
+};
+
+const TIER_TONE: Record<string, string> = {
+  standard: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60",
+  silver: "bg-slate-200 text-slate-700 dark:bg-white/15 dark:text-white/80",
+  gold: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  vip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+};
+
+const TIER_STEPS: Record<string, number> = { standard: 0, silver: 500, gold: 2000, vip: 5000 };
 
 const STATUS_KEY: Record<string, string> = {
   draft: "portal.statusDraft",
@@ -47,6 +64,7 @@ export function PortalDashboardPage() {
 
   const [company, setCompany] = useState<PortalCompany | null>(null);
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
+  const [loyalty, setLoyalty] = useState<PortalLoyaltyEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [instructions, setInstructions] = useState<PortalPaymentInstructions | null>(null);
   const [requesting, setRequesting] = useState<number | null>(null);
@@ -68,9 +86,14 @@ export function PortalDashboardPage() {
     }
     (async () => {
       try {
-        const [c, inv] = await Promise.all([portalApi.myCompany(), portalApi.myInvoices()]);
+        const [c, inv, loy] = await Promise.all([
+          portalApi.myCompany(),
+          portalApi.myInvoices(),
+          portalApi.loyaltyOverview().catch(() => []),
+        ]);
         setCompany(c);
         setInvoices(inv);
+        setLoyalty(loy);
       } finally {
         setLoading(false);
       }
@@ -192,6 +215,59 @@ export function PortalDashboardPage() {
             <p className="mt-0.5 text-xs text-[#717182]">{nextDue ? "" : t("portal.allSettled")}</p>
           </div>
         </div>
+
+        {!loading && loyalty.length > 0 ? (
+          <div className="mb-6">
+            <h2 className="mb-1 text-base font-bold text-[#17211f] dark:text-white">{t("portal.loyaltyTitle")}</h2>
+            <p className="mb-3 text-xs text-[#717182]">{t("portal.loyaltySubtitle")}</p>
+            <div className="space-y-3">
+              {loyalty.map((entry) => {
+                const step = TIER_STEPS[entry.loyalty_tier] ?? 0;
+                const nextStep = entry.next_tier ? TIER_STEPS[entry.next_tier] ?? step : step;
+                const span = Math.max(nextStep - step, 1);
+                const progress = entry.next_tier
+                  ? Math.min(100, Math.max(0, ((entry.loyalty_points - step) / span) * 100))
+                  : 100;
+                return (
+                  <div key={entry.company_id} className="rounded-2xl border border-black/5 bg-white p-4 dark:border-white/10 dark:bg-[#111a17]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-[#17211f] dark:text-white">{entry.company_name}</p>
+                        <p className="mt-0.5 text-xs text-[#717182]">
+                          {t("portal.loyaltyPoints", { count: entry.loyalty_points })}
+                        </p>
+                      </div>
+                      <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${TIER_TONE[entry.loyalty_tier] ?? TIER_TONE.standard}`}>
+                        <Award size={12} /> {t(TIER_KEY[entry.loyalty_tier] ?? "portal.loyaltyTierStandard")}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-[#717182]">
+                      {entry.next_tier && entry.points_to_next_tier != null
+                        ? t("portal.loyaltyNextTier", {
+                            points: entry.points_to_next_tier,
+                            tier: t(TIER_KEY[entry.next_tier] ?? "portal.loyaltyTierStandard"),
+                          })
+                        : t("portal.loyaltyMaxTier")}
+                    </p>
+
+                    {entry.global_discount_percent > 0 ? (
+                      <p className="mt-2 inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                        {t("portal.loyaltyDiscount", { percent: entry.global_discount_percent })}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <h2 className="mb-3 text-base font-bold text-[#17211f] dark:text-white">{t("portal.invoicesTitle")}</h2>
 

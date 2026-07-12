@@ -8,8 +8,9 @@ pas d'intégration live avec un opérateur).
 
 Endpoints :
   POST /portal/auth/set-password              — (admin User) génère un mot de passe portail pour un Client
-  POST /portal/auth/login                      — (public) login Client -> token scope=client_portal
+  POST /portal/auth/login                      — (public) login Client par email OU téléphone -> token scope=client_portal
   GET  /portal/me/company                      — infos entreprise (branding)
+  GET  /portal/me/loyalty-overview             — points/tier/remise agrégés sur toutes les entreprises liées (même email/tél)
   GET  /portal/me/invoices                     — factures du client connecté
   GET  /portal/me/invoices/{invoice_id}/pdf    — PDF de la facture
   POST /portal/me/invoices/{invoice_id}/request-payment — instructions Mobile Money
@@ -21,7 +22,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_client, get_current_user
@@ -35,7 +36,7 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models import User
 from app.models.domain import Client, Company, Invoice, PaymentAccount
-from app.services.access import generate_temporary_password
+from app.services.access import generate_temporary_password, normalize_phone
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -56,7 +57,7 @@ class SetPortalPasswordResponse(BaseModel):
 
 
 class PortalLoginRequest(BaseModel):
-    email: str
+    identifier: str  # email OU numéro de téléphone
     password: str
 
 
@@ -107,6 +108,17 @@ class PortalChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class PortalLoyaltyEntry(BaseModel):
+    company_id: int
+    company_name: str
+    company_logo_path: str | None = None
+    loyalty_points: int
+    loyalty_tier: str
+    global_discount_percent: float
+    next_tier: str | None = None
+    points_to_next_tier: int | None = None
+
+
 class PortalPaymentInstructions(BaseModel):
     invoice_number: str
     amount: float
@@ -154,26 +166,49 @@ def set_portal_password(
 # Auth client (public)
 # ═══════════════════════════════════════════════════════════════════
 
+def _portal_login_candidates(db: Session, identifier: str) -> list[Client]:
+    """Trouve les Client candidats par email OU téléphone (même discrimination
+    stricte que _login_lookup_conditions côté User : '@' → email uniquement,
+    sinon → téléphone uniquement, pour éviter les collisions)."""
+    raw = identifier.strip()
+    if "@" in raw:
+        stmt = select(Client).where(Client.portal_enabled.is_(True), Client.email.ilike(raw.lower()))
+        return list(db.scalars(stmt).all())
+
+    normalized = normalize_phone(raw)
+    digits = normalized[1:] if normalized.startswith("+") else normalized
+    variants = {raw, normalized}
+    if digits:
+        variants.update({digits, f"+{digits}"})
+        if digits.startswith("0"):
+            variants.update({f"+242{digits}", f"242{digits}", f"+242{digits[1:]}", f"242{digits[1:]}"})
+        if digits.startswith("242"):
+            variants.add(f"+{digits}")
+    variants = {v for v in variants if v}
+    if not variants:
+        return []
+    stmt = select(Client).where(Client.portal_enabled.is_(True), Client.phone.in_(variants))
+    return list(db.scalars(stmt).all())
+
+
 @router.post("/auth/login", response_model=PortalTokenResponse)
 def portal_login(payload: PortalLoginRequest, response: Response, db: Session = Depends(get_db)) -> PortalTokenResponse:
-    email = payload.email.strip().lower()
+    identifier = payload.identifier.strip()
     password = payload.password.strip()
-    if not email or not password:
+    if not identifier or not password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants invalides")
 
-    # L'email n'est pas forcément unique entre entreprises : on essaie tous
-    # les Client correspondants et on garde celui dont le mot de passe matche
-    # (même schéma que le login multi-comptes de /auth/login).
-    candidates = db.scalars(
-        select(Client).where(Client.portal_enabled.is_(True), Client.email.ilike(email))
-    ).all()
+    # L'identifiant (email ou tél) n'est pas forcément unique entre entreprises :
+    # on essaie tous les Client correspondants et on garde celui dont le mot de
+    # passe matche (même schéma que le login multi-comptes de /auth/login).
+    candidates = _portal_login_candidates(db, identifier)
     client = None
     for candidate in candidates:
         if candidate.portal_password_hash and verify_password(password, candidate.portal_password_hash):
             client = candidate
             break
     if not client:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe invalide")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiant ou mot de passe invalide")
 
     token = create_access_token(
         subject=str(client.id),
@@ -232,6 +267,66 @@ def portal_company(
     if not company:
         raise HTTPException(status_code=404, detail="Entreprise introuvable")
     return PortalCompanyRead(id=company.id, name=company.name, logo_path=getattr(company, "logo_path", None))
+
+
+_TIER_THRESHOLDS = [(5000, "vip"), (2000, "gold"), (500, "silver"), (0, "standard")]
+_TIER_ORDER = ["standard", "silver", "gold", "vip"]
+
+
+def _next_tier_info(points: int) -> tuple[str | None, int | None]:
+    """Retourne (nom du prochain palier, points restants) ou (None, None) si déjà au sommet."""
+    for threshold, tier in reversed(_TIER_THRESHOLDS):
+        if points < threshold:
+            return tier, threshold - points
+    return None, None
+
+
+@router.get("/me/loyalty-overview", response_model=list[PortalLoyaltyEntry])
+def portal_loyalty_overview(
+    db: Session = Depends(get_db),
+    current_client: Client = Depends(get_current_client),
+) -> list[PortalLoyaltyEntry]:
+    """Agrège les points/tier/remise du client connecté sur TOUTES les
+    entreprises KOMPTA où il a un compte portail actif (même email ou même
+    téléphone que le compte utilisé pour se connecter) — permet à un client
+    qui fréquente plusieurs commerces de voir sa fidélité progresser partout
+    depuis un seul espace."""
+    conditions = [Client.portal_enabled.is_(True)]
+    identity_conditions = []
+    if current_client.email:
+        identity_conditions.append(Client.email.ilike(current_client.email))
+    if current_client.phone:
+        identity_conditions.append(Client.phone == current_client.phone)
+    if not identity_conditions:
+        linked = [current_client]
+    else:
+        stmt = select(Client).where(Client.portal_enabled.is_(True), or_(*identity_conditions))
+        linked = list(db.scalars(stmt).all())
+        if current_client.id not in {c.id for c in linked}:
+            linked.append(current_client)
+
+    company_ids = {c.company_id for c in linked}
+    companies = {c.id: c for c in db.scalars(select(Company).where(Company.id.in_(company_ids))).all()}
+
+    entries: list[PortalLoyaltyEntry] = []
+    for c in linked:
+        company = companies.get(c.company_id)
+        if not company:
+            continue
+        points = int(c.loyalty_points or 0)
+        next_tier, remaining = _next_tier_info(points)
+        entries.append(PortalLoyaltyEntry(
+            company_id=company.id,
+            company_name=company.name,
+            company_logo_path=getattr(company, "logo_path", None),
+            loyalty_points=points,
+            loyalty_tier=c.loyalty_tier or "standard",
+            global_discount_percent=c.global_discount_percent or 0.0,
+            next_tier=next_tier,
+            points_to_next_tier=remaining,
+        ))
+    entries.sort(key=lambda e: e.loyalty_points, reverse=True)
+    return entries
 
 
 def _invoice_query_for_client(current_client: Client):

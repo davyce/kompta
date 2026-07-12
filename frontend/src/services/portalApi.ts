@@ -64,6 +64,17 @@ export type PortalInvoiceDetail = PortalInvoice & {
   lines: PortalInvoiceLine[];
 };
 
+export type PortalLoyaltyEntry = {
+  company_id: number;
+  company_name: string;
+  company_logo_path: string | null;
+  loyalty_points: number;
+  loyalty_tier: string;
+  global_discount_percent: number;
+  next_tier: string | null;
+  points_to_next_tier: number | null;
+};
+
 async function readError(response: Response): Promise<string> {
   try {
     const data = await response.json();
@@ -99,10 +110,10 @@ async function requestBlob(path: string): Promise<Blob> {
 }
 
 export const portalApi = {
-  login: (email: string, password: string) =>
+  login: (identifier: string, password: string) =>
     request<{ access_token: string; token_type: string; client_id: number; client_name: string }>(
       "/portal/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password }) }
+      { method: "POST", body: JSON.stringify({ identifier, password }) }
     ),
 
   logout: () => request<{ status: string }>("/portal/auth/logout", { method: "POST" }),
@@ -111,6 +122,9 @@ export const portalApi = {
   me: () => request<PortalClient>("/portal/me"),
 
   myCompany: () => request<PortalCompany>("/portal/me/company"),
+
+  /** Points/tier/remise agrégés sur toutes les entreprises où le client a un compte. */
+  loyaltyOverview: () => request<PortalLoyaltyEntry[]>("/portal/me/loyalty-overview"),
 
   myInvoices: () => request<PortalInvoice[]>("/portal/me/invoices"),
 

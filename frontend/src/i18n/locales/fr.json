@@ -1428,7 +1428,7 @@
       "retentionHint": "Clients avec 2+ factures"
     },
     "search": {
-      "placeholder": "Rechercher un client…"
+      "placeholder": "Nom, email, téléphone ou ville…"
     },
     "filters": {
       "all": "Tous",
@@ -2544,11 +2544,14 @@
   },
   "portal": {
     "loginTitle": "Portail client",
-    "loginSubtitle": "Connectez-vous pour consulter vos factures",
+    "loginSubtitle": "Connectez-vous pour consulter vos factures et votre fidélité",
+    "freeBadge": "100% gratuit pour vous",
     "email": "Email",
+    "identifier": "Email ou téléphone",
+    "identifierPlaceholder": "vous@exemple.com ou 06 12 34 56 78",
     "password": "Mot de passe",
     "loginButton": "Se connecter",
-    "loginError": "Email ou mot de passe invalide",
+    "loginError": "Identifiant ou mot de passe invalide",
     "logout": "Se déconnecter",
     "invoicesTitle": "Mes factures",
     "noInvoices": "Aucune facture pour le moment",
@@ -2573,7 +2576,7 @@
     "portalAccessGenerated": "Mot de passe portail généré",
     "portalTemporaryPassword": "Mot de passe temporaire",
     "portalAccessNote": "Communiquez ce mot de passe au client. Il ne sera plus affiché.",
-    "portalNoEmail": "Le client doit avoir un email pour activer le portail",
+    "portalNoEmail": "Renseignez un email ou un téléphone pour activer le portail",
     "welcomeBack": "Bonjour {{name}}",
     "outstandingTotal": "Total à régler",
     "outstandingCount_one": "{{count}} facture en attente",
@@ -2611,7 +2614,19 @@
     "changePasswordError": "Impossible de changer le mot de passe.",
     "loadingLines": "Chargement des lignes…",
     "noAccountTitle": "Vous n'avez pas encore de compte ?",
-    "noAccountBody": "L'accès au portail est créé par l'entreprise dont vous êtes client, depuis son espace KOMPTA. Contactez-la directement pour qu'elle active votre accès — vous recevrez un email avec vos identifiants."
+    "noAccountBody": "L'accès au portail est créé par l'entreprise dont vous êtes client, depuis son espace KOMPTA. Contactez-la directement pour qu'elle active votre accès — vous recevrez un email avec vos identifiants.",
+    "loyaltyTitle": "Ma fidélité",
+    "loyaltySubtitle": "Vos points et réductions dans chaque commerce",
+    "loyaltyPoints_one": "{{count}} point",
+    "loyaltyPoints_other": "{{count}} points",
+    "loyaltyTierStandard": "Standard",
+    "loyaltyTierSilver": "Argent",
+    "loyaltyTierGold": "Or",
+    "loyaltyTierVip": "VIP",
+    "loyaltyNextTier": "Encore {{points}} points pour le palier {{tier}}",
+    "loyaltyMaxTier": "Palier maximum atteint",
+    "loyaltyDiscount": "-{{percent}}% sur vos achats",
+    "loyaltyEmpty": "Aucun programme de fidélité actif pour l'instant."
   },
   "productIcons": {
     "shirt": "Chemise / T-shirt",
