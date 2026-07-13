@@ -8,6 +8,7 @@ import { api } from "../services/api";
 import type { AuditLogDto } from "../services/api";
 import { exportTableToExcel } from "../utils/export";
 import i18n from "../i18n";
+import { useAuth } from "../app/AuthContext";
 
 const ACTION_TONE: Record<string, { tk: string; className: string }> = {
   create:  { tk: "audit.actionCreate",    className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
@@ -28,13 +29,27 @@ const PAGE_SIZE = 50;
 
 export function AuditLogsPage() {
   const { t: tr } = useTranslation();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [page, setPage] = useState(0);
+  const [allCompanies, setAllCompanies] = useState(false);
+
+  const companies = useQuery({
+    queryKey: ["auditLogs", "companies"],
+    queryFn: () => api.adminCompanies(),
+    enabled: isSuperAdmin,
+  });
+  const [companyFilter, setCompanyFilter] = useState<number | "all">("all");
 
   const logs = useQuery({
-    queryKey: ["auditLogs", "page"],
-    queryFn: () => api.auditLogs({ limit: 500 }),
+    queryKey: ["auditLogs", "page", allCompanies, companyFilter],
+    queryFn: () => api.auditLogs({
+      limit: 500,
+      allCompanies: isSuperAdmin && allCompanies,
+      companyId: isSuperAdmin && companyFilter !== "all" ? companyFilter : undefined,
+    }),
   });
 
   const filtered = useMemo(() => {
@@ -70,6 +85,32 @@ export function AuditLogsPage() {
           {tr("audit.subtitle")}
         </p>
       </div>
+
+      {/* Super-admin : vue plateforme entière */}
+      {isSuperAdmin && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3">
+          <ShieldCheck size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <label className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+            <input
+              type="checkbox"
+              checked={allCompanies}
+              onChange={(e) => { setAllCompanies(e.target.checked); setCompanyFilter("all"); setPage(0); }}
+              className="h-4 w-4 rounded accent-emerald-600"
+            />
+            Vue plateforme (toutes les entreprises)
+          </label>
+          <select
+            value={companyFilter}
+            onChange={(e) => { const v = e.target.value; setCompanyFilter(v === "all" ? "all" : Number(v)); setAllCompanies(false); setPage(0); }}
+            className="rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-white dark:bg-[#1e2229] px-2.5 py-1.5 text-sm text-[#17211f] dark:text-white outline-none"
+          >
+            <option value="all">Mon entreprise</option>
+            {(companies.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">

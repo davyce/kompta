@@ -1156,10 +1156,12 @@ export const api = {
     }),
 
   /* ── Audit logs ───────────────────────────────────────────── */
-  auditLogs: (params?: { limit?: number; offset?: number }) => {
+  auditLogs: (params?: { limit?: number; offset?: number; companyId?: number; allCompanies?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
+    if (params?.companyId) qs.set("company_id", String(params.companyId));
+    if (params?.allCompanies) qs.set("all_companies", "true");
     return request<{ items: AuditLogDto[]; total: number } | AuditLogDto[]>(`/audit-logs?${qs.toString()}`)
       .then((r) => (Array.isArray(r) ? r : (r as { items: AuditLogDto[] }).items ?? []));
   },

@@ -157,7 +157,7 @@ struct AdminTicketReplyPayload: Encodable {
 // MARK: - Audit logs
 
 struct AdminAuditLogEntry: Codable, Identifiable, Hashable {
-    let id: Int
+    let id: String
     let actor_user_id: Int?
     let actor_name: String?
     let target_user_id: Int?

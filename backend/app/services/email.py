@@ -119,14 +119,17 @@ def _logo_header(title: str, subtitle: str = "") -> str:
     return f"""
       <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 18px;">
         <tr>
-          <td style="vertical-align:middle;padding-right:12px;">
+          <td style="vertical-align:middle;padding-right:12px;position:relative;">
             <div style="width:52px;height:52px;background:#ffffff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.18);text-align:center;line-height:52px;">
               <img src="https://kompta0.com/branding/logo-512.png" alt="KOMPTA" width="40" height="40" style="vertical-align:middle;border-radius:10px;display:inline-block;">
             </div>
           </td>
-          <td style="vertical-align:middle;text-align:left;">
+          <td style="vertical-align:middle;text-align:left;padding-right:10px;">
             <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:2px;line-height:1;">KOMPTA</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:0.5px;margin-top:3px;">ERP IA pour PME</div>
+          </td>
+          <td style="vertical-align:middle;padding-left:8px;border-left:1px solid rgba(255,255,255,0.25);">
+            <img src="https://kompta0.com/assets/limule-avatar-40.png" alt="Limule" width="34" height="34" style="display:inline-block;border-radius:50%;background:rgba(255,255,255,0.14);padding:3px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">
           </td>
         </tr>
       </table>

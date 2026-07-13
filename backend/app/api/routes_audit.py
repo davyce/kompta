@@ -90,6 +90,8 @@ def list_audit_logs(
     action: Optional[str] = Query(default=None),
     resource_type: Optional[str] = Query(default=None),
     source: Optional[str] = Query(default=None),  # "audit_logs"|"access_audit_logs"|None
+    company_id: Optional[int] = Query(default=None),  # super_admin uniquement : filtrer une entreprise précise
+    all_companies: bool = Query(default=False),  # super_admin uniquement : vue plateforme entière
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -98,11 +100,16 @@ def list_audit_logs(
             status_code=403,
             detail="Accès refusé : les journaux d'audit sont réservés aux administrateurs et comptables.",
         )
+    is_super_admin = current_user.role == "super_admin"
     entries: list[AuditEntry] = []
 
     # ── Table 1 : audit_logs ─────────────────────────────────────────────────
     if not source or source == "audit_logs":
-        stmt = select(AuditLog).where(AuditLog.company_id == current_user.company_id)
+        stmt = select(AuditLog)
+        if is_super_admin and company_id:
+            stmt = stmt.where(AuditLog.company_id == company_id)
+        elif not (is_super_admin and all_companies):
+            stmt = stmt.where(AuditLog.company_id == current_user.company_id)
         if action:
             stmt = stmt.where(AuditLog.action.ilike(f"%{action}%"))
         if resource_type:
@@ -118,7 +125,11 @@ def list_audit_logs(
 
     # ── Table 2 : access_audit_logs ──────────────────────────────────────────
     if not source or source == "access_audit_logs":
-        stmt2 = select(AccessAuditLog).where(AccessAuditLog.company_id == current_user.company_id)
+        stmt2 = select(AccessAuditLog)
+        if is_super_admin and company_id:
+            stmt2 = stmt2.where(AccessAuditLog.company_id == company_id)
+        elif not (is_super_admin and all_companies):
+            stmt2 = stmt2.where(AccessAuditLog.company_id == current_user.company_id)
         if action:
             stmt2 = stmt2.where(AccessAuditLog.action.ilike(f"%{action}%"))
         for item in db.scalars(stmt2).all():

@@ -30,6 +30,7 @@ from app.core.security import (
 from app.db.session import SessionLocal, get_db
 from app.models import (
     AccessAuditLog,
+    AuditLog,
     AIGeneration,
     AuditLog,
     BankTransaction,
@@ -5348,15 +5349,33 @@ def admin_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     limit: int = 100,
+    company_id: int | None = None,
 ) -> list[dict]:
+    """Journal d'audit unifié pour le super-admin (app native iOS/macOS).
+
+    Fusionne AccessAuditLog (accès/RH) ET AuditLog (actions métier : factures,
+    transactions…) — avant ce correctif, seule AccessAuditLog était renvoyée,
+    ce qui masquait la moitié du journal d'audit dans l'app native par rapport
+    au web (GET /audit-logs, qui agrège déjà les deux tables).
+    Sans `company_id`, la vue couvre TOUTE la plateforme (comportement
+    historique de cet endpoint, réservé au super-admin).
+    """
     _require_super_admin(current_user)
-    logs = db.scalars(
-        select(AccessAuditLog).order_by(AccessAuditLog.created_at.desc()).limit(limit)
-    ).all()
     user_names = {u.id: u.full_name for u in db.scalars(select(User)).all()}
-    return [
+
+    access_stmt = select(AccessAuditLog).order_by(AccessAuditLog.created_at.desc()).limit(limit)
+    if company_id:
+        access_stmt = access_stmt.where(AccessAuditLog.company_id == company_id)
+    access_logs = db.scalars(access_stmt).all()
+
+    biz_stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+    if company_id:
+        biz_stmt = biz_stmt.where(AuditLog.company_id == company_id)
+    biz_logs = db.scalars(biz_stmt).all()
+
+    entries: list[dict] = [
         {
-            "id": log.id,
+            "id": f"aal:{log.id}",
             "actor_user_id": log.actor_user_id,
             "actor_name": user_names.get(log.actor_user_id, "système"),
             "target_user_id": log.target_user_id,
@@ -5366,5 +5385,20 @@ def admin_audit_logs(
             "company_id": log.company_id,
             "created_at": log.created_at.isoformat() if log.created_at else None,
         }
-        for log in logs
+        for log in access_logs
+    ] + [
+        {
+            "id": f"al:{log.id}",
+            "actor_user_id": log.user_id,
+            "actor_name": log.user_name or user_names.get(log.user_id, "système"),
+            "target_user_id": None,
+            "target_name": log.resource_type or "",
+            "action": log.action,
+            "details": log.details,
+            "company_id": log.company_id,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
+        for log in biz_logs
     ]
+    entries.sort(key=lambda e: e["created_at"] or "", reverse=True)
+    return entries[:limit]
