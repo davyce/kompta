@@ -43,6 +43,8 @@ services:
       # Sentry (no-op si DSN vide — cf. app/core/monitoring.py)
       - SENTRY_DSN=${SENTRY_DSN:-}
       - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      # Uptime monitor externe — affiché en lecture seule dans /admin/system/health
+      - UPTIME_MONITOR_URL=${UPTIME_MONITOR_URL:-}
     volumes:
       - kompta_storage:/app/storage
     ports:
