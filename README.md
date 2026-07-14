@@ -821,6 +821,16 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 
 ## Changelog
 
+### v1.12.0 — Juillet 2026 (correctifs audit qualité, faux incidents uptime)
+
+- ✅ **`/health` accepte HEAD** : UptimeRobot (et les moniteurs d'uptime en général) sondent en HEAD par défaut ; FastAPI n'ajoute pas HEAD automatiquement à une route `@router.get()`, ce qui renvoyait 405 et déclenchait de faux incidents "down" alors que le service tournait normalement
+- ✅ **MoMo/Stripe : 5xx fournisseur → 502** au lieu d'être transmis tel quel (un 500 brut laissait croire que l'API KOMPTA elle-même avait planté) ; corrige le seul test backend en échec
+- ✅ **`/workspace` protégé** : la route affichait le shell applicatif (déconnexion, création d'entreprise) à un visiteur non authentifié — les API restaient protégées côté backend, mais l'UX était trompeuse ; ajout de la même garde d'authentification que les autres routes internes
+- ✅ **Débordement mobile Groupes** : la page débordait de ~32px sur iPhone (bouton "Créer" et 3ᵉ statistique coupés) — item flex racine sans largeur contrainte, corrigé et vérifié en direct (375px)
+- ✅ **404 logo évité** : le frontend n'appelle plus `/company/logo` quand l'entreprise n'a pas de logo (`has_logo`, déjà exposé par le backend, jamais branché côté client)
+- ✅ Nettoyage : import `AuditLog` dupliqué, fichiers Xcode dupliqués (`Kompta 2.xcodeproj`, `KomptaMac 2.entitlements`)
+- ✅ 187/187 tests backend, CI verte (build, typecheck, E2E)
+
 ### v1.11.0 — Juillet 2026 (observabilité prod, super-admin renforcé, Application Metrics)
 
 - ✅ **Observabilité production activée** : Sentry (capture d'erreurs backend, correctif d'ordre d'initialisation qui faisait disparaître son propre log de démarrage) et UptimeRobot (`UPTIME_MONITOR_URL`, corrige un oubli de passthrough dans `docker-compose.yml` — la variable était lue par le code mais jamais transmise au conteneur)
