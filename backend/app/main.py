@@ -41,7 +41,6 @@ from app.db.init_db import create_tables, seed_demo_data
 from app.db.session import SessionLocal
 
 settings = get_settings()
-init_sentry()
 
 # ── Logging structuré ──────────────────────────────────────────────────────
 _LOG_LEVEL = logging.DEBUG if settings.environment.strip().lower() in {"local", "dev", "development"} else logging.INFO
@@ -50,6 +49,11 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("kompta")
+
+# Sentry est initialisé APRÈS logging.basicConfig() : sinon son message de
+# succès/échec (via logger.info/logger.exception dans core/monitoring.py)
+# est émis sur un root logger sans handler et disparaît silencieusement.
+init_sentry()
 
 
 def _env_flag(name: str) -> bool | None:
