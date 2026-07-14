@@ -463,8 +463,11 @@ async def broadcast_notification(company_id: int, title: str, detail: str = "", 
         pass
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 def health() -> dict[str, str]:
+    # HEAD explicite : les moniteurs d'uptime (UptimeRobot, etc.) sondent en
+    # HEAD par défaut — FastAPI ne l'ajoute pas automatiquement pour @get(),
+    # ce qui renvoyait 405 et déclenchait de faux incidents "down".
     return {"status": "ok", "service": "kompta-api"}
 
 
