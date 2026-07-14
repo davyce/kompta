@@ -871,6 +871,7 @@ actor APIClient {
     // MARK: - Admin: analytics, activity, broadcast, impersonate, reset password, company status
 
     func adminPlatformAnalytics() async throws -> PlatformAnalytics { try await get("/admin/analytics/platform") }
+    func adminAnalyticsTrends(days: Int = 90) async throws -> AdminTrendsResponse { try await get("/admin/analytics/trends?days=\(days)") }
     func adminActivityFeed() async throws -> [AdminActivityEvent] { try await get("/admin/analytics/activity-feed") }
 
     func adminBroadcast(_ p: BroadcastPayload) async throws -> BroadcastResult { try await post("/admin/broadcast", body: p) }

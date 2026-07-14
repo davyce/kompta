@@ -697,6 +697,7 @@ struct AdminAuditLogsView: View {
 struct AdminAnalyticsView: View {
     @StateObject private var analytics = Loadable<PlatformAnalytics>()
     @StateObject private var feed = Loadable<[AdminActivityEvent]>()
+    @StateObject private var trends = Loadable<AdminTrendsResponse>()
     @State private var analysis: String?
     @State private var analysisLoading = false
     @State private var exportURL: URL?
@@ -732,8 +733,35 @@ struct AdminAnalyticsView: View {
                                    subtitle: "+\(a.new_users_this_month) ce mois")
                         MetricCard(title: "Score Teras moyen", value: a.avg_teras_score != nil ? "\(Int(a.avg_teras_score!))" : "—", icon: KomptaBrand.limuleIcon, color: .purple)
                     }
+                    if let mrr = a.mrr_cents {
+                        MetricCard(title: "MRR (revenu récurrent mensuel)", value: fcfa(Double(mrr) / 100), icon: "arrow.triangle.2.circlepath.circle.fill", color: .green)
+                    }
                     MetricCard(title: "Revenu plateforme", value: fcfa(a.total_revenue_platform), icon: "banknote.fill", color: .green)
                     MetricCard(title: "Ventes plateforme", value: fcfa(a.total_sales_platform), icon: "cart.fill", color: .blue)
+
+                    if let points = trends.value?.points, points.count > 1 {
+                        SectionCard(title: "Tendances plateforme", subtitle: "90 derniers jours — snapshots réels") {
+                            Chart {
+                                ForEach(points) { p in
+                                    LineMark(x: .value("Date", p.date), y: .value("MRR", Double(p.mrr_cents) / 100))
+                                        .foregroundStyle(Color.green)
+                                        .interpolationMethod(.monotone)
+                                }
+                            }
+                            .frame(height: 160)
+                        }
+                    } else if trends.value != nil {
+                        SectionCard(title: "Tendances plateforme", subtitle: nil) {
+                            Text("Historique en cours de constitution — repassez demain pour voir la première tendance.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if let plans = a.companies_by_plan, !plans.isEmpty {
+                        SectionCard(title: "Répartition par plan d'abonnement", subtitle: nil) {
+                            AdminBreakdownChart(rows: plans.map { ($0.plan_code.capitalized, $0.count) })
+                        }
+                    }
 
                     if !a.monthly_growth.isEmpty {
                         SectionCard(title: "Croissance mensuelle", subtitle: "Entreprises & utilisateurs") {
@@ -869,6 +897,7 @@ struct AdminAnalyticsView: View {
     private func loadAll() async {
         await analytics.load { try await APIClient.shared.adminPlatformAnalytics() }
         await feed.load { try await APIClient.shared.adminActivityFeed() }
+        await trends.load { try await APIClient.shared.adminAnalyticsTrends(days: 90) }
     }
 }
 

@@ -1519,6 +1519,8 @@ export const api = {
   /* ── Admin Analytics Platform ────────────────────────────────────── */
   adminAnalyticsPlatform: () =>
     request<AdminAnalyticsPlatformDto>("/admin/analytics/platform"),
+  adminAnalyticsTrends: (days = 90) =>
+    request<AdminAnalyticsTrendsDto>(`/admin/analytics/trends?days=${days}`),
 
   /* ── Admin Activity Feed ──────────────────────────────────────────── */
   adminActivityFeed: () =>
@@ -2452,12 +2454,34 @@ export interface AnalyticsKpisDto {
 
 /* ── Admin Analytics Platform ─────────────────────────────────────── */
 export interface AdminAnalyticsPlatformDto {
-  monthly_growth: Array<{ month: string; companies: number; users: number }>;
+  companies_total: number;
+  companies_active_30d: number;
+  users_total: number;
+  new_companies_this_month: number;
+  new_users_this_month: number;
+  total_revenue_platform: number;
+  total_sales_platform: number;
+  avg_teras_score: number;
+  monthly_growth: Array<{ month: string; companies: number; users: number; revenue: number }>;
   companies_by_industry: Array<{ industry: string; count: number }>;
   companies_by_country: Array<{ country: string; count: number }>;
-  mrr_estimate: number;
-  retention_rate: number;
-  onboarding_rate: number;
+  /** MRR réel en centimes (somme des plans actifs/en essai, normalisés au mois). */
+  mrr_cents: number;
+  companies_by_plan: Array<{ plan_code: string; count: number }>;
+}
+
+/* ── Admin Analytics Trends (séries temporelles réelles) ──────────── */
+export interface AdminAnalyticsTrendPoint {
+  date: string;
+  companies_total: number;
+  users_total: number;
+  companies_active_30d: number;
+  mrr_cents: number;
+  revenue_cumulative_cents: number;
+  avg_teras_score: number;
+}
+export interface AdminAnalyticsTrendsDto {
+  points: AdminAnalyticsTrendPoint[];
 }
 
 /* ── Admin Activity Feed ──────────────────────────────────────────── */

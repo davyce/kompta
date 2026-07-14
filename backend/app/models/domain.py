@@ -1238,6 +1238,25 @@ class FeatureFlag(TimestampMixin, Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class PlatformMetricSnapshot(TimestampMixin, Base):
+    """Photo quotidienne des métriques plateforme (super-admin « Application Metrics »).
+
+    Une ligne par jour (clé unique `snapshot_date`), capturée idempotemment
+    par `capture_daily_snapshot()` — permet des séries temporelles réelles
+    (MRR, croissance, TERAS moyen) au lieu d'un recalcul approximatif à la
+    volée sur des fenêtres glissantes de 30 jours."""
+    __tablename__ = "platform_metric_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    snapshot_date: Mapped[str] = mapped_column(String(10), unique=True, index=True)  # "YYYY-MM-DD"
+    companies_total: Mapped[int] = mapped_column(Integer, default=0)
+    users_total: Mapped[int] = mapped_column(Integer, default=0)
+    companies_active_30d: Mapped[int] = mapped_column(Integer, default=0)
+    mrr_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    revenue_cumulative_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    avg_teras_score: Mapped[float] = mapped_column(Float, default=0.0)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MOTEUR COMPTABLE — partie double (SYSCOHADA-lite)
 # Montants en CENTIMES ENTIERS (minor units) : exactitude garantie, pas de Float.

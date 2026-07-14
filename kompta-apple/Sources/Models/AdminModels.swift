@@ -202,6 +202,32 @@ struct PlatformAnalytics: Codable {
     let companies_by_industry: [AdminIndustryCount]
     let companies_by_country: [AdminCountryCount]
     let monthly_growth: [AdminMonthlyGrowth]
+    /// MRR réel en centimes (plans actifs/en essai, normalisés au mois).
+    let mrr_cents: Int?
+    let companies_by_plan: [AdminPlanCount]?
+}
+
+struct AdminPlanCount: Codable, Identifiable, Hashable {
+    var id: String { plan_code }
+    let plan_code: String
+    let count: Int
+}
+
+/// Un point de série temporelle réelle (snapshot journalier persisté côté
+/// serveur), pour le module « Application Metrics » du super-admin.
+struct AdminTrendPoint: Codable, Identifiable, Hashable {
+    var id: String { date }
+    let date: String
+    let companies_total: Int
+    let users_total: Int
+    let companies_active_30d: Int
+    let mrr_cents: Int
+    let revenue_cumulative_cents: Int
+    let avg_teras_score: Double
+}
+
+struct AdminTrendsResponse: Codable {
+    let points: [AdminTrendPoint]
 }
 
 struct AdminActivityEvent: Codable, Identifiable, Hashable {

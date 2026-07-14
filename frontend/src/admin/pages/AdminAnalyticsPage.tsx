@@ -70,7 +70,20 @@ export function AdminAnalyticsPage() {
 
   const platform = useQuery({ queryKey: ["adminAnalyticsPlatform"], queryFn: api.adminAnalyticsPlatform });
   const companies = useQuery({ queryKey: ["adminCompanies"], queryFn: api.adminCompanies });
-  const overview = useQuery({ queryKey: ["adminOverview"], queryFn: api.adminOverview });
+  const trends = useQuery({ queryKey: ["adminAnalyticsTrends"], queryFn: () => api.adminAnalyticsTrends(90) });
+
+  const trendsData = useMemo(() => {
+    return (trends.data?.points ?? []).map((p) => ({
+      name: new Date(p.date).toLocaleDateString(undefined, { day: "2-digit", month: "short" }),
+      companies: p.companies_total,
+      active: p.companies_active_30d,
+      mrr: p.mrr_cents / 100,
+    }));
+  }, [trends.data]);
+
+  const planData = useMemo(() => {
+    return platform.data?.companies_by_plan ?? [];
+  }, [platform.data]);
 
   const growthData = useMemo(() => {
     const monthly = platform.data?.monthly_growth ?? [];
@@ -147,7 +160,7 @@ export function AdminAnalyticsPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={TrendingUp} label={tr("admin.analytics.kpiMrr")} value={compactMoney(overview.data?.sales_total ?? 0)} sub={tr("admin.analytics.allCompanies")} color="emerald" />
+        <KpiCard icon={TrendingUp} label={tr("admin.analytics.kpiMrr")} value={compactMoney((platform.data?.mrr_cents ?? 0) / 100)} sub={tr("admin.analytics.allCompanies")} color="emerald" />
         <KpiCard icon={BarChart3} label={tr("admin.analytics.kpiAvgTeras")} value={avgTeras} sub={tr("admin.analytics.allCompanies")} color="violet" />
         <KpiCard icon={Users} label={tr("admin.analytics.kpiOnboarding")} value={`${onboardingRate}%`} sub={tr("admin.analytics.completion80")} color="sky" />
         <KpiCard icon={Globe} label={tr("admin.analytics.kpiCountries")} value={countryData.length} sub={tr("admin.analytics.activeOnPlatform")} color="fuchsia" />
@@ -185,6 +198,52 @@ export function AdminAnalyticsPage() {
           </div>
         )}
       </div>
+
+      {/* Tendances réelles (90 derniers jours, snapshots journaliers persistés) */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+        <h2 className="mb-1 font-black text-slate-900 dark:text-white">{tr("admin.analytics.trendsTitle")}</h2>
+        <p className="mb-4 text-xs text-slate-500 dark:text-white/50">{tr("admin.analytics.trendsSubtitle")}</p>
+        {trendsData.length > 1 ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={trendsData} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="gMrr" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#059669" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Area type="monotone" dataKey="mrr" name={tr("admin.analytics.kpiMrr")} stroke="#059669" fill="url(#gMrr)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="active" name={tr("admin.analytics.activeCompanies")} stroke="#6366f1" fillOpacity={0} strokeWidth={2} dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-[240px] items-center justify-center text-center text-sm text-slate-400 dark:text-white/30">
+            {trends.isLoading ? tr("common.loading") : tr("admin.analytics.trendsAccumulating")}
+          </div>
+        )}
+      </div>
+
+      {/* Répartition par plan d'abonnement */}
+      {planData.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 font-black text-slate-900 dark:text-white">{tr("admin.analytics.planBreakdown")}</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {planData.map((p, i) => (
+              <div key={p.plan_code} className="rounded-lg border border-slate-100 p-3 dark:border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-white/50">{p.plan_code}</span>
+                </div>
+                <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{p.count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sector + country + teras */}
       <div className="grid gap-4 lg:grid-cols-3">

@@ -39,10 +39,13 @@ from app.models import (
     BroadcastLog,
     Company,
     CompanyDocument,
+    CompanySubscription,
     Employee,
     FeatureFlag,
     Invoice,
+    PlatformMetricSnapshot,
     Sale,
+    SubscriptionPlan,
     TerasScoreSnapshot,
     User,
 )
@@ -57,6 +60,79 @@ router = APIRouter(tags=["admin-analytics"])
 def _require_super_admin(current_user: User) -> None:
     if current_user.role != "super_admin" and not (current_user.custom_role and current_user.custom_role.scope == "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super-admin access required")
+
+
+def _compute_mrr_cents(db: Session) -> int:
+    """MRR (revenu récurrent mensuel) réel : somme des prix des plans des
+    abonnements actifs/en essai, normalisés au mois (un plan annuel compte
+    pour 1/12 de son prix). Remplace l'ancienne approximation qui sommait
+    les factures payées (mélange one-shot + récurrent, pas un vrai MRR)."""
+    rows = db.execute(
+        select(CompanySubscription.plan_code, func.count(CompanySubscription.id).label("n"))
+        .where(CompanySubscription.status.in_(["active", "trialing"]))
+        .group_by(CompanySubscription.plan_code)
+    ).all()
+    if not rows:
+        return 0
+    plan_prices = {
+        p.code: (p.price_cents, p.period)
+        for p in db.scalars(select(SubscriptionPlan)).all()
+    }
+    mrr = 0
+    for plan_code, n in rows:
+        price_cents, period = plan_prices.get(plan_code, (0, "month"))
+        monthly = price_cents if period != "year" else round(price_cents / 12)
+        mrr += monthly * n
+    return mrr
+
+
+def _companies_by_plan(db: Session) -> list[dict]:
+    rows = db.execute(
+        select(CompanySubscription.plan_code, func.count(CompanySubscription.id).label("count"))
+        .where(CompanySubscription.status.in_(["active", "trialing"]))
+        .group_by(CompanySubscription.plan_code)
+        .order_by(func.count(CompanySubscription.id).desc())
+    ).all()
+    return [{"plan_code": row.plan_code or "aucun", "count": row.count} for row in rows]
+
+
+def capture_daily_snapshot(db: Session) -> None:
+    """Capture idempotente d'un `PlatformMetricSnapshot` pour aujourd'hui.
+
+    No-op si un snapshot existe déjà pour la date du jour (UTC) — appelée à
+    chaque chargement de `/admin/analytics/platform`, ce qui suffit à obtenir
+    une granularité journalière réelle sans avoir besoin d'un cron dédié."""
+    today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    exists = db.scalar(
+        select(func.count(PlatformMetricSnapshot.id)).where(PlatformMetricSnapshot.snapshot_date == today)
+    )
+    if exists:
+        return
+    thirty_days_ago = datetime.now(tz=timezone.utc) - timedelta(days=30)
+    companies_total = db.scalar(select(func.count(Company.id))) or 0
+    users_total = db.scalar(select(func.count(User.id))) or 0
+    active_invoices = set(db.scalars(
+        select(Invoice.company_id).where(Invoice.created_at >= thirty_days_ago).distinct()
+    ).all())
+    active_sales = set(db.scalars(
+        select(Sale.company_id).where(Sale.created_at >= thirty_days_ago).distinct()
+    ).all())
+    companies_active_30d = len(active_invoices | active_sales)
+    revenue_cumulative = db.scalar(
+        select(func.sum(Invoice.total_amount)).where(Invoice.status == "paid")
+    ) or 0.0
+    avg_teras = db.scalar(select(func.avg(TerasScoreSnapshot.score))) or 0.0
+
+    db.add(PlatformMetricSnapshot(
+        snapshot_date=today,
+        companies_total=companies_total,
+        users_total=users_total,
+        companies_active_30d=companies_active_30d,
+        mrr_cents=_compute_mrr_cents(db),
+        revenue_cumulative_cents=round(revenue_cumulative * 100),
+        avg_teras_score=round(avg_teras, 1),
+    ))
+    db.commit()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -135,17 +211,22 @@ def platform_analytics(
     ).all()
     companies_by_country = [{"country": row.country, "count": row.count} for row in country_rows]
 
-    # Croissance mensuelle (12 derniers mois)
+    # Croissance mensuelle (12 derniers mois) — arithmétique calendaire réelle
+    # (l'ancienne version soustrayait `timedelta(days=i*30)`, ce qui dérive
+    # au fil des mois : 11*30 = 330 jours ≠ 11 mois calendaires).
     monthly_growth = []
     for i in range(11, -1, -1):
-        month_start = (now.replace(day=1) - timedelta(days=i * 30)).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+        m = now.month - i
+        y = now.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        month_start = now.replace(year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
         if i == 0:
             month_end = now
         else:
-            next_month = (month_start + timedelta(days=32)).replace(day=1)
-            month_end = next_month
+            nm, ny = (m + 1, y) if m < 12 else (1, y + 1)
+            month_end = month_start.replace(year=ny, month=nm)
 
         c_count = db.scalar(
             select(func.count(Company.id)).where(
@@ -174,6 +255,10 @@ def platform_analytics(
             "revenue": rev,
         })
 
+    mrr_cents = _compute_mrr_cents(db)
+    companies_by_plan = _companies_by_plan(db)
+    capture_daily_snapshot(db)
+
     return {
         "companies_total": companies_total,
         "companies_active_30d": companies_active_30d,
@@ -186,6 +271,44 @@ def platform_analytics(
         "companies_by_industry": companies_by_industry,
         "companies_by_country": companies_by_country,
         "monthly_growth": monthly_growth,
+        "mrr_cents": mrr_cents,
+        "companies_by_plan": companies_by_plan,
+    }
+
+
+@router.get("/admin/analytics/trends")
+def platform_trends(
+    days: int = 90,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Séries temporelles réelles (Application Metrics) : un point par jour,
+    construites à partir des snapshots persistés (`PlatformMetricSnapshot`),
+    pas d'un recalcul approximatif. Capture le snapshot du jour au passage
+    si absent, pour que `days=1` ne renvoie jamais une liste vide."""
+    _require_super_admin(current_user)
+    capture_daily_snapshot(db)
+
+    days = max(1, min(days, 365))
+    since = (datetime.now(tz=timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = db.scalars(
+        select(PlatformMetricSnapshot)
+        .where(PlatformMetricSnapshot.snapshot_date >= since)
+        .order_by(PlatformMetricSnapshot.snapshot_date.asc())
+    ).all()
+    return {
+        "points": [
+            {
+                "date": r.snapshot_date,
+                "companies_total": r.companies_total,
+                "users_total": r.users_total,
+                "companies_active_30d": r.companies_active_30d,
+                "mrr_cents": r.mrr_cents,
+                "revenue_cumulative_cents": r.revenue_cumulative_cents,
+                "avg_teras_score": r.avg_teras_score,
+            }
+            for r in rows
+        ],
     }
 
 

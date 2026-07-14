@@ -821,6 +821,17 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 
 ## Changelog
 
+### v1.11.0 — Juillet 2026 (observabilité prod, super-admin renforcé, Application Metrics)
+
+- ✅ **Observabilité production activée** : Sentry (capture d'erreurs backend, correctif d'ordre d'initialisation qui faisait disparaître son propre log de démarrage) et UptimeRobot (`UPTIME_MONITOR_URL`, corrige un oubli de passthrough dans `docker-compose.yml` — la variable était lue par le code mais jamais transmise au conteneur)
+- ✅ **Journal d'audit super-admin unifié** : `/audit-logs` (web) gagne un filtre cross-entreprise (`company_id`/`all_companies`) ; `/admin/audit-logs` (iOS/Mac) fusionne désormais les actions métier (`AuditLog`) et les actions d'accès/RH (`AccessAuditLog`) — l'app native n'affichait jusqu'ici que la moitié du journal
+- ✅ **Application Metrics** : nouvelle table `PlatformMetricSnapshot` (capture quotidienne idempotente), endpoint `GET /admin/analytics/trends` — vraies séries temporelles journalières (MRR, entreprises actives) au lieu d'un recalcul approximatif à la volée
+- ✅ **MRR réel** : calculé à partir des abonnements actifs/en essai (prix du plan × nombre d'abonnés, normalisé au mois), remplace l'ancienne carte qui affichait en réalité le total des ventes plateforme sous l'étiquette « MRR »
+- ✅ **Répartition par plan d'abonnement** dans Analytics (web + iOS/Mac)
+- ✅ Correctif du bug calendaire de « Croissance mensuelle » (`timedelta(days=i*30)` dérivait au fil des mois — remplacé par une vraie arithmétique de calendrier)
+- ✅ En-tête des emails transactionnels : icône Limule ajoutée à côté du logo KOMPTA
+- ✅ 186/186 tests backend (1 test réseau MoMo pré-existant exclu, flaky indépendamment de ce lot), build + typecheck frontend propres, build macOS vérifié
+
 ### v1.10.0 — Juillet 2026 (portail client : fidélité multi-entreprises, connexion par téléphone)
 
 - ✅ **Fidélité agrégée en temps réel** : nouvel endpoint `/portal/me/loyalty-overview` — un client qui fréquente plusieurs commerces KOMPTA voit, depuis un seul espace, ses points/palier/remise **pour chaque entreprise**, avec la progression vers le palier suivant
