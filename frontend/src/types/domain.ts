@@ -55,6 +55,7 @@ export type Company = {
   family_allowance_rate?: number;
   work_accident_rate?: number;
   is_public_sector?: boolean;
+  has_logo?: boolean;
 };
 
 export type Employee = {

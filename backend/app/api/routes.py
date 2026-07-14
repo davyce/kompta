@@ -30,7 +30,6 @@ from app.core.security import (
 from app.db.session import SessionLocal, get_db
 from app.models import (
     AccessAuditLog,
-    AuditLog,
     AIGeneration,
     AuditLog,
     BankTransaction,

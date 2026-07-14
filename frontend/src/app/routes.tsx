@@ -200,6 +200,19 @@ function GroupsProtectedRoute() {
 }
 
 /**
+ * Route /workspace — sélection/création d'entreprise, accessible à tout
+ * utilisateur authentifié. Sans cette garde, un visiteur non connecté voyait
+ * le shell applicatif (Déconnexion, création d'entreprise, groupes) : les
+ * API restaient protégées côté backend, mais l'UX était trompeuse.
+ */
+function WorkspaceProtectedRoute() {
+  const { token, bootstrapping } = useAuth();
+  if (bootstrapping) return <AuthBootstrapSpinner />;
+  if (!token) return <Navigate to="/login" replace />;
+  return <WorkspaceSelectPage />;
+}
+
+/**
  * Route /activation — accessible à tout utilisateur authentifié (entreprise OU membre_groupe).
  * Redirige vers le bon espace après changement de mot de passe.
  */
@@ -240,7 +253,7 @@ export const router = createBrowserRouter([
       { path: "login",    element: <LazyRoute page={PortalLoginPage} /> },
     ],
   },
-  { path: "/workspace",      element: <WorkspaceSelectPage />, errorElement: <RouteErrorElement /> },
+  { path: "/workspace",      element: <WorkspaceProtectedRoute />, errorElement: <RouteErrorElement /> },
   /* Activation accessible à TOUS les rôles authentifiés (entreprise ET membre_groupe) */
   { path: "/activation",     element: <ActivationRoute />,    errorElement: <RouteErrorElement /> },
   {

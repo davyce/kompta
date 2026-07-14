@@ -308,6 +308,7 @@ export function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   useEffect(() => {
+    if (!company.data?.has_logo) { setLogoUrl(null); return; }
     let cancelled = false;
     let objectUrl: string | null = null;
     api.companyLogoBlob().then((blob) => {
@@ -316,7 +317,7 @@ export function SettingsPage() {
       setLogoUrl(objectUrl);
     });
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [company.data?.id]);
+  }, [company.data?.id, company.data?.has_logo]);
 
   const uploadLogo = useMutation({
     mutationFn: (file: File) => api.uploadCompanyLogo(file),

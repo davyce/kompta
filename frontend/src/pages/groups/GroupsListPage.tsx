@@ -46,16 +46,16 @@ export function GroupsListPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-6">
+    <div className="w-full min-w-0 max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#17211f] dark:text-white">{tr("groupPages.list.title")}</h1>
-          <p className="text-xs sm:text-sm text-[#717182]">{tr("groupPages.list.subtitle")}</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-black text-[#17211f] dark:text-white truncate">{tr("groupPages.list.title")}</h1>
+          <p className="text-xs sm:text-sm text-[#717182] truncate">{tr("groupPages.list.subtitle")}</p>
         </div>
         <button
           onClick={() => navigate("/register-group")}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-800 px-3 sm:px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition whitespace-nowrap"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-800 px-3 sm:px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 transition whitespace-nowrap"
         >
           <Plus size={15} /> <span className="hidden sm:inline">{tr("common.create")}</span><span className="sm:hidden">+</span>
         </button>
@@ -69,8 +69,8 @@ export function GroupsListPage() {
             { label: tr("groupPages.list.stats.members"), value: groups.reduce((s, g) => s + (g.member_count || 0), 0), color: "text-sky-600" },
             { label: tr("groupPages.list.stats.types"), value: new Set(groups.map(g => g.type)).size, color: "text-amber-600" },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-3 sm:p-4">
-              <p className="text-[10px] sm:text-xs text-[#717182] font-medium">{stat.label}</p>
+            <div key={stat.label} className="min-w-0 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] p-3 sm:p-4">
+              <p className="truncate text-[10px] sm:text-xs text-[#717182] font-medium">{stat.label}</p>
               <p className={`text-xl sm:text-2xl font-black mt-1 ${stat.color}`}>{stat.value}</p>
             </div>
           ))}

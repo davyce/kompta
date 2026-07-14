@@ -44,6 +44,15 @@ class PaymentError(Exception):
         self.status = status
 
 
+def _upstream_status(resp_status: int) -> int:
+    """Traduit un code d'erreur fournisseur (Stripe/MoMo) en code HTTP côté
+    KOMPTA. Un 5xx fournisseur devient un 502 (Bad Gateway) : le renvoyer tel
+    quel donnerait un 500 qui laisse croire que NOTRE API a planté, alors que
+    la panne vient du prestataire. Les 4xx (requête invalide, auth) restent
+    inchangés car ils reflètent une vraie erreur de la requête envoyée."""
+    return 502 if resp_status >= 500 else resp_status
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # STRIPE (cartes) — via API REST, sans SDK
 # ═══════════════════════════════════════════════════════════════════════════
@@ -101,7 +110,7 @@ async def stripe_create_payment_intent(
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     return data
 
 
@@ -122,7 +131,7 @@ async def stripe_retrieve_payment_intent(intent_id: str) -> dict[str, Any]:
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     return data
 
 
@@ -179,7 +188,7 @@ async def stripe_create_terminal_payment_intent(
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     return data
 
 
@@ -201,7 +210,7 @@ async def stripe_terminal_connection_token() -> str:
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     secret = data.get("secret")
     if not secret:
         raise PaymentError("Réponse Stripe invalide (connection token manquant).")
@@ -244,7 +253,7 @@ async def stripe_create_connect_account(*, email: str, country: str, business_na
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     return data
 
 
@@ -274,7 +283,7 @@ async def stripe_create_account_link(*, account_id: str, refresh_url: str, retur
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     url = data.get("url")
     if not url:
         raise PaymentError("Réponse Stripe invalide (lien d'onboarding manquant).")
@@ -300,7 +309,7 @@ async def stripe_retrieve_connect_account(account_id: str) -> dict[str, Any]:
     data = resp.json()
     if resp.status_code >= 400:
         msg = (data.get("error") or {}).get("message", "Erreur Stripe")
-        raise PaymentError(msg, resp.status_code)
+        raise PaymentError(msg, _upstream_status(resp.status_code))
     return data
 
 
@@ -364,7 +373,7 @@ async def momo_get_access_token() -> str:
     except httpx.HTTPError as e:
         raise PaymentError(f"MoMo injoignable : {e}") from e
     if resp.status_code >= 400:
-        raise PaymentError(f"Échec token MoMo ({resp.status_code}).", resp.status_code)
+        raise PaymentError(f"Échec token MoMo ({resp.status_code}).", _upstream_status(resp.status_code))
     return resp.json().get("access_token", "")
 
 
@@ -413,7 +422,7 @@ async def momo_request_to_pay(
     except httpx.HTTPError as e:
         raise PaymentError(f"MoMo injoignable : {e}") from e
     if resp.status_code not in (200, 202):
-        raise PaymentError(f"Échec requestToPay MoMo ({resp.status_code}) : {resp.text[:200]}", resp.status_code)
+        raise PaymentError(f"Échec requestToPay MoMo ({resp.status_code}) : {resp.text[:200]}", _upstream_status(resp.status_code))
 
 
 async def momo_get_status(reference_id: str) -> dict[str, Any]:
@@ -431,7 +440,7 @@ async def momo_get_status(reference_id: str) -> dict[str, Any]:
     except httpx.HTTPError as e:
         raise PaymentError(f"MoMo injoignable : {e}") from e
     if resp.status_code >= 400:
-        raise PaymentError(f"Statut MoMo indisponible ({resp.status_code}).", resp.status_code)
+        raise PaymentError(f"Statut MoMo indisponible ({resp.status_code}).", _upstream_status(resp.status_code))
     return resp.json()
 
 
