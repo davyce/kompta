@@ -146,17 +146,16 @@
 		3F0B1CFF7AFC9EDA6569A371 /* CrmViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrmViews.swift; sourceTree = "<group>"; };
 		4487D3CE978220483B82CD67 /* AIAnalysisPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisPanel.swift; sourceTree = "<group>"; };
 		48A309EFA85475F24ACDC2C6 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
-		519FDDC4372505AD79C4318A /* KomptaMac 2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "KomptaMac 2.entitlements"; sourceTree = "<group>"; };
 		55170B62A38E88B30FA3639D /* PDFExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExport.swift; sourceTree = "<group>"; };
 		57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseViews.swift; sourceTree = "<group>"; };
-		5E66EBB800555BAFECCA5529 /* KomptaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KomptaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E66EBB800555BAFECCA5529 /* KomptaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = KomptaMac.app; path = KOMPTA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5EE86F7B2A10A7CCEE8F54CB /* RolesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RolesView.swift; sourceTree = "<group>"; };
 		660A64A755B0A823DC7B4079 /* BusinessViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessViews.swift; sourceTree = "<group>"; };
 		6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardDismiss.swift; sourceTree = "<group>"; };
 		6CDB6590A320AF18F1593C2A /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 		6DB940D3851D5679A32875AB /* CurrencyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyManager.swift; sourceTree = "<group>"; };
 		70651EA3DC1DB98BF48025CF /* FinanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViews.swift; sourceTree = "<group>"; };
-		7845C7FFF59BE30DD1426B8E /* Kompta.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Kompta.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7845C7FFF59BE30DD1426B8E /* Kompta.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; name = Kompta.app; path = KOMPTA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B812E385DF64BCF395BD879 /* CsvImportButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CsvImportButton.swift; sourceTree = "<group>"; };
 		868253779BC26B47B67C3BB2 /* DownloadButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadButton.swift; sourceTree = "<group>"; };
 		8DF2B126C1A3D30E2A6F69A9 /* TapToPayCheckout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapToPayCheckout.swift; sourceTree = "<group>"; };
@@ -172,7 +171,7 @@
 		B665A2C05922DA21F70C8953 /* limule-avatar-40.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "limule-avatar-40.png"; sourceTree = "<group>"; };
 		BA9AB050A928D42ABCE3C91A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		BC4ED7FCDB17440493F2A160 /* OpeningBalanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpeningBalanceView.swift; sourceTree = "<group>"; };
-		BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CCCD400A2F01D1FC8501CA3E /* SecurityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityView.swift; sourceTree = "<group>"; };
 		CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementsManager.swift; sourceTree = "<group>"; };
 		CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
@@ -210,7 +209,6 @@
 				2333D4A2BC2297747BB6973E /* ContentView.swift */,
 				EE00902366F89E20A94F0AEB /* Kompta.entitlements */,
 				D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */,
-				519FDDC4372505AD79C4318A /* KomptaMac 2.entitlements */,
 				A37030ADEE946EE51FAA1C2E /* KomptaMac.entitlements */,
 				BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */,
 				E0FB0EB90D9E14763C1BB35C /* Components */,

@@ -15,11 +15,13 @@ Endpoints ajoutés :
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import json
 import secrets
 import textwrap
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -206,6 +208,12 @@ def reset_password(
 # LLM / AI Health
 # ──────────────────────────────────────────────────────────────────────────────
 
+_AI_HEALTH_TTL_SECONDS = 120.0
+_ai_health_cache: dict[str, Any] | None = None
+_ai_health_cache_at: float = 0.0
+_ai_health_lock = asyncio.Lock()
+
+
 @router.get("/ai/health")
 async def ai_health(
     current_user: User = Depends(get_current_user),
@@ -213,8 +221,32 @@ async def ai_health(
     """
     Vérifie la disponibilité du LLM configuré.
     Retourne status: ok | degraded | offline et latency_ms.
+
+    Mise en cache serveur (TTL 2 min, verrou anti-emballement) : sans ça,
+    chaque utilisateur qui charge l'app déclenchait un nouvel appel externe
+    (jusqu'à 8s de timeout) vers le fournisseur IA — contribuait à des
+    chargements à froid de ~27s et à des timeouts sur /workspace.
     """
-    import time
+    global _ai_health_cache, _ai_health_cache_at
+
+    now = time.monotonic()
+    if _ai_health_cache is not None and (now - _ai_health_cache_at) < _AI_HEALTH_TTL_SECONDS:
+        return _ai_health_cache
+
+    async with _ai_health_lock:
+        # Un autre appel concurrent a peut-être déjà rafraîchi le cache
+        # pendant qu'on attendait le verrou.
+        now = time.monotonic()
+        if _ai_health_cache is not None and (now - _ai_health_cache_at) < _AI_HEALTH_TTL_SECONDS:
+            return _ai_health_cache
+
+        result = await _check_ai_health()
+        _ai_health_cache = result
+        _ai_health_cache_at = time.monotonic()
+        return result
+
+
+async def _check_ai_health() -> dict[str, Any]:
     import httpx
 
     settings = get_settings()

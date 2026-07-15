@@ -2,7 +2,7 @@ import { Link, Outlet, useNavigate, useParams, useLocation } from "react-router-
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, LayoutDashboard, Users, CreditCard, Wallet, ShoppingBag,
-  Calendar, MessageCircle, FileText, Vote, Crown, BarChart3, Settings,
+  Calendar, Cake, MessageCircle, FileText, Vote, Crown, BarChart3, Settings,
   ChevronRight, Menu, X,
 } from "lucide-react";
 import { useState } from "react";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { key: "transactions",   tk: "groupPages.layout.nav.transactions",   icon: Wallet },
   { key: "expenses",       tk: "groupPages.layout.nav.expenses",       icon: ShoppingBag },
   { key: "calendar",       tk: "groupPages.layout.nav.calendar",       icon: Calendar },
+  { key: "birthdays",      tk: "groupPages.layout.nav.birthdays",      icon: Cake },
   { key: "meetings",       tk: "groupPages.layout.nav.meetings",       icon: Calendar },
   { key: "chat",           tk: "groupPages.layout.nav.chat",           icon: MessageCircle },
   { key: "documents",      tk: "groupPages.layout.nav.documents",      icon: FileText },

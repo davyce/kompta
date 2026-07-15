@@ -675,8 +675,8 @@ export function PayrollPage() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-hidden">
-                <div className="grid grid-cols-[1fr_120px_120px_110px_80px] gap-0">
+              <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#1e2229] overflow-x-auto">
+                <div className="grid grid-cols-[1fr_120px_120px_110px_80px] gap-0 min-w-[630px]">
                   {/* Column headers */}
                   <div className="col-span-5 grid grid-cols-[1fr_120px_120px_110px_80px] border-b border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02]">
                     <div className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#717182]">{tr("payroll.variables.employee")}</div>

@@ -671,6 +671,7 @@
         "transactions": "Cashbox",
         "expenses": "Expenses",
         "calendar": "Calendar",
+        "birthdays": "Birthdays",
         "meetings": "Meetings",
         "chat": "Chat",
         "documents": "Documents",

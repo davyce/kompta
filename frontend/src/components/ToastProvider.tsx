@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { AlertCircle, CheckCircle2, Info, X, AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -30,6 +31,7 @@ const ToastContext = createContext<ToastContextValue>({
 let _counter = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t: tr } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const remove = useCallback((id: number) => {
@@ -82,6 +84,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </div>
             <button
               onClick={() => remove(t.id)}
+              aria-label={tr("common.close")}
               className="shrink-0 grid h-5 w-5 place-items-center rounded text-[#717182] hover:text-[#17211f] dark:hover:text-white"
             >
               <X size={12} />
