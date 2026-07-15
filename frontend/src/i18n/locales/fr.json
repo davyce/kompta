@@ -147,129 +147,129 @@
       "finish": "Terminer",
       "steps": {
         "welcome": {
-          "title": "Bienvenue dans KOMPTA",
-          "body": "Limule vous accompagne dans les workflows clés : ventes, factures, stock, paie et conformité."
+          "title": "Bienvenue",
+          "body": "Salut, moi c'est Limule 👋 Je vais vous montrer où tout se trouve dans KOMPTA — ventes, factures, stock, paie, conformité. Ça prend quelques minutes."
         },
         "menu": {
-          "title": "Navigation principale",
-          "body": "Passez d'un module à l'autre depuis le menu latéral, avec vos accès adaptés à votre rôle."
+          "title": "Navigation",
+          "body": "Ici, le menu latéral. Chaque module est à un clic, et vous ne voyez que ce que votre rôle autorise."
         },
         "dashboard": {
-          "title": "Pilotage en temps réel",
-          "body": "Le tableau de bord regroupe chiffre d'affaires, trésorerie, alertes et tâches prioritaires."
+          "title": "Tableau de bord",
+          "body": "Chiffre d'affaires, trésorerie, alertes, tâches prioritaires — tout est là. C'est le premier endroit à consulter chaque matin."
         },
         "pos": {
-          "title": "Caisse et paiements",
-          "body": "Encaissez en point de vente, suivez le panier et synchronisez les paiements réels."
+          "title": "Caisse",
+          "body": "Pour encaisser une vente : produits, paiement, ticket automatique. Je synchronise tout en temps réel."
         },
         "invoice": {
           "title": "Facturation",
-          "body": "Créez vos factures, relancez les clients et suivez les règlements."
+          "body": "Créez vos factures, je relance vos clients en retard et je suis les règlements pour vous."
         },
         "stock": {
           "title": "Stock",
-          "body": "Surveillez les seuils, les mouvements et les ruptures avant qu'elles bloquent la vente."
+          "body": "Je surveille vos seuils et vos mouvements — je vous préviens avant une rupture, pas après."
         },
         "limule": {
-          "title": "Assistant Limule",
-          "body": "Posez des questions sur vos données et transformez les réponses en actions concrètes."
+          "title": "Parlez-moi",
+          "body": "Posez-moi vos questions sur vos vraies données. Je peux même transformer une réponse en action concrète."
         },
         "settings": {
           "title": "Paramètres",
-          "body": "Configurez la langue, la sécurité, l'entreprise et les préférences de travail."
+          "body": "Langue, sécurité, profil entreprise, préférences — tout se règle ici, et vous pourrez me revoir à tout moment."
         },
         "clients": {
-          "title": "Clients & relances",
-          "body": "Centralisez vos clients, leur historique d'achats et automatisez les relances."
+          "title": "Clients",
+          "body": "Votre fichier clients, leur historique d'achats, et des relances automatiques pour ne rien laisser filer."
         },
         "employees": {
           "title": "Employés",
-          "body": "Gérez les fiches du personnel, les rôles et générez les accès à l'application."
+          "body": "Les fiches de votre équipe, leurs rôles, et la génération de leurs accès à l'application."
         },
         "payroll": {
           "title": "Paie",
-          "body": "Préparez les bulletins, calculez cotisations et net à payer, connectés aux employés."
+          "body": "Bulletins, cotisations, net à payer — calculés automatiquement à partir de vos fiches employés."
         },
         "projects": {
           "title": "Projets",
-          "body": "Suivez l'avancement, les tâches et les échéances de vos projets en Kanban."
+          "body": "Un Kanban pour suivre l'avancement, les tâches et les échéances de vos projets."
         },
         "transactions": {
           "title": "Transactions",
-          "body": "Enregistrez recettes et dépenses, rapprochez vos mouvements de trésorerie."
+          "body": "Enregistrez recettes et dépenses. Je peux même transcrire un relevé bancaire à votre place."
         },
         "accounting": {
           "title": "Comptabilité",
-          "body": "Tenez vos écritures conformes au plan SYSCOHADA et générez vos états."
+          "body": "Vos écritures, conformes au plan SYSCOHADA, avec vos états financiers générés automatiquement."
         },
         "investments": {
           "title": "Investissements",
-          "body": "Pilotez vos placements, leur rendement et vos analyses de portefeuille."
+          "body": "Suivez vos placements, leur rendement et l'analyse de votre portefeuille."
         },
         "budget": {
           "title": "Budget",
-          "body": "Définissez vos budgets par poste et suivez les écarts en temps réel."
+          "body": "Définissez vos budgets par poste, je vous montre les écarts en temps réel."
         },
         "analytics": {
           "title": "Analytique",
-          "body": "Visualisez vos indicateurs, exportez vos rapports et laissez l'IA les commenter."
+          "body": "Vos indicateurs en un coup d'œil, exportables — et je peux vous les commenter si besoin."
         },
         "documents": {
           "title": "Documents",
-          "body": "Stockez, classez et retrouvez vos documents d'entreprise en un endroit sûr."
+          "body": "Tous vos documents d'entreprise, classés et retrouvables en quelques secondes."
         },
         "declarations": {
           "title": "Déclarations fiscales",
-          "body": "Préparez vos déclarations et respectez vos échéances fiscales CEMAC."
+          "body": "Préparez vos déclarations et respectez vos échéances CEMAC sans y penser."
         },
         "audit": {
           "title": "Journal d'audit",
-          "body": "Tracez chaque action sensible pour la sécurité et la conformité."
+          "body": "Chaque action sensible est tracée — pour votre sécurité et votre conformité."
         },
         "chat": {
           "title": "Canaux d'équipe",
-          "body": "Discutez en temps réel avec votre équipe par canaux thématiques, et créez des tâches depuis vos échanges."
+          "body": "Discutez en temps réel avec votre équipe. Un message peut devenir une tâche en un geste."
         },
         "tasks": {
-          "title": "Tâches & Kanban",
-          "body": "Organisez le travail en colonnes À faire / En cours / Terminé. L'IA peut créer des tâches automatiquement."
+          "title": "Tâches",
+          "body": "À faire, en cours, terminé. Vous pouvez même me demander de créer une tâche depuis le chat."
         },
         "calendar": {
           "title": "Calendrier",
-          "body": "Visualisez réunions, échéances fiscales et événements de l'entreprise au même endroit."
+          "body": "Réunions, échéances fiscales, événements — tout au même endroit."
         },
         "meetings": {
           "title": "Réunions",
-          "body": "Planifiez vos réunions, invitez les participants et gardez une trace des comptes-rendus."
+          "body": "Planifiez, invitez, et gardez une trace de vos comptes-rendus."
         },
         "notes": {
           "title": "Notes",
-          "body": "Prenez des notes rapides et laissez l'IA les structurer et les résumer."
+          "body": "Prenez des notes rapides, je peux les structurer et les résumer pour vous."
         },
         "reports": {
           "title": "Rapports",
-          "body": "Générez des rapports financiers et RH, exportables en PDF ou Excel."
+          "body": "Des rapports financiers et RH prêts à exporter, en PDF ou Excel."
         },
         "fiscal": {
           "title": "Agenda fiscal",
-          "body": "Ne manquez aucune échéance fiscale ou sociale grâce aux rappels automatiques."
+          "body": "Aucune échéance manquée — je vous préviens à temps."
         },
         "legislation": {
           "title": "Législation",
-          "body": "Consultez la réglementation OHADA/CEMAC applicable à votre activité."
+          "body": "La réglementation OHADA/CEMAC qui s'applique à votre activité, à portée de main."
         },
         "groups": {
           "title": "Groupes & Tontines",
-          "body": "Gérez tontines, cotisations, dépenses et projets collectifs avec votre communauté."
+          "body": "Tontines, cotisations, dépenses partagées, projets collectifs — pensé pour votre communauté."
         },
         "help": {
           "title": "Aide & support",
-          "body": "Retrouvez tutoriels, FAQ et contactez le support en un clic à tout moment."
+          "body": "Tutoriels, FAQ, et un accès direct au support si vous êtes bloqué."
         }
       },
-      "discoverTitle": "Découvrir KOMPTA",
-      "discoverBody": "Faites un tour complet des modules clés (ventes, factures, stock, paie) en quelques minutes.",
-      "discoverCta": "Faire le tour complet"
+      "discoverTitle": "Découvrir KOMPTA avec Limule",
+      "discoverBody": "Je vous montre les modules clés (ventes, factures, stock, paie) en quelques minutes.",
+      "discoverCta": "Faire le tour avec Limule"
     },
     "momo": {
       "title": "Paiement Mobile Money",

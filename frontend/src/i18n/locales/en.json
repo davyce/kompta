@@ -147,129 +147,129 @@
       "finish": "Finish",
       "steps": {
         "welcome": {
-          "title": "Welcome to KOMPTA",
-          "body": "Limule guides you through key workflows: sales, invoices, inventory, payroll and compliance."
+          "title": "Welcome",
+          "body": "Hi, I'm Limule 👋 I'll show you around KOMPTA — sales, invoices, inventory, payroll, compliance. Takes just a few minutes."
         },
         "menu": {
-          "title": "Main navigation",
-          "body": "Move between modules from the side menu, with access tailored to your role."
+          "title": "Navigation",
+          "body": "Here's the side menu. Every module is one click away, and you only see what your role allows."
         },
         "dashboard": {
-          "title": "Real-time steering",
-          "body": "The dashboard brings together revenue, cash, alerts and priority tasks."
+          "title": "Dashboard",
+          "body": "Revenue, cash, alerts, priority tasks — all here. This is the first place to check every morning."
         },
         "pos": {
-          "title": "Cash register and payments",
-          "body": "Take POS payments, track the cart and sync real payments."
+          "title": "Cash register",
+          "body": "To take a sale: products, payment, automatic receipt. I sync everything in real time."
         },
         "invoice": {
           "title": "Billing",
-          "body": "Create invoices, follow up with clients and track collections."
+          "body": "Create your invoices, I'll chase late-paying clients and track collections for you."
         },
         "stock": {
           "title": "Inventory",
-          "body": "Watch thresholds, movements and stockouts before they block sales."
+          "body": "I watch your thresholds and movements — I'll warn you before a stockout, not after."
         },
         "limule": {
-          "title": "Limule assistant",
-          "body": "Ask questions about your data and turn answers into concrete actions."
+          "title": "Talk to me",
+          "body": "Ask me about your real data. I can even turn an answer into a concrete action."
         },
         "settings": {
           "title": "Settings",
-          "body": "Configure language, security, company details and work preferences."
+          "body": "Language, security, company profile, preferences — all here, and you can bring me back anytime."
         },
         "clients": {
-          "title": "Clients & follow-ups",
-          "body": "Centralize your clients, their purchase history and automate reminders."
+          "title": "Clients",
+          "body": "Your client list, their purchase history, and automatic follow-ups so nothing slips through."
         },
         "employees": {
           "title": "Employees",
-          "body": "Manage staff records, roles and generate access to the app."
+          "body": "Your team's records, their roles, and generating their app access."
         },
         "payroll": {
           "title": "Payroll",
-          "body": "Prepare payslips, compute contributions and net pay, linked to employees."
+          "body": "Payslips, contributions, net pay — computed automatically from your employee records."
         },
         "projects": {
           "title": "Projects",
-          "body": "Track progress, tasks and deadlines of your projects on a Kanban board."
+          "body": "A Kanban board to track progress, tasks and deadlines on your projects."
         },
         "transactions": {
           "title": "Transactions",
-          "body": "Record income and expenses, reconcile your cash movements."
+          "body": "Record income and expenses. I can even transcribe a bank statement for you."
         },
         "accounting": {
           "title": "Accounting",
-          "body": "Keep SYSCOHADA-compliant entries and generate your statements."
+          "body": "Your entries, SYSCOHADA-compliant, with financial statements generated automatically."
         },
         "investments": {
           "title": "Investments",
-          "body": "Manage your investments, their yield and portfolio analyses."
+          "body": "Track your holdings, their yield, and your portfolio analysis."
         },
         "budget": {
           "title": "Budget",
-          "body": "Set budgets per line and track variances in real time."
+          "body": "Set budgets per line, I'll show you the variances in real time."
         },
         "analytics": {
           "title": "Analytics",
-          "body": "Visualize your KPIs, export reports and let AI comment on them."
+          "body": "Your KPIs at a glance, exportable — and I can comment on them if you'd like."
         },
         "documents": {
           "title": "Documents",
-          "body": "Store, organize and find your company documents in one safe place."
+          "body": "All your company documents, organized and findable in seconds."
         },
         "declarations": {
           "title": "Tax filings",
-          "body": "Prepare your filings and meet your CEMAC tax deadlines."
+          "body": "Prepare your filings and meet your CEMAC deadlines without thinking about it."
         },
         "audit": {
           "title": "Audit log",
-          "body": "Trace every sensitive action for security and compliance."
+          "body": "Every sensitive action is traced — for your security and compliance."
         },
         "chat": {
           "title": "Team channels",
-          "body": "Chat with your team in real time across topic channels, and turn messages into tasks."
+          "body": "Chat with your team in real time. A message can become a task in one gesture."
         },
         "tasks": {
-          "title": "Tasks & Kanban",
-          "body": "Organize work in To-do / In progress / Done columns. AI can create tasks automatically."
+          "title": "Tasks",
+          "body": "To-do, in progress, done. You can even ask me to create a task from the chat."
         },
         "calendar": {
           "title": "Calendar",
-          "body": "See meetings, tax deadlines and company events all in one place."
+          "body": "Meetings, tax deadlines, events — all in one place."
         },
         "meetings": {
           "title": "Meetings",
-          "body": "Schedule meetings, invite attendees and keep track of minutes."
+          "body": "Schedule, invite, and keep a record of your minutes."
         },
         "notes": {
           "title": "Notes",
-          "body": "Capture quick notes and let AI structure and summarize them."
+          "body": "Jot down quick notes, I can structure and summarize them for you."
         },
         "reports": {
           "title": "Reports",
-          "body": "Generate financial and HR reports, exportable as PDF or Excel."
+          "body": "Financial and HR reports, ready to export as PDF or Excel."
         },
         "fiscal": {
           "title": "Tax calendar",
-          "body": "Never miss a tax or social deadline thanks to automatic reminders."
+          "body": "No deadline missed — I'll warn you in time."
         },
         "legislation": {
           "title": "Legislation",
-          "body": "Browse the OHADA/CEMAC regulations relevant to your activity."
+          "body": "The OHADA/CEMAC regulations that apply to your activity, within reach."
         },
         "groups": {
           "title": "Groups & Tontines",
-          "body": "Manage tontines, contributions, expenses and collective projects with your community."
+          "body": "Tontines, contributions, shared expenses, collective projects — built for your community."
         },
         "help": {
           "title": "Help & support",
-          "body": "Find tutorials, FAQ and reach support in one click anytime."
+          "body": "Tutorials, FAQ, and direct access to support if you're stuck."
         }
       },
-      "discoverTitle": "Discover KOMPTA",
-      "discoverBody": "Take a full tour of the key modules (sales, invoices, inventory, payroll) in a few minutes.",
-      "discoverCta": "Take the full tour"
+      "discoverTitle": "Discover KOMPTA with Limule",
+      "discoverBody": "I'll show you the key modules (sales, invoices, inventory, payroll) in a few minutes.",
+      "discoverCta": "Take the tour with Limule"
     },
     "momo": {
       "title": "Mobile Money payment",

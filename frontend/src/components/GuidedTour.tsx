@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../app/AuthContext";
 import { api } from "../services/api";
-import { LimuleIcon } from "./LimuleAvatar";
+import { LimuleAvatar, LimuleIcon } from "./LimuleAvatar";
 
 /**
  * Visite guidée interactive « spotlight » :
@@ -251,6 +251,7 @@ export function GuidedTour() {
   const [active, setActive] = useState(false);
   const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   const targetElRef = useRef<HTMLElement | null>(null);
 
   // Démarrage : uniquement sur relance manuelle (bouton "Faire le tour complet"
@@ -303,6 +304,15 @@ export function GuidedTour() {
     const cleanup = locate();
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, idx]);
+
+  // Limule "tape" son message avant de le révéler — donne un vrai rythme de
+  // conversation plutôt qu'un slide de texte statique.
+  useEffect(() => {
+    if (!active) return;
+    setIsTyping(true);
+    const t = window.setTimeout(() => setIsTyping(false), 550);
+    return () => window.clearTimeout(t);
   }, [active, idx]);
 
   // Recalcule la position si on scrolle / redimensionne.
@@ -381,27 +391,39 @@ export function GuidedTour() {
         <div className="absolute inset-0 bg-[rgba(10,15,25,0.72)]" />
       )}
 
-      {/* Bulle explicative */}
+      {/* Bulle explicative — Limule "parle" chaque étape façon conversation */}
       <div
         style={bubbleStyle}
         className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#1a1d23]"
       >
-        <div className="flex shrink-0 items-start gap-3 bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 pb-4 pt-5 text-white">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15">
-            <LimuleIcon size={24} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">
-              {tr("components.guidedTour.stepCount", { current: idx + 1, total: STEPS.length })}
-            </p>
-            <h3 className="text-base font-black leading-tight">{tr(step.titleTk)}</h3>
-          </div>
-          <button onClick={finish} aria-label={tr("common.close")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/15">
+        <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9a9aa3] dark:text-white/40">
+            {tr("components.guidedTour.stepCount", { current: idx + 1, total: STEPS.length })}
+          </p>
+          <button onClick={finish} aria-label={tr("common.close")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:text-white/60 dark:hover:bg-white/[0.06]">
             <X size={15} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <p className="text-sm leading-relaxed text-[#3f4a55] dark:text-white/75">{tr(step.bodyTk)}</p>
+        <div className="flex-1 overflow-y-auto px-5 pb-2">
+          <div className="flex items-start gap-3">
+            <LimuleAvatar state={isTyping ? "thinking" : "speaking"} size={40} className="mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h3 className="mb-1.5 text-sm font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                {tr(step.titleTk)}
+              </h3>
+              <div className="rounded-2xl rounded-tl-sm bg-stone-100 px-4 py-3 dark:bg-white/[0.06]">
+                {isTyping ? (
+                  <span className="flex items-center gap-1 py-1">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9a9aa3] [animation-delay:-0.3s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9a9aa3] [animation-delay:-0.15s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9a9aa3]" />
+                  </span>
+                ) : (
+                  <p className="text-sm leading-relaxed text-[#3f4a55] dark:text-white/75">{tr(step.bodyTk)}</p>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-white/10">
             <div className="h-full rounded-full bg-emerald-600 transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
