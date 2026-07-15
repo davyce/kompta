@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight, Award, BarChart3, CheckCircle2, ChevronDown, Coins, Database,
   FileBarChart, Gift, Globe2, HeartHandshake, KanbanSquare, Lock, Receipt, RefreshCw,
@@ -137,6 +137,15 @@ const FAQ = [
 export function LandingPage() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  // Page publique/vitrine : toujours en mode clair, quelle que soit la
+  // préférence système ou le thème stocké — même raison que LoginPage.
+  useEffect(() => {
+    const root = document.documentElement;
+    const wasDark = root.classList.contains("dark");
+    root.classList.remove("dark");
+    return () => { if (wasDark) root.classList.add("dark"); };
+  }, []);
 
   return (
     <div className="min-h-dvh bg-white text-ink">
