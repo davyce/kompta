@@ -368,11 +368,16 @@ struct WorkspaceSwitcherView: View {
                         .disabled(switchingCompanyId != nil)
                         .buttonStyle(.plain)
                     }
+                    #if !os(iOS)
+                    // Guideline 3.1.1 (App Review) : pas de création d'entreprise
+                    // depuis l'app iOS — voir LoginView pour le même traitement
+                    // sur l'écran de connexion. Créez une entreprise sur le web.
                     Button {
                         showCreateSheet = true
                     } label: {
                         Label("Créer une nouvelle entreprise", systemImage: "plus.circle.fill")
                     }
+                    #endif
                 }
             }
 

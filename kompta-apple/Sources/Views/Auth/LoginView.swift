@@ -322,9 +322,18 @@ struct LoginView: View {
         HStack(spacing: 8) {
             switch mode {
             case .login:
+                #if os(iOS)
+                // Guideline 3.1.1 (App Review) : la création d'entreprise ne doit
+                // pas être accessible depuis l'app iOS — Apple la considère comme
+                // un mécanisme d'inscription externe au flux d'achat In-App.
+                // La création reste possible sur le web (kompta0.com).
+                Text("Créez votre entreprise sur kompta0.com, puis connectez-vous ici.")
+                    .foregroundStyle(.secondary)
+                #else
                 Text("Pas encore de compte ?").foregroundStyle(.secondary)
                 Button("Créer une entreprise") { setMode(.register) }
                     .foregroundStyle(KomptaBrand.primary)
+                #endif
             case .register:
                 Text("Déjà inscrit ?").foregroundStyle(.secondary)
                 Button("Se connecter") { setMode(.login) }
@@ -414,6 +423,11 @@ struct LoginView: View {
     }
 
     private func setMode(_ next: AuthMode) {
+        #if os(iOS)
+        // Garde défensive : la création d'entreprise n'est jamais accessible
+        // sur iOS (Guideline 3.1.1), même si un appelant tentait d'y entrer.
+        guard next != .register else { return }
+        #endif
         mode = next
         errorMsg = nil
         successMsg = nil
@@ -695,7 +709,11 @@ private struct AuthModeTabs: View {
     var body: some View {
         HStack(spacing: 4) {
             tab("Connexion", .login)
+            #if !os(iOS)
+            // Guideline 3.1.1 (App Review) : pas de création d'entreprise
+            // depuis l'app iOS — voir LoginView.bottomActions.
             tab("Créer un compte", .register)
+            #endif
         }
         .padding(4)
         .background(Color.black.opacity(0.055))
