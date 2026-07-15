@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, BarChart3, Building2, CheckCircle2, KeyRound, Lock, Receipt, ShieldCheck, Smartphone, UserPlus, Users2, Wallet } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -18,6 +18,16 @@ export function LoginPage() {
   const [mode, setMode] = useState<"login" | "register" | "reset" | "reset_confirm">(
     new URLSearchParams(window.location.search).get("mode") === "register" ? "register" : "login"
   );
+  // Page publique/vitrine : toujours en mode clair, quelle que soit la
+  // préférence système ou le thème stocké — on ne veut pas que le "pont dark
+  // mode" global (index.css) assombrisse la première impression.
+  useEffect(() => {
+    const root = document.documentElement;
+    const wasDark = root.classList.contains("dark");
+    root.classList.remove("dark");
+    return () => { if (wasDark) root.classList.add("dark"); };
+  }, []);
+
   const [resetIdentifier, setResetIdentifier] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
