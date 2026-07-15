@@ -3101,11 +3101,17 @@
         "country": "Pays",
         "fullName": "Nom complet",
         "phone": "Téléphone",
-        "temporaryPassword": "Mot de passe provisoire"
+        "temporaryPassword": "Mot de passe provisoire",
+        "signatoryName": "Nom du signataire du consentement"
       },
       "placeholders": {
         "industry": "Commerce",
         "fullName": "Jean Dupont"
+      },
+      "consent": {
+        "privacy": "J'ai lu et j'accepte la Politique de confidentialité, pour le compte de cette entreprise.",
+        "terms": "J'accepte les Conditions d'utilisation, pour le compte de cette entreprise.",
+        "disclaimer": "Je reconnais la décharge de responsabilité (données hébergées hors du pays, IA non contractuelle, responsabilité limitée) au nom de cette entreprise."
       },
       "plans": {
         "basic": "Basic",

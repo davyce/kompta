@@ -65,6 +65,10 @@ type CreateForm = {
   admin_phone: string;
   password: string;
   organization_type: string;
+  signatory_name: string;
+  accept_privacy: boolean;
+  accept_terms: boolean;
+  accept_disclaimer: boolean;
 };
 
 function CreateCompanyModal({ onClose }: { onClose: () => void }) {
@@ -81,6 +85,10 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
     admin_phone: "",
     password: "",
     organization_type: "company",
+    signatory_name: "",
+    accept_privacy: false,
+    accept_terms: false,
+    accept_disclaimer: false,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +104,10 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
         admin_phone: form.admin_phone,
         password: form.password,
         organization_type: form.organization_type,
+        signatory_name: form.signatory_name,
+        accept_privacy: form.accept_privacy,
+        accept_terms: form.accept_terms,
+        accept_disclaimer: form.accept_disclaimer,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminCompanies"] });
@@ -104,7 +116,8 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
     onError: (e) => setError(e instanceof Error ? e.message : tr("admin.companies.errors.generic")),
   });
 
-  function field(key: keyof CreateForm, label: string, type = "text", placeholder = "") {
+  type StringFieldKey = { [K in keyof CreateForm]: CreateForm[K] extends string ? K : never }[keyof CreateForm];
+  function field(key: StringFieldKey, label: string, type = "text", placeholder = "") {
     return (
       <div>
         <label className="mb-1 block text-xs font-bold text-white/60">{label}</label>
@@ -156,6 +169,24 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
             {field("admin_phone", tr("admin.companies.fields.phone"), "tel", "+237600000000")}
             {field("password", tr("admin.companies.fields.temporaryPassword"), "password")}
           </div>
+          {field("signatory_name", tr("admin.companies.fields.signatoryName"), "text", tr("admin.companies.placeholders.fullName"))}
+          <div className="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+            <label className="flex items-start gap-2 text-xs text-white/70">
+              <input type="checkbox" className="mt-0.5 accent-indigo-500" checked={form.accept_privacy}
+                onChange={(e) => setForm((f) => ({ ...f, accept_privacy: e.target.checked }))} />
+              <span>{tr("admin.companies.consent.privacy")}</span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-white/70">
+              <input type="checkbox" className="mt-0.5 accent-indigo-500" checked={form.accept_terms}
+                onChange={(e) => setForm((f) => ({ ...f, accept_terms: e.target.checked }))} />
+              <span>{tr("admin.companies.consent.terms")}</span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-white/70">
+              <input type="checkbox" className="mt-0.5 accent-indigo-500" checked={form.accept_disclaimer}
+                onChange={(e) => setForm((f) => ({ ...f, accept_disclaimer: e.target.checked }))} />
+              <span>{tr("admin.companies.consent.disclaimer")}</span>
+            </label>
+          </div>
         </div>
         {error && <p className="mt-3 text-xs text-rose-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
@@ -164,7 +195,15 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={() => create.mutate()}
-            disabled={create.isPending || !form.company_name || !form.admin_email}
+            disabled={
+              create.isPending ||
+              !form.company_name ||
+              !form.admin_email ||
+              !form.signatory_name.trim() ||
+              !form.accept_privacy ||
+              !form.accept_terms ||
+              !form.accept_disclaimer
+            }
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition"
           >
             {create.isPending ? tr("admin.companies.creating") : tr("admin.companies.createCompanyShort")}

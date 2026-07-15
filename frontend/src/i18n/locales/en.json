@@ -3101,11 +3101,17 @@
         "country": "Country",
         "fullName": "Full name",
         "phone": "Phone",
-        "temporaryPassword": "Temporary password"
+        "temporaryPassword": "Temporary password",
+        "signatoryName": "Consent signatory name"
       },
       "placeholders": {
         "industry": "Retail",
         "fullName": "John Smith"
+      },
+      "consent": {
+        "privacy": "I have read and accept the Privacy Policy, on behalf of this company.",
+        "terms": "I accept the Terms of Use, on behalf of this company.",
+        "disclaimer": "I acknowledge the liability disclaimer (data hosted outside the country, non-contractual AI, limited liability) on behalf of this company."
       },
       "plans": {
         "basic": "Basic",
