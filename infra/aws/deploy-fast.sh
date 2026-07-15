@@ -19,7 +19,10 @@ set -euo pipefail
 
 ROOT="/opt/kompta"
 ENV_FILE="$ROOT/infra/aws/.env.production"
-COMPOSE="docker compose -f $ROOT/docker-compose.yml -f $ROOT/docker-compose.prod.yml --env-file $ENV_FILE"
+# --profile postgres : la prod tourne sur PostgreSQL depuis le 2026-07-15
+# (voir docs/POSTGRES_MIGRATION.md) — sans ce profil, `compose up` ne
+# redémarrerait pas le conteneur postgres après ce déploiement.
+COMPOSE="docker compose -f $ROOT/docker-compose.yml -f $ROOT/docker-compose.prod.yml --env-file $ENV_FILE --profile postgres"
 cd "$ROOT"
 
 if [[ ! -f "$ENV_FILE" ]]; then
