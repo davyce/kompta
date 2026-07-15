@@ -265,6 +265,10 @@
         "help": {
           "title": "Aide & support",
           "body": "Tutoriels, FAQ, et un accès direct au support si vous êtes bloqué."
+        },
+        "outro": {
+          "title": "C'est parti",
+          "body": "Vous voilà de retour au tableau de bord — c'est ici que tout commence chaque jour. Vous pourrez me revoir à tout moment depuis Paramètres. Bonne route avec KOMPTA !"
         }
       },
       "discoverTitle": "Découvrir KOMPTA avec Limule",

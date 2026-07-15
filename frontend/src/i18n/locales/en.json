@@ -265,6 +265,10 @@
         "help": {
           "title": "Help & support",
           "body": "Tutorials, FAQ, and direct access to support if you're stuck."
+        },
+        "outro": {
+          "title": "You're all set",
+          "body": "Back on the dashboard — this is where everything starts each day. You can bring me back anytime from Settings. Enjoy KOMPTA!"
         }
       },
       "discoverTitle": "Discover KOMPTA with Limule",

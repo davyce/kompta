@@ -174,6 +174,13 @@ const STEPS: TourStep[] = [
     titleTk: "components.guidedTour.steps.settings.title",
     bodyTk: "components.guidedTour.steps.settings.body",
   },
+  {
+    // Étape de clôture : ramène toujours sur le tableau de bord, jamais
+    // sur une page annexe (ex. Paramètres) où la visite s'arrêtait avant.
+    route: "/",
+    titleTk: "components.guidedTour.steps.outro.title",
+    bodyTk: "components.guidedTour.steps.outro.body",
+  },
 ];
 
 const PAD = 8;
@@ -345,10 +352,13 @@ export function GuidedTour() {
   const isLast = idx === STEPS.length - 1;
   const progress = Math.round(((idx + 1) / STEPS.length) * 100);
 
-  // Position de la bulle : sous la cible si place, sinon au-dessus ; sinon centrée.
-  // Largeur et hauteur responsives pour ne jamais déborder / rogner sur mobile.
+  // Position de la bulle : sous la cible si place, sinon au-dessus. Sans
+  // cible précise, la bulle est ancrée en bas de l'écran (pas au centre) —
+  // pour ne jamais recouvrir le contenu de la page qu'on est en train de
+  // présenter, surtout sur mobile où le centre = tout l'écran utile.
   const vh = window.innerHeight;
   const vw = window.innerWidth;
+  const isMobile = vw < 640;
   const bubbleW = Math.min(340, vw - 24);
   const bubbleMaxH = Math.min(440, vh - 24);
   const estH = Math.min(300, bubbleMaxH);
@@ -361,8 +371,11 @@ export function GuidedTour() {
     let left = rect.left + rect.width / 2 - bubbleW / 2;
     left = Math.max(12, Math.min(left, vw - bubbleW - 12));
     bubbleStyle = { position: "fixed", top, left, width: bubbleW, maxHeight: bubbleMaxH };
+  } else if (isMobile) {
+    // Bas d'écran plein largeur — la page reste visible au-dessus.
+    bubbleStyle = { position: "fixed", left: 12, right: 12, bottom: 12, width: "auto", maxHeight: Math.min(360, vh * 0.55) };
   } else {
-    bubbleStyle = { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: bubbleW, maxHeight: bubbleMaxH };
+    bubbleStyle = { position: "fixed", left: 24, bottom: 24, width: bubbleW, maxHeight: bubbleMaxH };
   }
 
   return (
@@ -371,7 +384,9 @@ export function GuidedTour() {
     // overlays plein écran — ce qui la rendait invisible pour les comptes
     // fraîchement créés (assistant de configuration encore actif).
     <div className="fixed inset-0 z-[120]" role="dialog" aria-modal="true">
-      {/* Spotlight : assombrit tout sauf la cible (découpe via box-shadow) */}
+      {/* Spotlight : assombrit tout sauf la cible (découpe via box-shadow).
+          Sans cible précise, on laisse la page visible — juste un léger
+          voile derrière la bulle pour la détacher, jamais un écran noir. */}
       {rect ? (
         <div
           style={{
@@ -381,14 +396,14 @@ export function GuidedTour() {
             width: rect.width + PAD * 2,
             height: rect.height + PAD * 2,
             borderRadius: 14,
-            boxShadow: "0 0 0 9999px rgba(10,15,25,0.72)",
+            boxShadow: "0 0 0 9999px rgba(10,15,25,0.55)",
             border: "2px solid #34d399",
             transition: "all 0.25s ease",
             pointerEvents: "none",
           }}
         />
       ) : (
-        <div className="absolute inset-0 bg-[rgba(10,15,25,0.72)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
       )}
 
       {/* Bulle explicative — Limule "parle" chaque étape façon conversation */}
