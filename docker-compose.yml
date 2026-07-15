@@ -68,5 +68,38 @@ services:
       backend:
         condition: service_healthy
 
+  # ── PostgreSQL (optionnel, profil "postgres") ────────────────────────────
+  # N'est PAS démarré par un `docker compose up` classique (voir `profiles`
+  # ci-dessous) — reste inactif tant que la migration SQLite → Postgres n'est
+  # pas faite, pour ne rien changer au déploiement actuel. Une fois prêt à
+  # migrer : `docker compose --profile postgres up -d postgres`, exécuter le
+  # script de migration (scripts/migrate_sqlite_to_postgres.py), puis pointer
+  # DATABASE_URL du backend vers `postgresql://...@postgres:5432/kompta` et
+  # ajouter le service au `depends_on` du backend.
+  postgres:
+    image: postgres:16-alpine
+    container_name: kompta_postgres
+    restart: unless-stopped
+    profiles: ["postgres"]
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-kompta}
+      - POSTGRES_USER=${POSTGRES_USER:-kompta}
+      # Pas de garde ":?" ici : Compose interpole cette valeur même quand le
+      # profil "postgres" est inactif (ex. déploiement SQLite standard), donc
+      # une variable obligatoire casserait `docker compose up` par défaut.
+      # Le conteneur postgres refusera simplement de démarrer si vide.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+    volumes:
+      - kompta_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kompta} -d ${POSTGRES_DB:-kompta}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   kompta_storage:
+  kompta_postgres_data:
