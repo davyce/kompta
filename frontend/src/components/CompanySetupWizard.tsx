@@ -229,10 +229,16 @@ const STEPS: Step[] = [
   { kind: "recap", key: "done", title: "Configuration prête !", subtitle: "Votre entreprise est configurée. Vous pourrez compléter ou modifier ces informations à tout moment depuis Paramètres → Entreprise." },
 ];
 
-export function CompanySetupWizard() {
+export function CompanySetupWizard({ onActiveChange }: { onActiveChange?: (active: boolean) => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [active, setActive] = useState(false);
+
+  // Remonte l'état actif au parent (Shell) pour empêcher GuidedTour de se
+  // lancer par-dessus tant que cet assistant n'est pas terminé/fermé — les
+  // deux se chevauchaient visuellement sinon (bannière de configuration
+  // visible derrière la bulle du tour).
+  useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
   const [idx, setIdx] = useState(0);
   const [draft, setDraft] = useState<CompanyDraft>({});
   const [saving, setSaving] = useState(false);

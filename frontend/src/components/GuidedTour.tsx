@@ -251,7 +251,7 @@ function findVisible(selector?: string): HTMLElement | null {
   return els.find((el) => el.offsetParent !== null && el.getBoundingClientRect().width > 0) ?? els[0] ?? null;
 }
 
-export function GuidedTour() {
+export function GuidedTour({ blockedBySetup = false }: { blockedBySetup?: boolean }) {
   const { t: tr } = useTranslation();
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
@@ -266,8 +266,14 @@ export function GuidedTour() {
   // automatiquement à la première connexion — cette charge est désormais
   // portée par les indices contextuels par module (ModuleHint), affichés
   // progressivement à la première visite de chaque page.
+  //
+  // blockedBySetup : tant que CompanySetupWizard est actif (profil
+  // d'entreprise incomplet), on ne lance pas le tour par-dessus — les deux
+  // se chevauchaient visuellement (bannière de configuration visible derrière
+  // la bulle du tour) quand un utilisateur cliquait "Faire le tour complet"
+  // avant d'avoir terminé la configuration initiale.
   useEffect(() => {
-    if (!user || user.must_change_password) return;
+    if (!user || user.must_change_password || blockedBySetup) return;
     let forced = false;
     try { forced = localStorage.getItem("kompta_force_tour") === "1"; } catch { /* */ }
     if (forced) {
@@ -347,7 +353,7 @@ export function GuidedTour() {
   function next() { idx >= STEPS.length - 1 ? finish() : setIdx((i) => i + 1); }
   function prev() { setIdx((i) => Math.max(0, i - 1)); }
 
-  if (!active || !user || user.role === "super_admin") return null;
+  if (!active || !user || user.role === "super_admin" || blockedBySetup) return null;
 
   const isLast = idx === STEPS.length - 1;
   const progress = Math.round(((idx + 1) / STEPS.length) * 100);

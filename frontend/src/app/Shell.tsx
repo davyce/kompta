@@ -303,6 +303,7 @@ export function Shell() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [setupWizardActive, setSetupWizardActive] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [terasScore, setTerasScore] = useState(87);
   const [terasModuleBadges, setTerasModuleBadges] = useState<Record<string, number>>({});
@@ -861,8 +862,8 @@ export function Shell() {
         onMarkOneRead={markOneRead}
         onClear={clearHistory}
       />
-      <GuidedTour />
-      <CompanySetupWizard />
+      <GuidedTour blockedBySetup={setupWizardActive} />
+      <CompanySetupWizard onActiveChange={setSetupWizardActive} />
       <SubscriptionGate />
       <Copilot />
     </div>
