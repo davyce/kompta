@@ -137,7 +137,7 @@ function CreateCompanyModal({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-black">{tr("admin.companies.createCompany")}</h2>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
             <X size={16} />
           </button>
         </div>
@@ -239,7 +239,7 @@ function BroadcastModal({ companyId, companyName, onClose }: { companyId: number
             <h2 className="text-lg font-black">{tr("admin.companies.targetedBroadcast")}</h2>
             <p className="text-xs text-white/50">{companyName}</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
             <X size={16} />
           </button>
         </div>
@@ -384,6 +384,7 @@ function CompanyCard({
         </button>
         <button
           onClick={onBroadcast}
+          aria-label={tr("admin.companies.sendMessageTo", { name: company.name })}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold hover:bg-slate-100 transition dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
         >
           <Megaphone size={13} />
@@ -391,6 +392,9 @@ function CompanyCard({
         <button
           onClick={onToggleStatus}
           disabled={suspending}
+          aria-label={isSuspended
+            ? tr("admin.companies.reactivateCompany", { name: company.name })
+            : tr("admin.companies.suspendCompany", { name: company.name })}
           className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
             isSuspended
               ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
@@ -546,6 +550,7 @@ export function AdminCompaniesPage() {
         <select
           value={sector}
           onChange={(e) => setSector(e.target.value)}
+          aria-label={tr("admin.companies.filterBySector")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.companies.allSectors")}</option>
@@ -554,6 +559,7 @@ export function AdminCompaniesPage() {
         <select
           value={country}
           onChange={(e) => setCountry(e.target.value)}
+          aria-label={tr("admin.companies.filterByCountry")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.companies.allCountries")}</option>
@@ -562,6 +568,7 @@ export function AdminCompaniesPage() {
         <select
           value={terasFilter}
           onChange={(e) => setTerasFilter(e.target.value)}
+          aria-label={tr("admin.companies.filterByTeras")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.companies.allTeras")}</option>
@@ -571,6 +578,7 @@ export function AdminCompaniesPage() {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
+          aria-label={tr("admin.companies.sortBy")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="name">{tr("admin.companies.sort.az")}</option>
@@ -581,12 +589,16 @@ export function AdminCompaniesPage() {
         <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden dark:border-white/10 dark:bg-white/5">
           <button
             onClick={() => setView("cards")}
+            aria-label={tr("admin.companies.viewCards")}
+            aria-pressed={view === "cards"}
             className={`px-3 py-2.5 transition ${view === "cards" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white"}`}
           >
             <LayoutGrid size={15} />
           </button>
           <button
             onClick={() => setView("table")}
+            aria-label={tr("admin.companies.viewTable")}
+            aria-pressed={view === "table"}
             className={`px-3 py-2.5 transition ${view === "table" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white"}`}
           >
             <List size={15} />

@@ -132,7 +132,12 @@ function BulletinCard({
           <p className="text-sm font-extrabold text-emerald-600">{money(slip.net_pay)}</p>
           <p className="text-[10px] text-[#717182]">{tr("payroll.bulletin.netLabel")}</p>
         </div>
-        <button onClick={() => setExpanded(!expanded)} className="text-[#717182] hover:text-emerald-600 transition">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          aria-label={expanded ? tr("common.collapse") : tr("common.expand")}
+          aria-expanded={expanded}
+          className="text-[#717182] hover:text-emerald-600 transition"
+        >
           <ChevronRight size={16} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
       </div>
@@ -539,6 +544,7 @@ export function PayrollPage() {
               <select
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
+                aria-label={tr("payroll.header.monthLabel")}
                 className="bg-transparent text-sm font-semibold text-[#17211f] dark:text-white outline-none px-1 py-1"
               >
                 {MONTHS.map((m, i) => <option key={m} value={i}>{monthName(i, tr)}</option>)}
@@ -546,6 +552,7 @@ export function PayrollPage() {
               <select
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
+                aria-label={tr("payroll.header.yearLabel")}
                 className="bg-transparent text-sm font-semibold text-[#17211f] dark:text-white outline-none px-1 py-1"
               >
                 {[2024, 2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
@@ -584,7 +591,7 @@ export function PayrollPage() {
         <div className="shrink-0 mx-6 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
           <AlertCircle size={16} className="shrink-0" />
           <span className="flex-1">{launchError}</span>
-          <button onClick={() => setLaunchError(null)}><X size={14} /></button>
+          <button onClick={() => setLaunchError(null)} aria-label={tr("common.close")}><X size={14} /></button>
         </div>
       )}
 
@@ -712,6 +719,7 @@ export function PayrollPage() {
                             type="number" min="0" max="80" step="0.5"
                             value={ov.overtime_hours || ""}
                             placeholder="0"
+                            aria-label={tr("payroll.variables.overtimeHoursFor", { name: `${emp.first_name} ${emp.last_name}` })}
                             onChange={(e) => setOverrides((prev) => ({
                               ...prev,
                               [emp.id]: { ...ov, overtime_hours: parseFloat(e.target.value) || 0 },
@@ -725,6 +733,7 @@ export function PayrollPage() {
                             type="number" min="0" step="1000"
                             value={ov.bonus || ""}
                             placeholder="0"
+                            aria-label={tr("payroll.variables.bonusFor", { name: `${emp.first_name} ${emp.last_name}` })}
                             onChange={(e) => setOverrides((prev) => ({
                               ...prev,
                               [emp.id]: { ...ov, bonus: parseFloat(e.target.value) || 0 },
@@ -738,6 +747,7 @@ export function PayrollPage() {
                             type="number" min="0" max="26" step="1"
                             value={ov.absence_days || ""}
                             placeholder="0"
+                            aria-label={tr("payroll.variables.absenceDaysFor", { name: `${emp.first_name} ${emp.last_name}` })}
                             onChange={(e) => setOverrides((prev) => ({
                               ...prev,
                               [emp.id]: { ...ov, absence_days: parseInt(e.target.value) || 0 },
@@ -766,6 +776,7 @@ export function PayrollPage() {
                     <select
                       value={paymentAccountId ?? ""}
                       onChange={(e) => setPaymentAccountId(e.target.value ? Number(e.target.value) : null)}
+                      aria-label={tr("payroll.variables.sourceAccount")}
                       className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm font-semibold text-[#17211f] dark:text-white outline-none"
                     >
                       <option value="">{tr("payroll.variables.sourceAccount")}</option>

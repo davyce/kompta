@@ -1698,7 +1698,9 @@
       "exportPdf": "Exporter PDF",
       "generating": "Génération…",
       "newCycle": "Nouveau cycle",
-      "launch": "Lancer la paie"
+      "launch": "Lancer la paie",
+      "monthLabel": "Mois de la période de paie",
+      "yearLabel": "Année de la période de paie"
     },
     "tabs": {
       "variables": "1 · Variables",
@@ -1780,6 +1782,9 @@
       "overtimeHours": "H.Sup (h)",
       "bonus": "Prime (XAF)",
       "absenceDays": "Absent (j)",
+      "overtimeHoursFor": "Heures supplémentaires pour {{name}}",
+      "bonusFor": "Prime pour {{name}}",
+      "absenceDaysFor": "Jours d'absence pour {{name}}",
       "estimatedGross": "Masse salariale estimée (brut)",
       "estimatedNet": "Net estimé",
       "sourceAccount": "Compte source",
@@ -2118,7 +2123,8 @@
     "dropZone": {
       "promptPrefix": "Glissez un fichier ou",
       "browse": "parcourez",
-      "types": "Contrat · Facture · Relevé bancaire · Fiche de paie · Rapport · Identité…"
+      "types": "Contrat · Facture · Relevé bancaire · Fiche de paie · Rapport · Identité…",
+      "ariaLabel": "Sélectionner un fichier à téléverser"
     },
     "chat": {
       "title": "Chat Limule · {{title}}",
@@ -2203,6 +2209,7 @@
       "emptyTitle": "Aucun document",
       "emptyFiltered": "Aucun document ne correspond à vos filtres.",
       "empty": "Ajoutez votre premier document en le glissant dans la zone d'upload.",
+      "typeFilterLabel": "Filtrer par type de document",
       "refreshing": "Actualisation…"
     }
   },
@@ -2535,7 +2542,11 @@
     "total": "Total",
     "new": "Nouveau",
     "generatedOn": "Généré le {{date}}",
-    "notDefined": "Non défini"
+    "notDefined": "Non défini",
+    "expand": "Développer",
+    "collapse": "Réduire",
+    "remove": "Retirer",
+    "send": "Envoyer"
   },
   "routes": {
     "errorUnexpected": "Erreur inattendue",
@@ -3076,6 +3087,15 @@
       "messageSent": "Message envoyé !",
       "sending": "Envoi…",
       "adminAccount": "Compte administrateur",
+      "sendMessageTo": "Envoyer un message à {{name}}",
+      "suspendCompany": "Suspendre {{name}}",
+      "reactivateCompany": "Réactiver {{name}}",
+      "filterBySector": "Filtrer par secteur",
+      "filterByCountry": "Filtrer par pays",
+      "filterByTeras": "Filtrer par score TERAS",
+      "sortBy": "Trier par",
+      "viewCards": "Vue en cartes",
+      "viewTable": "Vue en tableau",
       "companyCount_one": "{{count}} entreprise",
       "companyCount_other": "{{count}} entreprises",
       "searchPlaceholder": "Nom, secteur, pays…",
@@ -3274,6 +3294,9 @@
       "allCompanies": "Toutes entreprises",
       "allRoles": "Tous rôles",
       "allStatuses": "Tous statuts",
+      "filterByCompany": "Filtrer par entreprise",
+      "filterByRole": "Filtrer par rôle",
+      "filterByStatus": "Filtrer par statut",
       "user": "Utilisateur",
       "role": "Rôle",
       "team": "Équipe",

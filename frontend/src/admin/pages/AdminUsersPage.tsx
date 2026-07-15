@@ -64,7 +64,7 @@ function ImpersonateModal({ userId, userName, onClose }: { userId: number; userN
             <h2 className="text-lg font-black">Impersonation</h2>
             <p className="text-xs text-white/50">{userName}</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10 text-white/60">
             <X size={16} />
           </button>
         </div>
@@ -149,7 +149,7 @@ function ResetPasswordModal({ userId, userName, onClose, onReset }: { userId: nu
             <h2 className="text-lg font-black text-slate-900 dark:text-white">{tr("admin.users.resetPassword")}</h2>
             <p className="text-xs text-slate-500 dark:text-white/50">{userName}</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/10">
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/10">
             <X size={16} />
           </button>
         </div>
@@ -198,6 +198,7 @@ function ResetPasswordModal({ userId, userName, onClose, onReset }: { userId: nu
                 <button
                   onClick={copyPwd}
                   title={tr("common.copy")}
+                  aria-label={tr("common.copy")}
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-indigo-600 hover:bg-indigo-700 transition"
                 >
                   <Clipboard size={15} className="text-white" />
@@ -401,6 +402,7 @@ export function AdminUsersPage() {
         <select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
+          aria-label={tr("admin.users.filterByCompany")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.users.allCompanies")}</option>
@@ -409,6 +411,7 @@ export function AdminUsersPage() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
+          aria-label={tr("admin.users.filterByRole")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.users.allRoles")}</option>
@@ -417,6 +420,7 @@ export function AdminUsersPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label={tr("admin.users.filterByStatus")}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
         >
           <option value="">{tr("admin.users.allStatuses")}</option>

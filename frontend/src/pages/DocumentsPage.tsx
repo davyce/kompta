@@ -99,6 +99,10 @@ function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
       onClick={() => inputRef.current?.click()}
+      role="button"
+      tabIndex={0}
+      aria-label={tr("documents.dropZone.ariaLabel")}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); } }}
       className={`group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 transition-all ${
         dragging
           ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10"
@@ -108,6 +112,7 @@ function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
       <input
         ref={inputRef}
         type="file"
+        aria-label={tr("documents.dropZone.ariaLabel")}
         className="sr-only"
         accept=".pdf,.csv,.xlsx,.xls,.ods,.txt,.png,.jpg,.jpeg,.gif,.webp,.heic,.docx,.doc,.bmp"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
@@ -177,7 +182,7 @@ function DocChatPanel({ doc, onClose }: { doc: CompanyDocument; onClose: () => v
           <LimuleIcon size={16} />
           <span className="text-sm font-semibold text-[#17211f] dark:text-white">{tr("documents.chat.title", { title: doc.title })}</span>
         </div>
-        <button onClick={onClose} title={tr("common.close")} className="grid h-7 w-7 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={14} /></button>
+        <button onClick={onClose} title={tr("common.close")} aria-label={tr("common.close")} className="grid h-7 w-7 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={14} /></button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
@@ -208,7 +213,7 @@ function DocChatPanel({ doc, onClose }: { doc: CompanyDocument; onClose: () => v
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
         />
-        <button onClick={send} disabled={!input.trim() || streaming} className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shrink-0">
+        <button onClick={send} disabled={!input.trim() || streaming} aria-label={tr("common.send")} className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shrink-0">
           <Send size={15} />
         </button>
       </div>
@@ -271,7 +276,12 @@ function DocumentCard({
           <p className="font-bold text-sm text-[#17211f] dark:text-white truncate">{doc.title}</p>
           <p className="text-xs text-[#717182] truncate">{doc.filename} · {formatSize(doc.size_bytes, tr)} · {documentDate(doc.created_at, tr)}</p>
         </div>
-        <button onClick={() => setExpanded((v) => !v)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? tr("common.collapse") : tr("common.expand")}
+          aria-expanded={expanded}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+        >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
@@ -555,19 +565,19 @@ export function DocumentsPage() {
                     <p className="text-sm font-semibold text-[#17211f] dark:text-white truncate">{pendingFile.name}</p>
                     <p className="text-xs text-[#717182]">{formatSize(pendingFile.size, tr)}</p>
                   </div>
-                  <button type="button" onClick={() => setPendingFile(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
+                  <button type="button" onClick={() => setPendingFile(null)} aria-label={tr("common.remove")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05]">
                     <X size={14} />
                   </button>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.documentTitle")}</label>
-                <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("documents.upload.documentTitlePlaceholder")} />
+                <label htmlFor="doc-upload-title" className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.documentTitle")}</label>
+                <input id="doc-upload-title" className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("documents.upload.documentTitlePlaceholder")} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.linkEmployee")}</label>
-                <select className={inputCls} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+                <label htmlFor="doc-upload-employee" className="block text-xs font-semibold text-[#717182] mb-1">{tr("documents.upload.linkEmployee")}</label>
+                <select id="doc-upload-employee" className={inputCls} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
                   <option value="">{tr("documents.upload.companyDocument")}</option>
                   {employees.data?.map((emp) => (
                     <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
@@ -646,6 +656,7 @@ export function DocumentsPage() {
                 className="rounded-lg border border-black/[0.08] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] dark:text-white/70 px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
+                aria-label={tr("documents.library.typeFilterLabel")}
               >
                 {DOC_TYPE_FILTERS.map((f) => (
                   <option key={f.value} value={f.value}>{tr(f.labelTk)}</option>

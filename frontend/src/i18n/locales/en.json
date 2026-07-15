@@ -1698,7 +1698,9 @@
       "exportPdf": "Export PDF",
       "generating": "Generating…",
       "newCycle": "New cycle",
-      "launch": "Run payroll"
+      "launch": "Run payroll",
+      "monthLabel": "Payroll period month",
+      "yearLabel": "Payroll period year"
     },
     "tabs": {
       "variables": "1 · Variables",
@@ -1780,6 +1782,9 @@
       "overtimeHours": "Overtime (h)",
       "bonus": "Bonus (XAF)",
       "absenceDays": "Absent (d)",
+      "overtimeHoursFor": "Overtime hours for {{name}}",
+      "bonusFor": "Bonus for {{name}}",
+      "absenceDaysFor": "Absence days for {{name}}",
       "estimatedGross": "Estimated payroll mass (gross)",
       "estimatedNet": "Estimated net",
       "sourceAccount": "Source account",
@@ -2118,7 +2123,8 @@
     "dropZone": {
       "promptPrefix": "Drop a file or",
       "browse": "browse",
-      "types": "Contract · Invoice · Bank statement · Payslip · Report · Identity…"
+      "types": "Contract · Invoice · Bank statement · Payslip · Report · Identity…",
+      "ariaLabel": "Select a file to upload"
     },
     "chat": {
       "title": "Limule chat · {{title}}",
@@ -2203,6 +2209,7 @@
       "emptyTitle": "No document",
       "emptyFiltered": "No document matches your filters.",
       "empty": "Add your first document by dropping it into the upload area.",
+      "typeFilterLabel": "Filter by document type",
       "refreshing": "Refreshing…"
     }
   },
@@ -2535,7 +2542,11 @@
     "total": "Total",
     "new": "New",
     "generatedOn": "Generated on {{date}}",
-    "notDefined": "Not defined"
+    "notDefined": "Not defined",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "remove": "Remove",
+    "send": "Send"
   },
   "routes": {
     "errorUnexpected": "Unexpected error",
@@ -3076,6 +3087,15 @@
       "messageSent": "Message sent!",
       "sending": "Sending…",
       "adminAccount": "Administrator account",
+      "sendMessageTo": "Send a message to {{name}}",
+      "suspendCompany": "Suspend {{name}}",
+      "reactivateCompany": "Reactivate {{name}}",
+      "filterBySector": "Filter by sector",
+      "filterByCountry": "Filter by country",
+      "filterByTeras": "Filter by TERAS score",
+      "sortBy": "Sort by",
+      "viewCards": "Card view",
+      "viewTable": "Table view",
       "companyCount_one": "{{count}} company",
       "companyCount_other": "{{count}} companies",
       "searchPlaceholder": "Name, sector, country…",
@@ -3274,6 +3294,9 @@
       "allCompanies": "All companies",
       "allRoles": "All roles",
       "allStatuses": "All statuses",
+      "filterByCompany": "Filter by company",
+      "filterByRole": "Filter by role",
+      "filterByStatus": "Filter by status",
       "user": "User",
       "role": "Role",
       "team": "Team",

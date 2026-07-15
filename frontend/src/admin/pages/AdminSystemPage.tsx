@@ -131,14 +131,15 @@ function FlagModal({
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-6 text-white shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h3 className="text-lg font-black">{flag?.id ? tr("admin.system.editFlag") : tr("admin.system.newFlag")}</h3>
-          <button onClick={onClose} className="text-white/40 hover:text-white">
+          <button onClick={onClose} aria-label={tr("common.close")} className="text-white/40 hover:text-white">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.key")}</label>
+            <label htmlFor="flag-key" className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.key")}</label>
             <input
+              id="flag-key"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="feature_key"
@@ -146,8 +147,9 @@ function FlagModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.subscriptions.fields.description")}</label>
+            <label htmlFor="flag-description" className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.subscriptions.fields.description")}</label>
             <input
+              id="flag-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={tr("admin.system.flagDescriptionPlaceholder")}
@@ -155,8 +157,9 @@ function FlagModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.value")}</label>
+            <label htmlFor="flag-value" className="mb-1.5 block text-xs font-bold uppercase text-white/50">{tr("admin.system.value")}</label>
             <input
+              id="flag-value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="true / false / custom_value"
@@ -165,7 +168,12 @@ function FlagModal({
           </div>
           <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
             <span className="text-sm font-bold">{tr("admin.system.enabled")}</span>
-            <button onClick={() => setEnabled((v) => !v)} className="text-indigo-300">
+            <button
+              onClick={() => setEnabled((v) => !v)}
+              aria-label={tr("admin.system.enabled")}
+              aria-pressed={enabled}
+              className="text-indigo-300"
+            >
               {enabled ? <ToggleRight size={26} /> : <ToggleLeft size={26} className="text-white/40" />}
             </button>
           </div>
@@ -280,6 +288,8 @@ function FlagsTab() {
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => updateFlag.mutate({ key: flag.key, data: { enabled: !flag.enabled } })}
+                      aria-label={tr("admin.system.enabled")}
+                      aria-pressed={flag.enabled}
                       className="text-indigo-500 hover:text-indigo-700 dark:text-indigo-300 dark:hover:text-indigo-100"
                     >
                       {flag.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} className="text-slate-300 dark:text-white/30" />}
@@ -289,12 +299,14 @@ function FlagsTab() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setModal(flag)}
+                        aria-label={tr("common.edit")}
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-white"
                       >
                         <Edit2 size={13} />
                       </button>
                       <button
                         onClick={() => handleDeleteFlag(flag)}
+                        aria-label={tr("common.delete")}
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600 dark:text-white/40 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
                       >
                         <Trash2 size={13} />
