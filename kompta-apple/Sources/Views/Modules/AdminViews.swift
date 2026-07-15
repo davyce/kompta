@@ -128,10 +128,26 @@ struct AdminOverviewView: View {
 struct AdminCompaniesView: View {
     @StateObject private var state = Loadable<[AdminCompanyRow]>()
     @State private var search = ""
+    @State private var sectorFilter: String?
+    @State private var countryFilter: String?
+    @State private var sort: SortOption = .name
+    @State private var showCreateSheet = false
+    @State private var broadcastTarget: AdminCompanyRow?
+    @State private var exportURL: URL?
+
+    enum SortOption: String, CaseIterable, Identifiable {
+        case name = "Nom", teras = "Score TERAS", users = "Utilisateurs", date = "Date de création"
+        var id: String { rawValue }
+    }
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune entreprise", emptyIcon: "building.2", reload: load) { companies in
             List {
+                if let exportURL {
+                    ShareLink(item: exportURL) {
+                        Label("Télécharger la liste (CSV)", systemImage: "square.and.arrow.down")
+                    }
+                }
                 ForEach(filtered(companies)) { c in
                     NavigationLink { AdminCompanyDetailView(companyId: c.id, summary: c) } label: {
                         HStack(spacing: 12) {
@@ -152,6 +168,13 @@ struct AdminCompaniesView: View {
                         }
                         .padding(.vertical, 3)
                     }
+                    .swipeActions(edge: .trailing) {
+                        Button { broadcastTarget = c } label: { Label("Message", systemImage: "megaphone.fill") }
+                            .tint(.orange)
+                    }
+                    .contextMenu {
+                        Button { broadcastTarget = c } label: { Label("Envoyer un message", systemImage: "megaphone.fill") }
+                    }
                 }
             }
             #if os(iOS)
@@ -163,17 +186,275 @@ struct AdminCompaniesView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showCreateSheet = true } label: { Image(systemName: "plus") }
+                    .help("Créer une entreprise")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Section("Secteur") {
+                        Button("Tous") { sectorFilter = nil }
+                        ForEach(sectors(state.value ?? []), id: \.self) { s in
+                            Button(s) { sectorFilter = s }
+                        }
+                    }
+                    Section("Pays") {
+                        Button("Tous") { countryFilter = nil }
+                        ForEach(countries(state.value ?? []), id: \.self) { c in
+                            Button(c) { countryFilter = c }
+                        }
+                    }
+                    Section("Trier par") {
+                        Picker("Trier par", selection: $sort) {
+                            ForEach(SortOption.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                    }
+                } label: {
+                    Image(systemName: (sectorFilter != nil || countryFilter != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+                .help("Filtrer et trier")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }
+                    .disabled(state.value?.isEmpty ?? true)
+                    .help("Exporter la liste (CSV)")
+            }
+        }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showCreateSheet) {
+            AdminCreateCompanySheet { payload in
+                _ = try await APIClient.shared.registerCompany(payload)
+                await load()
+            }
+        }
+        .sheet(item: $broadcastTarget) { c in
+            AdminCompanyBroadcastSheet(companyId: c.id, companyName: c.name)
+        }
     }
 
     private func companyInitials(_ name: String) -> String {
         name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
     }
+    private func sectors(_ c: [AdminCompanyRow]) -> [String] {
+        Array(Set(c.compactMap { $0.industry?.isEmpty == false ? $0.industry : nil })).sorted()
+    }
+    private func countries(_ c: [AdminCompanyRow]) -> [String] {
+        Array(Set(c.compactMap { $0.country?.isEmpty == false ? $0.country : nil })).sorted()
+    }
     private func filtered(_ c: [AdminCompanyRow]) -> [AdminCompanyRow] {
-        search.isEmpty ? c : c.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        var result = c
+        let q = search.trimmingCharacters(in: .whitespaces)
+        if !q.isEmpty { result = result.filter { $0.name.localizedCaseInsensitiveContains(q) } }
+        if let sectorFilter { result = result.filter { $0.industry == sectorFilter } }
+        if let countryFilter { result = result.filter { $0.country == countryFilter } }
+        switch sort {
+        case .name: result.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .teras: result.sort { ($0.teras_score ?? -1) > ($1.teras_score ?? -1) }
+        case .users: result.sort { $0.users_count > $1.users_count }
+        case .date: result.sort { $0.created_at > $1.created_at }
+        }
+        return result
+    }
+    private func exportCSV() {
+        guard let companies = state.value else { return }
+        var csv = "Nom,Raison sociale,Secteur,Pays,Utilisateurs,Employés,Score TERAS,Créée le\n"
+        for c in filtered(companies) {
+            func esc(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
+            csv += [c.name, c.legal_name ?? "", c.industry ?? "", c.country ?? "", "\(c.users_count)",
+                    "\(c.employees_count)", c.teras_score.map { "\(Int($0))" } ?? "", c.created_at]
+                .map(esc).joined(separator: ",") + "\n"
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("entreprises-\(Int(Date().timeIntervalSince1970)).csv")
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        exportURL = url
     }
     private func load() async { await state.load { try await APIClient.shared.adminCompanies() } }
+}
+
+// MARK: - Création d'entreprise (super-admin)
+
+struct AdminCreateCompanySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var onCreate: (CompanyRegistrationPayload) async throws -> Void
+
+    @State private var companyName = ""
+    @State private var legalName = ""
+    @State private var industry = ""
+    @State private var organizationType = "company"
+    @State private var country = ""
+    @State private var adminFullName = ""
+    @State private var adminEmail = ""
+    @State private var adminPhone = ""
+    @State private var password = ""
+    @State private var signatoryName = ""
+    @State private var acceptPrivacy = false
+    @State private var acceptTerms = false
+    @State private var acceptDisclaimer = false
+    @State private var creating = false
+    @State private var errorMessage: String?
+
+    private var canSubmit: Bool {
+        !companyName.trimmingCharacters(in: .whitespaces).isEmpty
+        && !adminEmail.trimmingCharacters(in: .whitespaces).isEmpty
+        && !signatoryName.trimmingCharacters(in: .whitespaces).isEmpty
+        && acceptPrivacy && acceptTerms && acceptDisclaimer
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Entreprise") {
+                    TextField("Nom commercial", text: $companyName)
+                    TextField("Raison sociale", text: $legalName)
+                    TextField("Secteur", text: $industry)
+                    TextField("Pays", text: $country)
+                }
+                Section("Compte administrateur") {
+                    TextField("Nom complet", text: $adminFullName)
+                    TextField("Email", text: $adminEmail)
+                        #if os(iOS)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                    TextField("Téléphone", text: $adminPhone)
+                        #if os(iOS)
+                        .keyboardType(.phonePad)
+                        #endif
+                    SecureField("Mot de passe temporaire", text: $password)
+                }
+                Section("Consentement") {
+                    TextField("Nom du signataire", text: $signatoryName)
+                    Toggle("J'ai lu et j'accepte la Politique de confidentialité, pour le compte de cette entreprise.", isOn: $acceptPrivacy)
+                    Toggle("J'accepte les Conditions d'utilisation, pour le compte de cette entreprise.", isOn: $acceptTerms)
+                    Toggle("Je reconnais la décharge de responsabilité (données hébergées hors du pays, IA non contractuelle, responsabilité limitée) au nom de cette entreprise.", isOn: $acceptDisclaimer)
+                }
+                if let errorMessage {
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                }
+            }
+            .navigationTitle("Nouvelle entreprise")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if creating {
+                        ProgressView()
+                    } else {
+                        Button("Créer") { create() }.disabled(!canSubmit)
+                    }
+                }
+            }
+        }
+    }
+
+    private func create() {
+        creating = true
+        errorMessage = nil
+        Task {
+            do {
+                try await onCreate(CompanyRegistrationPayload(
+                    company_name: companyName.trimmingCharacters(in: .whitespaces),
+                    legal_name: legalName,
+                    industry: industry,
+                    organization_type: organizationType,
+                    country: country,
+                    admin_full_name: adminFullName,
+                    admin_email: adminEmail.trimmingCharacters(in: .whitespaces),
+                    admin_phone: adminPhone,
+                    password: password,
+                    signatory_name: signatoryName.trimmingCharacters(in: .whitespaces),
+                    accept_privacy: acceptPrivacy,
+                    accept_terms: acceptTerms,
+                    accept_disclaimer: acceptDisclaimer
+                ))
+                creating = false
+                dismiss()
+            } catch {
+                creating = false
+                errorMessage = "Impossible de créer l'entreprise. Vérifiez les champs et réessayez."
+            }
+        }
+    }
+}
+
+// MARK: - Message ciblé à une entreprise (super-admin)
+
+struct AdminCompanyBroadcastSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let companyId: Int
+    let companyName: String
+
+    @State private var title = ""
+    @State private var message = ""
+    @State private var type = "info"
+    @State private var sending = false
+    @State private var sent = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if sent {
+                    Label("Message envoyé", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                } else {
+                    Section(companyName) {
+                        TextField("Titre", text: $title)
+                        TextField("Message", text: $message, axis: .vertical).lineLimit(3...6)
+                        Picker("Type", selection: $type) {
+                            Text("Information").tag("info")
+                            Text("Avertissement").tag("warning")
+                            Text("Critique").tag("critical")
+                        }
+                    }
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Message ciblé")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(sent ? "Fermer" : "Annuler") { dismiss() }
+                }
+                if !sent {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if sending {
+                            ProgressView()
+                        } else {
+                            Button("Envoyer") { send() }
+                                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || message.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func send() {
+        sending = true
+        errorMessage = nil
+        Task {
+            do {
+                _ = try await APIClient.shared.adminBroadcast(BroadcastPayload(
+                    title: title, message: message, type: type, target_company_ids: [companyId]
+                ))
+                sending = false
+                sent = true
+            } catch {
+                sending = false
+                errorMessage = "Envoi impossible. Réessayez."
+            }
+        }
+    }
 }
 
 struct AdminCompanyDetailView: View {
@@ -286,10 +567,19 @@ struct AdminCompanyDetailView: View {
 struct AdminUsersView: View {
     @StateObject private var state = Loadable<[AdminUserRow]>()
     @State private var search = ""
+    @State private var roleFilter: String?
+    @State private var statusFilter: String?
+    @State private var companyFilter: String?
+    @State private var exportURL: URL?
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun utilisateur", emptyIcon: "person.2", reload: load) { users in
             List {
+                if let exportURL {
+                    ShareLink(item: exportURL) {
+                        Label("Télécharger la liste (CSV)", systemImage: "square.and.arrow.down")
+                    }
+                }
                 ForEach(filtered(users)) { u in
                     NavigationLink { AdminUserDetailView(user: u) } label: {
                         HStack(spacing: 12) {
@@ -320,6 +610,30 @@ struct AdminUsersView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Section("Rôle") {
+                        Button("Tous") { roleFilter = nil }
+                        ForEach(roles(state.value ?? []), id: \.self) { r in Button(r) { roleFilter = r } }
+                    }
+                    Section("Statut") {
+                        Button("Tous") { statusFilter = nil }
+                        ForEach(["active", "suspended", "disabled", "archived"], id: \.self) { s in Button(s) { statusFilter = s } }
+                    }
+                    Section("Entreprise") {
+                        Button("Toutes") { companyFilter = nil }
+                        ForEach(companies(state.value ?? []), id: \.self) { c in Button(c) { companyFilter = c } }
+                    }
+                } label: {
+                    Image(systemName: (roleFilter != nil || statusFilter != nil || companyFilter != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }
+                    .disabled(state.value?.isEmpty ?? true)
+            }
+        }
         .task { await load() }
         .refreshable { await load() }
     }
@@ -327,10 +641,30 @@ struct AdminUsersView: View {
     private func userInitials(_ name: String) -> String {
         name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
     }
+    private func roles(_ u: [AdminUserRow]) -> [String] { Array(Set(u.map { $0.role })).sorted() }
+    private func companies(_ u: [AdminUserRow]) -> [String] { Array(Set(u.compactMap { $0.company_name })).sorted() }
     private func filtered(_ u: [AdminUserRow]) -> [AdminUserRow] {
-        search.isEmpty ? u : u.filter {
-            $0.full_name.localizedCaseInsensitiveContains(search) || $0.email.localizedCaseInsensitiveContains(search)
+        var result = u
+        if !search.isEmpty {
+            result = result.filter {
+                $0.full_name.localizedCaseInsensitiveContains(search) || $0.email.localizedCaseInsensitiveContains(search)
+            }
         }
+        if let roleFilter { result = result.filter { $0.role == roleFilter } }
+        if let statusFilter { result = result.filter { $0.account_status == statusFilter } }
+        if let companyFilter { result = result.filter { $0.company_name == companyFilter } }
+        return result
+    }
+    private func exportCSV() {
+        guard let users = state.value else { return }
+        var csv = "Nom,Email,Rôle,Statut,Entreprise\n"
+        for u in filtered(users) {
+            func esc(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
+            csv += [u.full_name, u.email, u.role, u.account_status, u.company_name ?? ""].map(esc).joined(separator: ",") + "\n"
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("utilisateurs-\(Int(Date().timeIntervalSince1970)).csv")
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        exportURL = url
     }
     private func load() async { await state.load { try await APIClient.shared.adminUsers() } }
 }
@@ -485,16 +819,33 @@ struct AdminUserDetailView: View {
 
 struct AdminTicketsView: View {
     @StateObject private var state = Loadable<[AdminTicket]>()
+    @State private var search = ""
+    @State private var statusFilter = "all"
+    @State private var priorityFilter = "all"
+    @State private var sort: TicketSort = .date
+    @State private var staff: [AdminUserRow] = []
+
+    enum TicketSort: String, CaseIterable, Identifiable {
+        case date = "Date", priority = "Priorité", company = "Entreprise"
+        var id: String { rawValue }
+    }
+    private static let nextStatus: [String: String] = ["open": "in_progress", "in_progress": "resolved", "resolved": "closed"]
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucun ticket", emptyIcon: "lifepreserver", reload: load) { tickets in
             List {
-                ForEach(tickets) { t in
+                metricsHeader(tickets)
+                ForEach(filtered(tickets)) { t in
                     NavigationLink { AdminTicketDetailView(ticketId: t.id) } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(t.subject).font(.subheadline.bold())
                                 Text("\(t.company_name) · \(t.requester_name)").font(.caption).foregroundStyle(.secondary)
+                                if let name = assigneeName(t) {
+                                    Label(name, systemImage: "person.fill.checkmark").font(.caption2).foregroundStyle(.tertiary)
+                                } else {
+                                    Label("Non assigné", systemImage: "person.badge.clock").font(.caption2).foregroundStyle(.tertiary)
+                                }
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 4) {
@@ -503,20 +854,111 @@ struct AdminTicketsView: View {
                             }
                         }
                     }
+                    .swipeActions(edge: .trailing) {
+                        if let next = Self.nextStatus[t.status] {
+                            Button { Task { await advance(t, to: next) } } label: { Label("Avancer", systemImage: "arrow.right.circle.fill") }
+                                .tint(.blue)
+                        }
+                    }
+                    .contextMenu {
+                        Menu("Assigner à") {
+                            Button("Non assigné") { Task { await assign(t, userId: nil) } }
+                            ForEach(staff) { u in
+                                Button(u.full_name) { Task { await assign(t, userId: u.id) } }
+                            }
+                        }
+                        if let next = Self.nextStatus[t.status] {
+                            Button { Task { await advance(t, to: next) } } label: { Label("Avancer au statut suivant", systemImage: "arrow.right.circle") }
+                        }
+                    }
                 }
             }
             #if os(iOS)
             .listStyle(.insetGrouped)
             #endif
         }
+        .searchable(text: $search, prompt: "Sujet, entreprise, demandeur")
         .navigationTitle("Tickets support")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task { await load() }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Section("Statut") {
+                        ForEach(["all", "open", "in_progress", "resolved", "closed"], id: \.self) { s in
+                            Button(statusLabel(s)) { statusFilter = s }
+                        }
+                    }
+                    Section("Priorité") {
+                        ForEach(["all", "low", "medium", "high", "critical"], id: \.self) { p in
+                            Button(priorityLabel(p)) { priorityFilter = p }
+                        }
+                    }
+                    Section("Trier par") {
+                        Picker("Trier par", selection: $sort) {
+                            ForEach(TicketSort.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                    }
+                } label: {
+                    Image(systemName: (statusFilter != "all" || priorityFilter != "all") ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
+        .task { await load(); await loadStaff() }
         .refreshable { await load() }
     }
 
+    @ViewBuilder
+    private func metricsHeader(_ tickets: [AdminTicket]) -> some View {
+        let open = tickets.filter { $0.status == "open" }.count
+        let inProgress = tickets.filter { $0.status == "in_progress" }.count
+        let critical = tickets.filter { $0.priority == "critical" }.count
+        HStack(spacing: 8) {
+            miniMetric("\(tickets.count)", "Total", .secondary)
+            miniMetric("\(open)", "Ouverts", .orange)
+            miniMetric("\(inProgress)", "En cours", .blue)
+            miniMetric("\(critical)", "Critiques", .red)
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .padding(.vertical, 4)
+    }
+    private func miniMetric(_ value: String, _ label: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.headline).foregroundStyle(color)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+    private func assigneeName(_ t: AdminTicket) -> String? {
+        guard let id = t.assignee_user_id else { return nil }
+        return staff.first { $0.id == id }?.full_name
+    }
+    private func statusLabel(_ s: String) -> String {
+        switch s { case "all": return "Tous"; case "open": return "Ouvert"; case "in_progress": return "En cours"
+        case "resolved": return "Résolu"; case "closed": return "Fermé"; default: return s }
+    }
+    private func priorityLabel(_ p: String) -> String {
+        switch p { case "all": return "Toutes"; case "low": return "Basse"; case "medium": return "Moyenne"
+        case "high": return "Haute"; case "critical": return "Critique"; default: return p }
+    }
+    private func filtered(_ tickets: [AdminTicket]) -> [AdminTicket] {
+        var result = tickets
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        if !q.isEmpty {
+            result = result.filter { $0.subject.lowercased().contains(q) || $0.company_name.lowercased().contains(q) || $0.requester_name.lowercased().contains(q) }
+        }
+        if statusFilter != "all" { result = result.filter { $0.status == statusFilter } }
+        if priorityFilter != "all" { result = result.filter { $0.priority == priorityFilter } }
+        let priorityOrder = ["critical": 4, "high": 3, "medium": 2, "low": 1]
+        switch sort {
+        case .date: result.sort { $0.created_at > $1.created_at }
+        case .priority: result.sort { (priorityOrder[$0.priority] ?? 0) > (priorityOrder[$1.priority] ?? 0) }
+        case .company: result.sort { $0.company_name.localizedCaseInsensitiveCompare($1.company_name) == .orderedAscending }
+        }
+        return result
+    }
     private func statusColor(_ s: String) -> String {
         switch s { case "resolved", "closed": return "green"; case "in_progress": return "blue"; default: return "orange" }
     }
@@ -524,6 +966,15 @@ struct AdminTicketsView: View {
         switch p { case "critical", "high": return "red"; case "medium": return "orange"; default: return "blue" }
     }
     private func load() async { await state.load { try await APIClient.shared.adminTickets() } }
+    private func loadStaff() async { staff = (try? await APIClient.shared.adminUsers()) ?? [] }
+    private func advance(_ t: AdminTicket, to status: String) async {
+        _ = try? await APIClient.shared.adminUpdateTicket(t.id, AdminTicketUpdatePayload(status: status))
+        await load()
+    }
+    private func assign(_ t: AdminTicket, userId: Int?) async {
+        _ = try? await APIClient.shared.adminUpdateTicket(t.id, AdminTicketUpdatePayload(assignee_user_id: userId))
+        await load()
+    }
 }
 
 struct AdminTicketDetailView: View {
@@ -531,6 +982,8 @@ struct AdminTicketDetailView: View {
     @StateObject private var state = Loadable<AdminTicket>()
     @State private var reply = ""
     @State private var sending = false
+    @State private var staff: [AdminUserRow] = []
+    @State private var category = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -553,6 +1006,28 @@ struct AdminTicketDetailView: View {
                             Text("Résolu").tag("resolved"); Text("Fermé").tag("closed")
                         }
                         .pickerStyle(.segmented)
+
+                        Picker("Priorité", selection: priorityBinding(t)) {
+                            Text("Basse").tag("low"); Text("Moyenne").tag("medium")
+                            Text("Haute").tag("high"); Text("Critique").tag("critical")
+                        }
+                        .pickerStyle(.segmented)
+
+                        HStack {
+                            TextField("Catégorie", text: $category)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit { Task { await update(AdminTicketUpdatePayload(category: category)) } }
+                            Button("Enregistrer") { Task { await update(AdminTicketUpdatePayload(category: category)) } }
+                                .disabled(category == t.category)
+                            Menu {
+                                Button("Non assigné") { Task { await assign(nil) } }
+                                ForEach(staff) { u in
+                                    Button(u.full_name) { Task { await assign(u.id) } }
+                                }
+                            } label: {
+                                Label(assigneeName(t) ?? "Assigner", systemImage: "person.fill.checkmark")
+                            }
+                        }
 
                         ForEach(t.messages) { m in
                             HStack {
@@ -589,16 +1064,30 @@ struct AdminTicketDetailView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task { await load() }
+        .task {
+            await load()
+            staff = (try? await APIClient.shared.adminUsers()) ?? []
+            category = state.value?.category ?? ""
+        }
     }
 
+    private func assigneeName(_ t: AdminTicket) -> String? {
+        guard let id = t.assignee_user_id else { return nil }
+        return staff.first { $0.id == id }?.full_name
+    }
     private func statusBinding(_ t: AdminTicket) -> Binding<String> {
-        Binding(get: { t.status }, set: { newValue in Task { await updateStatus(newValue) } })
+        Binding(get: { t.status }, set: { newValue in Task { await update(AdminTicketUpdatePayload(status: newValue)) } })
+    }
+    private func priorityBinding(_ t: AdminTicket) -> Binding<String> {
+        Binding(get: { t.priority }, set: { newValue in Task { await update(AdminTicketUpdatePayload(priority: newValue)) } })
     }
 
     private func load() async { await state.load { try await APIClient.shared.adminTicket(ticketId) } }
-    private func updateStatus(_ status: String) async {
-        await state.load { try await APIClient.shared.adminUpdateTicket(ticketId, AdminTicketUpdatePayload(status: status)) }
+    private func update(_ payload: AdminTicketUpdatePayload) async {
+        await state.load { try await APIClient.shared.adminUpdateTicket(ticketId, payload) }
+    }
+    private func assign(_ userId: Int?) async {
+        await update(AdminTicketUpdatePayload(assignee_user_id: userId))
     }
     private func sendReply() async {
         sending = true
@@ -614,39 +1103,86 @@ struct AdminTicketDetailView: View {
 struct AdminAuditLogsView: View {
     @StateObject private var state = Loadable<[AdminAuditLogEntry]>()
     @State private var search = ""
+    @State private var levelFilter: LogLevel = .all
+    @State private var dateRange: DateRange = .all
+    @State private var actorFilter = ""
     @State private var exportURL: URL?
+    @State private var autoRefresh = true
 
-    private func filtered(_ logs: [AdminAuditLogEntry]) -> [AdminAuditLogEntry] {
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return logs }
-        return logs.filter {
-            $0.action.lowercased().contains(q) || ($0.actor_name ?? "").lowercased().contains(q)
-            || ($0.details ?? "").lowercased().contains(q) || ($0.target_name ?? "").lowercased().contains(q)
+    enum LogLevel: String, CaseIterable, Identifiable { case all = "Tous", info = "Info", warning = "Avertissement", error = "Erreur"
+        var id: String { rawValue }
+    }
+    enum DateRange: String, CaseIterable, Identifiable { case all = "Toutes dates", today = "Aujourd'hui", d7 = "7 jours", d30 = "30 jours"
+        var id: String { rawValue }
+    }
+
+    private func level(_ l: AdminAuditLogEntry) -> LogLevel {
+        let text = (l.action + " " + (l.details ?? "")).lowercased()
+        if text.contains("error") || text.contains("erreur") || text.contains("fail") || text.contains("delete") || text.contains("supprim") { return .error }
+        if text.contains("warn") || text.contains("export") || text.contains("update") || text.contains("modif") { return .warning }
+        return .info
+    }
+    private func inRange(_ l: AdminAuditLogEntry) -> Bool {
+        guard dateRange != .all, let date = ISO8601DateFormatter().date(from: l.created_at) ?? isoLenient(l.created_at) else { return true }
+        let now = Date()
+        switch dateRange {
+        case .all: return true
+        case .today: return Calendar.current.isDateInToday(date)
+        case .d7: return now.timeIntervalSince(date) <= 7 * 86_400
+        case .d30: return now.timeIntervalSince(date) <= 30 * 86_400
         }
+    }
+    private func isoLenient(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: s)
+    }
+    private func filtered(_ logs: [AdminAuditLogEntry]) -> [AdminAuditLogEntry] {
+        var result = logs
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        if !q.isEmpty {
+            result = result.filter {
+                $0.action.lowercased().contains(q) || ($0.actor_name ?? "").lowercased().contains(q)
+                || ($0.details ?? "").lowercased().contains(q) || ($0.target_name ?? "").lowercased().contains(q)
+            }
+        }
+        if levelFilter != .all { result = result.filter { level($0) == levelFilter } }
+        let a = actorFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        if !a.isEmpty { result = result.filter { ($0.actor_name ?? "").lowercased().contains(a) } }
+        result = result.filter { inRange($0) }
+        return result
     }
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune entrée", emptyIcon: "doc.text.magnifyingglass", reload: load) { logs in
             List {
-                if let exportURL {
-                    ShareLink(item: exportURL) {
-                        Label("Télécharger le journal (CSV)", systemImage: "square.and.arrow.down")
-                    }
+                Section {
+                    TextField("Filtrer par acteur…", text: $actorFilter)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                    Toggle("Actualisation automatique (10 s)", isOn: $autoRefresh)
                 }
-                ForEach(filtered(logs)) { l in
-                    HStack(spacing: 10) {
-                        Image(systemName: actionIcon(l.action)).foregroundStyle(actionColor(l.action)).frame(width: 22)
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                Text(l.action).font(.subheadline.bold())
-                                Spacer()
-                                Text(shortDate(l.created_at)).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            if let actor = l.actor_name { Text("Par \(actor)").font(.caption).foregroundStyle(.secondary) }
-                            if let details = l.details, !details.isEmpty { Text(details).font(.caption2).foregroundStyle(.tertiary).lineLimit(2) }
+                Section {
+                    if let exportURL {
+                        ShareLink(item: exportURL) {
+                            Label("Télécharger le journal", systemImage: "square.and.arrow.down")
                         }
                     }
-                    .padding(.vertical, 2)
+                    ForEach(filtered(logs)) { l in
+                        HStack(spacing: 10) {
+                            Image(systemName: actionIcon(l.action)).foregroundStyle(actionColor(l.action)).frame(width: 22)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text(l.action).font(.subheadline.bold())
+                                    Spacer()
+                                    Text(shortDate(l.created_at)).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                if let actor = l.actor_name { Text("Par \(actor)").font(.caption).foregroundStyle(.secondary) }
+                                if let details = l.details, !details.isEmpty { Text(details).font(.caption2).foregroundStyle(.tertiary).lineLimit(2) }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
                 }
             }
             #if os(iOS)
@@ -660,12 +1196,34 @@ struct AdminAuditLogsView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }
-                    .disabled(state.value?.isEmpty ?? true)
-                    .help("Exporter le journal d'audit")
+                Menu {
+                    Picker("Niveau", selection: $levelFilter) {
+                        ForEach(LogLevel.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    Picker("Période", selection: $dateRange) {
+                        ForEach(DateRange.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                } label: {
+                    Image(systemName: (levelFilter != .all || dateRange != .all) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Exporter en CSV") { exportCSV() }
+                    Button("Exporter en JSON") { exportJSON() }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .disabled(state.value?.isEmpty ?? true)
             }
         }
-        .task { await load() }
+        .task {
+            await load()
+            while autoRefresh && !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                if autoRefresh { await load() }
+            }
+        }
         .refreshable { await load() }
     }
 
@@ -680,13 +1238,22 @@ struct AdminAuditLogsView: View {
     private func exportCSV() {
         guard let logs = state.value else { return }
         var csv = "Date,Action,Utilisateur,Ressource,Détails\n"
-        for l in logs {
+        for l in filtered(logs) {
             func esc(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
             csv += [shortDate(l.created_at), l.action, l.actor_name ?? "", l.target_name ?? "", l.details ?? ""]
                 .map(esc).joined(separator: ",") + "\n"
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("audit-\(Int(Date().timeIntervalSince1970)).csv")
         try? csv.write(to: url, atomically: true, encoding: .utf8)
+        exportURL = url
+    }
+    private func exportJSON() {
+        guard let logs = state.value else { return }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(filtered(logs)) else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("audit-\(Int(Date().timeIntervalSince1970)).json")
+        try? data.write(to: url)
         exportURL = url
     }
     private func load() async { await state.load { try await APIClient.shared.adminAuditLogs() } }
@@ -1063,6 +1630,7 @@ struct AdminSystemView: View {
     @StateObject private var flags = Loadable<[FeatureFlag]>()
     @StateObject private var emailStatus = Loadable<EmailStatus>()
     @State private var showNewFlag = false
+    @State private var editingFlag: FeatureFlag?
     @State private var testEmailTo = ""
     @State private var sendingTestEmail = false
     @State private var testEmailResult: TestEmailResult?
@@ -1094,6 +1662,9 @@ struct AdminSystemView: View {
         .refreshable { await loadAll() }
         .sheet(isPresented: $showNewFlag) {
             AdminFeatureFlagFormView { await flags.load { try await APIClient.shared.adminFeatureFlags() } }
+        }
+        .sheet(item: $editingFlag) { flag in
+            AdminFeatureFlagEditView(flag: flag) { await flags.load { try await APIClient.shared.adminFeatureFlags() } }
         }
     }
 
@@ -1193,10 +1764,16 @@ struct AdminSystemView: View {
                     ForEach(f) { flag in
                         GlassCard {
                             HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(flag.key).font(.subheadline.bold())
-                                    Text(flag.description).font(.caption).foregroundStyle(.secondary)
+                                Button { editingFlag = flag } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(flag.key).font(.subheadline.bold())
+                                        Text(flag.description).font(.caption).foregroundStyle(.secondary)
+                                        if !flag.value.isEmpty {
+                                            Text(flag.value).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                                        }
+                                    }
                                 }
+                                .buttonStyle(.plain)
                                 Spacer()
                                 Toggle("", isOn: Binding(
                                     get: { flag.enabled },
@@ -1294,15 +1871,76 @@ struct AdminFeatureFlagFormView: View {
     }
 }
 
+struct AdminFeatureFlagEditView: View {
+    let flag: FeatureFlag
+    let onSaved: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var value: String
+    @State private var description: String
+    @State private var enabled: Bool
+    @State private var saving = false
+
+    init(flag: FeatureFlag, onSaved: @escaping () async -> Void) {
+        self.flag = flag
+        self.onSaved = onSaved
+        _value = State(initialValue: flag.value)
+        _description = State(initialValue: flag.description)
+        _enabled = State(initialValue: flag.enabled)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Drapeau") {
+                    LabeledContent("Clé", value: flag.key)
+                    TextField("Valeur", text: $value)
+                    TextField("Description", text: $description, axis: .vertical).lineLimit(2...4)
+                    Toggle("Activé", isOn: $enabled)
+                }
+            }
+            .navigationTitle("Modifier le drapeau")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    if saving { ProgressView() } else {
+                        Button("Enregistrer") { Task { await save() } }
+                    }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        saving = true
+        do {
+            _ = try await APIClient.shared.adminUpdateFeatureFlag(flag.key, FeatureFlagUpdatePayload(value: value, description: description, enabled: enabled))
+            await onSaved(); dismiss()
+        } catch { }
+        saving = false
+    }
+}
+
 // MARK: - Intégration (onboarding)
 
 struct AdminOnboardingView: View {
     @StateObject private var state = Loadable<[OnboardingStatRow]>()
+    @State private var search = ""
+    @State private var levelFilter: Level = .all
+    @State private var reminderTarget: OnboardingStatRow?
+
+    enum Level: String, CaseIterable, Identifiable {
+        case all = "Tous", advanced = "Avancé", medium = "Moyen", low = "Faible"
+        var id: String { rawValue }
+    }
 
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune entreprise", emptyIcon: "checklist", reload: load) { rows in
             List {
-                ForEach(rows) { r in
+                kpiHeader(rows)
+                ForEach(filtered(rows)) { r in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(r.company_name).font(.subheadline.bold())
@@ -1319,7 +1957,14 @@ struct AdminOnboardingView: View {
                             onboardingBadge("Ventes", r.has_sales)
                             onboardingBadge("Documents", r.has_documents)
                         }
-                        Text("Dernière activité : \(shortDate(r.last_activity))").font(.caption2).foregroundStyle(.secondary)
+                        HStack {
+                            Text("Dernière activité : \(shortDate(r.last_activity))").font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Button { reminderTarget = r } label: {
+                                Label("Rappel", systemImage: "bell.badge.fill").font(.caption2.bold())
+                            }
+                            .buttonStyle(.borderless)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -1328,18 +1973,67 @@ struct AdminOnboardingView: View {
             .listStyle(.insetGrouped)
             #endif
         }
+        .searchable(text: $search, prompt: "Nom de l'entreprise")
         .navigationTitle("Intégration")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Niveau", selection: $levelFilter) {
+                        ForEach(Level.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                } label: {
+                    Image(systemName: levelFilter != .all ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(item: $reminderTarget) { r in
+            AdminCompanyBroadcastSheet(companyId: r.company_id, companyName: r.company_name)
+        }
     }
 
+    @ViewBuilder
+    private func kpiHeader(_ rows: [OnboardingStatRow]) -> some View {
+        let advanced = rows.filter { ($0.completion_score ?? 0) >= 80 }.count
+        let medium = rows.filter { ($0.completion_score ?? 0) >= 50 && ($0.completion_score ?? 0) < 80 }.count
+        let low = rows.filter { ($0.completion_score ?? 0) < 50 }.count
+        HStack(spacing: 8) {
+            kpi("\(rows.count)", "Total", .secondary)
+            kpi("\(advanced)", "Avancé", .green)
+            kpi("\(medium)", "Moyen", .orange)
+            kpi("\(low)", "Faible", .red)
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .padding(.vertical, 4)
+    }
+    private func kpi(_ value: String, _ label: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.headline).foregroundStyle(color)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+    private func filtered(_ rows: [OnboardingStatRow]) -> [OnboardingStatRow] {
+        var result = rows
+        let q = search.trimmingCharacters(in: .whitespaces)
+        if !q.isEmpty { result = result.filter { $0.company_name.localizedCaseInsensitiveContains(q) } }
+        switch levelFilter {
+        case .all: break
+        case .advanced: result = result.filter { ($0.completion_score ?? 0) >= 80 }
+        case .medium: result = result.filter { ($0.completion_score ?? 0) >= 50 && ($0.completion_score ?? 0) < 80 }
+        case .low: result = result.filter { ($0.completion_score ?? 0) < 50 }
+        }
+        return result
+    }
     private func scoreColor(_ score: Double?) -> Color {
         guard let score else { return .gray }
-        if score >= 75 { return .green }
-        if score >= 40 { return .orange }
+        if score >= 80 { return .green }
+        if score >= 50 { return .orange }
         return .red
     }
     @ViewBuilder private func onboardingBadge(_ label: String, _ done: Bool) -> some View {
