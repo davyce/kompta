@@ -2546,7 +2546,8 @@
     "expand": "Développer",
     "collapse": "Réduire",
     "remove": "Retirer",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "clearSearch": "Effacer la recherche"
   },
   "routes": {
     "errorUnexpected": "Erreur inattendue",
@@ -5072,7 +5073,8 @@
     "excelDate": "Date",
     "excelAmount": "Montant",
     "excelStatus": "Statut",
-    "excelRelances": "Relances"
+    "excelRelances": "Relances",
+    "paymentMethodLabel": "Mode de paiement"
   },
   "kanban": {
     "title": "Kanban",
@@ -5193,7 +5195,13 @@
     "amountToPayZola": "Montant à payer via Zola",
     "refShort": "Réf. #{{id}}",
     "clientScansZola": "Le client scanne ce QR avec son application Zola pour confirmer le paiement.",
-    "confirmPayment": "Confirmer le paiement"
+    "confirmPayment": "Confirmer le paiement",
+    "exportFromLabel": "Date de début d'export",
+    "exportToLabel": "Date de fin d'export",
+    "decreaseQtyFor": "Diminuer la quantité pour {{name}}",
+    "increaseQtyFor": "Augmenter la quantité pour {{name}}",
+    "removeFromCart": "Retirer {{name}} du panier",
+    "tvaRateLabel": "Taux de TVA"
   },
   "inventory": {
     "statusOut": "Rupture",
@@ -5340,7 +5348,10 @@
     "importErrors": ", {{count}} erreur(s)",
     "importDone": "{{count}} produit(s) importé(s)",
     "productHash": "Produit #{{id}}",
-    "regenerateSku": "Régénérer le SKU"
+    "regenerateSku": "Régénérer le SKU",
+    "selectAll": "Tout sélectionner",
+    "selectRow": "Sélectionner {{name}}",
+    "removeImage": "Retirer l'image"
   },
   "auth": {
     "tagline": "Propulsé par Limule · ERP intelligent",

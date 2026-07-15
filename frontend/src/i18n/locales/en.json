@@ -2546,7 +2546,8 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "remove": "Remove",
-    "send": "Send"
+    "send": "Send",
+    "clearSearch": "Clear search"
   },
   "routes": {
     "errorUnexpected": "Unexpected error",
@@ -5072,7 +5073,8 @@
     "excelDate": "Date",
     "excelAmount": "Amount",
     "excelStatus": "Status",
-    "excelRelances": "Reminders"
+    "excelRelances": "Reminders",
+    "paymentMethodLabel": "Payment method"
   },
   "kanban": {
     "title": "Kanban",
@@ -5193,7 +5195,13 @@
     "amountToPayZola": "Amount to pay via Zola",
     "refShort": "Ref. #{{id}}",
     "clientScansZola": "The customer scans this QR with their Zola app to confirm payment.",
-    "confirmPayment": "Confirm payment"
+    "confirmPayment": "Confirm payment",
+    "exportFromLabel": "Export start date",
+    "exportToLabel": "Export end date",
+    "decreaseQtyFor": "Decrease quantity for {{name}}",
+    "increaseQtyFor": "Increase quantity for {{name}}",
+    "removeFromCart": "Remove {{name}} from cart",
+    "tvaRateLabel": "VAT rate"
   },
   "inventory": {
     "statusOut": "Out of stock",
@@ -5340,7 +5348,10 @@
     "importErrors": ", {{count}} error(s)",
     "importDone": "{{count}} product(s) imported",
     "productHash": "Product #{{id}}",
-    "regenerateSku": "Regenerate SKU"
+    "regenerateSku": "Regenerate SKU",
+    "selectAll": "Select all",
+    "selectRow": "Select {{name}}",
+    "removeImage": "Remove image"
   },
   "auth": {
     "tagline": "Powered by Limule · Smart ERP",

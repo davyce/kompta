@@ -225,6 +225,7 @@ function ClientModal({
           </h2>
           <button
             onClick={onClose}
+            aria-label={tr("common.close")}
             className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
           >
             <X size={16} />
@@ -623,6 +624,7 @@ function LoyaltyDiscountPanel({ client }: { client: ClientDto }) {
               </div>
               <button
                 onClick={() => delDiscount.mutate(d.id)}
+                aria-label={tr("common.remove")}
                 className="shrink-0 rounded-lg p-1 text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 transition"
               >
                 <Trash2 size={12} />
@@ -699,12 +701,14 @@ function ClientDetailPanel({
           <div className="flex items-center gap-2">
             <button
               onClick={onEdit}
+              aria-label={tr("common.edit")}
               className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06]"
             >
               <Pencil size={14} />
             </button>
             <button
               onClick={onClose}
+              aria-label={tr("common.close")}
               className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.06]"
             >
               <X size={16} />
@@ -1234,6 +1238,7 @@ export function ClientsPage() {
                         e.stopPropagation();
                         openEdit(client);
                       }}
+                      aria-label={tr("common.edit")}
                       className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
                     >
                       <Pencil size={13} />
@@ -1243,6 +1248,7 @@ export function ClientsPage() {
                         e.stopPropagation();
                         confirmDelete(client);
                       }}
+                      aria-label={tr("common.delete")}
                       className="grid h-7 w-7 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                     >
                       <Trash2 size={13} />

@@ -113,7 +113,7 @@ function TicketModal({ ticket, onClose, onNewSale }: { ticket: TicketData; onClo
           {/* Header (non imprimé) */}
           <div className="ticket-no-print flex items-center justify-between border-b border-black/[0.06] px-6 py-4 dark:border-white/[0.06]">
             <h3 className="font-bold text-[#17211f] dark:text-white">{tr("pos.ticketTitle")}</h3>
-            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.08]">
+            <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182] dark:hover:bg-white/[0.08]">
               <X size={16} />
             </button>
           </div>
@@ -679,6 +679,7 @@ export function PosPage() {
             type="date"
             value={exportFrom}
             onChange={(e) => setExportFrom(e.target.value)}
+            aria-label={tr("pos.exportFromLabel")}
             className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
           />
           <span className="text-xs text-[#717182]">→</span>
@@ -686,6 +687,7 @@ export function PosPage() {
             type="date"
             value={exportTo}
             onChange={(e) => setExportTo(e.target.value)}
+            aria-label={tr("pos.exportToLabel")}
             className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
           />
           <button
@@ -718,7 +720,7 @@ export function PosPage() {
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
               />
               {search && (
-                <button onClick={() => setSearch("")} className="text-[#717182] hover:text-[#17211f]">
+                <button onClick={() => setSearch("")} aria-label={tr("common.clearSearch")} className="text-[#717182] hover:text-[#17211f]">
                   <X size={13} />
                 </button>
               )}
@@ -726,6 +728,7 @@ export function PosPage() {
             <button
               onClick={() => setScannerOpen(true)}
               title={tr("pos.scanTitleAttr")}
+              aria-label={tr("pos.scanTitleAttr")}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
             >
               <Scan size={17} />
@@ -892,6 +895,7 @@ export function PosPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => updateQty(item.product_id, item.quantity - 1)}
+                    aria-label={tr("pos.decreaseQtyFor", { name: item.name })}
                     className="flex h-7 w-7 items-center justify-center rounded-md border border-black/[0.08] hover:bg-stone-100 dark:border-white/10 transition"
                   >
                     <Minus size={11} />
@@ -899,6 +903,7 @@ export function PosPage() {
                   <span className="w-7 text-center text-sm font-semibold text-[#17211f] dark:text-white">{item.quantity}</span>
                   <button
                     onClick={() => updateQty(item.product_id, item.quantity + 1)}
+                    aria-label={tr("pos.increaseQtyFor", { name: item.name })}
                     className="flex h-7 w-7 items-center justify-center rounded-md border border-black/[0.08] hover:bg-stone-100 dark:border-white/10 transition"
                   >
                     <Plus size={11} />
@@ -906,6 +911,7 @@ export function PosPage() {
                 </div>
                 <button
                   onClick={() => updateQty(item.product_id, 0)}
+                  aria-label={tr("pos.removeFromCart", { name: item.name })}
                   className="ml-1 text-[#717182] hover:text-rose-600 transition"
                 >
                   <Trash2 size={14} />
@@ -939,6 +945,8 @@ export function PosPage() {
                   onClick={() => setTvaEnabled((v) => !v)}
                   className={`flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${tvaEnabled ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600"}`}
                   title={tvaEnabled ? tr("pos.disableTva") : tr("pos.enableTva")}
+                  aria-label={tvaEnabled ? tr("pos.disableTva") : tr("pos.enableTva")}
+                  aria-pressed={tvaEnabled}
                 >
                   <span className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${tvaEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                 </button>
@@ -952,6 +960,7 @@ export function PosPage() {
                       max={100}
                       value={tvaRate}
                       onChange={(e) => setTvaRate(Math.min(100, Math.max(0, Number(e.target.value))))}
+                      aria-label={tr("pos.tvaRateLabel")}
                       className="w-10 rounded border border-black/[0.08] bg-white px-1 py-0.5 text-center text-xs font-semibold text-[#17211f] outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
                     />
                     <span className="text-xs text-[#717182]">%</span>
@@ -982,6 +991,7 @@ export function PosPage() {
                   setDiscountPercent(0);
                 }
               }}
+              aria-label={tr("pos.clientPlaceholder")}
               className="min-w-0 flex-1 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1.5 text-sm text-[#17211f] outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
               <option value="">{tr("pos.clientPlaceholder")}</option>
@@ -1003,6 +1013,7 @@ export function PosPage() {
               max={100}
               value={discountPercent}
               onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
+              aria-label={tr("pos.discountLabel")}
               className="w-16 rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-center text-sm font-semibold text-[#17211f] outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
             <span className="text-xs text-[#717182]">%</span>
@@ -1161,7 +1172,7 @@ export function PosPage() {
               <h2 className="font-black text-[#17211f] dark:text-white">Historique des ventes</h2>
               <p className="text-xs text-[#717182]">Retrouvez, imprimez ou téléchargez chaque ticket.</p>
             </div>
-            <button onClick={() => setHistoryOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.08]">
+            <button onClick={() => setHistoryOpen(false)} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.08]">
               <X size={16} />
             </button>
           </div>
@@ -1234,7 +1245,7 @@ export function PosPage() {
               <QrCode size={16} className="text-emerald-600" />
               <h3 className="font-bold text-[#17211f] dark:text-white">{tr("pos.zolaPayTitle")}</h3>
             </div>
-            <button onClick={() => setZolaQrOpen(false)} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white transition">
+            <button onClick={() => setZolaQrOpen(false)} aria-label={tr("common.close")} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white transition">
               <X size={18} />
             </button>
           </div>

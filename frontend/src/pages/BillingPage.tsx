@@ -451,6 +451,7 @@ export function BillingPage() {
                           <select
                             value={defaultChoice}
                             onChange={(e) => setPaymentChoice((c) => ({ ...c, [r.id]: e.target.value }))}
+                            aria-label={tr("billing.paymentMethodLabel")}
                             className="bg-transparent outline-none"
                           >
                             <option value="method:cash">{tr("billing.optCash")}</option>
@@ -473,6 +474,7 @@ export function BillingPage() {
                       <button
                         onClick={() => startEdit(r)}
                         title={tr("billing.edit")}
+                        aria-label={tr("billing.edit")}
                         className="flex items-center gap-1 rounded-lg border border-black/[0.06] bg-white px-2.5 py-1.5 text-xs font-bold text-[#17211f] hover:bg-stone-50 dark:bg-white/5 dark:text-white"
                       >
                         <Pencil size={13} />
@@ -487,6 +489,7 @@ export function BillingPage() {
                         onClick={() => handleDeleteInvoice(r.id, r.number)}
                         disabled={deleteInvoice.isPending}
                         title={tr("billing.delete")}
+                        aria-label={tr("billing.delete")}
                         className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                       >
                         <Trash2 size={13} />
@@ -630,6 +633,7 @@ export function BillingPage() {
                       type="button"
                       onClick={() => removeLine(i)}
                       disabled={lines.length === 1}
+                      aria-label={tr("common.remove")}
                       className="col-span-2 sm:col-span-1 sm:mt-5 flex items-center justify-center h-8 w-full sm:w-8 rounded-lg border border-black/[0.06] text-rose-500 hover:bg-rose-50 disabled:text-stone-300"
                     >
                       <Trash2 size={14} />

@@ -613,7 +613,7 @@ export function InventoryPage() {
                     <thead>
                       <tr className={T.theadRow}>
                         <th className={`${T.th} w-10`}>
-                          <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} className="rounded" />
+                          <input type="checkbox" onChange={(e) => toggleAll(e.target.checked)} aria-label={tr("inventory.selectAll")} className="rounded" />
                         </th>
                         <th className={T.thSortable} onClick={() => toggleInvSort("name")}>
                           <span className="flex items-center">{tr("inventory.colProduct")}<InvSortIcon field="name" /></span>
@@ -639,7 +639,7 @@ export function InventoryPage() {
                         return (
                           <tr key={p.id} className={`${T.tr} ${selected.includes(p.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}`}>
                             <td className={T.td}>
-                              <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
+                              <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} aria-label={tr("inventory.selectRow", { name: p.name })} className="rounded" />
                             </td>
                             <td className={T.td}>
                               <div className="flex items-center gap-3">
@@ -867,7 +867,8 @@ export function InventoryPage() {
               />
               <button
                 type="button"
-                title={tr("inventory.regenerateSku", "Régénérer le SKU")}
+                title={tr("inventory.regenerateSku")}
+                aria-label={tr("inventory.regenerateSku")}
                 onClick={() => setForm((v) => { const s = generateSku(v.name, v.category); setLastAutoSku(s); return { ...v, sku: s }; })}
                 className="shrink-0 rounded-lg border border-black/[0.08] px-3 text-[#717182] hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/5"
               >
@@ -931,7 +932,7 @@ export function InventoryPage() {
             <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <RefreshCcw size={18} className="text-emerald-600" />
               <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">{tr("inventory.modalMovementTitle")}</h3>
-              <button type="button" onClick={() => setMovementOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
+              <button type="button" onClick={() => setMovementOpen(false)} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
                 <X size={15} />
               </button>
             </div>
@@ -1020,7 +1021,7 @@ export function InventoryPage() {
             <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4 dark:border-white/[0.06]">
               <Camera size={18} className="text-emerald-600" />
               <h3 className="flex-1 font-semibold text-[#17211f] dark:text-white">{tr("inventory.scanTitle")}</h3>
-              <button onClick={() => setScanOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
+              <button onClick={() => setScanOpen(false)} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
                 <X size={15} />
               </button>
             </div>
@@ -1133,7 +1134,7 @@ export function InventoryPage() {
                   <p className="text-xs text-[#717182]">{editingProduct.sku}</p>
                 </div>
               </div>
-              <button type="button" onClick={closeEdit} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
+              <button type="button" onClick={closeEdit} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#f5f5fa] dark:hover:bg-white/10">
                 <X size={15} />
               </button>
             </div>
@@ -1212,7 +1213,7 @@ export function InventoryPage() {
                     {editImagePreviews.map((preview, index) => (
                       <div key={preview.url} className="relative overflow-hidden rounded-lg border border-violet-200 bg-white p-1 dark:border-violet-500/30 dark:bg-[#252931]">
                         <img src={preview.url} alt={preview.file.name} className="aspect-square w-full rounded-md object-cover" />
-                        <button type="button" onClick={() => removeEditImage(index)} className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-950/70 text-white">
+                        <button type="button" onClick={() => removeEditImage(index)} aria-label={tr("inventory.removeImage")} className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-950/70 text-white">
                           <X size={12} />
                         </button>
                       </div>
@@ -1274,7 +1275,7 @@ export function InventoryPage() {
                 <LimuleIcon size={18} className="text-emerald-600" />
                 <h2 className="text-lg font-semibold text-[#17211f] dark:text-white">{tr("inventory.aiReportTitle")}</h2>
               </div>
-              <button onClick={() => setAiReportOpen(false)} className="rounded-lg p-1 hover:bg-black/[0.04] dark:hover:bg-white/10">
+              <button onClick={() => setAiReportOpen(false)} aria-label={tr("common.close")} className="rounded-lg p-1 hover:bg-black/[0.04] dark:hover:bg-white/10">
                 <X size={18} />
               </button>
             </div>
