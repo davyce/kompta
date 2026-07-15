@@ -821,6 +821,15 @@ pour les tests automatisés, avec activation explicite (`SEED_DEMO=true` ou
 
 ## Changelog
 
+### v1.13.0 — Juillet 2026 (PostgreSQL en production, parité super-admin iOS/Mac, conformité App Store)
+
+- ✅ **Migration production SQLite → PostgreSQL** : base de données de production entièrement migrée et vérifiée (83 tables, 1933 lignes, comptages source/destination identiques) — voir `docs/POSTGRES_MIGRATION.md` pour la procédure complète. Outillage ajouté : `backend/scripts/migrate_sqlite_to_postgres.py`, `backend/scripts/check_orphaned_fks.py` (détecte les références orphelines que SQLite n'empêche pas, contrairement à PostgreSQL), `scripts/backup-postgres.sh` / `scripts/restore-postgres.sh` (sauvegardes quotidiennes automatiques, cron en place). Un bug critique de restauration silencieuse (données perdues sans erreur signalée) a été trouvé et corrigé en testant le cycle complet avant la bascule réelle
+- ✅ **Console super-admin iOS/Mac mise au niveau du web** (et au-delà sur plusieurs écrans) : création d'entreprise depuis l'app (formulaire avec consentement légal, jusqu'ici web uniquement), message ciblé par entreprise, filtres/tri/export CSV (Entreprises, Utilisateurs), assignation de tickets + édition priorité/catégorie, édition complète des drapeaux fonctionnels, KPIs et rappel ciblé sur l'onboarding, filtres niveau/date/acteur + export JSON + auto-refresh sur le journal d'audit
+- ✅ **Conformité App Store (Guidelines 3.1.1 et 2.1(b))** : retrait de la création d'entreprise dans l'app iOS (reste disponible sur macOS et le web), retrait de l'entitlement Tap to Pay non autorisé par Apple, compte de démonstration dédié pour la review avec abonnement forcé en post-essai
+- ✅ **Tour guidé refait** (web et iOS/Mac) : abandon du diaporama statique au profit d'une conversation animée avec Limule (bulle de dialogue, indicateur « en train d'écrire »). Corrige au passage un bug réel du tour web : la plupart des étapes sans élément précis à surligner assombrissaient tout l'écran sans rien montrer de la page présentée — particulièrement génant sur mobile
+- ✅ **Landing page et page de connexion** : landing étoffée (comment ça marche, tarifs réels, sécurité, FAQ) et forcées en mode clair en permanence, indépendamment du thème système — elles n'avaient jamais géré le mode sombre et se faisaient assombrir par erreur par le pont dark-mode global de l'application
+- ✅ Fix formulaire admin « Créer une entreprise » (web) : le consentement légal (RGPD/CGU/décharge) n'était jamais collecté, ce qui faisait échouer systématiquement toute création d'entreprise depuis la console admin
+
 ### v1.12.0 — Juillet 2026 (correctifs audit qualité, faux incidents uptime)
 
 - ✅ **`/health` accepte HEAD** : UptimeRobot (et les moniteurs d'uptime en général) sondent en HEAD par défaut ; FastAPI n'ajoute pas HEAD automatiquement à une route `@router.get()`, ce qui renvoyait 405 et déclenchait de faux incidents "down" alors que le service tournait normalement
