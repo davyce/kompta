@@ -329,7 +329,21 @@ struct SaleHistoryItem: Decodable, Identifiable, Hashable {
     let client_name: String?
     let loyalty_points_earned: Int?
     let created_at: String?
+    let cancelled_at: String?
+    let cancelled_by_user_id: Int?
+    let cancel_reason: String?
     let items: [SaleHistoryLine]
+
+    var isCancelled: Bool { status == "cancelled" }
+}
+
+struct SaleCancelResponse: Decodable {
+    let id: Int
+    let receipt_number: String?
+    let status: String
+    let cancelled_at: String?
+    let cancelled_by_user_id: Int?
+    let cancel_reason: String?
 }
 
 struct PosSessionBalance: Decodable {

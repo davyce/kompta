@@ -1154,38 +1154,71 @@ struct SalesHistoryView: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
             .task { await load() }
             .refreshable { await load() }
-            .sheet(item: $selected) { sale in SaleDetailView(sale: sale).environmentObject(theme) }
+            .sheet(item: $selected) { sale in
+                SaleDetailView(sale: sale, onCancelled: { Task { await load() } })
+                    .environmentObject(theme)
+            }
         }
     }
 
     private func row(_ sale: SaleHistoryItem) -> some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(theme.primary.opacity(0.12))
-                Image(systemName: "receipt").foregroundStyle(theme.primary)
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(sale.isCancelled ? Color.red.opacity(0.12) : theme.primary.opacity(0.12))
+                Image(systemName: sale.isCancelled ? "xmark.circle" : "receipt").foregroundStyle(sale.isCancelled ? .red : theme.primary)
             }
             .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(sale.receipt_number ?? "Vente #\(sale.id)").font(.subheadline.bold())
+                HStack(spacing: 6) {
+                    Text(sale.receipt_number ?? "Vente #\(sale.id)").font(.subheadline.bold())
+                        .strikethrough(sale.isCancelled)
+                    if sale.isCancelled {
+                        Text("ANNULÉE")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.red.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.red)
+                    }
+                }
                 Text("\(sale.items.count) article(s) · \(sale.payment_account_label?.isEmpty == false ? sale.payment_account_label! : (sale.payment_method?.capitalized ?? ""))")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 if let d = sale.created_at { Text(shortDate(d)).font(.caption2).foregroundStyle(.tertiary) }
             }
             Spacer()
-            Text(fcfa(sale.total_amount)).font(.subheadline.bold()).foregroundStyle(theme.primary)
+            Text(fcfa(sale.total_amount)).font(.subheadline.bold())
+                .foregroundStyle(sale.isCancelled ? .secondary : theme.primary)
+                .strikethrough(sale.isCancelled)
         }
         .padding(.vertical, 3)
+        .opacity(sale.isCancelled ? 0.7 : 1)
     }
 
     private func load() async { await state.load { try await APIClient.shared.posSales() } }
 }
 
-/// Détail d'une vente passée — même présentation qu'un reçu, en lecture seule.
+/// Rôles autorisés à annuler une vente — jamais le simple caissier, cf.
+/// règles produit (miroir de _ADMIN_ROLES côté backend, routes.py).
+private let saleCancelAllowedRoles: Set<String> = ["admin_entreprise", "manager_entreprise", "super_admin"]
+
+/// Détail d'une vente passée — présentation façon reçu, avec une action
+/// d'annulation réservée aux rôles admin/manager (motif obligatoire).
 private struct SaleDetailView: View {
-    let sale: SaleHistoryItem
+    @State var sale: SaleHistoryItem
+    var onCancelled: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var theme: CompanyTheme
+    @EnvironmentObject private var auth: AuthManager
+
+    @State private var showCancelSheet = false
+    @State private var cancelReason = ""
+    @State private var cancelling = false
+    @State private var cancelError: String?
+
+    private var canCancel: Bool {
+        guard let role = auth.currentUser?.role else { return false }
+        return !sale.isCancelled && saleCancelAllowedRoles.contains(role)
+    }
 
     var body: some View {
         NavigationStack {
@@ -1194,6 +1227,14 @@ private struct SaleDetailView: View {
                     VStack(spacing: 4) {
                         Text(sale.receipt_number ?? "Vente #\(sale.id)").font(.title3.bold())
                         if let d = sale.created_at { Text(shortDate(d)).font(.caption).foregroundStyle(.secondary) }
+                        if sale.isCancelled {
+                            Label("Vente annulée", systemImage: "xmark.circle.fill")
+                                .font(.caption.bold())
+                                .foregroundStyle(.red)
+                            if let reason = sale.cancel_reason, !reason.isEmpty {
+                                Text(reason).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            }
+                        }
                     }
 
                     GlassCard(padding: 16, cornerRadius: 16) {
@@ -1224,6 +1265,19 @@ private struct SaleDetailView: View {
                         }
                     }
                     .environmentObject(theme)
+
+                    if canCancel {
+                        Button(role: .destructive) {
+                            cancelReason = ""
+                            cancelError = nil
+                            showCancelSheet = true
+                        } label: {
+                            Label("Annuler cette vente", systemImage: "arrow.uturn.backward.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
                 }
                 .padding(24)
             }
@@ -1241,6 +1295,41 @@ private struct SaleDetailView: View {
                 }
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
             }
+            .alert("Annuler cette vente ?", isPresented: $showCancelSheet) {
+                TextField("Motif (obligatoire)", text: $cancelReason)
+                Button("Annuler la vente", role: .destructive) { Task { await confirmCancel() } }
+                    .disabled(cancelReason.trimmingCharacters(in: .whitespaces).count < 3)
+                Button("Retour", role: .cancel) {}
+            } message: {
+                Text("Le stock sera réintégré et les écritures comptables contrepassées. Le remboursement au client (espèces, Mobile Money, carte) reste à effectuer manuellement en dehors de KOMPTA. Cette action est tracée dans le journal d'audit.")
+            }
+            .alert("Échec de l'annulation", isPresented: .constant(cancelError != nil)) {
+                Button("OK") { cancelError = nil }
+            } message: {
+                Text(cancelError ?? "")
+            }
+            .disabled(cancelling)
+        }
+    }
+
+    private func confirmCancel() async {
+        let reason = cancelReason.trimmingCharacters(in: .whitespaces)
+        guard reason.count >= 3 else { return }
+        cancelling = true
+        defer { cancelling = false }
+        do {
+            let result = try await APIClient.shared.cancelSale(sale.id, reason: reason)
+            sale = SaleHistoryItem(
+                id: sale.id, receipt_number: sale.receipt_number, payment_method: sale.payment_method,
+                payment_account_label: sale.payment_account_label, total_amount: sale.total_amount,
+                status: result.status, client_id: sale.client_id, client_name: sale.client_name,
+                loyalty_points_earned: sale.loyalty_points_earned, created_at: sale.created_at,
+                cancelled_at: result.cancelled_at, cancelled_by_user_id: result.cancelled_by_user_id,
+                cancel_reason: result.cancel_reason, items: sale.items,
+            )
+            onCancelled?()
+        } catch {
+            cancelError = error.localizedDescription
         }
     }
 }

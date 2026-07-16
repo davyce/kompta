@@ -272,6 +272,11 @@ actor APIClient {
     }
     func posSales(limit: Int = 50) async throws -> [SaleHistoryItem] { try await get("/pos/sales?limit=\(limit)") }
     func saleReceiptPDF(_ id: Int) async throws -> Data { try await rawData("/pos/sales/\(id)/receipt") }
+    /// Annulation de vente — réservée aux rôles admin_entreprise/manager_entreprise
+    /// côté serveur ; motif obligatoire. Voir POSView.SaleDetailView pour l'UI.
+    func cancelSale(_ id: Int, reason: String) async throws -> SaleCancelResponse {
+        try await post("/pos/sales/\(id)/cancel", body: ["reason": reason])
+    }
     /// Returns the current open cash-register session balance, or nil if no session is open.
     func posSessionBalance() async throws -> PosSessionBalance? {
         do {

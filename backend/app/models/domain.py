@@ -581,6 +581,12 @@ class Sale(TimestampMixin, Base):
     # lieu d'en créer une seconde et de re-décrémenter le stock (cf. constat
     # test_pos_concurrency.py::test_duplicate_rapid_sale_requests_*).
     idempotency_key: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    # Annulation (status="cancelled") : réservée aux rôles admin_entreprise /
+    # manager_entreprise, motif obligatoire, aucune limite de délai (cf. règles
+    # produit décidées pour la fonctionnalité d'annulation POS).
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cancelled_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    cancel_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan", back_populates="sale")
 

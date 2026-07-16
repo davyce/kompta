@@ -217,6 +217,37 @@ def record_sale(db: Session, company: Company, *, sale_id: int, total: float, pa
                       source_type="sale", source_id=sale_id, currency=company_currency(company), user_id=user_id)
 
 
+def record_sale_cancellation(db: Session, company: Company, *, sale_id: int, total: float, payment_method: str,
+                             tax_amount: float = 0.0, user_id: int | None = None) -> JournalEntry | None:
+    """Annulation de vente POS (remboursement en espèces uniquement, cf. règle
+    produit — pas de remboursement MoMo/Stripe automatique) : écriture miroir
+    de record_sale, Dr Ventes (70) [+ Dr TVA collectée (443)] / Cr Trésorerie
+    espèces. L'écriture d'origine n'est jamais modifiée ni supprimée (piste
+    d'audit SYSCOHADA immuable) — celle-ci vient la contrebalancer."""
+    total_c = to_cents(total)
+    tax_c = to_cents(tax_amount)
+    ht_c = total_c - tax_c
+    tre = treasury_account_code("cash")
+    lines = [{"code": "70", "debit": ht_c, "credit": 0, "label": "Annulation vente"}]
+    if tax_c > 0:
+        lines.append({"code": "443", "debit": tax_c, "credit": 0, "label": "Annulation TVA collectée"})
+    lines.append({"code": tre, "debit": 0, "credit": total_c, "label": "Remboursement vente annulée"})
+    return post_entry(db, company_id=company.id, label=f"Annulation vente POS #{sale_id}", lines=lines,
+                      source_type="sale_cancellation", source_id=sale_id, currency=company_currency(company), user_id=user_id)
+
+
+def record_cogs_reversal(db: Session, company: Company, *, sale_id: int, cogs_cents: int,
+                         user_id: int | None = None) -> JournalEntry | None:
+    """Réintégration de stock lors d'une annulation de vente : écriture miroir
+    de record_cogs, Dr 31 Stocks / Cr 603 Variation de stock."""
+    if cogs_cents <= 0:
+        return None
+    lines = [{"code": "31", "debit": cogs_cents, "credit": 0, "label": "Réintégration stock (annulation vente)"},
+             {"code": "603", "debit": 0, "credit": cogs_cents, "label": "Variation de stock (annulation)"}]
+    return post_entry(db, company_id=company.id, label=f"Réintégration stock vente #{sale_id}", lines=lines,
+                      source_type="cogs_reversal", source_id=sale_id, currency=company_currency(company), user_id=user_id)
+
+
 def record_invoice_payment(db: Session, company: Company, *, invoice_id: int, total: float,
                            payment_method: str, user_id: int | None = None) -> JournalEntry | None:
     """Règlement facture : Dr Trésorerie / Cr Clients (411)."""

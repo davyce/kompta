@@ -2485,6 +2485,9 @@ def list_sales(
             "client_name": s.client_name,
             "loyalty_points_earned": s.loyalty_points_earned,
             "created_at": s.created_at,
+            "cancelled_at": s.cancelled_at,
+            "cancelled_by_user_id": s.cancelled_by_user_id,
+            "cancel_reason": s.cancel_reason,
             "items": [
                 {
                     "product_name": it.product_name,
@@ -2497,6 +2500,121 @@ def list_sales(
         }
         for s in sales
     ]
+
+
+class SaleCancelRequest(BaseModel):
+    # Obligatoire, quel que soit le mode de paiement d'origine — trace la
+    # raison de l'annulation dans le journal d'audit (cf. AuditLog ci-dessous).
+    reason: str = Field(min_length=3, max_length=500)
+
+
+@router.post("/pos/sales/{sale_id}/cancel")
+def cancel_sale(
+    sale_id: int,
+    payload: SaleCancelRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Annule une vente POS — réservé aux rôles admin_entreprise /
+    manager_entreprise (jamais le simple caissier, cf. règles produit). Aucune
+    limite de délai. Remboursement en espèces uniquement : cette route ne
+    déclenche AUCUN remboursement réel MoMo/Stripe — celui-ci, si nécessaire,
+    se fait manuellement en dehors du système (v1 volontairement simple).
+
+    Contrairement à une suppression physique (interdite en comptabilité), la
+    vente d'origine reste immuable : le stock est réintégré (mouvement
+    InventoryMovement "in" miroir) et des écritures comptables inverses
+    neutralisent l'effet de la vente et de son COGS, sans jamais modifier ou
+    supprimer les écritures d'origine. Le tout est archivé dans le journal
+    d'audit avec un instantané de la vente avant annulation."""
+    _require_admin(current_user)
+    sale = db.scalar(
+        select(Sale)
+        .options(selectinload(Sale.items))
+        .where(Sale.id == sale_id, Sale.company_id == current_user.company_id)
+    )
+    if not sale:
+        raise HTTPException(status_code=404, detail="Vente introuvable")
+    if sale.status == "cancelled":
+        raise HTTPException(status_code=409, detail="Cette vente est déjà annulée.")
+
+    snapshot = {
+        "receipt_number": sale.receipt_number,
+        "payment_method": sale.payment_method,
+        "total_amount": sale.total_amount,
+        "client_name": sale.client_name,
+        "created_at": str(sale.created_at),
+        "items": [
+            {"product_id": it.product_id, "product_name": it.product_name, "quantity": it.quantity, "line_total": it.line_total}
+            for it in sale.items
+        ],
+    }
+
+    company = db.get(Company, current_user.company_id)
+    cogs_total_cents = 0
+    for item in sale.items:
+        product = db.get(Product, item.product_id)
+        if not product:
+            continue
+        db.execute(
+            update(Product)
+            .where(Product.id == product.id, Product.company_id == current_user.company_id)
+            .values(stock_quantity=Product.stock_quantity + item.quantity)
+        )
+        item_unit_cost_cents = product.average_cost_cents or 0
+        item_cogs_cents = item_unit_cost_cents * item.quantity
+        cogs_total_cents += item_cogs_cents
+        db.add(InventoryMovement(
+            product_id=product.id,
+            movement_type="in",
+            quantity=item.quantity,
+            reason="Annulation vente POS",
+            reference=sale.receipt_number,
+            unit_cost_cents=item_unit_cost_cents,
+            total_cost_cents=item_cogs_cents,
+            source_type="sale_cancellation",
+            company_id=current_user.company_id,
+        ))
+
+    try:
+        _accounting.record_sale_cancellation(
+            db, company, sale_id=sale.id, total=sale.total_amount,
+            payment_method=sale.payment_method, tax_amount=0.0, user_id=current_user.id,
+        )
+        if cogs_total_cents > 0:
+            _accounting.record_cogs_reversal(db, company, sale_id=sale.id, cogs_cents=cogs_total_cents, user_id=current_user.id)
+    except Exception:
+        logging.getLogger("kompta").exception("Échec écriture comptable d'annulation vente #%s", sale.id)
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="L'annulation n'a pas pu être enregistrée (échec de l'écriture comptable). Réessayez.",
+        )
+
+    sale.status = "cancelled"
+    sale.cancelled_at = datetime.now(timezone.utc)
+    sale.cancelled_by_user_id = current_user.id
+    sale.cancel_reason = payload.reason
+
+    db.add(AuditLog(
+        user_id=current_user.id,
+        user_name=current_user.full_name,
+        action="cancel",
+        resource_type="sale",
+        resource_id=sale.id,
+        details=json.dumps({"reason": payload.reason, "sale_snapshot": snapshot}, ensure_ascii=False),
+        company_id=current_user.company_id,
+    ))
+    db.commit()
+    db.refresh(sale)
+    return {
+        "id": sale.id,
+        "receipt_number": sale.receipt_number,
+        "status": sale.status,
+        "cancelled_at": sale.cancelled_at,
+        "cancelled_by_user_id": sale.cancelled_by_user_id,
+        "cancel_reason": sale.cancel_reason,
+    }
 
 
 @router.get("/pos/sales/{sale_id}/receipt")

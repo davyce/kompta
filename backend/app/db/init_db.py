@@ -125,6 +125,9 @@ def ensure_sqlite_migrations() -> None:
             "loyalty_points_earned": "INTEGER DEFAULT 0",
             "session_id": "INTEGER",
             "idempotency_key": "VARCHAR(80)",
+            "cancelled_at": "DATETIME",
+            "cancelled_by_user_id": "INTEGER",
+            "cancel_reason": "VARCHAR(500)",
         },
         "payroll_runs": {
             "payment_account_id": "INTEGER",
