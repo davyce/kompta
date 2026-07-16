@@ -99,32 +99,36 @@ function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void; onCre
         className="w-full max-w-md rounded-xl border border-black/[0.06] bg-white dark:bg-[#1e2229] dark:border-white/[0.08] p-5 shadow-2xl space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[#17211f] dark:text-white">{tr("meetings.newMeeting")}</h3>
-          <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04]"><X size={15} /></button>
+          <button type="button" onClick={onClose} aria-label={tr("common.close")} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04]"><X size={15} /></button>
         </div>
-        <input required placeholder={tr("meetings.title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+        <input required placeholder={tr("meetings.title")} aria-label={tr("meetings.title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
         <div className="grid grid-cols-3 gap-2">
           <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
+            aria-label={tr("meetings.date")}
             className="col-span-3 rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
           <input type="time" required value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })}
+            aria-label={tr("meetings.startTime")}
             className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
           <span className="self-center text-center text-xs text-[#717182]">→</span>
           <input type="time" required value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })}
+            aria-label={tr("meetings.endTime")}
             className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <input placeholder={tr("meetings.tagPlaceholder")} value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })}
+          <input placeholder={tr("meetings.tagPlaceholder")} aria-label={tr("meetings.tagPlaceholder")} value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })}
             className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
           <select value={form.tag_color} onChange={(e) => setForm({ ...form, tag_color: e.target.value })}
+            aria-label={tr("meetings.tagColor")}
             className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm">
             {Object.keys(TAG_COLORS).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
-        <input placeholder={tr("meetings.location")} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
+        <input placeholder={tr("meetings.location")} aria-label={tr("meetings.location")} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
-        <input placeholder={tr("meetings.joinUrl")} value={form.join_url} onChange={(e) => setForm({ ...form, join_url: e.target.value })}
+        <input placeholder={tr("meetings.joinUrl")} aria-label={tr("meetings.joinUrl")} value={form.join_url} onChange={(e) => setForm({ ...form, join_url: e.target.value })}
           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
-        <input placeholder={tr("meetings.attendees")} value={form.attendees} onChange={(e) => setForm({ ...form, attendees: e.target.value })}
+        <input placeholder={tr("meetings.attendees")} aria-label={tr("meetings.attendees")} value={form.attendees} onChange={(e) => setForm({ ...form, attendees: e.target.value })}
           className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
         {create.isError && <p className="text-xs text-rose-600">{tr("meetings.createError")}</p>}
         <button type="submit" disabled={create.isPending}
@@ -326,6 +330,7 @@ export function MeetingsPage() {
                 <h4 className="font-bold text-emerald-800 dark:text-emerald-200">{selectedMeeting.title}</h4>
                 <button onClick={() => removeMeeting.mutate(selectedMeeting.id)} disabled={removeMeeting.isPending}
                   title={tr("meetings.deleteMeeting")}
+                  aria-label={tr("meetings.deleteMeeting")}
                   className="grid h-7 w-7 place-items-center rounded-lg text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-500/20 disabled:opacity-50">
                   <Trash2 size={14} />
                 </button>

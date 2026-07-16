@@ -456,7 +456,7 @@ export function ChatPage() {
         <div className="border-b border-black/[0.05] dark:border-white/[0.05] p-3">
           <div className="flex items-center gap-2 rounded-lg border border-black/[0.06] bg-white dark:bg-[#252931] dark:border-white/[0.06] px-3 py-2">
             <Search size={14} className="text-[#717182]" />
-            <input placeholder={tr("chat.search.placeholder")} className="w-full bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182]" />
+            <input placeholder={tr("chat.search.placeholder")} aria-label={tr("chat.search.placeholder")} className="w-full bg-transparent text-sm text-[#17211f] dark:text-white outline-none placeholder:text-[#717182]" />
           </div>
         </div>
 
@@ -568,6 +568,8 @@ export function ChatPage() {
             </button>
             <button
               onClick={() => setShowDetails((v) => !v)}
+              aria-label={tr("chat.details.toggle")}
+              aria-pressed={showDetails}
               className="hidden lg:grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition"
             >
               <Info size={16} />
@@ -619,7 +621,7 @@ export function ChatPage() {
                     <MessageBody text={m.body} isMe={isMe} />
                   </div>
                   {/* "Créer tâche" — visible only on hover */}
-                  <div className={`mt-1 flex opacity-0 transition-opacity group-hover:opacity-100 ${isMe ? "justify-end" : "justify-start"}`}>
+                  <div className={`mt-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${isMe ? "justify-end" : "justify-start"}`}>
                     <button
                       onClick={() => openTaskComposer(m.body, `chat:${activeChannelId}:message:${m.id}`)}
                       className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-white px-2.5 py-1 text-[11px] font-bold text-[#717182] transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-violet-500/10"
@@ -755,7 +757,7 @@ export function ChatPage() {
         {upload.error && (
           <div className="flex items-center justify-between gap-2 border-t border-black/[0.05] dark:border-white/[0.05] bg-rose-50 dark:bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300">
             <span>{tr("chat.upload.failed", { message: upload.error.message })}</span>
-            <button onClick={() => upload.reset()} className="rounded p-0.5 hover:bg-rose-100 dark:hover:bg-rose-500/20"><X size={12} /></button>
+            <button onClick={() => upload.reset()} aria-label={tr("chat.upload.dismiss")} className="rounded p-0.5 hover:bg-rose-100 dark:hover:bg-rose-500/20"><X size={12} /></button>
           </div>
         )}
 
@@ -804,6 +806,7 @@ export function ChatPage() {
                 disabled={upload.isPending || activeChannelId === null}
                 className="text-[#717182] transition hover:text-violet-600 disabled:opacity-40"
                 title={tr("chat.input.attachFile")}
+                aria-label={tr("chat.input.attachFile")}
               >
                 <Paperclip size={16} />
               </button>
@@ -813,12 +816,14 @@ export function ChatPage() {
                 onChange={handleDraftChange}
                 onKeyDown={handleDraftKeyDown}
                 placeholder={activeChannel ? tr("chat.input.placeholder", { channel: activeChannel.name }) : tr("chat.channels.select")}
+                aria-label={activeChannel ? tr("chat.input.placeholder", { channel: activeChannel.name }) : tr("chat.channels.select")}
                 disabled={activeChannelId === null}
                 className="flex-1 bg-transparent text-sm text-[#17211f] dark:text-white outline-none disabled:cursor-not-allowed placeholder:text-[#717182]"
               />
               <button
                 type="submit"
                 disabled={!draft.trim() || send.isPending || activeChannelId === null}
+                aria-label={tr("chat.input.send")}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-700 disabled:bg-black/10 dark:disabled:bg-white/10"
               >
                 <Send size={14} />

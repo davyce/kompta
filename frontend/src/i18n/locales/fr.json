@@ -2471,7 +2471,8 @@
     },
     "upload": {
       "pending": "Téléversement en cours…",
-      "failed": "Échec : {{message}}"
+      "failed": "Échec : {{message}}",
+      "dismiss": "Ignorer l'erreur"
     },
     "mentions": {
       "title": "Mentionner un collègue",
@@ -2479,7 +2480,8 @@
     },
     "input": {
       "attachFile": "Joindre un fichier",
-      "placeholder": "Écrire à #{{channel}}… (@nom pour mentionner)"
+      "placeholder": "Écrire à #{{channel}}… (@nom pour mentionner)",
+      "send": "Envoyer le message"
     },
     "details": {
       "title": "Détails",
@@ -2489,7 +2491,8 @@
       "noActiveMember": "Aucun membre actif.",
       "linkedTasks": "Tâches liées",
       "addTask": "+ tâche",
-      "noOpenTask": "Aucune tâche ouverte."
+      "noOpenTask": "Aucune tâche ouverte.",
+      "toggle": "Afficher/masquer les détails du canal"
     },
     "createChannel": {
       "title": "Créer un canal",
@@ -4284,7 +4287,11 @@
     "generatingLimule": "Génération Limule…",
     "generateLimuleSummary": "Générer un résumé Limule",
     "upcoming": "Prochaines réunions",
-    "nothingUpcoming": "Rien à venir."
+    "nothingUpcoming": "Rien à venir.",
+    "date": "Date de la réunion",
+    "startTime": "Heure de début",
+    "endTime": "Heure de fin",
+    "tagColor": "Couleur du tag"
   },
   "notes": {
     "synthese": "Synthèse",
@@ -4332,7 +4339,9 @@
     "untitled": "(sans titre)",
     "unpin": "Désépingler",
     "download": "Télécharger",
-    "delete": "Supprimer"
+    "delete": "Supprimer",
+    "noteDate": "Date de la note",
+    "openNote": "Ouvrir la note {{title}}"
   },
   "fiscal": {
     "taxOther": "Autre",
@@ -4788,7 +4797,8 @@
       "estimatedAmount": "Montant estimé",
       "probability": "Probabilité (%)",
       "expectedCloseDate": "Date de clôture prévue",
-      "submit": "Créer l'opportunité"
+      "submit": "Créer l'opportunité",
+      "changeStage": "Changer l'étape de l'opportunité {{title}}"
     }
   },
   "budget": {

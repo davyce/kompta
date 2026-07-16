@@ -141,22 +141,24 @@ function NoteEditor({ note, onClose, onSaved }: {
           <h3 className="font-bold text-[#17211f] dark:text-white">
             {isEdit ? tr("notes.editNote") : tr("notes.newNote")}
           </h3>
-          <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04]"><X size={15} /></button>
+          <button type="button" onClick={onClose} aria-label={tr("common.close")} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04]"><X size={15} /></button>
         </div>
         <div className="space-y-3 p-5">
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <input type="date" required value={form.note_date} onChange={(e) => setForm({ ...form, note_date: e.target.value })}
               disabled={isEdit}
+              aria-label={tr("notes.noteDate")}
               className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
             <button type="button" onClick={() => setForm({ ...form, pinned: !form.pinned })}
+              aria-pressed={form.pinned}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition ${form.pinned ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-200" : "border-black/[0.08] text-[#717182]"}`}>
               {form.pinned ? <Pin size={14} /> : <PinOff size={14} />}
               {form.pinned ? tr("notes.pinned") : tr("notes.pin")}
             </button>
           </div>
-          <input placeholder={tr("notes.titleOptional")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+          <input placeholder={tr("notes.titleOptional")} aria-label={tr("notes.titleOptional")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
             className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm" />
-          <textarea required placeholder={tr("notes.bodyPlaceholder")}
+          <textarea required placeholder={tr("notes.bodyPlaceholder")} aria-label={tr("notes.bodyPlaceholder")}
             value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={12}
             className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] dark:bg-[#252931] px-3 py-2 text-sm font-mono leading-6" />
           {(create.isError || update.isError) && (
@@ -420,6 +422,12 @@ function NoteRow({
       onClick={onSelect}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
+      role="button"
+      tabIndex={0}
+      aria-label={tr("notes.openNote", { title: note.title || tr("notes.untitled") })}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
+      onFocus={() => setShowActions(true)}
+      onBlur={() => setShowActions(false)}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="font-bold text-[#17211f] dark:text-white truncate">{note.title || tr("notes.untitled")}</p>
@@ -428,12 +436,13 @@ function NoteRow({
       <p className="mt-1 line-clamp-2 text-xs text-[#717182]">{note.body.slice(0, 140)}</p>
       <div className={`mt-2 flex gap-1 ${showActions ? "" : "opacity-0 group-hover:opacity-100"} transition`} onClick={(e) => e.stopPropagation()}>
         <button onClick={onPin} title={note.pinned ? tr("notes.unpin") : tr("notes.pin")}
+          aria-label={note.pinned ? tr("notes.unpin") : tr("notes.pin")}
           className="grid h-6 w-6 place-items-center rounded text-[#717182] hover:bg-black/[0.04]">
           {note.pinned ? <Pin size={11} className="text-violet-600" /> : <PinOff size={11} />}
         </button>
-        <button onClick={onDownload} title={tr("notes.download")}
+        <button onClick={onDownload} title={tr("notes.download")} aria-label={tr("notes.download")}
           className="grid h-6 w-6 place-items-center rounded text-[#717182] hover:bg-black/[0.04]"><Download size={11} /></button>
-        <button onClick={onDelete} title={tr("notes.delete")}
+        <button onClick={onDelete} title={tr("notes.delete")} aria-label={tr("notes.delete")}
           className="grid h-6 w-6 place-items-center rounded text-rose-600 hover:bg-rose-50"><Trash2 size={11} /></button>
         {note.ai_generated && <span className="ml-auto rounded-full bg-violet-100 dark:bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-300">Limule</span>}
       </div>

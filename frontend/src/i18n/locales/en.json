@@ -2471,7 +2471,8 @@
     },
     "upload": {
       "pending": "Upload in progress…",
-      "failed": "Failed: {{message}}"
+      "failed": "Failed: {{message}}",
+      "dismiss": "Dismiss error"
     },
     "mentions": {
       "title": "Mention a colleague",
@@ -2479,7 +2480,8 @@
     },
     "input": {
       "attachFile": "Attach a file",
-      "placeholder": "Write to #{{channel}}… (@name to mention)"
+      "placeholder": "Write to #{{channel}}… (@name to mention)",
+      "send": "Send message"
     },
     "details": {
       "title": "Details",
@@ -2489,7 +2491,8 @@
       "noActiveMember": "No active member.",
       "linkedTasks": "Linked tasks",
       "addTask": "+ task",
-      "noOpenTask": "No open task."
+      "noOpenTask": "No open task.",
+      "toggle": "Show/hide channel details"
     },
     "createChannel": {
       "title": "Create a channel",
@@ -4284,7 +4287,11 @@
     "generatingLimule": "Limule generating…",
     "generateLimuleSummary": "Generate a Limule summary",
     "upcoming": "Upcoming meetings",
-    "nothingUpcoming": "Nothing upcoming."
+    "nothingUpcoming": "Nothing upcoming.",
+    "date": "Meeting date",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "tagColor": "Tag color"
   },
   "notes": {
     "synthese": "Summary",
@@ -4332,7 +4339,9 @@
     "untitled": "(untitled)",
     "unpin": "Unpin",
     "download": "Download",
-    "delete": "Delete"
+    "delete": "Delete",
+    "noteDate": "Note date",
+    "openNote": "Open note {{title}}"
   },
   "fiscal": {
     "taxOther": "Other",
@@ -4788,7 +4797,8 @@
       "estimatedAmount": "Estimated amount",
       "probability": "Probability (%)",
       "expectedCloseDate": "Expected close date",
-      "submit": "Create opportunity"
+      "submit": "Create opportunity",
+      "changeStage": "Change stage for opportunity {{title}}"
     }
   },
   "budget": {
