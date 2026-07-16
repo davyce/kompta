@@ -2243,7 +2243,8 @@
       "attendees": "Participants separated by commas",
       "agenda": "Agenda (optional) — e.g. 1. Sales review · 2. Hiring · 3. Q3 budget",
       "error": "Unable to create this event.",
-      "creating": "Creating..."
+      "creating": "Creating...",
+      "colorTag": "Tag color"
     },
     "header": {
       "eyebrow": "Limule agenda",

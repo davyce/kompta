@@ -2243,7 +2243,8 @@
       "attendees": "Participants séparés par virgules",
       "agenda": "Ordre du jour (facultatif) — ex : 1. Bilan commercial · 2. Recrutements · 3. Budget Q3",
       "error": "Impossible de créer cet événement.",
-      "creating": "Création..."
+      "creating": "Création...",
+      "colorTag": "Couleur de l'étiquette"
     },
     "header": {
       "eyebrow": "Agenda Limule",

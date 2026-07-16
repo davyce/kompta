@@ -180,7 +180,7 @@ function SuppliersTab() {
               <button onClick={() => setEditing(s)} className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs font-semibold text-[#17211f] dark:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
                 Modifier
               </button>
-              <button onClick={() => handleDelete(s)} className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
+              <button onClick={() => handleDelete(s)} aria-label="Supprimer le fournisseur" className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -227,7 +227,7 @@ function ConnectCompanyModal({ onClose }: { onClose: () => void }) {
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[#17211f] dark:text-white">Connecter une entreprise</h3>
-          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+          <button onClick={onClose} aria-label="Fermer"><X size={18} className="text-[#717182]" /></button>
         </div>
         <p className="text-xs text-[#717182]">
           Recherchez l'entreprise KOMPTA fournisseur par son nom ou son email. Une fiche
@@ -294,7 +294,7 @@ function ConnectSupplierModal({ supplier, onClose }: { supplier: SupplierDto; on
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[#17211f] dark:text-white">Connecter « {supplier.name} »</h3>
-          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+          <button onClick={onClose} aria-label="Fermer"><X size={18} className="text-[#717182]" /></button>
         </div>
         <p className="text-xs text-[#717182]">
           Recherchez l'entreprise KOMPTA correspondante. Une fois qu'elle accepte, vos bons de
@@ -357,7 +357,7 @@ function SupplierFormModal({ supplier, onClose }: { supplier: SupplierDto | null
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[#17211f] dark:text-white">{supplier ? "Modifier le fournisseur" : "Nouveau fournisseur"}</h3>
-          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+          <button onClick={onClose} aria-label="Fermer"><X size={18} className="text-[#717182]" /></button>
         </div>
         <label className="block text-xs font-bold uppercase text-[#717182]">Nom *
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} />
@@ -482,7 +482,7 @@ function OrdersTab() {
                   </button>
                 )}
                 {po.status === "draft" && (
-                  <button onClick={() => deleteMut.mutate(po.id)} className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
+                  <button onClick={() => deleteMut.mutate(po.id)} aria-label="Annuler le bon de commande" className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20">
                     <XCircle size={13} />
                   </button>
                 )}
@@ -530,7 +530,7 @@ function NewPurchaseOrderModal({ onClose }: { onClose: () => void }) {
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#1e2229] p-5 shadow-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[#17211f] dark:text-white">Nouveau bon de commande</h3>
-          <button onClick={onClose}><X size={18} className="text-[#717182]" /></button>
+          <button onClick={onClose} aria-label="Fermer"><X size={18} className="text-[#717182]" /></button>
         </div>
 
         <label className="block text-xs font-bold uppercase text-[#717182]">Fournisseur *
@@ -551,6 +551,7 @@ function NewPurchaseOrderModal({ onClose }: { onClose: () => void }) {
                   const product = (productsQ.data ?? []).find((p) => p.id === pid);
                   updateLine(i, { product_id: pid, description: product ? product.name : line.description });
                 }}
+                aria-label="Produit"
                 className={`${inputClass} col-span-3`}
               >
                 <option value="">(hors-stock)</option>
@@ -572,7 +573,7 @@ function NewPurchaseOrderModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) || 0 })}
                 className={`${inputClass} col-span-2`}
               />
-              <button onClick={() => removeLine(i)} disabled={lines.length === 1} className="col-span-1 text-rose-500 disabled:opacity-30">
+              <button onClick={() => removeLine(i)} disabled={lines.length === 1} aria-label="Supprimer la ligne" className="col-span-1 text-rose-500 disabled:opacity-30">
                 <Trash2 size={14} />
               </button>
             </div>

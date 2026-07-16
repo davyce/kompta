@@ -259,6 +259,7 @@ function QuickMeetingModal({
             <select
               value={form.tag_color}
               onChange={(event) => setForm({ ...form, tag_color: event.target.value })}
+              aria-label={tr("calendar.modal.colorTag")}
               className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-violet-300 dark:border-white/[0.08] dark:bg-[#252931] dark:text-white"
             >
               {Object.keys(TAG_TONES).map((key) => <option key={key} value={key}>{key}</option>)}

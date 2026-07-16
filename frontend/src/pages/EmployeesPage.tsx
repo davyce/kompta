@@ -148,6 +148,7 @@ function EmployeeDrawer({
           </div>
           <button
             onClick={onClose}
+            aria-label={tr("common.close")}
             className="grid h-9 w-9 place-items-center rounded-lg border border-black/[0.06] text-[#717182] hover:bg-stone-50"
           >
             <X size={18} />
@@ -668,7 +669,7 @@ export function EmployeesPage() {
                   {provisioning.note} {tr("employeesPage.provisioning.loginNote")}
                 </p>
               </div>
-              <button onClick={() => setProvisioning(null)} className="shrink-0 text-emerald-600 hover:text-emerald-900">
+              <button onClick={() => setProvisioning(null)} aria-label={tr("common.close")} className="shrink-0 text-emerald-600 hover:text-emerald-900">
                 <X size={18} />
               </button>
             </div>
@@ -729,6 +730,7 @@ export function EmployeesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={tr("employeesPage.search.placeholder")}
+              aria-label={tr("employeesPage.search.placeholder")}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </div>
@@ -810,7 +812,7 @@ export function EmployeesPage() {
                       </td>
                       <td className={T.td}>
                         <div className="flex items-center gap-1.5">
-                          <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.viewProfile")}><ExternalLink size={15} /></Link>
+                          <Link to={`/employees/${emp.id}`} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.viewProfile")} aria-label={tr("employeesPage.actions.viewProfile")}><ExternalLink size={15} /></Link>
                           <button
                             onClick={() => resetAccess.mutate(emp.id)}
                             disabled={resetAccess.isPending}
@@ -820,12 +822,13 @@ export function EmployeesPage() {
                             {resetAccess.isPending ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
                             {tr("employeesPage.actions.resetPassword")}
                           </button>
-                          <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title={tr("employeesPage.actions.printableContract")}>{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
-                          <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.employability")}><Send size={15} /></button>
+                          <button onClick={() => openContract(emp.id, `${emp.first_name} ${emp.last_name}`)} disabled={contractLoading === emp.id} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600 disabled:opacity-50" title={tr("employeesPage.actions.printableContract")} aria-label={tr("employeesPage.actions.printableContract")}>{contractLoading === emp.id ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}</button>
+                          <button onClick={() => employability.mutate(emp.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-emerald-400 hover:text-emerald-600" title={tr("employeesPage.actions.employability")} aria-label={tr("employeesPage.actions.employability")}><Send size={15} /></button>
                           <button
                             onClick={() => updateStatus.mutate({ employeeId: emp.id, status: emp.account_status === "suspended" ? "active" : "suspended" })}
                             className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.06] bg-white text-[#17211f] hover:border-rose-500 hover:text-rose-600"
                             title={tr("employeesPage.actions.toggleStatus")}
+                            aria-label={tr("employeesPage.actions.toggleStatus")}
                           >
                             <ShieldOff size={15} />
                           </button>
@@ -993,7 +996,7 @@ export function EmployeesPage() {
       {contractError && (
         <div className="fixed left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-red-200 bg-white px-5 py-3 shadow-xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6">
           <span className="text-sm font-semibold text-red-700">{contractError}</span>
-          <button onClick={() => setContractError(null)} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
+          <button onClick={() => setContractError(null)} aria-label={tr("common.close")} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
         </div>
       )}
 
@@ -1035,6 +1038,7 @@ export function EmployeesPage() {
                 </button>
                 <button
                   onClick={() => setContractModal(null)}
+                  aria-label={tr("common.close")}
                   className="grid h-9 w-9 place-items-center rounded-lg border border-black/[0.06] text-[#717182] hover:bg-stone-50"
                 >
                   <X size={18} />
