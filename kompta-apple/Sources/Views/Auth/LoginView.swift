@@ -131,9 +131,14 @@ struct LoginView: View {
                 }
             }
 
+            #if !os(iOS)
+            // Sur iOS, seul le mode "Connexion" existe (Guideline 3.1.1 — pas
+            // de création d'entreprise depuis l'app) : un sélecteur à un seul
+            // onglet n'aurait aucune utilité et ressemblerait à un bouton mort.
             if mode == .login || mode == .register {
                 AuthModeTabs(mode: $mode)
             }
+            #endif
 
             VStack(spacing: 14) {
                 switch mode {
