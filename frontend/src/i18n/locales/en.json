@@ -4150,7 +4150,8 @@
         "tag": "Compliance",
         "icon": "🛡️"
       }
-    ]
+    ],
+    "clearSearch": "Clear search"
   },
   "registerGroup": {
     "gtAssociation": "Association",
@@ -4415,7 +4416,8 @@
     "view": "View",
     "reanalyze": "Re-analyze",
     "analyze": "Analyze",
-    "catCount": "{{label}} ({{count}})"
+    "catCount": "{{label}} ({{count}})",
+    "categoryLabel": "Document category"
   },
   "reportsHub": {
     "cardFinancialTitle": "Monthly financial report",
@@ -4533,7 +4535,9 @@
     "colDetails": "Details",
     "prev": "← Prev.",
     "next": "Next →",
-    "pageInfo": "Page {{page}} / {{total}} · {{count}} entries"
+    "pageInfo": "Page {{page}} / {{total}} · {{count}} entries",
+    "filterByCompany": "Filter by company",
+    "filterByAction": "Filter by action type"
   },
   "analytics": {
     "title": "Analytics",

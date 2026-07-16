@@ -63,7 +63,7 @@ function SummaryModal({ doc, onClose }: { doc: LegislationDocumentDto; onClose: 
               <p className="text-xs text-[#717182]">{catLabel(doc.doc_category, tr)} · {doc.country_scope}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]">
+          <button onClick={onClose} aria-label={tr("common.close")} className="rounded-lg p-1.5 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]">
             <X size={16} />
           </button>
         </div>
@@ -191,6 +191,10 @@ export default function LegislationPage() {
               {/* Zone de drop */}
               <div
                 onClick={() => fileRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                aria-label={tr("legislation.clickToChoose")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.1] dark:border-white/[0.1] bg-black/[0.01] dark:bg-white/[0.02] p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition"
               >
                 <Upload size={24} className="text-[#717182]" />
@@ -220,17 +224,20 @@ export default function LegislationPage() {
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder={tr("legislation.titlePlaceholder")}
+                aria-label={tr("legislation.titlePlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <input
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                 placeholder={tr("legislation.descPlaceholder")}
+                aria-label={tr("legislation.descPlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <select
                 value={form.doc_category}
                 onChange={(e) => setForm((p) => ({ ...p, doc_category: e.target.value }))}
+                aria-label={tr("legislation.categoryLabel")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 {CATEGORIES.map((c) => (
@@ -241,6 +248,7 @@ export default function LegislationPage() {
                 value={form.country_scope}
                 onChange={(e) => setForm((p) => ({ ...p, country_scope: e.target.value }))}
                 placeholder={tr("legislation.countryPlaceholder")}
+                aria-label={tr("legislation.countryPlaceholder")}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <button
@@ -385,6 +393,7 @@ export default function LegislationPage() {
                       <button
                         onClick={() => del.mutate(doc.id)}
                         disabled={del.isPending}
+                        aria-label={tr("common.delete")}
                         className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 transition"
                       >
                         <Trash2 size={13} />

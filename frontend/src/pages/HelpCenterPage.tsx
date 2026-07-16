@@ -175,7 +175,7 @@ export function HelpCenterPage() {
               className="min-w-0 flex-1 bg-transparent text-sm text-[#17211f] outline-none placeholder:text-[#717182] dark:text-white"
             />
             {faqSearch && (
-              <button onClick={() => setFaqSearch("")}>
+              <button onClick={() => setFaqSearch("")} aria-label={tr("helpCenter.clearSearch")}>
                 <X size={16} className="text-[#717182]" />
               </button>
             )}

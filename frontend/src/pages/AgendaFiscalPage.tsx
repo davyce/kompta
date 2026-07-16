@@ -279,6 +279,8 @@ export function AgendaFiscalPage() {
                       onClick={() => updateMut.mutate({ id: item.id, payload: { status: done ? "pending" : "done" } })}
                       className={`mt-0.5 shrink-0 transition ${done ? "text-emerald-500" : "text-[#717182] hover:text-emerald-500 dark:text-white/40"}`}
                       title={done ? tr("fiscal.markPending") : tr("fiscal.markDone")}
+                      aria-label={done ? tr("fiscal.markPending") : tr("fiscal.markDone")}
+                      aria-pressed={done}
                     >
                       <CheckCircle2 size={20} />
                     </button>
@@ -333,6 +335,7 @@ export function AgendaFiscalPage() {
               <h2 className="text-base font-bold text-[#17211f] dark:text-white">{tr("fiscal.modalTitle")}</h2>
               <button
                 onClick={() => { setShowModal(false); setForm(EMPTY_FORM); }}
+                aria-label={tr("common.close")}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:text-white/50 dark:hover:bg-white/[0.06]"
               >
                 <X size={16} />

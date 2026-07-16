@@ -4150,7 +4150,8 @@
         "tag": "Conformité",
         "icon": "🛡️"
       }
-    ]
+    ],
+    "clearSearch": "Effacer la recherche"
   },
   "registerGroup": {
     "gtAssociation": "Association",
@@ -4415,7 +4416,8 @@
     "view": "Voir",
     "reanalyze": "Ré-analyser",
     "analyze": "Analyser",
-    "catCount": "{{label}} ({{count}})"
+    "catCount": "{{label}} ({{count}})",
+    "categoryLabel": "Catégorie du document"
   },
   "reportsHub": {
     "cardFinancialTitle": "Rapport financier mensuel",
@@ -4533,7 +4535,9 @@
     "colDetails": "Détails",
     "prev": "← Préc.",
     "next": "Suiv. →",
-    "pageInfo": "Page {{page}} / {{total}} · {{count}} entrées"
+    "pageInfo": "Page {{page}} / {{total}} · {{count}} entrées",
+    "filterByCompany": "Filtrer par entreprise",
+    "filterByAction": "Filtrer par type d'action"
   },
   "analytics": {
     "title": "Analytics",

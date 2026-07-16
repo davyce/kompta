@@ -225,6 +225,7 @@ function DeclarationViewer({ record, onClose }: { record: DeclarationRecord; onC
             <button
               onClick={onClose}
               title={tr("common.close")}
+              aria-label={tr("common.close")}
               className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
             >
               <X size={16} />

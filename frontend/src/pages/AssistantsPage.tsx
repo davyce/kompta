@@ -530,6 +530,7 @@ export function AssistantsPage() {
                 }
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
                 title={tr("common.download")}
+                aria-label={tr("common.download")}
               >
                 <Download size={13} />
               </button>
@@ -537,6 +538,7 @@ export function AssistantsPage() {
                 onClick={() => deleteGen.mutate(g.id)}
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
                 title={tr("common.delete")}
+                aria-label={tr("common.delete")}
               >
                 <Trash2 size={13} />
               </button>

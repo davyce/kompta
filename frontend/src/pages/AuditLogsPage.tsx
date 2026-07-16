@@ -102,6 +102,7 @@ export function AuditLogsPage() {
           <select
             value={companyFilter}
             onChange={(e) => { const v = e.target.value; setCompanyFilter(v === "all" ? "all" : Number(v)); setAllCompanies(false); setPage(0); }}
+            aria-label={tr("audit.filterByCompany")}
             className="rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-white dark:bg-[#1e2229] px-2.5 py-1.5 text-sm text-[#17211f] dark:text-white outline-none"
           >
             <option value="all">Mon entreprise</option>
@@ -127,6 +128,7 @@ export function AuditLogsPage() {
           <select
             value={actionFilter}
             onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+            aria-label={tr("audit.filterByAction")}
             className="flex-1 sm:flex-none rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none"
           >
             <option value="all">{tr("audit.allActions")}</option>
