@@ -49,7 +49,7 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         # Chiffrement standard uniquement (HTTPS) → exempté, pas de question export.
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
@@ -88,7 +88,13 @@ targets:
         # via le compte développeur, cf. TapToPayCheckout.swift). Sans cette
         # approbation, StripeTerminal.discoverReaders(.localMobile) échoue
         # au runtime même avec cette clé présente dans le binaire.
-        com.apple.developer.proximity-reader.payment.acceptance: true
+        #
+        # TEMPORAIREMENT DÉSACTIVÉ (commenté) : tant que la demande n'est pas
+        # approuvée par Apple, cet entitlement bloque la signature de TOUT
+        # build sur un vrai appareil (pas seulement Xcode Cloud). Décommenter
+        # dès que la demande est approuvée (voir historique de conversation),
+        # puis relancer `xcodegen generate`.
+        # com.apple.developer.proximity-reader.payment.acceptance: true
     dependencies:
       - package: StripeApplePay
       - package: StripeTerminal
@@ -115,7 +121,7 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "© 2026 Adansonia"
         ITSAppUsesNonExemptEncryption: false
