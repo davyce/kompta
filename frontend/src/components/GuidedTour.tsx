@@ -238,7 +238,7 @@ export function DiscoverTourBanner() {
       >
         {tr("components.guidedTour.discoverCta")}
       </button>
-      <button onClick={dismiss} aria-label="Fermer" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
+      <button onClick={dismiss} aria-label={tr("common.close")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">
         <X size={15} />
       </button>
     </div>

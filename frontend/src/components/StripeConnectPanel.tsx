@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Banknote, CheckCircle2, ExternalLink, Loader2, ShieldAlert } from "lucide-react";
 
 import { api } from "../services/api";
-
-const STATUS_LABEL: Record<string, string> = {
-  not_started: "Non configuré",
-  pending: "En cours de vérification",
-  active: "Actif",
-  restricted: "Restreint",
-};
 
 const STATUS_TONE: Record<string, string> = {
   not_started: "bg-stone-100 text-stone-600",
   pending: "bg-amber-100 text-amber-700",
   active: "bg-emerald-100 text-emerald-700",
   restricted: "bg-red-100 text-red-700",
+};
+
+const STATUS_TK: Record<string, string> = {
+  not_started: "stripeConnect.status.notStarted",
+  pending: "stripeConnect.status.pending",
+  active: "stripeConnect.status.active",
+  restricted: "stripeConnect.status.restricted",
 };
 
 /**
@@ -25,6 +26,7 @@ const STATUS_TONE: Record<string, string> = {
  * cf. audit "aucun mécanisme de reversement automatique".
  */
 export function StripeConnectPanel() {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["connect-status"], queryFn: () => api.connectStatus() });
   const [feeInput, setFeeInput] = useState<string | null>(null);
@@ -59,15 +61,14 @@ export function StripeConnectPanel() {
             <Banknote size={18} />
           </span>
           <div>
-            <h3 className="font-black text-[#17211f] dark:text-white">Reversement des paiements carte</h3>
+            <h3 className="font-black text-[#17211f] dark:text-white">{tr("stripeConnect.title")}</h3>
             <p className="mt-0.5 text-sm text-[#717182]">
-              Sans ceci, l'argent encaissé par carte (Tap to Pay, Apple Pay, carte web) reste sur le compte
-              Stripe de KOMPTA — configurez votre compte bancaire pour le recevoir directement.
+              {tr("stripeConnect.description")}
             </p>
           </div>
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_TONE[status] ?? STATUS_TONE.not_started}`}>
-          {q.isLoading ? "…" : STATUS_LABEL[status] ?? status}
+          {q.isLoading ? "…" : tr(STATUS_TK[status] ?? STATUS_TK.not_started)}
         </span>
       </div>
 
@@ -76,14 +77,14 @@ export function StripeConnectPanel() {
           <ShieldAlert size={14} className="mt-0.5 shrink-0" />
           <span>
             {status === "pending"
-              ? "Onboarding démarré mais pas encore complet côté Stripe — reprenez-le ci-dessous."
-              : "Aucun paiement carte n'est encore reversé à votre entreprise."}
+              ? tr("stripeConnect.pendingNotice")
+              : tr("stripeConnect.notStartedNotice")}
           </span>
         </div>
       ) : (
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
           <CheckCircle2 size={14} className="shrink-0" />
-          <span>Compte actif — les paiements carte sont reversés automatiquement.</span>
+          <span>{tr("stripeConnect.activeNotice")}</span>
         </div>
       )}
 
@@ -93,17 +94,17 @@ export function StripeConnectPanel() {
         className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {onboard.isPending ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
-        {status === "not_started" ? "Configurer mon compte bancaire" : "Reprendre la configuration"}
+        {status === "not_started" ? tr("stripeConnect.setupAccount") : tr("stripeConnect.resumeSetup")}
       </button>
       {onboard.isError ? (
         <p className="mt-2 text-xs font-medium text-red-600">
-          {(onboard.error as Error)?.message || "Impossible de démarrer la configuration. Réessayez plus tard."}
+          {(onboard.error as Error)?.message || tr("stripeConnect.onboardError")}
         </p>
       ) : null}
 
       <div className="mt-5 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
         <label className="text-xs font-bold uppercase tracking-wide text-[#717182]">
-          Commission KOMPTA par paiement carte
+          {tr("stripeConnect.feeLabel")}
         </label>
         <div className="mt-1.5 flex items-center gap-2">
           <input
@@ -113,6 +114,7 @@ export function StripeConnectPanel() {
             step={0.1}
             value={fee}
             onChange={(e) => setFeeInput(e.target.value)}
+            aria-label={tr("stripeConnect.feeLabel")}
             className="w-24 rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-emerald-600 dark:border-white/10 dark:bg-white/5"
           />
           <span className="text-sm text-[#717182]">%</span>
@@ -121,15 +123,15 @@ export function StripeConnectPanel() {
             disabled={updateFee.isPending || feeInput === null}
             className="rounded-lg border border-black/10 px-3 py-2 text-xs font-bold hover:bg-black/[0.04] disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/[0.06]"
           >
-            {updateFee.isPending ? "…" : "Enregistrer"}
+            {updateFee.isPending ? "…" : tr("stripeConnect.feeSave")}
           </button>
         </div>
         <p className="mt-1.5 text-xs text-[#717182]">
-          Prélevée automatiquement sur chaque encaissement carte avant reversement (entre 0% et 10%).
+          {tr("stripeConnect.feeHint")}
         </p>
         {updateFee.isError ? (
           <p className="mt-1 text-xs font-medium text-red-600">
-            {(updateFee.error as Error)?.message || "Valeur refusée."}
+            {(updateFee.error as Error)?.message || tr("stripeConnect.feeError")}
           </p>
         ) : null}
       </div>

@@ -1366,7 +1366,10 @@
       "status": "Statut",
       "internalNotes": "Notes internes",
       "notesPlaceholder": "Informations complémentaires, préférences, historique…",
-      "saving": "Enregistrement…"
+      "saving": "Enregistrement…",
+      "portalAccess": "Créer un accès au portail client (gratuit)",
+      "portalAccessHintReady": "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email ou son téléphone.",
+      "portalAccessHintMissing": "Renseignez un email ou un téléphone pour activer cette option."
     },
     "loyalty": {
       "title": "Fidélité",
@@ -3530,7 +3533,8 @@
       "notifications": "Notifications",
       "teras": "TERAS",
       "billing": "Facturation",
-      "audit": "Journal audit"
+      "audit": "Journal audit",
+      "roles": "Rôles & accès"
     },
     "providers": {
       "zola": "Zola / QR",
@@ -5618,5 +5622,260 @@
       "title": "Réconciliation bancaire",
       "body": "Rapprochez vos transactions bancaires avec vos écritures comptables pour garder une trésorerie fiable."
     }
+  },
+  "companySetupWizard": {
+    "header": "Configuration · étape {{current}}/{{total}}",
+    "finishLater": "Terminer plus tard",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "logoImported": "Logo importé : {{name}}",
+    "importLogo": "Importer un logo",
+    "logoHint": "Vous pourrez le changer plus tard dans Paramètres.",
+    "profileCompleted": "Profil complété à {{pct}}%",
+    "steps": {
+      "welcome": {
+        "title": "Bienvenue dans KOMPTA",
+        "subtitle": "Configurons votre entreprise en quelques étapes. Vos réponses sont enregistrées au fur et à mesure — vous pouvez vous arrêter et reprendre quand vous voulez."
+      },
+      "org": {
+        "title": "Type d'organisation",
+        "subtitle": "Quel type de structure gérez-vous ?",
+        "orgTypeLabel": "Type d'organisation",
+        "orgTypePlaceholder": "PME, Association, Coopérative…",
+        "industryLabel": "Secteur d'activité",
+        "industryPlaceholder": "Commerce et services"
+      },
+      "name": {
+        "title": "Nom de l'entreprise",
+        "subtitle": "Le nom sous lequel vous opérez.",
+        "commercialLabel": "Nom commercial",
+        "commercialPlaceholder": "ADANSONIA",
+        "legalLabel": "Raison sociale",
+        "legalPlaceholder": "ADANSONIA SARL"
+      },
+      "legalForm": {
+        "title": "Forme juridique",
+        "subtitle": "La forme légale de votre structure.",
+        "label": "Forme juridique",
+        "placeholder": "SARL, SA, SAS, Ets, Association…"
+      },
+      "location": {
+        "title": "Localisation",
+        "subtitle": "Où votre entreprise est-elle établie ?",
+        "countryLabel": "Pays",
+        "countryPlaceholder": "Congo",
+        "cityLabel": "Ville",
+        "cityPlaceholder": "Brazzaville"
+      },
+      "address": {
+        "title": "Adresse",
+        "subtitle": "L'adresse physique de votre siège.",
+        "label": "Adresse complète",
+        "placeholder": "123 Avenue de la Paix, Centre-ville"
+      },
+      "rccm": {
+        "title": "Registre du commerce (RCCM)",
+        "subtitle": "Votre numéro d'immatriculation au registre du commerce.",
+        "label": "N° RCCM",
+        "placeholder": "CG-BZV-01-2024-B12-00001",
+        "help": "Laissez vide si vous ne l'avez pas encore."
+      },
+      "niu": {
+        "title": "Identifiant fiscal (NIU)",
+        "subtitle": "Votre numéro d'identification unique fiscal.",
+        "label": "N° NIU / NIF",
+        "placeholder": "M2024000000000A"
+      },
+      "cnss": {
+        "title": "Sécurité sociale (CNSS)",
+        "subtitle": "Votre numéro d'employeur auprès de la caisse sociale.",
+        "label": "N° CNSS",
+        "placeholder": "Numéro employeur"
+      },
+      "patente": {
+        "title": "Patente",
+        "subtitle": "Votre numéro de patente / licence d'activité.",
+        "label": "N° de patente",
+        "placeholder": "Numéro de patente"
+      },
+      "tax": {
+        "title": "Régime fiscal",
+        "subtitle": "Sous quel régime votre entreprise est-elle imposée ?",
+        "label": "Régime fiscal",
+        "placeholder": "Réel, Forfait, TPE…"
+      },
+      "capital": {
+        "title": "Capital social",
+        "subtitle": "Le capital social déclaré (utile pour vos documents légaux).",
+        "capitalLabel": "Capital social",
+        "capitalPlaceholder": "1 000 000 FCFA",
+        "dateLabel": "Date de création"
+      },
+      "contact": {
+        "title": "Coordonnées",
+        "subtitle": "Comment vos clients et partenaires vous joignent.",
+        "phoneLabel": "Téléphone",
+        "phonePlaceholder": "+242 06 000 0000",
+        "emailLabel": "Email",
+        "emailPlaceholder": "contact@entreprise.com"
+      },
+      "website": {
+        "title": "Site web",
+        "subtitle": "Votre présence en ligne (optionnel).",
+        "label": "Site web",
+        "placeholder": "https://entreprise.com"
+      },
+      "manager": {
+        "title": "Responsable",
+        "subtitle": "Le dirigeant ou gérant de l'entreprise.",
+        "nameLabel": "Nom du responsable",
+        "namePlaceholder": "Nom complet",
+        "titleLabel": "Fonction",
+        "titlePlaceholder": "Gérant, Directeur Général…"
+      },
+      "bank": {
+        "title": "Coordonnées bancaires",
+        "subtitle": "Pour vos factures et rapprochements.",
+        "bankLabel": "Banque",
+        "bankPlaceholder": "Nom de la banque",
+        "accountLabel": "N° de compte / IBAN",
+        "accountPlaceholder": "Numéro de compte"
+      },
+      "threshold": {
+        "title": "Alerte trésorerie",
+        "subtitle": "Limule vous alerte quand votre trésorerie passe sous ce seuil.",
+        "label": "Seuil d'alerte (FCFA)",
+        "placeholder": "50000",
+        "help": "Par défaut 50 000 FCFA."
+      },
+      "colors": {
+        "title": "Couleurs de marque",
+        "subtitle": "Personnalisez l'apparence de votre espace et de vos documents.",
+        "primaryLabel": "Couleur principale",
+        "secondaryLabel": "Couleur secondaire"
+      },
+      "logo": {
+        "title": "Logo de l'entreprise",
+        "subtitle": "Il apparaîtra sur vos factures, devis et rapports. (PNG, JPEG ou WebP)"
+      },
+      "payments": {
+        "title": "Méthodes d'encaissement",
+        "subtitle": "Configurez comment vos clients vous paient (Mobile Money, espèces, virement, carte).",
+        "ctaLabel": "Configurer l'encaissement"
+      },
+      "employees": {
+        "title": "Votre équipe",
+        "subtitle": "Ajoutez vos premiers employés et générez leurs accès. (Optionnel)",
+        "ctaLabel": "Ajouter un employé"
+      },
+      "products": {
+        "title": "Vos produits / services",
+        "subtitle": "Constituez votre catalogue pour la caisse et la facturation. (Optionnel)",
+        "ctaLabel": "Ajouter un produit"
+      },
+      "subscription": {
+        "title": "Votre offre",
+        "subtitle": "Vous bénéficiez d'un essai gratuit. Découvrez les offres et les modules inclus.",
+        "ctaLabel": "Voir les offres"
+      },
+      "done": {
+        "title": "Configuration prête !",
+        "subtitle": "Votre entreprise est configurée. Vous pourrez compléter ou modifier ces informations à tout moment depuis Paramètres → Entreprise."
+      }
+    }
+  },
+  "rolesSettings": {
+    "title": "Rôles & accès",
+    "subtitle": "Créez des rôles avec un accès limité à certains modules, puis attribuez-les à vos membres. Le rôle d'un membre détermine les modules qu'il voit dans l'application.",
+    "customRoles": "Rôles personnalisés",
+    "newRole": "Nouveau rôle",
+    "noRoles": "Aucun rôle personnalisé. Créez-en un pour limiter l'accès de certains membres.",
+    "accessCount": "{{count}} accès · {{members}} membre(s)",
+    "confirmDelete": "Supprimer le rôle « {{name}} » ?",
+    "membersAndAccess": "Membres & accès",
+    "baseRole": "Rôle de base ({{role}})",
+    "noMembers": "Aucun membre.",
+    "editor": {
+      "editTitle": "Modifier le rôle",
+      "newTitle": "Nouveau rôle",
+      "nameLabel": "Nom du rôle",
+      "namePlaceholder": "Comptable, Caissier…",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optionnel",
+      "colorLabel": "Couleur",
+      "modulesLabel": "Modules autorisés ({{count}})",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "save": "Enregistrer",
+      "create": "Créer le rôle"
+    }
+  },
+  "stripeConnect": {
+    "status": {
+      "notStarted": "Non configuré",
+      "pending": "En cours de vérification",
+      "active": "Actif",
+      "restricted": "Restreint"
+    },
+    "title": "Reversement des paiements carte",
+    "description": "Sans ceci, l'argent encaissé par carte (Tap to Pay, Apple Pay, carte web) reste sur le compte Stripe de KOMPTA — configurez votre compte bancaire pour le recevoir directement.",
+    "pendingNotice": "Onboarding démarré mais pas encore complet côté Stripe — reprenez-le ci-dessous.",
+    "notStartedNotice": "Aucun paiement carte n'est encore reversé à votre entreprise.",
+    "activeNotice": "Compte actif — les paiements carte sont reversés automatiquement.",
+    "setupAccount": "Configurer mon compte bancaire",
+    "resumeSetup": "Reprendre la configuration",
+    "onboardError": "Impossible de démarrer la configuration. Réessayez plus tard.",
+    "feeLabel": "Commission KOMPTA par paiement carte",
+    "feeSave": "Enregistrer",
+    "feeHint": "Prélevée automatiquement sur chaque encaissement carte avant reversement (entre 0% et 10%).",
+    "feeError": "Valeur refusée."
+  },
+  "collectionMethods": {
+    "providers": {
+      "cash": {
+        "label": "Espèces",
+        "hint": "Paiement en liquide au comptoir. Aucun frais."
+      },
+      "momoMtn": {
+        "label": "MTN MoMo",
+        "hint": "Votre code/numéro marchand MTN Mobile Money. L'argent va direct chez vous."
+      },
+      "momoAirtel": {
+        "label": "Airtel Money",
+        "hint": "Votre code/numéro marchand Airtel Money."
+      },
+      "momoMoov": {
+        "label": "Moov Money",
+        "hint": "Votre code/numéro marchand Moov Money."
+      },
+      "bankTransfer": {
+        "label": "Virement bancaire",
+        "hint": "Coordonnées bancaires affichées au client pour un virement."
+      },
+      "cardStripe": {
+        "label": "Carte (Visa/Mastercard)",
+        "hint": "Encaissement en ligne par carte. Validé par un paiement-test."
+      }
+    },
+    "title": "Encaissement",
+    "description": "Déclarez comment vos clients vous paient. L'argent va directement sur votre compte — KOMPTA ne transite jamais les fonds. Tant qu'aucune méthode n'est activée et vérifiée, l'encaissement est bloqué.",
+    "active": "Encaissement actif",
+    "inactive": "Aucune méthode active",
+    "setupPrompt": "Configurez au moins une méthode ci-dessous pour pouvoir encaisser vos ventes et factures.",
+    "loading": "Chargement…",
+    "cardTestDescription": "Validation de votre carte (≈500 FCFA)",
+    "verified": "Vérifié",
+    "merchantNumberPlaceholder": "Code / n° marchand",
+    "accountNamePlaceholder": "Nom du compte (ex: KOMPTA SARL)",
+    "bankNamePlaceholder": "Nom de la banque",
+    "bankAccountPlaceholder": "RIB / IBAN",
+    "instructionsPlaceholder": "Consignes affichées au client (facultatif)",
+    "cardVerified": "Carte validée",
+    "testCard": "Valider par paiement-test (≈500 FCFA)",
+    "cardHint": "La carte sert surtout à l'abonnement et à la clientèle internationale.",
+    "disable": "Désactiver",
+    "save": "Enregistrer",
+    "enable": "Activer"
   }
 }

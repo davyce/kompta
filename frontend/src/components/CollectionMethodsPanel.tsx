@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Banknote, Smartphone, Landmark, CreditCard, CheckCircle2, AlertTriangle, Loader2, ShieldCheck,
 } from "lucide-react";
@@ -11,17 +12,16 @@ type ProviderKey = CollectionMethod["provider"];
 
 const PROVIDERS: Array<{
   key: ProviderKey;
-  label: string;
-  hint: string;
+  tk: string;
   icon: typeof Banknote;
   needs: "none" | "merchant" | "bank" | "card";
 }> = [
-  { key: "cash",         label: "Espèces",        hint: "Paiement en liquide au comptoir. Aucun frais.",                         icon: Banknote,   needs: "none" },
-  { key: "momo_mtn",     label: "MTN MoMo",       hint: "Votre code/numéro marchand MTN Mobile Money. L'argent va direct chez vous.", icon: Smartphone, needs: "merchant" },
-  { key: "momo_airtel",  label: "Airtel Money",   hint: "Votre code/numéro marchand Airtel Money.",                              icon: Smartphone, needs: "merchant" },
-  { key: "momo_moov",    label: "Moov Money",     hint: "Votre code/numéro marchand Moov Money.",                                icon: Smartphone, needs: "merchant" },
-  { key: "bank_transfer",label: "Virement bancaire", hint: "Coordonnées bancaires affichées au client pour un virement.",        icon: Landmark,   needs: "bank" },
-  { key: "card_stripe",  label: "Carte (Visa/Mastercard)", hint: "Encaissement en ligne par carte. Validé par un paiement-test.", icon: CreditCard, needs: "card" },
+  { key: "cash",          tk: "cash",       icon: Banknote,   needs: "none" },
+  { key: "momo_mtn",      tk: "momoMtn",    icon: Smartphone, needs: "merchant" },
+  { key: "momo_airtel",   tk: "momoAirtel", icon: Smartphone, needs: "merchant" },
+  { key: "momo_moov",     tk: "momoMoov",   icon: Smartphone, needs: "merchant" },
+  { key: "bank_transfer", tk: "bankTransfer", icon: Landmark, needs: "bank" },
+  { key: "card_stripe",   tk: "cardStripe", icon: CreditCard, needs: "card" },
 ];
 
 function emptyDraft(provider: ProviderKey): CollectionMethod {
@@ -32,6 +32,7 @@ function emptyDraft(provider: ProviderKey): CollectionMethod {
 }
 
 export function CollectionMethodsPanel() {
+  const { t: tr } = useTranslation();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["collection-methods"], queryFn: () => api.listCollectionMethods() });
   const [cardTestOpen, setCardTestOpen] = useState(false);
@@ -55,27 +56,26 @@ export function CollectionMethodsPanel() {
         <div>
           <div className="flex items-center gap-2 text-[#17211f] dark:text-white">
             <ShieldCheck size={18} className="text-emerald-600" />
-            <h3 className="font-black">Encaissement</h3>
+            <h3 className="font-black">{tr("collectionMethods.title")}</h3>
           </div>
           <p className="mt-1 max-w-xl text-sm text-[#717182]">
-            Déclarez comment vos clients vous paient. L'argent va <strong>directement</strong> sur votre compte —
-            KOMPTA ne transite jamais les fonds. Tant qu'aucune méthode n'est activée et vérifiée, l'encaissement est bloqué.
+            {tr("collectionMethods.description")}
           </p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${canCollect ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"}`}>
-          {canCollect ? "Encaissement actif" : "Aucune méthode active"}
+          {canCollect ? tr("collectionMethods.active") : tr("collectionMethods.inactive")}
         </span>
       </div>
 
       {!canCollect && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-          Configurez au moins une méthode ci-dessous pour pouvoir encaisser vos ventes et factures.
+          {tr("collectionMethods.setupPrompt")}
         </div>
       )}
 
       {q.isLoading ? (
-        <div className="flex items-center gap-2 py-6 text-sm text-[#717182]"><Loader2 size={16} className="animate-spin" /> Chargement…</div>
+        <div className="flex items-center gap-2 py-6 text-sm text-[#717182]"><Loader2 size={16} className="animate-spin" /> {tr("collectionMethods.loading")}</div>
       ) : (
         <div className="grid gap-3">
           {PROVIDERS.map((p) => {
@@ -98,7 +98,7 @@ export function CollectionMethodsPanel() {
         <StripeCardPaymentModal
           amountCents={50_000}
           mode="verify"
-          description="Validation de votre carte (≈500 FCFA)"
+          description={tr("collectionMethods.cardTestDescription")}
           onSuccess={() => { setCardTestOpen(false); qc.invalidateQueries({ queryKey: ["collection-methods"] }); }}
           onClose={() => setCardTestOpen(false)}
         />
@@ -116,6 +116,7 @@ function ProviderCard({
   onSave: (patch: Partial<CollectionMethod>) => void;
   onTestCard: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const Icon = def.icon;
   const [merchant, setMerchant] = useState(method.merchant_number);
   const [account, setAccount] = useState(method.account_name);
@@ -125,6 +126,8 @@ function ProviderCard({
 
   const isCard = def.needs === "card";
   const verified = method.verified;
+  const label = tr(`collectionMethods.providers.${def.tk}.label`);
+  const hint = tr(`collectionMethods.providers.${def.tk}.hint`);
 
   function save(enabled: boolean) {
     onSave({
@@ -146,14 +149,14 @@ function ProviderCard({
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-black text-[#17211f] dark:text-white">{def.label}</p>
+              <p className="font-black text-[#17211f] dark:text-white">{label}</p>
               {verified && method.enabled && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-                  <CheckCircle2 size={11} /> Vérifié
+                  <CheckCircle2 size={11} /> {tr("collectionMethods.verified")}
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-xs text-[#717182]">{def.hint}</p>
+            <p className="mt-0.5 text-xs text-[#717182]">{hint}</p>
           </div>
         </div>
       </div>
@@ -161,22 +164,22 @@ function ProviderCard({
       {/* Champs selon le type */}
       {def.needs === "merchant" && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Code / n° marchand"
+          <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder={tr("collectionMethods.merchantNumberPlaceholder")}
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
-          <input value={account} onChange={(e) => setAccount(e.target.value)} placeholder="Nom du compte (ex: KOMPTA SARL)"
+          <input value={account} onChange={(e) => setAccount(e.target.value)} placeholder={tr("collectionMethods.accountNamePlaceholder")}
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
         </div>
       )}
       {def.needs === "bank" && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Nom de la banque"
+          <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder={tr("collectionMethods.bankNamePlaceholder")}
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
-          <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} placeholder="RIB / IBAN"
+          <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} placeholder={tr("collectionMethods.bankAccountPlaceholder")}
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
         </div>
       )}
       {(def.needs === "merchant" || def.needs === "bank") && (
-        <input value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Consignes affichées au client (facultatif)"
+        <input value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder={tr("collectionMethods.instructionsPlaceholder")}
           className="mt-2 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-[#252931] dark:text-white" />
       )}
 
@@ -186,31 +189,31 @@ function ProviderCard({
           <>
             {verified ? (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-                <CheckCircle2 size={15} /> Carte validée
+                <CheckCircle2 size={15} /> {tr("collectionMethods.cardVerified")}
               </span>
             ) : (
               <button onClick={onTestCard}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-blue-700">
-                <CreditCard size={15} /> Valider par paiement-test (≈500 FCFA)
+                <CreditCard size={15} /> {tr("collectionMethods.testCard")}
               </button>
             )}
-            <p className="text-xs text-[#717182]">La carte sert surtout à l'abonnement et à la clientèle internationale.</p>
+            <p className="text-xs text-[#717182]">{tr("collectionMethods.cardHint")}</p>
           </>
         ) : method.enabled ? (
           <>
             <button onClick={() => save(false)} disabled={saving}
               className="rounded-lg border border-black/[0.1] px-3.5 py-2 text-sm font-bold text-[#717182] hover:bg-black/[0.03] disabled:opacity-50 dark:border-white/[0.1] dark:hover:bg-white/[0.05]">
-              Désactiver
+              {tr("collectionMethods.disable")}
             </button>
             <button onClick={() => save(true)} disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} Enregistrer
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} {tr("collectionMethods.save")}
             </button>
           </>
         ) : (
           <button onClick={() => save(true)} disabled={saving}
             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} Activer
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} {tr("collectionMethods.enable")}
           </button>
         )}
       </div>

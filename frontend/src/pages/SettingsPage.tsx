@@ -465,7 +465,7 @@ export function SettingsPage() {
     { key: "subscription",  label: tr("settingsPage.tabs.subscription"),  icon: Sparkles    },
     { key: "modules",       label: tr("settingsPage.tabs.modules"),       icon: Zap         },
     { key: "payments",      label: tr("settingsPage.tabs.payments"),      icon: Wallet      },
-    { key: "roles",         label: "Rôles & accès",                       icon: UserCog     },
+    { key: "roles",         label: tr("settingsPage.tabs.roles"),         icon: UserCog     },
     { key: "security",      label: tr("settingsPage.tabs.security"),      icon: Lock        },
     { key: "notifications", label: tr("settingsPage.tabs.notifications"), icon: Bell        },
     { key: "teras",         label: tr("settingsPage.tabs.teras"),         icon: ShieldCheck },

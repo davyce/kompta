@@ -356,12 +356,12 @@ function ClientModal({
                 className="mt-0.5 h-4 w-4 rounded border-black/20 dark:border-white/20 text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs text-[#17211f] dark:text-white">
-                <span className="font-semibold">Créer un accès au portail client (gratuit)</span>
+                <span className="font-semibold">{tr("clientsPage.modal.portalAccess")}</span>
                 <br />
                 <span className="text-[#717182]">
                   {form.email.trim() || form.phone.trim()
-                    ? "Un mot de passe temporaire sera généré — le client se connecte sur /portal/login avec son email ou son téléphone."
-                    : "Renseignez un email ou un téléphone pour activer cette option."}
+                    ? tr("clientsPage.modal.portalAccessHintReady")
+                    : tr("clientsPage.modal.portalAccessHintMissing")}
                 </span>
               </span>
             </label>

@@ -1366,7 +1366,10 @@
       "status": "Status",
       "internalNotes": "Internal notes",
       "notesPlaceholder": "Additional information, preferences, history…",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "portalAccess": "Create client portal access (free)",
+      "portalAccessHintReady": "A temporary password will be generated — the client logs in at /portal/login with their email or phone.",
+      "portalAccessHintMissing": "Enter an email or phone number to enable this option."
     },
     "loyalty": {
       "title": "Loyalty",
@@ -3530,7 +3533,8 @@
       "notifications": "Notifications",
       "teras": "TERAS",
       "billing": "Billing",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "roles": "Roles & access"
     },
     "providers": {
       "zola": "Zola / QR",
@@ -5618,5 +5622,260 @@
       "title": "Bank reconciliation",
       "body": "Match your bank transactions with your accounting entries to keep your cash position accurate."
     }
+  },
+  "companySetupWizard": {
+    "header": "Setup · step {{current}}/{{total}}",
+    "finishLater": "Finish later",
+    "previous": "Previous",
+    "next": "Next",
+    "finish": "Finish",
+    "logoImported": "Logo imported: {{name}}",
+    "importLogo": "Upload a logo",
+    "logoHint": "You can change it later in Settings.",
+    "profileCompleted": "Profile {{pct}}% complete",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to KOMPTA",
+        "subtitle": "Let's set up your company in a few steps. Your answers are saved as you go — you can stop and resume anytime."
+      },
+      "org": {
+        "title": "Organization type",
+        "subtitle": "What kind of structure do you run?",
+        "orgTypeLabel": "Organization type",
+        "orgTypePlaceholder": "SME, Association, Cooperative…",
+        "industryLabel": "Industry",
+        "industryPlaceholder": "Retail and services"
+      },
+      "name": {
+        "title": "Company name",
+        "subtitle": "The name you operate under.",
+        "commercialLabel": "Trade name",
+        "commercialPlaceholder": "ADANSONIA",
+        "legalLabel": "Legal name",
+        "legalPlaceholder": "ADANSONIA LLC"
+      },
+      "legalForm": {
+        "title": "Legal form",
+        "subtitle": "The legal form of your structure.",
+        "label": "Legal form",
+        "placeholder": "LLC, Corp, Partnership, Association…"
+      },
+      "location": {
+        "title": "Location",
+        "subtitle": "Where is your company based?",
+        "countryLabel": "Country",
+        "countryPlaceholder": "Congo",
+        "cityLabel": "City",
+        "cityPlaceholder": "Brazzaville"
+      },
+      "address": {
+        "title": "Address",
+        "subtitle": "Your headquarters' physical address.",
+        "label": "Full address",
+        "placeholder": "123 Avenue de la Paix, Downtown"
+      },
+      "rccm": {
+        "title": "Trade register (RCCM)",
+        "subtitle": "Your trade registry registration number.",
+        "label": "RCCM No.",
+        "placeholder": "CG-BZV-01-2024-B12-00001",
+        "help": "Leave blank if you don't have it yet."
+      },
+      "niu": {
+        "title": "Tax ID (NIU)",
+        "subtitle": "Your unique tax identification number.",
+        "label": "NIU / NIF No.",
+        "placeholder": "M2024000000000A"
+      },
+      "cnss": {
+        "title": "Social security (CNSS)",
+        "subtitle": "Your employer number with the social security fund.",
+        "label": "CNSS No.",
+        "placeholder": "Employer number"
+      },
+      "patente": {
+        "title": "Business license",
+        "subtitle": "Your business license/permit number.",
+        "label": "License No.",
+        "placeholder": "License number"
+      },
+      "tax": {
+        "title": "Tax regime",
+        "subtitle": "Under which regime is your company taxed?",
+        "label": "Tax regime",
+        "placeholder": "Actual, Flat-rate, Micro-business…"
+      },
+      "capital": {
+        "title": "Share capital",
+        "subtitle": "Declared share capital (useful for legal documents).",
+        "capitalLabel": "Share capital",
+        "capitalPlaceholder": "1,000,000 FCFA",
+        "dateLabel": "Founding date"
+      },
+      "contact": {
+        "title": "Contact details",
+        "subtitle": "How your customers and partners reach you.",
+        "phoneLabel": "Phone",
+        "phonePlaceholder": "+242 06 000 0000",
+        "emailLabel": "Email",
+        "emailPlaceholder": "contact@company.com"
+      },
+      "website": {
+        "title": "Website",
+        "subtitle": "Your online presence (optional).",
+        "label": "Website",
+        "placeholder": "https://company.com"
+      },
+      "manager": {
+        "title": "Manager",
+        "subtitle": "The company's director or manager.",
+        "nameLabel": "Manager name",
+        "namePlaceholder": "Full name",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Manager, CEO…"
+      },
+      "bank": {
+        "title": "Bank details",
+        "subtitle": "For invoices and reconciliations.",
+        "bankLabel": "Bank",
+        "bankPlaceholder": "Bank name",
+        "accountLabel": "Account No. / IBAN",
+        "accountPlaceholder": "Account number"
+      },
+      "threshold": {
+        "title": "Cash alert",
+        "subtitle": "Limule alerts you when your cash balance drops below this threshold.",
+        "label": "Alert threshold (FCFA)",
+        "placeholder": "50000",
+        "help": "Default is 50,000 FCFA."
+      },
+      "colors": {
+        "title": "Brand colors",
+        "subtitle": "Customize the look of your workspace and documents.",
+        "primaryLabel": "Primary color",
+        "secondaryLabel": "Secondary color"
+      },
+      "logo": {
+        "title": "Company logo",
+        "subtitle": "It will appear on your invoices, quotes, and reports. (PNG, JPEG or WebP)"
+      },
+      "payments": {
+        "title": "Payment methods",
+        "subtitle": "Set up how your customers pay you (Mobile Money, cash, transfer, card).",
+        "ctaLabel": "Set up payments"
+      },
+      "employees": {
+        "title": "Your team",
+        "subtitle": "Add your first employees and generate their access. (Optional)",
+        "ctaLabel": "Add an employee"
+      },
+      "products": {
+        "title": "Your products / services",
+        "subtitle": "Build your catalog for POS and invoicing. (Optional)",
+        "ctaLabel": "Add a product"
+      },
+      "subscription": {
+        "title": "Your plan",
+        "subtitle": "You're on a free trial. Discover plans and included modules.",
+        "ctaLabel": "View plans"
+      },
+      "done": {
+        "title": "Setup complete!",
+        "subtitle": "Your company is set up. You can complete or edit this information anytime from Settings → Company."
+      }
+    }
+  },
+  "rolesSettings": {
+    "title": "Roles & access",
+    "subtitle": "Create roles with limited access to certain modules, then assign them to your members. A member's role determines which modules they see in the app.",
+    "customRoles": "Custom roles",
+    "newRole": "New role",
+    "noRoles": "No custom roles. Create one to restrict access for certain members.",
+    "accessCount": "{{count}} access · {{members}} member(s)",
+    "confirmDelete": "Delete role \"{{name}}\"?",
+    "membersAndAccess": "Members & access",
+    "baseRole": "Base role ({{role}})",
+    "noMembers": "No members.",
+    "editor": {
+      "editTitle": "Edit role",
+      "newTitle": "New role",
+      "nameLabel": "Role name",
+      "namePlaceholder": "Accountant, Cashier…",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional",
+      "colorLabel": "Color",
+      "modulesLabel": "Allowed modules ({{count}})",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save",
+      "create": "Create role"
+    }
+  },
+  "stripeConnect": {
+    "status": {
+      "notStarted": "Not set up",
+      "pending": "Under review",
+      "active": "Active",
+      "restricted": "Restricted"
+    },
+    "title": "Card payment payouts",
+    "description": "Without this, money collected by card (Tap to Pay, Apple Pay, web card) stays in KOMPTA's Stripe account — set up your bank account to receive it directly.",
+    "pendingNotice": "Onboarding started but not yet complete on Stripe's side — resume it below.",
+    "notStartedNotice": "No card payment has been paid out to your company yet.",
+    "activeNotice": "Account active — card payments are paid out automatically.",
+    "setupAccount": "Set up my bank account",
+    "resumeSetup": "Resume setup",
+    "onboardError": "Couldn't start setup. Try again later.",
+    "feeLabel": "KOMPTA fee per card payment",
+    "feeSave": "Save",
+    "feeHint": "Automatically deducted from each card payment before payout (between 0% and 10%).",
+    "feeError": "Value rejected."
+  },
+  "collectionMethods": {
+    "providers": {
+      "cash": {
+        "label": "Cash",
+        "hint": "Cash payment at the counter. No fees."
+      },
+      "momoMtn": {
+        "label": "MTN MoMo",
+        "hint": "Your MTN Mobile Money merchant code/number. Money goes directly to you."
+      },
+      "momoAirtel": {
+        "label": "Airtel Money",
+        "hint": "Your Airtel Money merchant code/number."
+      },
+      "momoMoov": {
+        "label": "Moov Money",
+        "hint": "Your Moov Money merchant code/number."
+      },
+      "bankTransfer": {
+        "label": "Bank transfer",
+        "hint": "Bank details shown to the customer for a transfer."
+      },
+      "cardStripe": {
+        "label": "Card (Visa/Mastercard)",
+        "hint": "Online card payments. Verified with a test charge."
+      }
+    },
+    "title": "Payment collection",
+    "description": "Declare how your customers pay you. Money goes directly to your account — KOMPTA never handles the funds. Payment collection is blocked until at least one method is enabled and verified.",
+    "active": "Collection active",
+    "inactive": "No active method",
+    "setupPrompt": "Set up at least one method below to be able to collect payments for sales and invoices.",
+    "loading": "Loading…",
+    "cardTestDescription": "Card verification (≈$1)",
+    "verified": "Verified",
+    "merchantNumberPlaceholder": "Merchant code / number",
+    "accountNamePlaceholder": "Account name (e.g. KOMPTA LLC)",
+    "bankNamePlaceholder": "Bank name",
+    "bankAccountPlaceholder": "Account number / IBAN",
+    "instructionsPlaceholder": "Instructions shown to the customer (optional)",
+    "cardVerified": "Card verified",
+    "testCard": "Verify with a test charge (≈$1)",
+    "cardHint": "Card is mainly used for the subscription and international customers.",
+    "disable": "Disable",
+    "save": "Save",
+    "enable": "Enable"
   }
 }
