@@ -38,11 +38,13 @@ Légende : ☐ à faire · ✅ déjà prêt côté code · 🔑 nécessite vos i
 
 > ⚠️ macOS : si distribution App Store, l'app doit être **sandboxée** (App Sandbox capability). Vérifier que les accès réseau sortants et la lecture de fichiers choisis par l'utilisateur (document picker) suffisent — c'est le cas, KOMPTA n'a pas besoin d'accès disque large.
 
+> ⚠️ Guideline 3.1.1 résiduel : `AdminCreateCompanySheet` (création d'entreprise depuis la console super-admin) reste compilée dans la cible iOS, accessible uniquement aux comptes `super_admin`. Le compte de review (`admin_entreprise`, §7) n'y a pas accès — s'assurer qu'il ne soit **jamais** promu super_admin avant/pendant la review.
+
 ## 3. Conformité confidentialité ✅ (côté code) + 🔑 questionnaire
 
 - ✅ `PrivacyInfo.xcprivacy` embarqué (NSPrivacyTracking=false, UserDefaults/CA92.1)
 - ✅ Aucune permission inutile (FaceID/Camera retirées)
-- ✅ Pages publiques : `https://VOTRE_DOMAINE/privacy` et `/terms`
+- ✅ Pages publiques : `https://kompta0.com/privacy` et `/terms`
 - 🔑 ☐ **App Privacy** (questionnaire App Store Connect) — réponses recommandées pour KOMPTA :
 
 | Type de donnée | Collectée ? | Liée à l'utilisateur ? | Tracking ? | Finalité |
@@ -54,7 +56,7 @@ Légende : ☐ à faire · ✅ déjà prêt côté code · 🔑 nécessite vos i
 | Localisation précise (GPS) | **Non** (géoloc serveur IP, pas GPS device) | — | — | — |
 | Identifiants publicitaires (IDFA) | **Non** | — | — | — |
 
-- 🔑 ☐ Renseigner l'**URL de politique de confidentialité** : `https://VOTRE_DOMAINE/privacy`
+- 🔑 ☐ Renseigner l'**URL de politique de confidentialité** : `https://kompta0.com/privacy`
 - ☐ Compléter les coordonnées légales dans `frontend/src/pages/LegalPages.tsx` (bloc `LEGAL`) + relecture juriste
 
 ## 4. Captures d'écran (obligatoires)
@@ -82,22 +84,23 @@ Formats requis par Apple (PNG/JPEG, RGB, sans transparence, sans coins arrondis 
 - ☐ **URL marketing** (optionnel)
 - ☐ **Texte promotionnel** (170 car., modifiable sans review)
 - ☐ **Coordonnées de contact review** (nom, téléphone, e-mail)
-- ☐ **Notes pour la review** : ⚠️ **fournir un compte de test** (e-mail + mot de passe d'une entreprise de démo en prod) — sinon rejet immédiat car l'app exige une connexion
+- 🔑 ☐ **Notes pour la review** : coller le compte de test ci-dessous (voir §7) dans le champ « Notes pour la review » d'App Store Connect — **ne jamais committer le mot de passe dans le dépôt git**, il va uniquement dans App Store Connect
 - ☐ **Âge** : 17+ probable (contenu financier) — répondre au questionnaire de classification
 
 ## 6. Abonnements / paiements (si applicable)
 
-- ☐ KOMPTA encaisse via **Stripe / MTN MoMo** pour des **services B2B** (gestion d'entreprise). Apple **n'exige pas l'In-App Purchase** pour des biens/services consommés hors de l'app (B2B SaaS). Confirmer la qualification ; sinon, prévoir l'IAP.
-- ☐ Si abonnement via IAP requis : créer les produits dans App Store Connect + intégrer StoreKit (non implémenté actuellement)
+- ✅ **StoreKit 2 implémenté** pour l'abonnement iOS (`Sources/Services/StoreKitManager.swift`, achat + `Transaction.updates` + reçu JWS envoyé au backend). Vérification côté serveur réelle : `POST /payments/apple/verify` (`backend/app/api/routes_payments.py`, `verify_apple_jws` dans `backend/app/services/payments.py`), testée dans `backend/app/tests/test_apple_iap.py`
+- ✅ Les produits d'abonnement doivent exister côté **App Store Connect → Fonctionnalités de l'app → Achats intégrés/Abonnements** avec les mêmes identifiants que ceux référencés dans `StoreKitManager.swift` — 🔑 à créer/vérifier manuellement si pas déjà fait
+- ☐ KOMPTA encaisse aussi via **Stripe / MTN MoMo** pour les paiements B2B hors abonnement plateforme (factures clients, POS) — ceci reste légitime hors périmètre IAP (ce ne sont pas des achats numériques consommés dans l'app)
 - 🔑 ☐ Renseigner Stripe **live** + `STRIPE_WEBHOOK_SECRET` + MoMo prod côté backend (`.env.production`) avant la review
 
 ## 7. Backend prêt pour la review
 
 - 🔑 ☐ Instance AWS provisionnée et **accessible en HTTPS public** (voir `infra/aws/README.md`)
-- ☐ App native pointée sur `https://VOTRE_DOMAINE/api` (Réglages → URL du serveur, ou valeur par défaut prod)
-- ☐ Compte de démo créé et fonctionnel sur la prod (pour les notes de review)
-- ☐ `/privacy` et `/terms` accessibles publiquement sur le domaine prod
-- ☐ Backend `health` 200, login OK depuis l'app buildée en Release
+- ✅ App native pointée sur `https://kompta0.com/api` par défaut (`APIClient.swift`)
+- ✅ **Compte de démo créé et fonctionnel sur la prod** : `appreview@kompta0.com`, rôle `admin_entreprise` (pas super_admin — pas d'accès aux écrans d'administration plateforme), entreprise « Société Démo KOMPTA », abonnement forcé en illimité via la console super-admin (jamais de paywall). Mot de passe à saisir uniquement dans le champ « Notes pour la review » d'App Store Connect (§5), jamais dans ce dépôt.
+- 🔑 ☐ `/privacy` et `/terms` accessibles publiquement sur `kompta0.com` — à vérifier après déploiement
+- 🔑 ☐ Backend `health` 200, login OK depuis l'app buildée en Release — à vérifier après déploiement
 
 ## 8. Avant de cliquer "Submit for Review"
 
@@ -105,7 +108,7 @@ Formats requis par Apple (PNG/JPEG, RGB, sans transparence, sans coins arrondis 
 - ☐ Toutes captures + métadonnées + URL privacy remplies
 - ☐ Questionnaire App Privacy complété
 - ☐ Export Compliance : KOMPTA utilise **HTTPS standard** → "Uses encryption" = Oui, mais **exempt** (chiffrement standard) → pas de doc ERN requise dans la majorité des cas
-- ☐ Compte de test renseigné dans les notes
+- 🔑 ☐ Compte de test (`appreview@kompta0.com` + mot de passe) renseigné dans les notes de review
 - ☐ Soumettre. Délai review : ~24–48 h en général.
 
 ---
@@ -117,7 +120,7 @@ Formats requis par Apple (PNG/JPEG, RGB, sans transparence, sans coins arrondis 
 - Permissions déclarées sans usage → **OK, nettoyées**
 
 ## Causes de rejet à surveiller ⚠️
-- **Pas de compte de test** fourni → bloquant (app à connexion obligatoire)
+- **Pas de compte de test** fourni → ✅ compte `appreview@kompta0.com` créé en prod (voir §7) ; reste à coller mot de passe + email dans les notes de review avant soumission
 - **Backend injoignable** pendant la review → app non testable = rejet
 - App qui **plante** sur le device du reviewer → tester sur appareil réel en Release
 - **Mentions de plateformes tierces** ou liens de paiement externes contournant Apple (si IAP requis)
