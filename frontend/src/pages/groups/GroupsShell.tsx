@@ -53,6 +53,7 @@ export function GroupsShell() {
         {/* Theme */}
         <button
           onClick={toggleTheme}
+          aria-label={theme === "dark" ? tr("groupPages.shell.lightMode") : tr("groupPages.shell.darkMode")}
           className="grid h-9 w-9 place-items-center rounded-lg hover:bg-blue-50 hover:text-blue-800 text-[#717182] transition dark:hover:bg-white/[0.06] dark:text-white/60"
         >
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
@@ -62,6 +63,7 @@ export function GroupsShell() {
         <div className="relative">
           <button
             onClick={() => { setNotifOpen(v => !v); if (!notifOpen) markAllRead(); }}
+            aria-label={tr("groupPages.shell.notifications")}
             className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-blue-50 hover:text-blue-800 text-[#717182] transition dark:hover:bg-white/[0.06] dark:text-white/60"
           >
             <Bell size={17} />
@@ -103,6 +105,8 @@ export function GroupsShell() {
         <div className="relative">
           <button
             onClick={() => setUserMenuOpen(v => !v)}
+            aria-label={tr("groupPages.shell.profile")}
+            aria-expanded={userMenuOpen}
             className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5 hover:border-blue-400 transition dark:border-white/10 dark:bg-white/5"
           >
             <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-blue-700 to-blue-900 text-[11px] font-bold text-white">

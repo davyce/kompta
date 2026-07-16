@@ -680,7 +680,8 @@
         "aiAssistant": "Limule Assistant",
         "reports": "Reports",
         "settings": "Settings"
-      }
+      },
+      "openMenu": "Open menu"
     },
     "shell": {
       "brandSubtitle": "Groups & Organizations",
@@ -691,7 +692,9 @@
       "logout": "Log out",
       "groups": "Groups",
       "company": "Company",
-      "profile": "Profile"
+      "profile": "Profile",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode"
     },
     "list": {
       "title": "My Groups & Orgs",
@@ -1114,7 +1117,8 @@
         "office": "👔 Officers — officers only",
         "finance": "💰 Finance — treasurer and officers",
         "event": "🎉 Event"
-      }
+      },
+      "deleteMessage": "Delete message"
     },
     "settings": {
       "title": "Group settings",

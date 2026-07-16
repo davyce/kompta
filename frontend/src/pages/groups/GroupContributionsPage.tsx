@@ -176,7 +176,7 @@ export function GroupContributionsPage() {
         <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           <span>{reminderError}</span>
-          <button onClick={() => setReminderError(null)} className="ml-auto text-rose-500 hover:text-rose-700">
+          <button onClick={() => setReminderError(null)} aria-label={tr("common.close")} className="ml-auto text-rose-500 hover:text-rose-700">
             <X size={14} />
           </button>
         </div>
@@ -402,7 +402,7 @@ export function GroupContributionsPage() {
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.contributions.newPlan")}</h3>
-              <button onClick={() => setShowPlan(false)}><X size={16} /></button>
+              <button onClick={() => setShowPlan(false)} aria-label={tr("common.close")}><X size={16} /></button>
             </div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">
@@ -449,6 +449,9 @@ export function GroupContributionsPage() {
                 <button
                   type="button"
                   onClick={() => setPlanForm(f => ({ ...f, is_mandatory: !f.is_mandatory }))}
+                  role="switch"
+                  aria-checked={planForm.is_mandatory}
+                  aria-label={tr("groupPages.contributions.form.mandatory")}
                   className={`relative w-10 h-5 rounded-full transition-colors ${planForm.is_mandatory ? "bg-blue-800" : "bg-gray-300 dark:bg-gray-600"}`}
                 >
                   <span
@@ -474,7 +477,7 @@ export function GroupContributionsPage() {
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.contributions.recordPayment")}</h3>
-              <button onClick={() => setShowPayment(false)}><X size={16} /></button>
+              <button onClick={() => setShowPayment(false)} aria-label={tr("common.close")}><X size={16} /></button>
             </div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">
@@ -539,7 +542,7 @@ export function GroupContributionsPage() {
                 <Bell size={16} className="text-rose-600" />
                 <h3 className="font-bold text-[#17211f] dark:text-white">{tr("groupPages.contributions.remindMember", { name: reminderResult.member_name })}</h3>
               </div>
-              <button onClick={() => { setReminderResult(null); setReminderCopied(false); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
+              <button onClick={() => { setReminderResult(null); setReminderCopied(false); }} aria-label={tr("common.close")} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
                 <X size={18} />
               </button>
             </div>

@@ -87,7 +87,7 @@ export function GroupExpensesPage() {
       {showAdd && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.expenses.modalTitle")}</h3><button onClick={() => setShowAdd(false)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.expenses.modalTitle")}</h3><button onClick={() => setShowAdd(false)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <div className="space-y-3">
               {[
                 { f: "title", l: tr("groupPages.expenses.form.title"), p: tr("groupPages.expenses.form.titlePlaceholder") },

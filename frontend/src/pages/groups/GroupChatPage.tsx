@@ -140,6 +140,7 @@ export function GroupChatPage() {
               onClick={() => setShowCreateRoom(true)}
               className="flex h-6 w-6 items-center justify-center rounded-md text-[#717182] hover:bg-blue-100 hover:text-blue-800 dark:hover:bg-blue-800/15 dark:hover:text-blue-400 transition"
               title={tr("groupPages.chat.createRoom")}
+              aria-label={tr("groupPages.chat.createRoom")}
             >
               <Plus size={14} />
             </button>
@@ -244,8 +245,8 @@ export function GroupChatPage() {
                     {formatMessageTime(m.created_at)}
                   </p>
                   {isMe && !deleted && (
-                    <div className="mt-0.5 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => del.mutate(m.id)} className="rounded px-1.5 py-0.5 text-[10px] text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 size={10} /></button>
+                    <div className="mt-0.5 flex justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button onClick={() => del.mutate(m.id)} aria-label={tr("groupPages.chat.deleteMessage")} className="rounded px-1.5 py-0.5 text-[10px] text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 size={10} /></button>
                     </div>
                   )}
                 </div>
@@ -287,6 +288,7 @@ export function GroupChatPage() {
               onClick={() => setAssistantOpen(false)}
               className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
               title={tr("groupPages.chat.closeLimule")}
+              aria-label={tr("groupPages.chat.closeLimule")}
             >
               <X size={16} />
             </button>
@@ -310,7 +312,7 @@ export function GroupChatPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
               <h3 className="font-bold text-[#17211f] dark:text-white">{tr("groupPages.chat.newRoom")}</h3>
-              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
+              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(""); }} aria-label={tr("common.close")} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white">
                 <X size={18} />
               </button>
             </div>

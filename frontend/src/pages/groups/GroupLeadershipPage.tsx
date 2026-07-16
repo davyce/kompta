@@ -90,7 +90,7 @@ export function GroupLeadershipPage() {
       {showChange && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.leadership.changeOffice")}</h3><button onClick={() => setShowChange(false)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.leadership.changeOffice")}</h3><button onClick={() => setShowChange(false)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <div className="space-y-3">
               {[
                 { label: tr("groupPages.leadership.roles.president"), field: "president_member_id" },

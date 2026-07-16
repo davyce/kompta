@@ -104,7 +104,7 @@ export function GroupMembersPage() {
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#252931] px-3 py-2 flex-1 max-w-xs">
           <Search size={14} className="text-[#717182]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("common.search")} className="bg-transparent text-sm outline-none text-[#17211f] dark:text-white placeholder:text-[#717182]" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("common.search")} aria-label={tr("common.search")} className="bg-transparent text-sm outline-none text-[#17211f] dark:text-white placeholder:text-[#717182]" />
         </div>
       </div>
 
@@ -241,6 +241,7 @@ export function GroupMembersPage() {
                           disabled={removeMember.isPending}
                           className="flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
                           title={tr("groupPages.members.removeFromGroup")}
+                          aria-label={tr("groupPages.members.removeFromGroup")}
                         >
                           {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                         </button>
@@ -265,7 +266,7 @@ export function GroupMembersPage() {
                 <Key size={18} className="text-blue-800" />
                 {provisionResult.created ? tr("groupPages.members.accountCreated") : tr("groupPages.members.accountExisting")}
               </h3>
-              <button onClick={() => setProvisionResult(null)}><X size={16} className="text-[#717182]" /></button>
+              <button onClick={() => setProvisionResult(null)} aria-label={tr("common.close")}><X size={16} className="text-[#717182]" /></button>
             </div>
             <p className="text-sm text-[#717182] mb-4">{provisionResult.message}</p>
             <div className="space-y-2">
@@ -277,6 +278,7 @@ export function GroupMembersPage() {
                   readOnly
                   value={provisionResult.login_identifier}
                   onClick={(e) => { (e.target as HTMLInputElement).select(); copyToClipboard(provisionResult.login_identifier); }}
+                  aria-label={tr("groupPages.members.loginIdentifier")}
                   style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontVariantLigatures: "none" }}
                   className="w-full bg-transparent text-base font-bold text-[#17211f] dark:text-white border-0 outline-none cursor-pointer select-all"
                 />
@@ -295,6 +297,7 @@ export function GroupMembersPage() {
                     readOnly
                     value={provisionResult.temporary_password}
                     onClick={(e) => { (e.target as HTMLInputElement).select(); copyToClipboard(provisionResult.temporary_password!); }}
+                    aria-label={tr("groupPages.members.temporaryPassword")}
                     style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontVariantLigatures: "none", letterSpacing: "0.5px" }}
                     className="w-full bg-white dark:bg-[#1e2229] rounded-lg px-3 py-2 text-base font-bold text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500/40 outline-none cursor-pointer select-all"
                   />
@@ -315,7 +318,7 @@ export function GroupMembersPage() {
           <div className="w-full max-w-md rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.members.addMember")}</h3>
-              <button onClick={() => setShowAdd(false)}><X size={16} className="text-[#717182]" /></button>
+              <button onClick={() => setShowAdd(false)} aria-label={tr("common.close")}><X size={16} className="text-[#717182]" /></button>
             </div>
             <div className="space-y-3">
               {[

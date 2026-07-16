@@ -680,7 +680,8 @@
         "aiAssistant": "Assistant Limule",
         "reports": "Rapports",
         "settings": "Paramètres"
-      }
+      },
+      "openMenu": "Ouvrir le menu"
     },
     "shell": {
       "brandSubtitle": "Groupes & Organisations",
@@ -691,7 +692,9 @@
       "logout": "Déconnexion",
       "groups": "Groupes",
       "company": "Entreprise",
-      "profile": "Profil"
+      "profile": "Profil",
+      "lightMode": "Mode clair",
+      "darkMode": "Mode sombre"
     },
     "list": {
       "title": "Mes Groupes & Orgs",
@@ -1114,7 +1117,8 @@
         "office": "👔 Bureau — membres du bureau",
         "finance": "💰 Finance — trésorier et bureau",
         "event": "🎉 Événement"
-      }
+      },
+      "deleteMessage": "Supprimer le message"
     },
     "settings": {
       "title": "Paramètres du groupe",

@@ -79,7 +79,7 @@ export function GroupMeetingsPage() {
       {showAdd && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.meetings.modalTitle")}</h3><button onClick={() => setShowAdd(false)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.meetings.modalTitle")}</h3><button onClick={() => setShowAdd(false)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">{tr("groupPages.meetings.form.title")}<input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-sky-500" /></label>
               <label className="block text-xs font-bold uppercase text-[#717182]">{tr("groupPages.meetings.form.datetime")}<input type="datetime-local" value={form.start_datetime} onChange={e => setForm(f => ({...f, start_datetime: e.target.value}))} className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case" /></label>
@@ -96,7 +96,7 @@ export function GroupMeetingsPage() {
       {showMinutes !== null && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.meetings.minutesTitle")}</h3><button onClick={() => setShowMinutes(null)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.meetings.minutesTitle")}</h3><button onClick={() => setShowMinutes(null)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <textarea value={minutes} onChange={e => setMinutes(e.target.value)} placeholder={tr("groupPages.meetings.minutesPlaceholder")} rows={8} className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-3 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-sky-500" />
             <button disabled={!minutes.trim() || addMinutes.isPending} onClick={() => addMinutes.mutate(showMinutes)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:bg-stone-300 transition">
               {addMinutes.isPending ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} {tr("groupPages.meetings.saveMinutes")}

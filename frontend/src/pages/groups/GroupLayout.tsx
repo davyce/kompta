@@ -96,7 +96,7 @@ export function GroupLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center gap-2 border-b border-black/[0.05] dark:border-white/[0.05] px-4 py-3 md:hidden">
-          <button onClick={() => setSidebarOpen(v => !v)}>
+          <button onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? tr("groupPages.layout.closeMenu") : tr("groupPages.layout.openMenu")}>
             {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
           <span className="font-bold text-sm text-[#17211f] dark:text-white">{group?.name}</span>

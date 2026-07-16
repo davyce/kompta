@@ -84,7 +84,7 @@ export function GroupVotesPage() {
       {showResults && results && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-black text-[#17211f] dark:text-white">{results.title}</h3><button onClick={() => setShowResults(null)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-black text-[#17211f] dark:text-white">{results.title}</h3><button onClick={() => setShowResults(null)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <p className="text-xs text-[#717182] mb-3">{tr("groupPages.votes.voteCount", { count: results.total_votes })}</p>
             <div className="space-y-3">
               {results.results.map(r => (
@@ -105,13 +105,14 @@ export function GroupVotesPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1e2229] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.votes.modalTitle")}</h3><button onClick={() => setShowCreate(false)}><X size={16} /></button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-[#17211f] dark:text-white">{tr("groupPages.votes.modalTitle")}</h3><button onClick={() => setShowCreate(false)} aria-label={tr("common.close")}><X size={16} /></button></div>
             <div className="space-y-3">
               <label className="block text-xs font-bold uppercase text-[#717182]">{tr("groupPages.votes.form.question")}<input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} className="mt-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2.5 text-sm text-[#17211f] dark:text-white outline-none normal-case focus:border-amber-500" /></label>
               <div>
                 <p className="text-xs font-bold uppercase text-[#717182] mb-1">{tr("groupPages.votes.form.options")}</p>
                 {form.options.map((opt, i) => (
                   <input key={i} value={opt} onChange={e => { const ops = [...form.options]; ops[i] = e.target.value; setForm(f => ({...f, options: ops})); }} placeholder={tr("groupPages.votes.form.optionPlaceholder", { index: i + 1 })}
+                    aria-label={tr("groupPages.votes.form.optionPlaceholder", { index: i + 1 })}
                     className="mb-1 w-full rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none normal-case" />
                 ))}
                 <button onClick={() => setForm(f => ({...f, options: [...f.options, ""]}))} className="text-xs font-bold text-amber-600 hover:text-amber-700">{tr("groupPages.votes.form.addOption")}</button>
