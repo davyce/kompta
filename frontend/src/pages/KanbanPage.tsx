@@ -142,12 +142,14 @@ export function KanbanPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={tr("kanban.searchPlaceholder")}
+              aria-label={tr("kanban.searchPlaceholder")}
               className="w-48 bg-transparent text-sm outline-none text-[#17211f] placeholder:text-[#717182] dark:text-white"
             />
           </div>
           <select
             value={assignee}
             onChange={(e) => setAssignee(e.target.value)}
+            aria-label={tr("kanban.filterByAssignee")}
             className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
           >
             <option value="all">{tr("kanban.allAssignees")}</option>
@@ -156,6 +158,7 @@ export function KanbanPage() {
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
+            aria-label={tr("kanban.filterByPriority")}
             className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
           >
             <option value="all">{tr("kanban.allPriorities")}</option>
@@ -202,7 +205,8 @@ export function KanbanPage() {
                         {task.can_delete && (
                           <button
                             onClick={async () => { if (await confirm({ title: tr("kanban.deleteTask"), danger: true, confirmLabel: tr("common.delete") })) deleteTask.mutate(task.id); }}
-                            className="opacity-0 group-hover:opacity-100 text-[#717182] hover:text-rose-600 transition"
+                            aria-label={tr("common.delete")}
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[#717182] hover:text-rose-600 transition"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -254,11 +258,12 @@ export function KanbanPage() {
                       onChange={(e) => setNewTitle(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") quickAdd(col.key); if (e.key === "Escape") { setAdding(null); setNewTitle(""); } }}
                       placeholder={tr("kanban.addCardPlaceholder")}
+                      aria-label={tr("kanban.addCardPlaceholder")}
                       className="w-full bg-transparent text-sm outline-none text-[#17211f] dark:text-white"
                     />
                     <div className="mt-2 flex gap-2">
                       <button onClick={() => quickAdd(col.key)} className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">{tr("kanban.add")}</button>
-                      <button onClick={() => { setAdding(null); setNewTitle(""); }} className="grid h-6 w-6 place-items-center rounded-md text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/10"><X size={13} /></button>
+                      <button onClick={() => { setAdding(null); setNewTitle(""); }} aria-label={tr("common.cancel")} className="grid h-6 w-6 place-items-center rounded-md text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/10"><X size={13} /></button>
                     </div>
                   </div>
                 ) : (

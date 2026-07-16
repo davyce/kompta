@@ -334,6 +334,7 @@ export function ReportsHubPage() {
             </div>
             <button
               onClick={() => { abortRef.current = true; setAiState(null); }}
+              aria-label={tr("common.close")}
               className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
             >
               <X size={16} />

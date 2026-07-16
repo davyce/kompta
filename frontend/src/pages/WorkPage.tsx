@@ -274,12 +274,14 @@ export function WorkPage() {
                     onClick={handleDeleteSelectedTask}
                     className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-500 transition"
                     title={tr("common.delete")}
+                    aria-label={tr("common.delete")}
                   >
                     <Trash2 size={15} />
                   </button>
                 )}
                 <button
                   onClick={() => { setSelectedTask(null); setProofFile(null); setProofPreview(null); }}
+                  aria-label={tr("common.close")}
                   className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-stone-200 hover:text-stone-700 transition"
                 >
                   <X size={16} />
@@ -493,10 +495,11 @@ export function WorkPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={tr("work.search.placeholder")}
+              aria-label={tr("work.search.placeholder")}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="text-stone-400 hover:text-stone-600">
+              <button onClick={() => setSearch("")} aria-label={tr("common.clearSearch")} className="text-stone-400 hover:text-stone-600">
                 <X size={13} />
               </button>
             )}
@@ -616,6 +619,10 @@ export function WorkPage() {
                         <article
                           key={task.id}
                           onClick={() => setSelectedTask(task)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTask(task); } }}
+                          aria-label={tr("work.viewTask", { title: task.title })}
                           className={`group cursor-pointer rounded-xl border p-3 transition hover:shadow-md ${
                             task.assigned_to_me
                               ? "border-emerald-300 bg-emerald-50 hover:border-emerald-400"
@@ -746,10 +753,11 @@ export function WorkPage() {
                 {/* Échéance + Heure */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.due")}</label>
+                    <label htmlFor="work-due-date" className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.taskDetail.due")}</label>
                     <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
                       <CalendarDays size={13} className="shrink-0 text-stone-400" />
                       <input
+                        id="work-due-date"
                         type="date"
                         value={taskForm.due_date}
                         onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
@@ -758,10 +766,11 @@ export function WorkPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.newTask.time")}</label>
+                    <label htmlFor="work-due-time" className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-400">{tr("work.newTask.time")}</label>
                     <div className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 focus-within:border-emerald-400 transition">
                       <Clock3 size={13} className="shrink-0 text-stone-400" />
                       <input
+                        id="work-due-time"
                         type="time"
                         value={taskForm.due_time}
                         onChange={(e) => setTaskForm({ ...taskForm, due_time: e.target.value })}

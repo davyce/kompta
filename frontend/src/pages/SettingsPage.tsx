@@ -56,11 +56,14 @@ const EMPTY_PAYMENT_FORM = {
 };
 
 /* ── Toggle ───────────────────────────────────────────────────────── */
-function Toggle({ on, onChange, disabled = false }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+function Toggle({ on, onChange, disabled = false, label }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string }) {
   return (
     <button
       onClick={() => !disabled && onChange(!on)}
       disabled={disabled}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       className={`flex h-6 w-11 items-center rounded-full transition-colors ${on ? "bg-emerald-600" : "bg-black/20 dark:bg-white/20"} ${disabled ? "opacity-50" : ""}`}
     >
       <span className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
@@ -860,6 +863,7 @@ export function SettingsPage() {
                       setPref("language", e.target.value);
                       setLanguage(e.target.value as "fr" | "en");
                     }}
+                    aria-label={tr("settings.language")}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
                     <option value="fr">{tr("settings.french")}</option>
                     <option value="en">{tr("settings.english")}</option>
@@ -869,6 +873,7 @@ export function SettingsPage() {
                   <select
                     value={activeCurrency}
                     onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                    aria-label={tr("settingsPage.general.referenceCurrency")}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm text-[#17211f] dark:text-white outline-none focus:border-emerald-500">
                     {SUPPORTED_CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code}>{tr(c.labelTk, { defaultValue: c.label })}</option>
@@ -963,6 +968,7 @@ export function SettingsPage() {
                         on={mod.enabled}
                         disabled={toggleModule.isPending || isEmployeeSelfService}
                         onChange={(v) => toggleModule.mutate({ key: mod.module_key, enabled: v })}
+                        label={label}
                       />
                     </div>
                   );
@@ -1417,22 +1423,23 @@ export function SettingsPage() {
               <div className="px-6 py-2">
                 <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">{tr("settingsPage.notifications.channels")}</p>
                 <SettingRow icon={Bell} label={tr("settingsPage.notifications.email")} description={tr("settingsPage.notifications.emailDesc")}>
-                  <Toggle on={localPrefs.notify_email} onChange={(v) => setPref("notify_email", v)} />
+                  <Toggle on={localPrefs.notify_email} onChange={(v) => setPref("notify_email", v)} label={tr("settingsPage.notifications.email")} />
                 </SettingRow>
                 <SettingRow icon={Smartphone} label={tr("settingsPage.notifications.chat")} description={tr("settingsPage.notifications.chatDesc")}>
-                  <Toggle on={localPrefs.notify_chat} onChange={(v) => setPref("notify_chat", v)} />
+                  <Toggle on={localPrefs.notify_chat} onChange={(v) => setPref("notify_chat", v)} label={tr("settingsPage.notifications.chat")} />
                 </SettingRow>
                 <p className="py-3 text-xs font-bold uppercase tracking-wider text-[#717182]">{tr("settingsPage.notifications.events")}</p>
                 <SettingRow icon={ShieldCheck} label={tr("settingsPage.notifications.terasAlerts")} description={tr("settingsPage.notifications.terasAlertsDesc")}>
-                  <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} />
+                  <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} label={tr("settingsPage.notifications.terasAlerts")} />
                 </SettingRow>
                 <SettingRow icon={Bell} label={tr("settingsPage.notifications.payrollReminders")} description={tr("settingsPage.notifications.payrollRemindersDesc")}>
-                  <Toggle on={localPrefs.notify_payroll} onChange={(v) => setPref("notify_payroll", v)} />
+                  <Toggle on={localPrefs.notify_payroll} onChange={(v) => setPref("notify_payroll", v)} label={tr("settingsPage.notifications.payrollReminders")} />
                 </SettingRow>
                 <SettingRow icon={BrainCircuit} label={tr("settingsPage.notifications.digestFrequency")} description={tr("settingsPage.notifications.digestDesc")}>
                   <select
                     value={localPrefs.digest_frequency}
                     onChange={(e) => setPref("digest_frequency", e.target.value)}
+                    aria-label={tr("settingsPage.notifications.digestFrequency")}
                     className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252931] px-3 py-2 text-sm">
                     <option value="off">{tr("settingsPage.disabled")}</option>
                     <option value="daily">{tr("settingsPage.notifications.daily")}</option>
@@ -1468,7 +1475,7 @@ export function SettingsPage() {
                   <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400">{tr("settingsPage.teras.lastAnalysis", { date: lastTerasAnalysis })}</p>
                 </div>
                 <SettingRow icon={Bell} label={tr("settingsPage.teras.receiveAlerts")} description={tr("settingsPage.teras.receiveAlertsDesc")}>
-                  <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} />
+                  <Toggle on={localPrefs.notify_teras} onChange={(v) => setPref("notify_teras", v)} label={tr("settingsPage.teras.receiveAlerts")} />
                 </SettingRow>
                 <div className="py-4">
                   <button

@@ -242,12 +242,14 @@ function TaskDetailModal({
                 onClick={() => { onClose(); onEdit(task); }}
                 className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-violet-50 hover:text-violet-600 transition"
                 title={tr("common.edit")}
+                aria-label={tr("common.edit")}
               >
                 <Edit3 size={15} />
               </button>
             )}
             <button
               onClick={onClose}
+              aria-label={tr("common.close")}
               className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition dark:hover:bg-white/10"
             >
               <X size={16} />
@@ -600,6 +602,7 @@ function TaskCard({
                   onClick={(e) => { e.stopPropagation(); onEdit(task); }}
                   className="grid h-6 w-6 place-items-center rounded-lg border border-black/[0.06] text-stone-400 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600 transition"
                   title={tr("common.edit")}
+                  aria-label={tr("common.edit")}
                 >
                   <Edit3 size={11} />
                 </button>
@@ -607,6 +610,7 @@ function TaskCard({
                   onClick={(e) => { e.stopPropagation(); onDelete(task); }}
                   className="grid h-6 w-6 place-items-center rounded-lg border border-black/[0.06] text-stone-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition"
                   title={tr("common.delete")}
+                  aria-label={tr("common.delete")}
                 >
                   <Trash2 size={11} />
                 </button>
@@ -721,9 +725,10 @@ export function ProjectsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={tr("projectsPage.search.placeholder")}
+                aria-label={tr("projectsPage.search.placeholder")}
                 className="w-40 bg-transparent text-sm text-[#17211f] outline-none placeholder:text-stone-400 dark:text-white"
               />
-              {search && <button onClick={() => setSearch("")} className="text-stone-400 hover:text-stone-600"><X size={12} /></button>}
+              {search && <button onClick={() => setSearch("")} aria-label={tr("common.clearSearch")} className="text-stone-400 hover:text-stone-600"><X size={12} /></button>}
             </div>
             {/* Filter toggle */}
             <button
@@ -849,6 +854,7 @@ export function ProjectsPage() {
                         if (e.key === "Escape") { setNewTaskCol(null); setNewTitle(""); }
                       }}
                       placeholder={tr("projectsPage.form.titlePlaceholder")}
+                      aria-label={tr("projectsPage.form.titlePlaceholder")}
                       className="w-full bg-transparent text-sm font-semibold text-[#17211f] outline-none placeholder:font-normal placeholder:text-stone-400 dark:text-white"
                     />
                     <div className="mt-3 space-y-2">
@@ -856,6 +862,7 @@ export function ProjectsPage() {
                         value={newAssignee}
                         onChange={(e) => setNewAssignee(e.target.value)}
                         disabled={!canManageTasks}
+                        aria-label={tr("projectsPage.fields.assignee")}
                         className="w-full rounded-xl border border-black/[0.08] bg-stone-50 px-3 py-1.5 text-xs font-semibold text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                       >
                         <option value="">{canManageTasks ? tr("projectsPage.form.assigneePlaceholder") : tr("projectsPage.form.assignedToMe")}</option>
@@ -868,6 +875,7 @@ export function ProjectsPage() {
                         <select
                           value={newPriority}
                           onChange={(e) => setNewPriority(e.target.value)}
+                          aria-label={tr("projectsPage.fields.priority")}
                           className="rounded-xl border border-black/[0.08] bg-stone-50 px-2 py-1.5 text-xs font-semibold text-[#17211f] outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
                         >
                           <option value="low">{tr("projectsPage.priority.low")}</option>
@@ -906,6 +914,7 @@ export function ProjectsPage() {
                       </button>
                       <button
                         onClick={() => { setNewTaskCol(null); setNewTitle(""); }}
+                        aria-label={tr("common.cancel")}
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-xl border border-black/[0.08] text-stone-400 hover:bg-stone-100 transition"
                       >
                         <X size={12} />
@@ -981,7 +990,7 @@ export function ProjectsPage() {
                 <p className="font-black text-[#17211f] dark:text-white">{tr("projectsPage.edit.title")}</p>
                 <p className="text-xs text-stone-400">{tr("projectsPage.edit.subtitle")}</p>
               </div>
-              <button onClick={() => setEditingTask(null)} className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-stone-100 transition dark:hover:bg-white/10">
+              <button onClick={() => setEditingTask(null)} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-xl text-stone-400 hover:bg-stone-100 transition dark:hover:bg-white/10">
                 <X size={15} />
               </button>
             </div>
@@ -1081,6 +1090,11 @@ export function ProjectsPage() {
               {/* Preuve */}
               <div
                 onClick={() => setEditForm({ ...editForm, proof_required: !editForm.proof_required })}
+                role="switch"
+                tabIndex={0}
+                aria-checked={editForm.proof_required}
+                aria-label={tr("projectsPage.proof.requiredToggle")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditForm({ ...editForm, proof_required: !editForm.proof_required }); } }}
                 className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition ${
                   editForm.proof_required ? "border-amber-200 bg-amber-50" : "border-black/[0.05] bg-stone-50 dark:border-white/[0.06] dark:bg-white/[0.02]"
                 }`}

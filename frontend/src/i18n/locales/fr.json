@@ -2400,7 +2400,8 @@
       "message": "Message",
       "sending": "Envoi…",
       "send": "Envoyer"
-    }
+    },
+    "viewTask": "Voir la tâche : {{title}}"
   },
   "chat": {
     "actionTypes": {
@@ -5107,7 +5108,9 @@
     "noProject": "Sans projet",
     "wip": "WIP {{count}}",
     "totalTasks": "{{count}} tâche(s) au total",
-    "addTagPlaceholder": "tag1, tag2…"
+    "addTagPlaceholder": "tag1, tag2…",
+    "filterByAssignee": "Filtrer par assigné",
+    "filterByPriority": "Filtrer par priorité"
   },
   "pos": {
     "ticketTitle": "Ticket de caisse",

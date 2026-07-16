@@ -2400,7 +2400,8 @@
       "message": "Message",
       "sending": "Sending…",
       "send": "Send"
-    }
+    },
+    "viewTask": "View task: {{title}}"
   },
   "chat": {
     "actionTypes": {
@@ -5107,7 +5108,9 @@
     "noProject": "No project",
     "wip": "WIP {{count}}",
     "totalTasks": "{{count}} task(s) total",
-    "addTagPlaceholder": "tag1, tag2…"
+    "addTagPlaceholder": "tag1, tag2…",
+    "filterByAssignee": "Filter by assignee",
+    "filterByPriority": "Filter by priority"
   },
   "pos": {
     "ticketTitle": "Receipt",
