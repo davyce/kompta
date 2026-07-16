@@ -188,7 +188,7 @@ struct AdminCompaniesView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showCreateSheet = true } label: { Image(systemName: "plus") }
+                Button { showCreateSheet = true } label: { Image(systemName: "plus") }.accessibilityLabel("Nouveau")
                     .help("Créer une entreprise")
             }
             ToolbarItem(placement: .primaryAction) {
@@ -216,7 +216,7 @@ struct AdminCompaniesView: View {
                 .help("Filtrer et trier")
             }
             ToolbarItem(placement: .primaryAction) {
-                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }
+                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }.accessibilityLabel("Exporter en CSV")
                     .disabled(state.value?.isEmpty ?? true)
                     .help("Exporter la liste (CSV)")
             }
@@ -630,7 +630,7 @@ struct AdminUsersView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }
+                Button { exportCSV() } label: { Image(systemName: "square.and.arrow.down") }.accessibilityLabel("Exporter en CSV")
                     .disabled(state.value?.isEmpty ?? true)
             }
         }
@@ -1055,7 +1055,7 @@ struct AdminTicketDetailView: View {
             HStack {
                 TextField("Répondre…", text: $reply)
                     .textFieldStyle(.roundedBorder)
-                Button { Task { await sendReply() } } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }
+                Button { Task { await sendReply() } } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }.accessibilityLabel("Envoyer")
                     .disabled(reply.trimmingCharacters(in: .whitespaces).isEmpty || sending)
             }
             .padding()
@@ -1655,7 +1655,7 @@ struct AdminSystemView: View {
         #endif
         .toolbar {
             if tab == 2 {
-                ToolbarItem(placement: .primaryAction) { Button { showNewFlag = true } label: { Image(systemName: "plus") } }
+                ToolbarItem(placement: .primaryAction) { Button { showNewFlag = true } label: { Image(systemName: "plus") }.accessibilityLabel("Nouveau") }
             }
         }
         .task { await loadAll() }
@@ -1778,11 +1778,14 @@ struct AdminSystemView: View {
                                 Toggle("", isOn: Binding(
                                     get: { flag.enabled },
                                     set: { newValue in Task { await toggleFlag(flag.key, newValue) } }
-                                )).labelsHidden()
+                                ))
+                                .labelsHidden()
+                                .accessibilityLabel("Activer \(flag.key)")
                                 Button { Task { await deleteFlag(flag.key) } } label: {
                                     Image(systemName: "trash").foregroundStyle(.red)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Supprimer")
                             }
                         }
                     }
@@ -2267,9 +2270,9 @@ struct AdminSubscriptionsView: View {
         #endif
         .toolbar {
             if tab == 0 {
-                ToolbarItem(placement: .primaryAction) { Button { showNewPlan = true } label: { Image(systemName: "plus") } }
+                ToolbarItem(placement: .primaryAction) { Button { showNewPlan = true } label: { Image(systemName: "plus") }.accessibilityLabel("Nouveau") }
             } else if tab == 1 {
-                ToolbarItem(placement: .primaryAction) { Button { showNewPromo = true } label: { Image(systemName: "plus") } }
+                ToolbarItem(placement: .primaryAction) { Button { showNewPromo = true } label: { Image(systemName: "plus") }.accessibilityLabel("Nouveau") }
             }
         }
         .task { await loadAll() }

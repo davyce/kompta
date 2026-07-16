@@ -63,7 +63,7 @@ struct CrmView: View {
         .navigationTitle("CRM")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showNew = true } label: { Image(systemName: "plus") }
+                Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }

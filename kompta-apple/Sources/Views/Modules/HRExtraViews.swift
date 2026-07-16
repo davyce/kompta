@@ -57,7 +57,7 @@ struct PayrollView: View {
         }
         .navigationTitle("Paie")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -618,7 +618,7 @@ struct HelpCenterView: View {
         }
         .navigationTitle("Aide & support")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }

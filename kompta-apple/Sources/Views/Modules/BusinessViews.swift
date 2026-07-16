@@ -69,7 +69,7 @@ struct ClientsView: View {
         .navigationTitle("Clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showNew = true } label: { Image(systemName: "plus") }
+                Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }
@@ -790,7 +790,7 @@ struct BillingView: View {
         .navigationTitle("Facturation")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showNew = true } label: { Image(systemName: "plus") }
+                Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }
@@ -1633,7 +1633,7 @@ struct TransactionsView: View {
         .navigationTitle("Transactions")
         .searchable(text: $search, prompt: "Rechercher…")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showCashDeposit = true } label: { Label("Dépôt de trésorerie", systemImage: "tray.and.arrow.down") }
             }

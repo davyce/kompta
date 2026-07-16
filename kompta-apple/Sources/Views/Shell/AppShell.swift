@@ -503,6 +503,8 @@ struct NotificationBell: View {
             // retrouve coupé (cf. capture utilisateur).
             .padding(.trailing, 4)
         }
+        .accessibilityLabel("Notifications")
+        .accessibilityValue(manager.unreadCount > 0 ? "\(manager.unreadCount) non lues" : "Aucune non lue")
         .sheet(isPresented: $showSheet) { NotificationsView() }
         .task { await manager.refresh() }
     }

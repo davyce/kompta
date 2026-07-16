@@ -240,6 +240,7 @@ struct POSView: View {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Effacer la recherche")
             }
         }
         .padding(10)
@@ -328,6 +329,8 @@ struct POSView: View {
             }
             .frame(width: 26, height: 26)
         }
+        .accessibilityLabel("Panier")
+        .accessibilityValue(cartCount > 0 ? "\(cartCount) article\(cartCount > 1 ? "s" : "")" : "vide")
     }
 
     // MARK: - iOS cart sheet

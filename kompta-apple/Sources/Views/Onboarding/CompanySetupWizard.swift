@@ -128,7 +128,7 @@ struct CompanySetupWizard: View {
                 Text(step.title).font(.title3.bold()).foregroundStyle(.white)
             }
             Spacer(minLength: 0)
-            Button { onClose() } label: { Image(systemName: "xmark").foregroundStyle(.white.opacity(0.85)) }
+            Button { onClose() } label: { Image(systemName: "xmark").foregroundStyle(.white.opacity(0.85)).accessibilityLabel("Fermer") }
                 .buttonStyle(.plain)
         }
         .padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 18)

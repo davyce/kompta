@@ -105,7 +105,7 @@ struct BudgetView: View {
         }
         .navigationTitle("Budget")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -236,7 +236,7 @@ struct PaymentAccountsView: View {
         }
         .navigationTitle("Comptes de paiement")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -483,7 +483,7 @@ struct DeclarationsView: View {
         }
         .navigationTitle("Déclarations")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }

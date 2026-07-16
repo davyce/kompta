@@ -66,7 +66,7 @@ struct TasksKanbanView: View {
         }
         .navigationTitle("Tâches")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -386,7 +386,7 @@ struct ChatChannelsView: View {
         .navigationTitle("Canaux")
         .toolbar {
             if canCreateChannel {
-                ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+                ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
             }
         }
         .task { await load() }
@@ -548,7 +548,7 @@ struct ChannelDetailView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showMembers = true } label: { Image(systemName: "person.2.fill") }
+                Button { showMembers = true } label: { Image(systemName: "person.2.fill").accessibilityLabel("Membres") }
             }
         }
         .task { await load() }
@@ -826,7 +826,7 @@ struct MeetingsView: View {
         }
         .navigationTitle("Réunions")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -985,7 +985,7 @@ struct NotesView: View {
                 .disabled(generating)
                 .help("Générer le journal IA du jour")
             }
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -1093,7 +1093,7 @@ private struct NoteDetailView: View {
                 ToolbarItem(placement: .destructiveAction) {
                     Button(role: .destructive) {
                         Task { try? await APIClient.shared.deleteNote(note.id); await onChanged(); dismiss() }
-                    } label: { Image(systemName: "trash") }
+                    } label: { Image(systemName: "trash").accessibilityLabel("Supprimer") }
                 }
             }
         }

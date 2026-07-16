@@ -94,8 +94,8 @@ struct SuppliersView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack {
-                    Button { showConnectCompany = true } label: { Image(systemName: "magnifyingglass") }
-                    Button { showNew = true } label: { Image(systemName: "plus") }
+                    Button { showConnectCompany = true } label: { Image(systemName: "magnifyingglass").accessibilityLabel("Connecter une entreprise") }
+                    Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
                 }
             }
         }
@@ -336,7 +336,7 @@ struct PurchaseOrdersView: View {
             #endif
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }

@@ -174,10 +174,10 @@ struct InvestmentsView: View {
         .navigationTitle("Investissements")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { Task { await model.refreshQuotes() } } label: { Image(systemName: "arrow.clockwise") }
+                Button { Task { await model.refreshQuotes() } } label: { Image(systemName: "arrow.clockwise").accessibilityLabel("Actualiser les cours") }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button { showAdd = true } label: { Image(systemName: "plus") }
+                Button { showAdd = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { if model.investments.isEmpty { await model.loadAll() } }
@@ -288,7 +288,7 @@ private struct InvestmentDetailScreen: View {
                     Button(role: .destructive) { Task { await model.delete(inv) } } label: {
                         Label("Supprimer", systemImage: "trash")
                     }
-                } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+                } label: { Image(systemName: "ellipsis.circle").font(.title3).accessibilityLabel("Plus d'options") }
             }
             DownloadButton(title: "Analyse (PDF)", fileName: "analyse-\(inv.id).pdf",
                            fetch: { try await APIClient.shared.investmentAnalysisPDF(inv.id) })

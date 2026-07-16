@@ -43,7 +43,7 @@ struct LimuleDocumentChatView: View {
             HStack(spacing: 8) {
                 TextField("Votre question…", text: $input, axis: .vertical).lineLimit(1...4)
                     .textFieldStyle(.roundedBorder)
-                Button { Task { await send() } } label: { Image(systemName: "paperplane.fill") }
+                Button { Task { await send() } } label: { Image(systemName: "paperplane.fill").accessibilityLabel("Envoyer") }
                     .disabled(busy || input.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding()

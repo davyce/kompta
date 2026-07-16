@@ -445,7 +445,7 @@ struct CompanyCalendarView: View {
         .navigationTitle("Calendrier")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink { MeetingsView() } label: { Image(systemName: "plus") }
+                NavigationLink { MeetingsView() } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }
@@ -963,7 +963,7 @@ struct ProjectsNativeView: View {
         .navigationTitle("Projets")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showNew = true } label: { Image(systemName: "plus") }
+                Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }
@@ -1225,7 +1225,7 @@ struct AgendaFiscalNativeView: View {
                     else { LimuleMark(size: 22, showAura: false) }
                 }
                     .disabled(generating)
-                Button { showNew = true } label: { Image(systemName: "plus") }
+                Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await load() }

@@ -56,7 +56,7 @@ struct RolesManagementView: View {
                         .disabled((state.value?.isEmpty ?? true))
                 }
             }
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await loadAll() }
         .refreshable { await load() }
@@ -376,7 +376,7 @@ struct StaffCreateView: View {
                 #elseif os(macOS)
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value, forType: .string)
                 #endif
-            } label: { Image(systemName: "doc.on.doc") }
+            } label: { Image(systemName: "doc.on.doc").accessibilityLabel("Copier") }
             .buttonStyle(.borderless)
         }
     }

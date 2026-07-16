@@ -44,7 +44,7 @@ struct GroupsListView: View {
         }
         .navigationTitle("Groupes & Tontines")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -288,7 +288,7 @@ struct GroupMembersView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -372,7 +372,7 @@ private struct GroupAccessResultSheet: View {
                     #elseif os(macOS)
                     NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value, forType: .string)
                     #endif
-                } label: { Image(systemName: "doc.on.doc") }
+                } label: { Image(systemName: "doc.on.doc").accessibilityLabel("Copier") }
             }
             .padding(12)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
@@ -493,7 +493,7 @@ struct GroupContributionsView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { tab == 0 ? (showNewPlan = true) : (showNewPayment = true) } label: { Image(systemName: "plus") }
+                Button { tab == 0 ? (showNewPlan = true) : (showNewPayment = true) } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
         .task { await loadPlans(); await loadPayments() }
@@ -679,7 +679,7 @@ struct GroupExpensesView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -761,7 +761,7 @@ struct GroupMeetingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -1019,7 +1019,7 @@ struct GroupDocumentsView: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showImporter = true } label: { Image(systemName: uploading ? "hourglass" : "arrow.up.doc") }
+                Button { showImporter = true } label: { Image(systemName: uploading ? "hourglass" : "arrow.up.doc").accessibilityLabel(uploading ? "Import en cours" : "Importer un document") }
                     .disabled(uploading)
             }
         }
@@ -1080,7 +1080,7 @@ struct GroupVotesView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus") } }
+            ToolbarItem(placement: .primaryAction) { Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") } }
         }
         .task { await load() }
         .refreshable { await load() }
@@ -1170,7 +1170,7 @@ struct GroupVoteFormView: View {
                             Image(systemName: "\(min(i + 1, 50)).circle").foregroundStyle(.secondary)
                             TextField("Choix \(i + 1)", text: $options[i])
                             if options.count > 2 {
-                                Button { options.remove(at: i) } label: { Image(systemName: "minus.circle.fill").foregroundStyle(.red) }
+                                Button { options.remove(at: i) } label: { Image(systemName: "minus.circle.fill").foregroundStyle(.red).accessibilityLabel("Retirer l'option") }
                                     .buttonStyle(.borderless)
                             }
                         }

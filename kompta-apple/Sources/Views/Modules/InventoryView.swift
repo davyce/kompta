@@ -87,7 +87,7 @@ struct InventoryView: View {
         .navigationTitle("Inventaire")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showAdd = true } label: { Image(systemName: "plus") }
+                Button { showAdd = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
             ToolbarItem(placement: .secondaryAction) {
                 CsvImportButton(title: "Importer CSV", importer: { d, n in try await APIClient.shared.importProductsCsv(d, fileName: n) }, onDone: { await model.loadAll() })
