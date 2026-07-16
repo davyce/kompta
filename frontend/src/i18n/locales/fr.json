@@ -1320,7 +1320,8 @@
             "hint": "Pas de suffixe (AAPL, TSLA)"
           }
         ]
-      }
+      },
+      "clearSelection": "Effacer la sélection"
     },
     "form": {
       "investedAmount": "Montant investi",
@@ -1334,7 +1335,8 @@
     },
     "edit": {
       "title": "Modifier — {{ticker}}"
-    }
+    },
+    "viewDetails": "Voir le détail"
   },
   "clientsPage": {
     "date": {
@@ -2552,7 +2554,8 @@
     "collapse": "Réduire",
     "remove": "Retirer",
     "send": "Envoyer",
-    "clearSearch": "Effacer la recherche"
+    "clearSearch": "Effacer la recherche",
+    "dismiss": "Ignorer le message"
   },
   "routes": {
     "errorUnexpected": "Erreur inattendue",
@@ -4562,7 +4565,8 @@
     "avgCostEmp": "Coût moyen / employé",
     "clientsCount": "Nombre de clients",
     "invoicesCountRow": "Nombre de factures",
-    "clientRow": "Client : {{name}}"
+    "clientRow": "Client : {{name}}",
+    "yearSelector": "Année sélectionnée"
   },
   "notFound": {
     "title": "Page introuvable",

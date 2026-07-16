@@ -139,7 +139,7 @@ function BankReconciliationModal({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#1a1d24] p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#17211f] dark:text-white">{tr("bankReconciliation.title", "Réconciliation bancaire")}</h2>
-          <button onClick={onClose} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} aria-label={tr("common.close")} className="text-[#717182] hover:text-[#17211f] dark:hover:text-white"><X size={18} /></button>
         </div>
 
         {!importId && (
@@ -351,7 +351,7 @@ function EditModal({ txn, onClose, onSave, saving }: {
       <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.editTitle")}</h3>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -457,7 +457,7 @@ function NewTransactionModal({ onClose, onSave, saving }: {
       <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.newTitle")}</h3>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -523,7 +523,7 @@ function CashDepositModal({ accounts, onClose, onSave, saving }: {
       <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <h3 className="font-bold text-[#17211f] dark:text-white">{tr("transactions.cashDeposit.title")}</h3>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
+          <button onClick={onClose} aria-label={tr("common.close")} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/[0.05] text-[#717182]"><X size={16} /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm text-[#717182]">{tr("transactions.cashDeposit.description")}</p>
@@ -794,14 +794,14 @@ export function TransactionsPage() {
           <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 px-4 py-3">
             <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 flex-1">{importMsg}</p>
-            <button onClick={() => setImportState("idle")} className="text-emerald-600 hover:text-emerald-800 ml-2"><X size={14} /></button>
+            <button onClick={() => setImportState("idle")} aria-label={tr("common.dismiss")} className="text-emerald-600 hover:text-emerald-800 ml-2"><X size={14} /></button>
           </div>
         )}
         {importState === "error" && (
           <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30 px-4 py-3">
             <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
             <p className="text-sm font-medium text-red-700 dark:text-red-300 flex-1">{importMsg}</p>
-            <button onClick={() => setImportState("idle")} className="text-red-600 hover:text-red-800 ml-2"><X size={14} /></button>
+            <button onClick={() => setImportState("idle")} aria-label={tr("common.dismiss")} className="text-red-600 hover:text-red-800 ml-2"><X size={14} /></button>
           </div>
         )}
       </div>
@@ -813,12 +813,14 @@ export function TransactionsPage() {
           <input
             className="w-full rounded-lg border border-black/[0.08] bg-white py-2 pl-9 pr-3 text-sm text-[#17211f] placeholder:text-[#aaa] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
             placeholder={tr("transactions.searchPlaceholder")}
+            aria-label={tr("transactions.searchPlaceholder")}
             value={search} onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <select
           className="min-w-0 max-w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+          aria-label={tr("transactions.allCategories")}
         >
           <option value="">{tr("transactions.allCategories")}</option>
           {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{tr(c.tk)}</option>)}
@@ -826,15 +828,16 @@ export function TransactionsPage() {
         <select
           className="min-w-0 max-w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-sm text-[#717182] focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white/70"
           value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}
+          aria-label={tr("transactions.allSources")}
         >
           <option value="">{tr("transactions.allSources")}</option>
           {uniqueSources.map((s) => <option key={s} value={s}>{srcLabel(s, tr)}</option>)}
         </select>
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 text-sm text-[#717182]">
-          <span>{tr("transactions.from")}</span>
-          <input type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <span>{tr("transactions.to")}</span>
-          <input type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <label htmlFor="txn-date-from">{tr("transactions.from")}</label>
+          <input id="txn-date-from" type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <label htmlFor="txn-date-to">{tr("transactions.to")}</label>
+          <input id="txn-date-to" type="date" className="min-w-0 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
         {(search || categoryFilter || sourceFilter || dateFrom || dateTo) && (
           <button
@@ -938,12 +941,13 @@ export function TransactionsPage() {
                         )}
                       </td>
                       <td className={T.tdRight}>
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
-                          <button onClick={() => setEditTxn(t)} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                          <button onClick={() => setEditTxn(t)} aria-label={tr("common.edit")} className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]">
                             <Pencil size={13} />
                           </button>
                           <button
                             onClick={() => handleDeleteTransaction(t)}
+                            aria-label={tr("common.delete")}
                             className="grid h-7 w-7 place-items-center rounded-lg text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                           >
                             <Trash2 size={13} />

@@ -456,6 +456,7 @@ export function InvestmentsPage() {
             onClick={() => queryClient.invalidateQueries({ queryKey: ["stock-quotes-all"] })}
             className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] p-2 text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
             title={tr("investmentsPage.header.refreshPrices")}
+            aria-label={tr("investmentsPage.header.refreshPrices")}
           >
             <RefreshCcw size={14} />
           </button>
@@ -562,6 +563,7 @@ export function InvestmentsPage() {
                       </div>
                       <button
                         onClick={() => { setView("detail"); setSelectedId(investmentsQ.data?.find((i) => i.ticker === b.name)?.id ?? null); }}
+                        aria-label={tr("investmentsPage.viewDetails")}
                         className="text-[#aaaabc] hover:text-emerald-500 transition"
                       >
                         <ChevronRight size={14} />
@@ -634,11 +636,12 @@ export function InvestmentsPage() {
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => openEdit(inv)} className="rounded-lg p-1.5 text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
+                          <button onClick={() => openEdit(inv)} aria-label={tr("common.edit")} className="rounded-lg p-1.5 text-[#717182] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition">
                             <Edit2 size={13} />
                           </button>
                           <button
                             onClick={() => { setView("detail"); setSelectedId(inv.id); }}
+                            aria-label={tr("investmentsPage.viewDetails")}
                             className="rounded-lg p-1.5 text-[#717182] hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 transition"
                           >
                             <ChevronRight size={13} />
@@ -723,8 +726,9 @@ export function InvestmentsPage() {
                     {/* Edit button on hover */}
                     <button
                       onClick={() => openEdit(inv)}
-                      className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 rounded p-1 text-[#717182] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition"
+                      className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded p-1 text-[#717182] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition"
                       title={tr("common.edit")}
+                      aria-label={tr("common.edit")}
                     >
                       <Edit2 size={11} />
                     </button>
@@ -793,6 +797,7 @@ export function InvestmentsPage() {
                     </button>
                     <button
                       onClick={() => handleDeleteInvestment(selected)}
+                      aria-label={tr("common.delete")}
                       className="rounded-lg border border-red-200 dark:border-red-900/40 p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                     >
                       <Trash2 size={14} />
@@ -1095,7 +1100,7 @@ export function InvestmentsPage() {
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2229] border border-black/[0.08] dark:border-white/[0.08] shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
               <h2 className="font-bold text-[#17211f] dark:text-white">{tr("investmentsPage.add.title")}</h2>
-              <button onClick={() => { setShowAdd(false); setSelectedResult(null); setTickerSearch(""); setSearchResults([]); }}>
+              <button onClick={() => { setShowAdd(false); setSelectedResult(null); setTickerSearch(""); setSearchResults([]); }} aria-label={tr("common.close")}>
                 <X size={18} className="text-[#717182]" />
               </button>
             </div>
@@ -1151,7 +1156,7 @@ export function InvestmentsPage() {
                       <p className="font-bold text-emerald-800 dark:text-emerald-300">{selectedResult.ticker}</p>
                       <p className="text-xs text-emerald-700 dark:text-emerald-400">{selectedResult.name} · {selectedResult.exchange}</p>
                     </div>
-                    <button onClick={() => setSelectedResult(null)} className="text-emerald-600 hover:text-emerald-800 transition"><X size={14} /></button>
+                    <button onClick={() => setSelectedResult(null)} aria-label={tr("investmentsPage.add.clearSelection")} className="text-emerald-600 hover:text-emerald-800 transition"><X size={14} /></button>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#17211f] dark:text-white mb-1.5">{tr("investmentsPage.form.investedAmount")}</label>
@@ -1199,7 +1204,7 @@ export function InvestmentsPage() {
               <h2 className="font-bold text-[#17211f] dark:text-white">
                 {tr("investmentsPage.edit.title", { ticker: editTarget.ticker })}
               </h2>
-              <button onClick={() => { setShowEdit(false); setEditTarget(null); }}>
+              <button onClick={() => { setShowEdit(false); setEditTarget(null); }} aria-label={tr("common.close")}>
                 <X size={18} className="text-[#717182]" />
               </button>
             </div>

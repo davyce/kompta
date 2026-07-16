@@ -136,12 +136,14 @@ function CategoryRow({
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onEdit(item)}
+            aria-label={tr("common.edit")}
             className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-emerald-600 transition"
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={() => onDelete(item)}
+            aria-label={tr("common.delete")}
             className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition"
           >
             <Trash2 size={13} />
@@ -253,6 +255,7 @@ function CategoryModal({
           </div>
           <button
             onClick={onClose}
+            aria-label={tr("common.close")}
             className="grid h-7 w-7 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
           >
             <X size={15} />
@@ -356,6 +359,8 @@ function CategoryModal({
                   }`}
                   style={{ backgroundColor: c }}
                   title={c}
+                  aria-label={c}
+                  aria-pressed={form.color === c}
                 />
               ))}
               <input

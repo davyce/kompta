@@ -209,6 +209,7 @@ Inclure : projection CA mois par mois, risques identifiés, recommandations opé
           <select
             value={year}
             onChange={e => setYear(Number(e.target.value))}
+            aria-label={tr("analytics.yearSelector")}
             className="rounded-lg border border-black/[0.08] bg-white px-3 py-1.5 text-sm dark:border-white/[0.08] dark:bg-[#1e2229] dark:text-white"
           >
             {[currentYear - 2, currentYear - 1, currentYear].map(y => (
@@ -287,6 +288,7 @@ Inclure : projection CA mois par mois, risques identifiés, recommandations opé
               )}
               <button
                 onClick={() => { abortRef.current = true; setForecastState(null); }}
+                aria-label={tr("common.close")}
                 className="grid h-8 w-8 place-items-center rounded-lg text-[#717182] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
               >
                 <X size={16} />
