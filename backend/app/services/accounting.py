@@ -259,6 +259,20 @@ def record_invoice_payment(db: Session, company: Company, *, invoice_id: int, to
                       source_type="invoice_payment", source_id=invoice_id, currency=company_currency(company), user_id=user_id)
 
 
+def record_invoice_payment_reversal(db: Session, company: Company, *, invoice_id: int, total: float,
+                                    payment_method: str, user_id: int | None = None) -> JournalEntry | None:
+    """Annulation d'une facture déjà réglée : écriture miroir de
+    record_invoice_payment, Dr Clients (411) / Cr Trésorerie. Comme pour
+    record_sale_cancellation, l'écriture de règlement d'origine n'est jamais
+    modifiée — celle-ci vient la contrebalancer."""
+    total_c = to_cents(total)
+    tre = treasury_account_code(payment_method)
+    lines = [{"code": "411", "debit": total_c, "credit": 0, "label": "Annulation règlement client"},
+             {"code": tre, "debit": 0, "credit": total_c, "label": "Reprise trésorerie (facture annulée)"}]
+    return post_entry(db, company_id=company.id, label=f"Annulation règlement facture #{invoice_id}", lines=lines,
+                      source_type="invoice_payment_reversal", source_id=invoice_id, currency=company_currency(company), user_id=user_id)
+
+
 def record_group_contribution(db: Session, company: Company, *, payment_id: int, amount: float,
                               payment_method: str, user_id: int | None = None) -> JournalEntry | None:
     """Cotisation de groupe encaissée : Dr Trésorerie / Cr Produits cotisations (75)."""

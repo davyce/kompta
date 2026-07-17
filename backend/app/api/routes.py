@@ -2843,6 +2843,56 @@ def delete_invoice(
         db.flush()
         credit_note_number = credit.number
 
+    # Si la facture était déjà réglée, son règlement avait posté une écriture
+    # (Dr Trésorerie / Cr Clients) et une transaction bancaire — sans quoi la
+    # comptabilité resterait fausse après annulation (trésorerie et compte
+    # Clients jamais réajustés). On extourne les deux, atomiquement avec le
+    # reste : si l'écriture échoue (ex. exercice comptable clôturé), toute
+    # l'annulation est abandonnée plutôt que de la valider à moitié.
+    reversed_payment = False
+    if invoice.status == "paid":
+        company = db.get(Company, current_user.company_id)
+        try:
+            _accounting.record_invoice_payment_reversal(
+                db, company, invoice_id=invoice.id, total=float(invoice.total_amount or 0),
+                payment_method=invoice.payment_method or "cash", user_id=current_user.id,
+            )
+            linked_txn = db.scalar(
+                select(BankTransaction).where(
+                    BankTransaction.company_id == current_user.company_id,
+                    BankTransaction.source_type == "facture",
+                    BankTransaction.reference == invoice.number,
+                    BankTransaction.status != "cancelled",
+                )
+            )
+            if linked_txn:
+                db.add(BankTransaction(
+                    company_id=current_user.company_id,
+                    date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                    label=f"Annulation — {linked_txn.label}",
+                    amount=-linked_txn.amount,
+                    debit=linked_txn.credit,
+                    credit=linked_txn.debit,
+                    currency=linked_txn.currency,
+                    category=linked_txn.category,
+                    counterpart=linked_txn.counterpart,
+                    reference=linked_txn.reference,
+                    source_type="cancellation",
+                    status="confirmed",
+                    payment_account_id=linked_txn.payment_account_id,
+                ))
+                linked_txn.status = "cancelled"
+            reversed_payment = True
+        except Exception:
+            logging.getLogger("kompta").exception(
+                "Échec extourne comptable annulation facture #%s — annulation abandonnée", invoice.id
+            )
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail="La facture n'a pas pu être annulée (échec de l'extourne comptable). Réessayez.",
+            )
+
     invoice.status = "cancelled"
     db.add(AuditLog(
         user_id=current_user.id,
@@ -2854,6 +2904,7 @@ def delete_invoice(
             "reason": payload.reason,
             "invoice_snapshot": snapshot,
             "credit_note_number": credit_note_number,
+            "accounting_reversed": reversed_payment,
         }, ensure_ascii=False),
         company_id=current_user.company_id,
     ))

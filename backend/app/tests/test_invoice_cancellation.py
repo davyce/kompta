@@ -11,6 +11,7 @@ Valide :
 """
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -102,3 +103,37 @@ def test_cancel_invoice_requires_reason() -> None:
         json={"reason": "x"},
     )
     assert r.status_code == 422, r.text
+
+
+def test_cancel_paid_invoice_reverses_accounting_entry() -> None:
+    """Une facture déjà réglée avait posté une écriture (Dr Trésorerie / Cr
+    Clients) lors du paiement — l'annuler doit poster l'écriture inverse,
+    sans quoi la trésorerie et le compte Clients resteraient faux."""
+    client = TestClient(app)
+    headers = _register_test_company(client)
+    invoice = _new_invoice(client, headers)
+
+    pay = client.post(
+        f"/api/invoices/{invoice['id']}/pay", headers=headers,
+        json={"payment_method": "cash"},
+    )
+    assert pay.status_code == 200, pay.text
+
+    journal_before = client.get("/api/accounting/journal", headers=headers)
+    assert journal_before.status_code == 200, journal_before.text
+    entries_before = journal_before.json()
+    assert any(e["source_type"] == "invoice_payment" for e in entries_before)
+
+    cancel = client.request(
+        "DELETE", f"/api/invoices/{invoice['id']}", headers=headers,
+        json={"reason": "Client insolvable — facture annulée après règlement"},
+    )
+    assert cancel.status_code == 204, cancel.text
+
+    journal_after = client.get("/api/accounting/journal", headers=headers)
+    assert journal_after.status_code == 200, journal_after.text
+    entries_after = journal_after.json()
+    reversal = [e for e in entries_after if e["source_type"] == "invoice_payment_reversal"]
+    assert len(reversal) == 1, entries_after
+    assert reversal[0]["source_id"] == invoice["id"]
+    assert reversal[0]["amount"] == pytest.approx(invoice["total_amount"])

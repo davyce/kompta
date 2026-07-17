@@ -713,7 +713,37 @@ enum BillingEntry: Identifiable, Hashable {
         case .sale(let s): return s.created_at
         }
     }
+    var createdAt: String {
+        switch self {
+        case .invoice(let inv): return inv.created_at
+        case .sale(let s): return s.created_at ?? ""
+        }
+    }
     var isPosSale: Bool { if case .sale = self { return true }; return false }
+}
+
+enum BillingSort: String, CaseIterable, Identifiable {
+    case dueDateDesc, dueDateAsc, createdDesc, amountDesc, amountAsc, customer
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .dueDateDesc: return "Échéance (récent → ancien)"
+        case .dueDateAsc: return "Échéance (ancien → récent)"
+        case .createdDesc: return "Dernière facture émise"
+        case .amountDesc: return "Montant (décroissant)"
+        case .amountAsc: return "Montant (croissant)"
+        case .customer: return "Client (A → Z)"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .dueDateDesc, .dueDateAsc: return "calendar"
+        case .createdDesc: return "clock.arrow.circlepath"
+        case .amountDesc, .amountAsc: return "arrow.up.arrow.down"
+        case .customer: return "person"
+        }
+    }
 }
 
 struct BillingView: View {
@@ -722,6 +752,7 @@ struct BillingView: View {
     @State private var statusFilter = "all"
     @State private var search = ""
     @State private var showNew = false
+    @State private var sort: BillingSort = .dueDateDesc
 
     private let filters = [
         ("all", "Toutes"), ("draft", "Brouillon"), ("sent", "Envoyées"),
@@ -731,7 +762,7 @@ struct BillingView: View {
     var body: some View {
         AsyncList(state: state, emptyTitle: "Aucune facture", emptyIcon: "doc.text",
                   reload: load) { entries in
-            let displayed = filtered(entries)
+            let displayed = sorted(filtered(entries))
             List {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -790,6 +821,18 @@ struct BillingView: View {
         .navigationTitle("Facturation")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Trier par", selection: $sort) {
+                        ForEach(BillingSort.allCases) { option in
+                            Label(option.label, systemImage: option.icon).tag(option)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                        .accessibilityLabel("Trier par: \(sort.label)")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button { showNew = true } label: { Image(systemName: "plus").accessibilityLabel("Nouveau") }
             }
         }
@@ -823,13 +866,23 @@ struct BillingView: View {
         }
     }
 
+    private func sorted(_ all: [BillingEntry]) -> [BillingEntry] {
+        switch sort {
+        case .dueDateDesc: return all.sorted { ($0.dueDate ?? "") > ($1.dueDate ?? "") }
+        case .dueDateAsc: return all.sorted { ($0.dueDate ?? "") < ($1.dueDate ?? "") }
+        case .createdDesc: return all.sorted { $0.createdAt > $1.createdAt }
+        case .amountDesc: return all.sorted { $0.totalAmount > $1.totalAmount }
+        case .amountAsc: return all.sorted { $0.totalAmount < $1.totalAmount }
+        case .customer: return all.sorted { $0.customerName.localizedCaseInsensitiveCompare($1.customerName) == .orderedAscending }
+        }
+    }
+
     private func load() async {
         await state.load {
             async let invoices = APIClient.shared.invoices()
             async let sales = APIClient.shared.posSales(limit: 200)
             let (inv, sls) = try await (invoices, sales)
-            let entries = inv.map(BillingEntry.invoice) + sls.map(BillingEntry.sale)
-            return entries.sorted { ($0.dueDate ?? "") > ($1.dueDate ?? "") }
+            return inv.map(BillingEntry.invoice) + sls.map(BillingEntry.sale)
         }
     }
 }
