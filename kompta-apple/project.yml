@@ -49,7 +49,7 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         # Chiffrement standard uniquement (HTTPS) → exempté, pas de question export.
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
@@ -121,7 +121,7 @@ targets:
       properties:
         CFBundleDisplayName: KOMPTA
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "© 2026 Adansonia"
         ITSAppUsesNonExemptEncryption: false
