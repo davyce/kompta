@@ -327,12 +327,19 @@ final class Loadable<T>: ObservableObject {
     @Published var value: T?
     @Published var isLoading = false
     @Published var error: String?
+    /// Code HTTP de la dernière erreur, quand connu — 402 (hors offre) et 403
+    /// (permission refusée) déclenchent LimuleRestrictedView au lieu de
+    /// l'erreur générique dans AsyncList.
+    @Published var errorCode: Int?
 
     func load(_ op: @escaping () async throws -> T) async {
         guard !isLoading else { return }
-        isLoading = true; error = nil
+        isLoading = true; error = nil; errorCode = nil
         do { value = try await op() }
-        catch { self.error = Loadable.friendlyMessage(for: error) }
+        catch {
+            self.error = Loadable.friendlyMessage(for: error)
+            self.errorCode = (error as? APIError)?.httpStatusCode
+        }
         isLoading = false
     }
 
@@ -377,12 +384,16 @@ struct AsyncList<T, Content: View>: View {
                 .listStyle(.insetGrouped)
                 #endif
             } else if let err = state.error {
-                ContentUnavailableView {
-                    Label("Erreur", systemImage: "exclamationmark.triangle.fill")
-                } description: {
-                    Text(err)
-                } actions: {
-                    Button("Réessayer") { Task { await reload() } }
+                if let kind = LimuleRestrictedView.Kind(httpStatusCode: state.errorCode) {
+                    LimuleRestrictedView(kind: kind, detail: err)
+                } else {
+                    ContentUnavailableView {
+                        Label("Erreur", systemImage: "exclamationmark.triangle.fill")
+                    } description: {
+                        Text(err)
+                    } actions: {
+                        Button("Réessayer") { Task { await reload() } }
+                    }
                 }
             } else {
                 // Initial state (task not yet fired or was cancelled) — trigger reload.

@@ -30,6 +30,7 @@ struct DashboardView: View {
     @State private var employees: [Employee] = []
     @State private var isLoading = true
     @State private var error:     String?
+    @State private var errorCode: Int?
 
     @State private var period: DashPeriod = .annee
     @State private var aiSummary: String?
@@ -40,6 +41,7 @@ struct DashboardView: View {
             LazyVStack(spacing: 18) {
                 header
                 if isLoading { loadingGrid }
+                else if let kind = LimuleRestrictedView.Kind(httpStatusCode: errorCode) { LimuleRestrictedView(kind: kind) }
                 else if let e = error { errorState(e) }
                 else if let m = overview { content(m) }
             }
@@ -534,7 +536,7 @@ struct DashboardView: View {
     // MARK: - Data loading
 
     private func load() async {
-        isLoading = true; error = nil
+        isLoading = true; error = nil; errorCode = nil
         do {
             async let ov = APIClient.shared.dashboardOverview()
             async let tr = APIClient.shared.revenueSeries(period: period.apiValue)
@@ -556,6 +558,7 @@ struct DashboardView: View {
             // Idem (annulation réseau via pull-to-refresh).
         } catch {
             self.error = Loadable<Any>.friendlyMessage(for: error)
+            self.errorCode = (error as? APIError)?.httpStatusCode
         }
         isLoading = false
     }

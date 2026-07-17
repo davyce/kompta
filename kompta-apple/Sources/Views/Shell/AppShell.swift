@@ -184,7 +184,7 @@ struct AppShell: View {
     @ViewBuilder
     private func detailView(for id: String) -> some View {
         if ent.isLocked(moduleId: id) {
-            UpgradeRequiredView(title: ModuleRegistry.all.first(where: { $0.id == id })?.title ?? "Cette fonctionnalité")
+            LimuleRestrictedView(kind: .subscription)
         } else {
             switch id {
             case "dashboard": DashboardView()
@@ -255,21 +255,6 @@ private struct SidebarRow: View {
     }
 }
 
-// Écran affiché quand un module n'est pas inclus dans l'offre courante.
-struct UpgradeRequiredView: View {
-    let title: String
-    var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "lock.fill").font(.system(size: 40)).foregroundStyle(.orange)
-            Text("« \(title) » n'est pas inclus dans votre offre")
-                .font(.headline).multilineTextAlignment(.center)
-            Text("Passez à une offre supérieure dans Réglages → Abonnement pour débloquer cette fonctionnalité.")
-                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
 #endif
 
 // ============================================================================
@@ -414,6 +399,7 @@ struct NotificationsView: View {
     @EnvironmentObject private var theme: CompanyTheme
     @ObservedObject private var manager = NotificationManager.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var selected: AppNotification?
 
     var body: some View {
         NavigationStack {
@@ -425,13 +411,14 @@ struct NotificationsView: View {
                 } else {
                     List {
                         ForEach(manager.items) { notif in
-                            NotificationRow(notif: notif)
-                                .listRowBackground(notif.isRead ? Color.clear : theme.primary.opacity(0.05))
-                                .onTapGesture {
-                                    manager.markRead(notif.id)
-                                    dismiss()
-                                    NotificationCenter.default.post(name: .komptaNavigate, object: notif.moduleId)
-                                }
+                            Button {
+                                manager.markRead(notif.id)
+                                selected = notif
+                            } label: {
+                                NotificationRow(notif: notif)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(notif.isRead ? Color.clear : theme.primary.opacity(0.05))
                         }
                     }
                     #if os(iOS)
@@ -451,7 +438,73 @@ struct NotificationsView: View {
             }
             .task { await manager.refresh() }
             .refreshable { await manager.refresh() }
+            // Petite page flottante avec le texte complet — avant, un tap
+            // basculait direct vers le module concerné (pas le bon écran, cf.
+            // retour utilisateur) ; on montre maintenant le détail d'abord,
+            // avec un bouton explicite pour aller au module si besoin.
+            .sheet(item: $selected) { notif in
+                NotificationDetailView(notif: notif, onOpenModule: {
+                    selected = nil
+                    dismiss()
+                    NotificationCenter.default.post(name: .komptaNavigate, object: notif.moduleId)
+                })
+                .environmentObject(theme)
+            }
         }
+    }
+}
+
+private struct NotificationDetailView: View {
+    let notif: AppNotification
+    var onOpenModule: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: CompanyTheme
+
+    private var tintColor: Color {
+        switch notif.tint {
+        case "red": return .red; case "orange": return .orange; case "green": return .green
+        case "blue": return .blue; case "indigo": return .indigo; case "purple": return .purple
+        default: return .secondary
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12).fill(tintColor.opacity(0.15)).frame(width: 48, height: 48)
+                            Image(systemName: notif.icon).font(.system(size: 20)).foregroundStyle(tintColor)
+                        }
+                        Text(notif.title).font(.title3.bold())
+                    }
+                    Text(notif.subtitle)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        onOpenModule()
+                    } label: {
+                        Label("Aller au module concerné", systemImage: "arrow.right.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(theme.primary)
+                }
+                .padding(24)
+            }
+            .navigationTitle("Notification")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+            }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        #endif
     }
 }
 

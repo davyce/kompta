@@ -20,6 +20,21 @@ enum APIError: LocalizedError {
         case .networkError(let e):     return "Réseau : \(e.localizedDescription)"
         }
     }
+
+    /// HTTP status code when known — utilisé pour distinguer un blocage
+    /// d'abonnement (402) d'un refus de permission (403) et afficher un
+    /// message adapté au lieu de l'erreur brute du serveur (cf. LimuleRestrictedView).
+    var httpStatusCode: Int? {
+        if case .serverError(let c, _) = self { return c }
+        return nil
+    }
+
+    /// Message serveur brut (sans le préfixe "Erreur N :"), utilisé par
+    /// LimuleRestrictedView pour afficher le détail sous un titre déjà doux.
+    var serverMessage: String? {
+        if case .serverError(_, let m) = self { return m }
+        return nil
+    }
 }
 
 // MARK: - Client

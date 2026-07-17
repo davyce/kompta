@@ -278,3 +278,117 @@ struct LimuleMark: View {
         }
     }
 }
+
+/// Petites bulles de réflexion qui grossissent en cascade autour de Limule —
+/// utilisées par LimuleRestrictedView pour un effet "Limule réfléchit"
+/// distinct du simple halo pulsant de LimuleMark.
+private struct LimuleThinkingBubbles: View {
+    @State private var grown: [Bool] = [false, false, false]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let bubbles: [(size: CGFloat, offset: CGSize, delay: Double)] = [
+        (10, CGSize(width: 34, height: -30), 0.0),
+        (7,  CGSize(width: 48, height: -14), 0.25),
+        (5,  CGSize(width: 58, height: 2),   0.5),
+    ]
+
+    var body: some View {
+        ZStack {
+            ForEach(bubbles.indices, id: \.self) { i in
+                Circle()
+                    .fill(KomptaBrand.limuleBlue.opacity(0.35))
+                    .frame(width: bubbles[i].size, height: bubbles[i].size)
+                    .offset(bubbles[i].offset)
+                    .scaleEffect(grown[i] ? 1.0 : 0.4)
+                    .opacity(grown[i] ? 0.9 : 0.3)
+            }
+        }
+        .onAppear {
+            guard !reduceMotion else { grown = [true, true, true]; return }
+            for i in bubbles.indices {
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true).delay(bubbles[i].delay)) {
+                    grown[i] = true
+                }
+            }
+        }
+    }
+}
+
+/// Écran doux affiché à la place d'une erreur brute quand l'API refuse
+/// l'accès pour une raison d'abonnement (402) ou de permission (403) —
+/// remplace le triangle d'avertissement générique par Limule qui "réfléchit",
+/// avec un message et une action adaptés à la cause du blocage.
+struct LimuleRestrictedView: View {
+    enum Kind {
+        case subscription
+        case permission
+
+        /// nil si le code HTTP ne correspond à aucun des deux cas gérés ici
+        /// (l'appelant garde alors l'erreur générique existante).
+        init?(httpStatusCode: Int?) {
+            switch httpStatusCode {
+            case 402: self = .subscription
+            case 403: self = .permission
+            default: return nil
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .subscription: return "lock.fill"
+            case .permission: return "hand.raised.fill"
+            }
+        }
+        var title: String {
+            switch self {
+            case .subscription: return "Fonctionnalité non incluse dans votre offre"
+            case .permission: return "Accès restreint"
+            }
+        }
+        var fallbackMessage: String {
+            switch self {
+            case .subscription: return "Cette section fait partie d'une offre supérieure. Passez à une offre supérieure dans Réglages → Abonnement pour la débloquer."
+            case .permission: return "Vous n'avez pas les autorisations nécessaires pour accéder à cette section. Contactez un administrateur de votre entreprise si vous pensez qu'il s'agit d'une erreur."
+            }
+        }
+    }
+
+    let kind: Kind
+    /// Message serveur détaillé (facultatif) — affiché à la place du message
+    /// générique quand présent et non technique.
+    var detail: String? = nil
+
+    var body: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                LimuleThinkingBubbles()
+                LimuleMark(size: 64, showAura: true)
+            }
+            .padding(.top, 4)
+
+            VStack(spacing: 8) {
+                Label(kind.title, systemImage: kind.icon)
+                    .font(.headline)
+                    .foregroundStyle(KomptaBrand.limuleBlue)
+                Text(detail?.isEmpty == false ? detail! : kind.fallbackMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if kind == .subscription {
+                Button {
+                    NotificationCenter.default.post(name: .komptaNavigate, object: "settings")
+                } label: {
+                    Label("Voir les offres", systemImage: "sparkles")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(KomptaBrand.limuleBlue)
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
