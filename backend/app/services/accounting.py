@@ -128,6 +128,24 @@ def _next_entry_reference(db: Session, company_id: int) -> str:
     return f"EC-{date.today().year}-{seq:05d}"
 
 
+def check_period_open(db: Session, company_id: int, effective_date: date) -> None:
+    """Lève 400 si `effective_date` tombe dans un exercice fiscal clôturé.
+    Si aucun FiscalYear n'existe pour cette date, aucune restriction
+    (adoption opt-in — ne casse rien pour les sociétés qui n'utilisent pas
+    encore la clôture d'exercice). Utilisé par post_entry() pour toute
+    écriture, et par les endpoints qui modifient une pièce sans forcément
+    poster d'écriture (ex. suppression de transaction bancaire manuelle)."""
+    fy = db.scalar(
+        select(FiscalYear).where(
+            FiscalYear.company_id == company_id,
+            FiscalYear.start_date <= effective_date,
+            FiscalYear.end_date >= effective_date,
+        )
+    )
+    if fy and fy.status == "closed":
+        raise HTTPException(status_code=400, detail=f"{fy.label} est clôturé — opération refusée sur cette période.")
+
+
 # ── Posting (cœur du moteur) ────────────────────────────────────────────────
 def post_entry(
     db: Session,
@@ -159,19 +177,7 @@ def post_entry(
     if total_debit == 0:
         raise HTTPException(status_code=400, detail="Écriture de montant nul")
 
-    # Verrou d'exercice clos : si aucun FiscalYear n'existe pour cette date,
-    # aucune restriction (adoption opt-in — ne casse rien pour les sociétés
-    # qui n'utilisent pas encore la clôture d'exercice).
-    effective_date = entry_date or date.today()
-    fy = db.scalar(
-        select(FiscalYear).where(
-            FiscalYear.company_id == company_id,
-            FiscalYear.start_date <= effective_date,
-            FiscalYear.end_date >= effective_date,
-        )
-    )
-    if fy and fy.status == "closed":
-        raise HTTPException(status_code=400, detail=f"{fy.label} est clôturé — écriture refusée sur cette période.")
+    check_period_open(db, company_id, entry_date or date.today())
 
     entry = JournalEntry(
         company_id=company_id,

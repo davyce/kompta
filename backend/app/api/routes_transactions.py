@@ -472,6 +472,15 @@ def delete_transaction(
         raise HTTPException(404, "Transaction introuvable")
     if txn.status == "cancelled":
         raise HTTPException(409, "Transaction déjà annulée.")
+    # Verrou d'exercice clos : une transaction datée d'un exercice déjà
+    # clôturé ne doit plus pouvoir être annulée (même logique que post_entry
+    # pour les écritures comptables, cf. accounting.check_period_open).
+    try:
+        txn_date = datetime.strptime(txn.date, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        txn_date = None
+    if txn_date:
+        _accounting.check_period_open(db, current_user.company_id, txn_date)
     snapshot = {
         "date": txn.date,
         "label": txn.label,
