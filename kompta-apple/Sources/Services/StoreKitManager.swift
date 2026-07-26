@@ -73,10 +73,14 @@ final class StoreKitManager: ObservableObject {
     /// StoreKit Testing locale en simulateur/debug).
     func loadProducts() async {
         isLoadingProducts = true
+        lastError = nil
         defer { isLoadingProducts = false }
         do {
             products = try await StoreKit.Product.products(for: ProductID.allCases.map { $0.rawValue })
                 .sorted { $0.price < $1.price }
+            if products.isEmpty {
+                lastError = "Les abonnements App Store ne sont pas disponibles pour ce compte de test. Vérifiez la configuration sandbox App Store Connect."
+            }
         } catch {
             lastError = "Impossible de charger les offres : \(error.localizedDescription)"
         }

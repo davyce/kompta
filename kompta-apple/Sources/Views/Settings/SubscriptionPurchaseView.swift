@@ -51,8 +51,20 @@ struct SubscriptionPurchaseView: View {
                 if store.isLoadingProducts {
                     HStack { Spacer(); ProgressView(); Spacer() }
                 } else if store.products.isEmpty {
-                    Text("Aucune offre payante disponible pour le moment.")
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Offres App Store indisponibles")
+                            .font(.body.weight(.semibold))
+                        Text(store.lastError ?? "Les abonnements payants n'ont pas pu être chargés depuis l'App Store.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            Task { await store.loadProducts() }
+                        } label: {
+                            Label("Recharger les abonnements", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.vertical, 4)
                 } else {
                     ForEach(store.products, id: \.id) { product in
                         productRow(product)

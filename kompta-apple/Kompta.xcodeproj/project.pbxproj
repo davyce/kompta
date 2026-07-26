@@ -15,7 +15,6 @@
 		141BCE05198098138534A927 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A309EFA85475F24ACDC2C6 /* MarkdownText.swift */; };
 		16A81ECF434F2FD0D9D8E14D /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A76193916FB44DB0053BA29 /* KeyboardDismiss.swift */; };
 		1A2ED45EBD418F6D1F7A4EFE /* BankReconciliationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18CA87EE9665DBE036324EA /* BankReconciliationView.swift */; };
-		1B23862525F159DD8D8DF970 /* ApplePayCheckout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5E5F922A33E62B3F70AAD2 /* ApplePayCheckout.swift */; };
 		1C02606217916D82F1F25503 /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05551DCC6BB239FDF60E6E77 /* InvestmentsView.swift */; };
 		1E560E5B0199BDE8918FD1DD /* FinanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70651EA3DC1DB98BF48025CF /* FinanceViews.swift */; };
 		249D24E7AE7E8C65C55EE0F9 /* CollaborationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB44CA87A160669133544A47 /* CollaborationViews.swift */; };
@@ -27,7 +26,6 @@
 		3ABF6C0446E2460C2B032C03 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9AB050A928D42ABCE3C91A /* DashboardView.swift */; };
 		3BB0A8B8F0A41F254CA4A56D /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B229F26743F6401F25679836 /* KeychainHelper.swift */; };
 		3C9CE01B307A7E2DE47846C1 /* EnterpriseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D2D8C816BBD4F12A937088 /* EnterpriseViews.swift */; };
-		3E32C3B04BE0D6903299E2D8 /* StripeTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 90F3D65CAF99C93F31E3BE3B /* StripeTerminal */; };
 		441100786455C8AEF44FC3B3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BC6742147800EE9A8D3E369D /* PrivacyInfo.xcprivacy */; };
 		4439A878C523FACD266B4623 /* CurrencyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB940D3851D5679A32875AB /* CurrencyManager.swift */; };
 		44F01D0BFDF6030D0E3D7CAD /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
@@ -70,7 +68,7 @@
 		98013947E273088E2195FC80 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F612F06D2735D2A6A4A02E /* SettingsView.swift */; };
 		99276D991E4410F2CDF8A459 /* CollectionMethodsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A569AA135CE50B4AA6B3AD51 /* CollectionMethodsView.swift */; };
 		9C518A45C39724D24490C2AA /* CrmViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0B1CFF7AFC9EDA6569A371 /* CrmViews.swift */; };
-		9C657604381DFD655EB041B2 /* StripeApplePay in Frameworks */ = {isa = PBXBuildFile; productRef = 604512B6C60AFAC42C0AF286 /* StripeApplePay */; };
+		9C657604381DFD655EB041B2 /* StripeTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 90F3D65CAF99C93F31E3BE3B /* StripeTerminal */; };
 		9C982BA88E06325FC59FAEB1 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E286CB16FEF4524A71D9C0A /* GroupModels.swift */; };
 		9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E948CFB53581DC0B86F422CA /* AuthManager.swift */; };
 		9D45457B390869DF38C64030 /* CsvImportButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B812E385DF64BCF395BD879 /* CsvImportButton.swift */; };
@@ -100,7 +98,6 @@
 		CC411F1AE5B4643E4195E5A7 /* EntitlementsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */; };
 		D035787283582E3E8C838E0B /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */; };
 		D37C53DD424CF6680B761D49 /* KomptaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */; };
-		D3FBD148121F72181EE0F935 /* ApplePayCheckout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5E5F922A33E62B3F70AAD2 /* ApplePayCheckout.swift */; };
 		D560DD8805248AB11CEABF3F /* CompanySetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9471E40EB42F94905659F795 /* CompanySetupWizard.swift */; };
 		D606845A08D8434128782415 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */; };
 		D6E827606FA55A879906D897 /* LimuleChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990D81000FB516878BA7C424 /* LimuleChatView.swift */; };
@@ -177,7 +174,6 @@
 		CDBEC2E5CA29CA7A9F7BBCF9 /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
 		D18A3E3928711BDE0FA1C5B3 /* KomptaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KomptaApp.swift; sourceTree = "<group>"; };
 		DB44CA87A160669133544A47 /* CollaborationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationViews.swift; sourceTree = "<group>"; };
-		DE5E5F922A33E62B3F70AAD2 /* ApplePayCheckout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePayCheckout.swift; sourceTree = "<group>"; };
 		E0BA214CE53A54B1660EC7E4 /* CompanyTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanyTheme.swift; sourceTree = "<group>"; };
 		E176A484AD1CA84ECA25942D /* AdminModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminModels.swift; sourceTree = "<group>"; };
 		E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -194,8 +190,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9C657604381DFD655EB041B2 /* StripeApplePay in Frameworks */,
-				3E32C3B04BE0D6903299E2D8 /* StripeTerminal in Frameworks */,
+				9C657604381DFD655EB041B2 /* StripeTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,7 +278,6 @@
 			isa = PBXGroup;
 			children = (
 				E63C89AFE0E41B33B6F45FF9 /* APIClient.swift */,
-				DE5E5F922A33E62B3F70AAD2 /* ApplePayCheckout.swift */,
 				E948CFB53581DC0B86F422CA /* AuthManager.swift */,
 				6DB940D3851D5679A32875AB /* CurrencyManager.swift */,
 				CD3C4B1A737FB5A72049C980 /* EntitlementsManager.swift */,
@@ -438,7 +432,6 @@
 			);
 			name = Kompta;
 			packageProductDependencies = (
-				604512B6C60AFAC42C0AF286 /* StripeApplePay */,
 				90F3D65CAF99C93F31E3BE3B /* StripeTerminal */,
 			);
 			productName = Kompta;
@@ -492,7 +485,6 @@
 			mainGroup = EE80FD6FA50A8601F3BBF673;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				63FE34E128C03A3E1320AA99 /* XCRemoteSwiftPackageReference "stripe-ios" */,
 				6047DBEA54B23ADBA0C03736 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -541,7 +533,6 @@
 				2B6CE15A0F7F2E70BF9FE0BB /* AdminViews.swift in Sources */,
 				0B2810DE4C7C83C1AE2BF96D /* AppModels.swift in Sources */,
 				7C2B020019256D3AF5D87E27 /* AppShell.swift in Sources */,
-				1B23862525F159DD8D8DF970 /* ApplePayCheckout.swift in Sources */,
 				0AEF8026D9E0D0342F6E7C96 /* AuthManager.swift in Sources */,
 				69F0A6A78A557F6F74FB32A2 /* BankReconciliationView.swift in Sources */,
 				67E456C33152D867E9D3B57A /* BusinessViews.swift in Sources */,
@@ -602,7 +593,6 @@
 				ADBA825B32E98DA4A88D695D /* AdminViews.swift in Sources */,
 				ED6E7E66FAC0FBBCBD79BCCD /* AppModels.swift in Sources */,
 				C09BFD2F8BFFD63BD4022DB6 /* AppShell.swift in Sources */,
-				D3FBD148121F72181EE0F935 /* ApplePayCheckout.swift in Sources */,
 				9CD474F760156F9C2B355F41 /* AuthManager.swift in Sources */,
 				1A2ED45EBD418F6D1F7A4EFE /* BankReconciliationView.swift in Sources */,
 				6F4196470C273EDE91D46215 /* BusinessViews.swift in Sources */,
@@ -899,22 +889,9 @@
 				minimumVersion = 5.0.0;
 			};
 		};
-		63FE34E128C03A3E1320AA99 /* XCRemoteSwiftPackageReference "stripe-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stripe/stripe-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 24.1.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		604512B6C60AFAC42C0AF286 /* StripeApplePay */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 63FE34E128C03A3E1320AA99 /* XCRemoteSwiftPackageReference "stripe-ios" */;
-			productName = StripeApplePay;
-		};
 		90F3D65CAF99C93F31E3BE3B /* StripeTerminal */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6047DBEA54B23ADBA0C03736 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */;

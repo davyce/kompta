@@ -17,7 +17,7 @@ import StripeTerminal
 ///      `project.yml`, mais elle est inopérante sans cette approbation.
 ///   3. Un `Location` Stripe Terminal (`locationId` ci-dessous) — objet créé
 ///      via `POST /v1/terminal/locations` côté Stripe, PLACEHOLDER pour
-///      l'instant (même logique que `ApplePayCheckout.merchantId`).
+///      l'instant.
 ///
 /// Flux (API SDK 5.x, 100% async/await) :
 ///   `Terminal.shared.easyConnect(_:)` (découverte + connexion en un appel)

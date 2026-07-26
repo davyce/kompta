@@ -1,5 +1,4 @@
 import SwiftUI
-import PassKit
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -40,13 +39,6 @@ private func posPaymentOptions(accounts: [PaymentAccount]) -> [POSPaymentOption]
     #if os(iOS)
     opts.append(.init(id: "tap_to_pay", method: "tap_to_pay", accountId: nil, label: "Tap to Pay", symbol: "wave.3.right.circle.fill"))
     #endif
-    // Apple Pay : proposé uniquement si l'entreprise a activé/vérifié
-    // "apple_pay" côté backend (compte Stripe) ET si l'appareil peut payer
-    // (PassKit configuré avec au moins une carte Wallet).
-    if accounts.contains(where: { $0.provider == "apple_pay" && $0.enabled && $0.use_for_pos })
-        && PKPaymentAuthorizationController.canMakePayments() {
-        opts.append(.init(id: "apple_pay", method: "apple_pay", accountId: nil, label: "Apple Pay", symbol: "applelogo"))
-    }
     return opts
 }
 
@@ -57,7 +49,6 @@ private func _posSymbol(_ method: String) -> String {
     case "tap_to_pay": return "wave.3.right.circle.fill"
     case "bank":      return "building.columns.fill"
     case "qr":        return "qrcode"
-    case "apple_pay": return "applelogo"
     default:          return "iphone"
     }
 }
@@ -119,7 +110,6 @@ struct POSView: View {
     @State private var errorMsg:        String?
     @State private var showHistory      = false
     @State private var cashBalance:     PosSessionBalance?
-    private let applePayCheckout = ApplePayCheckout()
 
     // MARK: Computed
 
@@ -643,9 +633,7 @@ struct POSView: View {
             }
 
             Button {
-                if paymentMethod == "apple_pay" {
-                    Task { await confirmSaleWithApplePay() }
-                } else if paymentMethod == "tap_to_pay" {
+                if paymentMethod == "tap_to_pay" {
                     Task { await confirmSaleWithTapToPay() }
                 } else {
                     Task { await confirmSale() }
@@ -656,8 +644,8 @@ struct POSView: View {
                         ProgressView().tint(.white)
                         if paymentMethod == "tap_to_pay" { Text("Approchez la carte…") }
                     } else {
-                        Image(systemName: paymentMethod == "apple_pay" ? "applelogo" : paymentMethod == "tap_to_pay" ? "wave.3.right.circle.fill" : "checkmark.seal.fill")
-                        Text(paymentMethod == "apple_pay" ? "Payer avec Apple Pay · \(fcfa(grandTotal))" : paymentMethod == "tap_to_pay" ? "Tap to Pay · \(fcfa(grandTotal))" : "Encaisser · \(fcfa(grandTotal))")
+                        Image(systemName: paymentMethod == "tap_to_pay" ? "wave.3.right.circle.fill" : "checkmark.seal.fill")
+                        Text(paymentMethod == "tap_to_pay" ? "Tap to Pay · \(fcfa(grandTotal))" : "Encaisser · \(fcfa(grandTotal))")
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -698,37 +686,8 @@ struct POSView: View {
         }
     }
 
-    /// Encaissement Apple Pay : la feuille PassKit doit être confirmée par
-    /// Stripe AVANT de créer la vente côté backend (l'argent doit être capturé
-    /// en premier). Une fois le paiement Apple Pay réussi, on enchaîne sur le
-    /// flux normal de création de vente (avec payment_method="apple_pay").
-    private func confirmSaleWithApplePay() async {
-        guard !cart.isEmpty else { return }
-        isSaving = true; errorMsg = nil
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            applePayCheckout.start(
-                amountCents: Int((grandTotal * 100).rounded()),
-                currency: "XAF",
-                description: "Vente POS KOMPTA"
-            ) { result in
-                Task { @MainActor in
-                    switch result {
-                    case .success:
-                        await confirmSale()
-                    case .failure(let error):
-                        if !(error is CancellationError) {
-                            errorMsg = error.localizedDescription
-                        }
-                        isSaving = false
-                    }
-                    continuation.resume()
-                }
-            }
-        }
-    }
-
-    /// Encaissement Tap to Pay on iPhone : même principe qu'Apple Pay — la
-    /// carte doit être débitée AVANT que la vente ne soit créée côté backend.
+    /// Encaissement Tap to Pay on iPhone : la carte doit être débitée AVANT
+    /// que la vente ne soit créée côté backend.
     /// Pas de `#if os(iOS)` ici : `TapToPayCheckout` a son propre stub macOS
     /// qui échoue proprement (option jamais proposée sur Mac de toute façon).
     private func confirmSaleWithTapToPay() async {

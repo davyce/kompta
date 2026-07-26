@@ -247,10 +247,10 @@ struct SalePayload: Encodable {
     var idempotency_key: String
 }
 
-// MARK: - Stripe / Apple Pay
+// MARK: - Stripe / Tap to Pay
 
-/// Requête de création d'un PaymentIntent Stripe pour un encaissement Apple Pay
-/// (POS). Miroir de `StripeIntentRequest` côté backend (routes_payments.py).
+/// Requête de création d'un PaymentIntent Stripe pour un encaissement carte
+/// POS. Miroir de `StripeIntentRequest` côté backend (routes_payments.py).
 struct StripeIntentPayload: Encodable {
     let amount_cents: Int
     var currency: String = "XAF"

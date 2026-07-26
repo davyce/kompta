@@ -301,11 +301,9 @@ actor APIClient {
         }
     }
 
-    // MARK: - Stripe / Apple Pay
+    // MARK: - Stripe / Tap to Pay
 
-    /// Crée un PaymentIntent Stripe (même endpoint que le paiement carte web) —
-    /// utilisé pour encaisser une vente POS via Apple Pay (STPApplePayContext
-    /// confirme ensuite l'intent directement avec le token PassKit).
+    /// Crée un PaymentIntent Stripe (même endpoint que le paiement carte web).
     func createStripeIntent(_ payload: StripeIntentPayload) async throws -> StripeIntentResponse {
         try await post("/payments/stripe/intent", body: payload)
     }
