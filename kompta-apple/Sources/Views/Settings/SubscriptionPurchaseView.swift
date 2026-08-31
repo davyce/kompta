@@ -22,6 +22,9 @@ func subscriptionPlanDisplayName(_ code: String) -> String {
 }
 
 struct SubscriptionPurchaseView: View {
+    private let privacyURL = URL(string: "https://kompta0.com/privacy")!
+    private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+
     @EnvironmentObject private var ent: EntitlementsManager
     @StateObject private var store = StoreKitManager.shared
     @State private var purchasingProductID: String?
@@ -82,6 +85,19 @@ struct SubscriptionPurchaseView: View {
                 } label: {
                     Label("Restaurer mes achats", systemImage: "arrow.clockwise")
                 }
+            }
+
+            Section {
+                Link(destination: privacyURL) {
+                    Label("Politique de confidentialité", systemImage: "hand.raised")
+                }
+                Link(destination: termsURL) {
+                    Label("Conditions d'utilisation (EULA)", systemImage: "doc.text")
+                }
+            } header: {
+                Text("Informations légales")
+            } footer: {
+                Text("Les abonnements se renouvellent automatiquement jusqu'à annulation. La gestion et l'annulation se font dans les réglages de votre identifiant Apple.")
             }
 
             if let errorMessage {

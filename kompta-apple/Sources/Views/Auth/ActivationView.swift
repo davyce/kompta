@@ -119,6 +119,7 @@ struct ActivationView: View {
         do {
             let updated = try await APIClient.shared.firstLoginChangePassword(currentPassword: currentPassword, newPassword: newPassword)
             auth.currentUser = updated
+            auth.persistSession()
         } catch {
             errorMsg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

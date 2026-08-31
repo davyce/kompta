@@ -12,6 +12,12 @@ final class AuthManager: ObservableObject {
     var isLoading: Bool      { state == .loading }
 
     private let api = APIClient.shared
+    private let persistedSessionKey = "auth_session"
+
+    private struct PersistedSession: Codable {
+        let user: KomptaUser
+        let company: KomptaCompany
+    }
 
     init() { Task { await restoreSession() } }
 
@@ -19,6 +25,17 @@ final class AuthManager: ObservableObject {
 
     private func restoreSession() async {
         guard KeychainHelper.get("auth_token") != nil else { state = .unauthenticated; return }
+
+        // Rebuild the last known screen before the network check. This keeps a
+        // valid session usable during a temporary outage or a slow cold start.
+        if let raw = KeychainHelper.get(persistedSessionKey),
+           let data = raw.data(using: .utf8),
+           let cached = try? JSONDecoder().decode(PersistedSession.self, from: data) {
+            currentUser = cached.user
+            company = cached.company
+            state = .authenticated
+        }
+
         // Ne déconnecte QUE sur un rejet explicite du serveur (token invalide/expiré,
         // compte suspendu). Une erreur réseau/serveur transitoire ne doit jamais
         // effacer la session — sinon un simple accroc de connexion mobile déconnecte
@@ -28,10 +45,17 @@ final class AuthManager: ObservableObject {
                 async let user    = api.me()
                 async let company = api.company()
                 (currentUser, self.company) = try await (user, company)
+                persistSession()
+                if let refreshed = try? await api.refreshToken() {
+                    await api.setToken(refreshed.access_token)
+                }
                 state = .authenticated
                 return
             } catch APIError.unauthorized {
                 KeychainHelper.clearAll()
+                KeychainHelper.delete(persistedSessionKey)
+                currentUser = nil
+                company = nil
                 state = .unauthenticated
                 return
             } catch {
@@ -42,7 +66,7 @@ final class AuthManager: ObservableObject {
                 // Toujours en échec après un essai : on reste connecté avec le jeton
                 // existant (probable coupure réseau) plutôt que de forcer une
                 // reconnexion. Les écrans referont leurs propres appels au besoin.
-                state = .authenticated
+                state = currentUser == nil || company == nil ? .unauthenticated : .authenticated
             }
         }
     }
@@ -57,6 +81,7 @@ final class AuthManager: ObservableObject {
             async let user    = api.me()
             async let company = api.company()
             (currentUser, self.company) = try await (user, company)
+            persistSession()
             state = .authenticated
         } catch {
             state = .unauthenticated
@@ -72,6 +97,7 @@ final class AuthManager: ObservableObject {
             async let user    = api.me()
             async let company = api.company()
             (currentUser, self.company) = try await (user, company)
+            persistSession()
             state = .authenticated
         } catch {
             state = .unauthenticated
@@ -89,6 +115,7 @@ final class AuthManager: ObservableObject {
             async let user    = api.me()
             async let company = api.company()
             (currentUser, self.company) = try await (user, company)
+            persistSession()
             state = .authenticated
         } catch {
             state = .authenticated
@@ -111,6 +138,7 @@ final class AuthManager: ObservableObject {
             async let user    = api.me()
             async let company = api.company()
             (currentUser, self.company) = try await (user, company)
+            persistSession()
             state = .authenticated
         } catch {
             state = .authenticated
@@ -120,21 +148,35 @@ final class AuthManager: ObservableObject {
 
     /// Re-fetch the current user (after a self-profile edit, role change, etc.).
     func refreshUser() async {
-        if let user = try? await api.me() { currentUser = user }
+        if let user = try? await api.me() {
+            currentUser = user
+            persistSession()
+        }
     }
 
     /// Marque la visite guidée comme vue, côté serveur — persiste au-delà d'une
     /// réinstallation ou d'un changement d'appareil (contrairement à un flag local).
     func markOnboardingDone() async {
-        if let user = try? await api.markOnboardingDone() { currentUser = user }
+        if let user = try? await api.markOnboardingDone() {
+            currentUser = user
+            persistSession()
+        }
     }
 
     // MARK: - Logout
 
     func logout() {
         Task { await api.clearToken() }
+        KeychainHelper.delete(persistedSessionKey)
         currentUser = nil
         company = nil
         state = .unauthenticated
+    }
+
+    func persistSession() {
+        guard let currentUser, let company,
+              let data = try? JSONEncoder().encode(PersistedSession(user: currentUser, company: company)),
+              let raw = String(data: data, encoding: .utf8) else { return }
+        KeychainHelper.set(raw, key: persistedSessionKey)
     }
 }

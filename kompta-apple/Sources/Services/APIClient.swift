@@ -50,7 +50,11 @@ actor APIClient {
 
     // In-memory cache so Keychain failures (e.g. locked keybag on some simulators) don't break the session.
     private var _tokenCache: String? = KeychainHelper.get("auth_token")
-    private var token: String? { _tokenCache }
+    private var token: String? {
+        // The Keychain may be temporarily unavailable while the device is
+        // locked. Re-read it after unlock instead of permanently caching nil.
+        _tokenCache ?? KeychainHelper.get("auth_token")
+    }
 
     func setToken(_ t: String) { _tokenCache = t; KeychainHelper.set(t, key: "auth_token") }
     func clearToken()          { _tokenCache = nil; KeychainHelper.delete("auth_token") }
@@ -213,6 +217,13 @@ actor APIClient {
 
     func login(email: String, password: String) async throws -> LoginResponse {
         try await post("/auth/login", body: LoginPayload(email: email, password: password))
+    }
+
+    /// Renouvelle le jeton de session tant que le serveur considère la session
+    /// actuelle valide. L'app peut ainsi prolonger une session persistée sans
+    /// demander à l'utilisateur de se reconnecter à chaque expiration.
+    func refreshToken() async throws -> LoginResponse {
+        try await actionDecoded("/auth/refresh")
     }
 
     func registerCompany(_ payload: CompanyRegistrationPayload) async throws -> LoginResponse {
