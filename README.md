@@ -689,7 +689,7 @@ TERAS is the regulatory compliance engine built into KOMPTA.
 
 ### Local mode vs. the real TERAS API
 
-Locally, TERAS uses its embedded engine (heuristics + DeepSeek).
+Locally, TERAS uses its embedded engine (heuristics + LIMULEIA).
 To connect the official TERAS API, set `TERAS_API_KEY` in `backend/.env`.
 
 ---

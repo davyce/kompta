@@ -689,7 +689,7 @@ TERAS est le moteur de conformité réglementaire intégré à KOMPTA.
 
 ### Mode local vs API TERAS réelle
 
-En local, TERAS utilise son moteur embarqué (heuristiques + DeepSeek).
+En local, TERAS utilise son moteur embarqué (heuristiques + LIMULEIA).
 Pour brancher l'API TERAS officielle, renseigner `TERAS_API_KEY` dans `backend/.env`.
 
 ---
