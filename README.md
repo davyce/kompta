@@ -203,8 +203,8 @@ cp .env.example .env
 SECRET_KEY=changeme_32_chars_min          # HMAC-SHA256 key (openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=1440          # 24 h
 
-# ── AI / Limule ──────────────────────────────────────────────
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx      # https://platform.deepseek.com
+# ── AI / Limule (powered by LIMULEIA) ───────────────────────────
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx      # underlying model provider behind LIMULEIA, see github.com/davyce/limuleia
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 
@@ -326,7 +326,7 @@ via `POST /api/auth/register-company` — no fictitious data is ever inserted.
 - Quick creation with automatic generation of the employee account
 - Temporary password shown **only once** (forces a password change on first login)
 - Detailed record: identity, contract, compensation, access, quick actions
-- Contract generation via AI (DeepSeek) + storage in Documents
+- Contract generation via AI (Limule, powered by LIMULEIA) + storage in Documents
 - Employee record export
 
 ### Payroll
