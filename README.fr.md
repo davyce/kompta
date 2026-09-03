@@ -696,7 +696,7 @@ Pour brancher l'API TERAS officielle, renseigner `TERAS_API_KEY` dans `backend/.
 
 ## Limule — IA intégrée
 
-Limule est l'assistant IA de KOMPTA, propulsé par **DeepSeek** (`deepseek-chat`).
+Limule est l'assistant IA de KOMPTA, propulsé par **LIMULEIA**, la plateforme IA souveraine et locale que j'ai construite (voir [limuleia](https://github.com/davyce/limuleia)).
 
 ### Capacités
 

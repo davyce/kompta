@@ -696,7 +696,7 @@ To connect the official TERAS API, set `TERAS_API_KEY` in `backend/.env`.
 
 ## Limule — Built-in AI
 
-Limule is KOMPTA's AI assistant, powered by **DeepSeek** (`deepseek-chat`).
+Limule is KOMPTA's AI assistant, powered by **LIMULEIA**, the sovereign, local-first AI platform I built (see [limuleia](https://github.com/davyce/limuleia)).
 
 ### Capabilities
 
