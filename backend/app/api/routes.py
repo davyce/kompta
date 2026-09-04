@@ -5242,16 +5242,20 @@ def admin_overview(
     ).all()
     treasury_total = sum_amounts_xaf(db, [(r.amount, r.currency, r.company_id) for r in treasury_rows])
 
-    # Valeur d'inventaire = Σ(stock × coût moyen pondéré) par produit,
-    # converti en XAF — valorisation au coût d'achat (standard comptable),
-    # pas au prix de vente catalogue.
+    # Valeur d'inventaire = Σ(stock × prix de vente catalogue) par produit,
+    # converti en XAF. Valorisée au prix de vente (pas au coût moyen pondéré) :
+    # le CMP reste à 0 tant qu'aucun bon de commande d'achat n'a été enregistré
+    # pour un produit (stock legacy saisi manuellement), ce qui rendait ce
+    # total systématiquement nul sur les données réelles — le prix catalogue,
+    # lui, est toujours renseigné et reflète la valeur telle que fixée par
+    # chaque entreprise.
     inventory_rows = db.execute(
-        select(Product.stock_quantity, Product.average_cost_cents, Product.currency, Product.company_id)
+        select(Product.stock_quantity, Product.price_cents, Product.currency, Product.company_id)
     ).all()
     inventory_total = sum_amounts_xaf(
         db,
         [
-            ((r.stock_quantity or 0) * (r.average_cost_cents or 0) / 100.0, r.currency, r.company_id)
+            ((r.stock_quantity or 0) * (r.price_cents or 0) / 100.0, r.currency, r.company_id)
             for r in inventory_rows
         ],
     )
