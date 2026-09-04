@@ -47,3 +47,28 @@ def convert_to_xaf(amount: float, currency: str | None, company_id: int | None, 
         return amount
     rate = get_effective_rate(currency, company_id, db)
     return amount * rate
+
+
+def sum_amounts_xaf(db: Session, rows: list[tuple[float, str | None, int | None]]) -> float:
+    """Agrège une liste de (montant, devise, company_id) en un total XAF.
+
+    Utilisé pour les totaux plateforme (ex. Console super-admin) : un simple
+    SUM(total_amount) SQL mélangerait XAF/EUR/USD sans conversion et fausserait
+    le résultat — cf. constat "ventes totales trop faibles" (des ventes en USD/EUR
+    comptées à leur valeur faciale au lieu de leur équivalent XAF). Le taux est
+    mis en cache par (devise, company_id) pour éviter une requête par ligne.
+    """
+    total = 0.0
+    rate_cache: dict[tuple[str, int | None], float] = {}
+    for amount, currency, company_id in rows:
+        if amount is None:
+            continue
+        cur = (currency or "XAF").upper()
+        if cur in ("", "XAF"):
+            total += amount
+            continue
+        key = (cur, company_id)
+        if key not in rate_cache:
+            rate_cache[key] = get_effective_rate(cur, company_id, db)
+        total += amount * rate_cache[key]
+    return total

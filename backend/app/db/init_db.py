@@ -128,6 +128,7 @@ def ensure_sqlite_migrations() -> None:
             "cancelled_at": "DATETIME",
             "cancelled_by_user_id": "INTEGER",
             "cancel_reason": "VARCHAR(500)",
+            "currency": "VARCHAR(10) DEFAULT 'XAF'",
         },
         "payroll_runs": {
             "payment_account_id": "INTEGER",

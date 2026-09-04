@@ -52,6 +52,7 @@ from app.models import (
     UserPreference,
 )
 from app.services.readiness import build_business_insights
+from app.services.currency import sum_amounts_xaf
 from app.schemas.domain import (
     AIGenerationCreate,
     AIGenerationRead,
@@ -941,7 +942,12 @@ async def admin_limule_chat(
     users_count = db.scalar(select(func.count()).select_from(User)) or 0
     employees_count = db.scalar(select(func.count()).select_from(Employee)) or 0
     invoices_count = db.scalar(select(func.count()).select_from(Invoice)) or 0
-    sales_total = db.scalar(select(func.coalesce(func.sum(Sale.total_amount), 0))) or 0
+    # Converti en XAF ligne par ligne (voir sum_amounts_xaf) — un SUM() brut
+    # mélangerait les devises locales des ventes (XAF/EUR/USD) sans conversion.
+    _sale_rows_grand_sage = db.execute(
+        select(Sale.total_amount, Sale.currency, Sale.company_id).where(Sale.status != "cancelled")
+    ).all()
+    sales_total = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in _sale_rows_grand_sage])
     limule_total = db.scalar(select(func.count()).select_from(LimuleInteraction)) or 0
     tickets_open = sum(1 for ticket in tickets if ticket.status in {"open", "in_progress"})
     tickets_critical = sum(1 for ticket in tickets if ticket.priority == "critical" and ticket.status != "closed")
@@ -952,7 +958,7 @@ async def admin_limule_chat(
     context_lines = [
         "Cockpit superadmin KOMPTA Grand Sage",
         f"Entreprises: {len(companies)} | Utilisateurs: {users_count} | Employés: {employees_count}",
-        f"Factures: {invoices_count} | CA plateforme: {float(sales_total):,.0f} (multi-devises)".replace(",", " "),
+        f"Factures: {invoices_count} | CA plateforme: {float(sales_total):,.0f} XAF (converti)".replace(",", " "),
         f"Tickets récents ouverts: {tickets_open} | critiques: {tickets_critical}",
         f"Alertes TERAS ouvertes: {len(alerts)} | Score TERAS moyen: {avg_teras}/100",
         f"Interactions Limule enregistrées: {limule_total}",

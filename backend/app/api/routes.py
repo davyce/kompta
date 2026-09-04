@@ -154,6 +154,7 @@ from app.services.business import (
     product_qr_payload,
 )
 from app.services import accounting as _accounting
+from app.services.currency import sum_amounts_xaf
 from app.services.deepseek import generate_declaration, generate_writing
 from app.services.deepseek import generate_contract_clauses
 from app.services.documents import create_document_from_upload, create_document_record, reanalyze_document
@@ -2206,6 +2207,9 @@ def create_sale(
         )
     ).first()
 
+    _pref_pos = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
+    _currency_pos = (_pref_pos.currency if _pref_pos and _pref_pos.currency else "XAF")
+
     sale = Sale(
         receipt_number=_next_receipt_number(db, current_user.company_id),
         payment_method=payment_method,
@@ -2216,6 +2220,7 @@ def create_sale(
         company_id=current_user.company_id,
         session_id=_open_session.id if _open_session else None,
         idempotency_key=payload.idempotency_key,
+        currency=_currency_pos,
     )
     total = 0.0
     db.add(sale)
@@ -2392,8 +2397,7 @@ def create_sale(
         payment_txn.sale_id = sale.id
 
     # ── Créer la transaction bancaire correspondante ──────────────────────
-    _pref_pos = db.scalars(select(UserPreference).where(UserPreference.user_id == current_user.id)).first()
-    _currency_pos = (_pref_pos.currency if _pref_pos and _pref_pos.currency else "XAF")
+    # (_pref_pos / _currency_pos déjà résolus plus haut, avant la création de `sale`)
     _method_labels = {
         "cash": "Espèces", "card": "Carte bancaire", "mobile_money": "Mobile Money",
         "zola": "Zola QR", "bank": "Virement bancaire", "paypal": "PayPal",
@@ -5211,7 +5215,14 @@ def admin_overview(
     alerts_open = db.scalar(
         select(func.count()).select_from(TerasAlert).where(TerasAlert.status == "open")
     ) or 0
-    sales_total = db.scalar(select(func.coalesce(func.sum(Sale.total_amount), 0))) or 0
+    # Converti en XAF ligne par ligne — les ventes sont saisies dans la devise
+    # locale du caissier (XAF/EUR/USD...) et un simple SUM() sans conversion
+    # fausserait le total plateforme (cf. bug remonté : total affiché trop
+    # faible car des ventes EUR/USD étaient comptées à leur valeur faciale).
+    sale_rows = db.execute(
+        select(Sale.total_amount, Sale.currency, Sale.company_id).where(Sale.status != "cancelled")
+    ).all()
+    sales_total = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in sale_rows])
     return {
         "companies": int(companies_count),
         "users": int(users_count),
@@ -5268,9 +5279,11 @@ def admin_company_detail(
     invoices_count = db.scalar(
         select(func.count()).select_from(Invoice).where(Invoice.company_id == company_id)
     ) or 0
-    sales_total = db.scalar(
-        select(func.coalesce(func.sum(Sale.total_amount), 0)).where(Sale.company_id == company_id)
-    ) or 0
+    company_sale_rows = db.execute(
+        select(Sale.total_amount, Sale.currency, Sale.company_id)
+        .where(Sale.company_id == company_id, Sale.status != "cancelled")
+    ).all()
+    sales_total = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in company_sale_rows])
     alerts = db.scalars(
         select(TerasAlert).where(TerasAlert.company_id == company_id).order_by(TerasAlert.created_at.desc())
     ).all()

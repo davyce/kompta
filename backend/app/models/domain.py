@@ -567,6 +567,11 @@ class Sale(TimestampMixin, Base):
     payment_account_label: Mapped[str] = mapped_column(String(160), default="")
     total_amount: Mapped[float] = mapped_column(Float, default=0)
     total_amount_cents: Mapped[int] = mapped_column(BigInteger, default=0)
+    # Devise de saisie (préférence du caissier au moment de la vente) —
+    # nécessaire pour agréger correctement les ventes multi-devises au niveau
+    # plateforme (cf. currency.convert_to_xaf) : un simple SUM(total_amount)
+    # sans cette colonne mélange XAF/EUR/USD et fausse tout total agrégé.
+    currency: Mapped[str] = mapped_column(String(10), default="XAF")
     status: Mapped[str] = mapped_column(String(40), default="paid")
     client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
     client_name: Mapped[str] = mapped_column(String(160), default="")

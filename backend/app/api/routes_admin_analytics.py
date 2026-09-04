@@ -34,6 +34,7 @@ from app.services.email import (
     send_test_email,
 )
 from app.services.readiness import build_production_preflight
+from app.services.currency import sum_amounts_xaf
 from app.models import (
     AuditLog,
     BroadcastLog,
@@ -186,8 +187,14 @@ def platform_analytics(
         )
         or 0.0
     )
-    total_sales_platform: float = (
-        db.scalar(select(func.sum(Sale.total_amount))) or 0.0
+    # Converti en XAF ligne par ligne (voir sum_amounts_xaf) — les ventes sont
+    # saisies dans la devise locale du caissier, un SUM() brut mélangerait les
+    # devises et fausserait le total plateforme.
+    _sale_rows_platform = db.execute(
+        select(Sale.total_amount, Sale.currency, Sale.company_id).where(Sale.status != "cancelled")
+    ).all()
+    total_sales_platform: float = sum_amounts_xaf(
+        db, [(r.total_amount, r.currency, r.company_id) for r in _sale_rows_platform]
     )
 
     # Score TERAS moyen (depuis les snapshots)
