@@ -180,12 +180,14 @@ def platform_analytics(
     ).all()
     companies_active_30d = len(set(active_company_ids_invoices) | set(active_company_ids_sales))
 
-    # Revenus plateforme
-    total_revenue_platform: float = (
-        db.scalar(
-            select(func.sum(Invoice.total_amount)).where(Invoice.status == "paid")
-        )
-        or 0.0
+    # Revenus plateforme — converti en XAF ligne par ligne (voir
+    # sum_amounts_xaf) : les factures peuvent être émises dans la devise
+    # locale de l'entreprise, un SUM() brut mélangerait les devises.
+    _invoice_rows_platform = db.execute(
+        select(Invoice.total_amount, Invoice.currency, Invoice.company_id).where(Invoice.status == "paid")
+    ).all()
+    total_revenue_platform: float = sum_amounts_xaf(
+        db, [(r.total_amount, r.currency, r.company_id) for r in _invoice_rows_platform]
     )
     # Converti en XAF ligne par ligne (voir sum_amounts_xaf) — les ventes sont
     # saisies dans la devise locale du caissier, un SUM() brut mélangerait les
@@ -247,13 +249,14 @@ def platform_analytics(
                 User.created_at < month_end,
             )
         ) or 0
-        rev = db.scalar(
-            select(func.sum(Invoice.total_amount)).where(
+        _rev_rows = db.execute(
+            select(Invoice.total_amount, Invoice.currency, Invoice.company_id).where(
                 Invoice.status == "paid",
                 Invoice.created_at >= month_start,
                 Invoice.created_at < month_end,
             )
-        ) or 0.0
+        ).all()
+        rev = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in _rev_rows])
 
         monthly_growth.append({
             "month": month_start.strftime("%b %Y"),

@@ -5215,14 +5215,23 @@ def admin_overview(
     alerts_open = db.scalar(
         select(func.count()).select_from(TerasAlert).where(TerasAlert.status == "open")
     ) or 0
-    # Converti en XAF ligne par ligne — les ventes sont saisies dans la devise
-    # locale du caissier (XAF/EUR/USD...) et un simple SUM() sans conversion
-    # fausserait le total plateforme (cf. bug remonté : total affiché trop
-    # faible car des ventes EUR/USD étaient comptées à leur valeur faciale).
+    # "Ventes totales" = chiffre d'affaires réalisé plateforme, toutes sources
+    # confondues (Caisse/POS + Facturation) — une entreprise qui facture sans
+    # jamais passer par la caisse était auparavant invisible dans ce total
+    # (cf. constat : total affiché ~436k alors que 668k de factures payées
+    # existaient déjà). Chaque ligne est convertie en XAF avant sommation
+    # (les montants sont saisis dans la devise locale du caissier/entreprise).
     sale_rows = db.execute(
         select(Sale.total_amount, Sale.currency, Sale.company_id).where(Sale.status != "cancelled")
     ).all()
-    sales_total = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in sale_rows])
+    invoice_rows = db.execute(
+        select(Invoice.total_amount, Invoice.currency, Invoice.company_id).where(Invoice.status == "paid")
+    ).all()
+    sales_total = sum_amounts_xaf(
+        db,
+        [(r.total_amount, r.currency, r.company_id) for r in sale_rows]
+        + [(r.total_amount, r.currency, r.company_id) for r in invoice_rows],
+    )
     return {
         "companies": int(companies_count),
         "users": int(users_count),
@@ -5283,7 +5292,15 @@ def admin_company_detail(
         select(Sale.total_amount, Sale.currency, Sale.company_id)
         .where(Sale.company_id == company_id, Sale.status != "cancelled")
     ).all()
-    sales_total = sum_amounts_xaf(db, [(r.total_amount, r.currency, r.company_id) for r in company_sale_rows])
+    company_invoice_rows = db.execute(
+        select(Invoice.total_amount, Invoice.currency, Invoice.company_id)
+        .where(Invoice.company_id == company_id, Invoice.status == "paid")
+    ).all()
+    sales_total = sum_amounts_xaf(
+        db,
+        [(r.total_amount, r.currency, r.company_id) for r in company_sale_rows]
+        + [(r.total_amount, r.currency, r.company_id) for r in company_invoice_rows],
+    )
     alerts = db.scalars(
         select(TerasAlert).where(TerasAlert.company_id == company_id).order_by(TerasAlert.created_at.desc())
     ).all()
