@@ -144,6 +144,10 @@ struct SubscriptionPurchaseView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(product.displayName).font(.body.weight(.semibold))
                 Text(product.description).font(.footnote).foregroundStyle(.secondary)
+                if let period = subscriptionPeriodLabel(product) {
+                    Text("\(product.displayPrice) — \(period), renouvellement automatique")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if purchasingProductID == product.id {
@@ -156,6 +160,21 @@ struct SubscriptionPurchaseView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    /// Formate la durée d'un abonnement (ex. "1 mois") — exigée par Apple
+    /// (Guideline 3.1.2(c)) en plus du titre et du prix déjà affichés.
+    private func subscriptionPeriodLabel(_ product: StoreKit.Product) -> String? {
+        guard let period = product.subscription?.subscriptionPeriod else { return nil }
+        let unit: String
+        switch period.unit {
+        case .day: unit = period.value > 1 ? "jours" : "jour"
+        case .week: unit = period.value > 1 ? "semaines" : "semaine"
+        case .month: unit = "mois"
+        case .year: unit = period.value > 1 ? "ans" : "an"
+        @unknown default: return nil
+        }
+        return "\(period.value) \(unit)"
     }
 
     private func purchase(_ product: StoreKit.Product) async {
