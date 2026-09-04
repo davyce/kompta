@@ -116,6 +116,18 @@ struct AdminOverviewView: View {
                     Spacer()
                     Text(fcfa(s.sales_total)).font(.title3.bold()).foregroundStyle(.green)
                 }
+                HStack {
+                    Image(systemName: "building.columns.fill").foregroundStyle(.blue)
+                    Text("Trésorerie").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(fcfa(s.treasury_total)).font(.title3.bold()).foregroundStyle(.blue)
+                }
+                HStack {
+                    Image(systemName: "shippingbox.fill").foregroundStyle(.orange)
+                    Text("Valeur d'inventaire").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(fcfa(s.inventory_total)).font(.title3.bold()).foregroundStyle(.orange)
+                }
             }
         }
     }

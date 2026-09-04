@@ -5232,6 +5232,29 @@ def admin_overview(
         [(r.total_amount, r.currency, r.company_id) for r in sale_rows]
         + [(r.total_amount, r.currency, r.company_id) for r in invoice_rows],
     )
+
+    # Trésorerie plateforme = Σ(crédits - débits) de toutes les transactions
+    # bancaires, converti en XAF ligne par ligne. `amount` est déjà signé
+    # (positif = crédit, négatif = débit) — cf. même logique que
+    # /reports/overview (treasury balance par entreprise).
+    treasury_rows = db.execute(
+        select(BankTransaction.amount, BankTransaction.currency, BankTransaction.company_id)
+    ).all()
+    treasury_total = sum_amounts_xaf(db, [(r.amount, r.currency, r.company_id) for r in treasury_rows])
+
+    # Valeur d'inventaire = Σ(stock × coût moyen pondéré) par produit,
+    # converti en XAF — valorisation au coût d'achat (standard comptable),
+    # pas au prix de vente catalogue.
+    inventory_rows = db.execute(
+        select(Product.stock_quantity, Product.average_cost_cents, Product.currency, Product.company_id)
+    ).all()
+    inventory_total = sum_amounts_xaf(
+        db,
+        [
+            ((r.stock_quantity or 0) * (r.average_cost_cents or 0) / 100.0, r.currency, r.company_id)
+            for r in inventory_rows
+        ],
+    )
     return {
         "companies": int(companies_count),
         "users": int(users_count),
@@ -5241,6 +5264,8 @@ def admin_overview(
         "tickets_critical": int(tickets_critical),
         "alerts_open": int(alerts_open),
         "sales_total": float(sales_total),
+        "treasury_total": float(treasury_total),
+        "inventory_total": float(inventory_total),
     }
 
 

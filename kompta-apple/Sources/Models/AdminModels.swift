@@ -18,6 +18,8 @@ struct AdminOverview: Codable {
     let tickets_critical: Int
     let alerts_open: Int
     let sales_total: Double
+    let treasury_total: Double
+    let inventory_total: Double
 }
 
 // MARK: - Companies
